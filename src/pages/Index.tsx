@@ -1,27 +1,13 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, GraduationCap, Users, Award, Calendar, BookOpen, Image, Bell } from "lucide-react";
+import { ArrowRight, BookOpen, Image, Bell, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
-import heroImage from "@/assets/hero-school.jpg";
 import logo from "@/assets/wenyasha-logo.jpg";
-
-const features = [
-  {
-    icon: GraduationCap,
-    title: "Academic Excellence",
-    description: "Comprehensive curriculum designed to nurture critical thinking and creativity.",
-  },
-  {
-    icon: Users,
-    title: "Expert Faculty",
-    description: "Dedicated teachers committed to bringing out the best in every student.",
-  },
-  {
-    icon: Award,
-    title: "Proven Results",
-    description: "Consistently outstanding performance in national and international examinations.",
-  },
-];
+import HeroCarousel from "@/components/home/HeroCarousel";
+import RemarksSection from "@/components/home/RemarksSection";
+import FeaturesSection from "@/components/home/FeaturesSection";
+import AdmissionsSection from "@/components/home/AdmissionsSection";
+import HighlightsSection from "@/components/home/HighlightsSection";
 
 const quickLinks = [
   { icon: BookOpen, title: "Academics", description: "Explore our curriculum", path: "/academics" },
@@ -58,15 +44,10 @@ const newsHighlights = [
 const Index = () => {
   return (
     <Layout>
-      {/* Hero Section */}
+      {/* Hero Section with Carousel */}
       <section className="relative min-h-[90vh] flex items-center">
-        {/* Background Image */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${heroImage})` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-forest-dark/95 via-forest-dark/80 to-forest-dark/40" />
-        </div>
+        {/* Background Carousel */}
+        <HeroCarousel />
 
         {/* Content */}
         <div className="container mx-auto px-4 relative z-10">
@@ -111,40 +92,17 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-card">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Why Choose Wenyasha?
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              We provide a nurturing environment where students thrive academically, 
-              socially, and personally.
-            </p>
-          </div>
+      {/* Highlights Section - Green cards */}
+      <HighlightsSection />
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <div 
-                key={index}
-                className="group p-8 rounded-2xl bg-background border border-border hover:border-accent/50 hover:shadow-elegant transition-all duration-300"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="h-14 w-14 rounded-xl bg-accent/10 flex items-center justify-center mb-6 group-hover:bg-accent group-hover:scale-110 transition-all duration-300">
-                  <feature.icon className="h-7 w-7 text-accent group-hover:text-accent-foreground transition-colors" />
-                </div>
-                <h3 className="font-heading text-xl font-semibold text-foreground mb-3">
-                  {feature.title}
-                </h3>
-                <p className="text-muted-foreground">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Remarks Section */}
+      <RemarksSection />
+
+      {/* Features Section */}
+      <FeaturesSection />
+
+      {/* Admissions Section */}
+      <AdmissionsSection />
 
       {/* Quick Links Section */}
       <section className="py-20 bg-secondary/50">
