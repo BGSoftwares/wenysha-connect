@@ -2,24 +2,24 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Import all carousel images
-import studentsOutdoor from "@/assets/students-outdoor.webp";
-import studentsClassroom from "@/assets/students-classroom.webp";
-import studentsBlazer from "@/assets/students-blazers.webp";
-import studentsSports from "@/assets/students-sports.webp";
-import studentsGroup from "@/assets/students-group.webp";
-import studentsExam from "@/assets/students-exam.webp";
-import studentsComputer from "@/assets/students-computer.webp";
-import africaDay from "@/assets/africa_day_wenyasha.jpg";
+import slideGroupClass from "@/assets/slide-group-class.webp";
+import slideBlazers from "@/assets/slide-blazers.webp";
+import slideSportsTeam from "@/assets/slide-sports-team.webp";
+import slideExam from "@/assets/slide-exam.webp";
+import slideOutdoorGroup from "@/assets/slide-outdoor-group.webp";
+import slidePrizeGiving from "@/assets/slide-prize-giving.jpeg";
+import slideAward from "@/assets/slide-award.jpeg";
+import slideStudentsSeated from "@/assets/slide-students-seated.jpeg";
 
 const slides = [
-  { image: studentsOutdoor, title: "Welcome to Wenyasha International School" },
-  { image: studentsClassroom, title: "Dedicated Students" },
-  { image: studentsBlazer, title: "Excellence in Education" },
-  { image: studentsSports, title: "Sports & Recreation" },
-  { image: studentsGroup, title: "Building Future Leaders" },
-  { image: studentsExam, title: "Academic Excellence" },
-  { image: studentsComputer, title: "Technology & Innovation" },
-  { image: africaDay, title: "Celebrating Our Heritage" },
+  { image: slideGroupClass, title: "Welcome to Wenyasha International School" },
+  { image: slideBlazers, title: "Excellence in Education" },
+  { image: slideSportsTeam, title: "Sports & Recreation" },
+  { image: slideExam, title: "Academic Focus" },
+  { image: slideOutdoorGroup, title: "Building Future Leaders" },
+  { image: slidePrizeGiving, title: "Celebrating Achievement" },
+  { image: slideAward, title: "Recognizing Excellence" },
+  { image: slideStudentsSeated, title: "Proud Students" },
 ];
 
 const HeroCarousel = () => {
@@ -46,7 +46,7 @@ const HeroCarousel = () => {
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="absolute inset-0 w-full h-full overflow-hidden">
       {/* Slides */}
       {slides.map((slide, index) => (
         <div
@@ -56,43 +56,52 @@ const HeroCarousel = () => {
           }`}
         >
           <div
-            className="absolute inset-0 bg-cover bg-center"
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{ backgroundImage: `url(${slide.image})` }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-forest-dark/95 via-forest-dark/80 to-forest-dark/40" />
+          {/* Overlay gradient for readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-forest-dark/80 via-forest-dark/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-forest-dark/60 via-transparent to-forest-dark/40" />
         </div>
       ))}
 
       {/* Navigation Arrows */}
       <button
         onClick={goToPrevious}
-        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-card/20 backdrop-blur-sm flex items-center justify-center text-primary-foreground hover:bg-card/40 transition-all"
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-accent/80 hover:text-accent-foreground transition-all border border-white/20"
         aria-label="Previous slide"
       >
         <ChevronLeft className="h-6 w-6" />
       </button>
       <button
         onClick={goToNext}
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-card/20 backdrop-blur-sm flex items-center justify-center text-primary-foreground hover:bg-card/40 transition-all"
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-accent/80 hover:text-accent-foreground transition-all border border-white/20"
         aria-label="Next slide"
       >
         <ChevronRight className="h-6 w-6" />
       </button>
 
       {/* Dot Indicators */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2">
         {slides.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
-            className={`h-2.5 rounded-full transition-all duration-300 ${
+            className={`h-3 rounded-full transition-all duration-300 ${
               index === currentSlide
-                ? "w-8 bg-accent"
-                : "w-2.5 bg-primary-foreground/50 hover:bg-primary-foreground/70"
+                ? "w-10 bg-accent shadow-lg shadow-accent/50"
+                : "w-3 bg-white/50 hover:bg-white/70"
             }`}
             aria-label={`Go to slide ${index + 1}`}
           />
         ))}
+      </div>
+
+      {/* Slide Title Indicator */}
+      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 text-center">
+        <p className="text-white/80 text-lg font-heading font-medium tracking-wide drop-shadow-lg">
+          {slides[currentSlide].title}
+        </p>
       </div>
     </div>
   );
