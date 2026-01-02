@@ -44,50 +44,73 @@ const newsHighlights = [
 const Index = () => {
   return (
     <Layout>
-      {/* Hero Section with Carousel */}
-      <section className="relative min-h-[90vh] flex items-center">
+      {/* Hero Section with Carousel - Full viewport height, connected to navbar */}
+      <section className="relative h-screen w-full">
         {/* Background Carousel */}
         <HeroCarousel />
 
-        {/* Content */}
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-2xl animate-slide-up">
-            <div className="flex items-center gap-4 mb-6">
-              <img 
-                src={logo} 
-                alt="Wenyasha Logo" 
-                className="h-20 w-20 object-contain bg-card rounded-xl p-2 shadow-lg"
-              />
-              <div>
-                <p className="text-accent font-semibold tracking-wider uppercase text-sm">
-                  Welcome to
-                </p>
-                <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground">
-                  Wenyasha International School
-                </h1>
+        {/* Content - positioned below navbar */}
+        <div className="absolute inset-0 flex items-center pt-20">
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="max-w-2xl animate-slide-up">
+              <div className="flex items-center gap-4 mb-6">
+                <img 
+                  src={logo} 
+                  alt="Wenyasha Logo" 
+                  className="h-24 w-24 object-contain bg-white/10 backdrop-blur-sm rounded-xl p-2 shadow-2xl border border-white/20"
+                />
+                <div>
+                  <p className="text-accent font-bold tracking-widest uppercase text-sm drop-shadow-lg">
+                    Welcome to
+                  </p>
+                  <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-white drop-shadow-lg">
+                    Wenyasha
+                  </h1>
+                  <h2 className="font-heading text-2xl md:text-3xl font-semibold text-accent drop-shadow-md">
+                    International School
+                  </h2>
+                </div>
+              </div>
+              
+              <p className="text-2xl md:text-3xl text-white/95 mb-4 font-heading italic drop-shadow-lg">
+                Smart • Innovative • Infinite
+              </p>
+              
+              <p className="text-lg text-white/85 mb-8 max-w-xl leading-relaxed drop-shadow-md">
+                Nurturing future leaders through excellence in education. Join our community 
+                of learners and discover your infinite potential.
+              </p>
+
+              <div className="flex flex-wrap gap-4">
+                <Button 
+                  size="xl" 
+                  className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold shadow-lg shadow-accent/30"
+                  asChild
+                >
+                  <Link to="/portal">
+                    Access Portal
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button 
+                  size="xl" 
+                  variant="outline"
+                  className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm font-semibold"
+                  asChild
+                >
+                  <Link to="/about">Learn More</Link>
+                </Button>
               </div>
             </div>
-            
-            <p className="text-xl md:text-2xl text-primary-foreground/90 mb-4 font-heading italic">
-              Smart • Innovative • Infinite
-            </p>
-            
-            <p className="text-lg text-primary-foreground/80 mb-8 max-w-xl">
-              Nurturing future leaders through excellence in education. Join our community 
-              of learners and discover your infinite potential.
-            </p>
+          </div>
+        </div>
 
-            <div className="flex flex-wrap gap-4">
-              <Button variant="hero" size="xl" asChild>
-                <Link to="/portal">
-                  Access Portal
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button variant="outline-light" size="xl" asChild>
-                <Link to="/about">Learn More</Link>
-              </Button>
-            </div>
+        {/* Bottom motto bar */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-r from-primary via-forest-dark to-primary py-4">
+          <div className="container mx-auto px-4 text-center">
+            <p className="text-white text-lg md:text-xl font-heading font-medium tracking-wide">
+              Equip & enable learners to develop their full potential.
+            </p>
           </div>
         </div>
       </section>
