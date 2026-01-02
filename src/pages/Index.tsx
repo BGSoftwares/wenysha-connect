@@ -8,6 +8,8 @@ import RemarksSection from "@/components/home/RemarksSection";
 import FeaturesSection from "@/components/home/FeaturesSection";
 import AdmissionsSection from "@/components/home/AdmissionsSection";
 import HighlightsSection from "@/components/home/HighlightsSection";
+import DepartmentsSection from "@/components/home/DepartmentsSection";
+import ClubsSection from "@/components/home/ClubsSection";
 
 const quickLinks = [
   { icon: BookOpen, title: "Academics", description: "Explore our curriculum", path: "/academics" },
@@ -94,8 +96,7 @@ const Index = () => {
                 </Button>
                 <Button 
                   size="xl" 
-                  variant="outline"
-                  className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm font-semibold"
+                  className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold shadow-lg shadow-accent/30"
                   asChild
                 >
                   <Link to="/about">Learn More</Link>
@@ -117,6 +118,12 @@ const Index = () => {
 
       {/* Highlights Section - Green cards */}
       <HighlightsSection />
+
+      {/* Departments Section */}
+      <DepartmentsSection />
+
+      {/* Clubs Section */}
+      <ClubsSection />
 
       {/* Remarks Section */}
       <RemarksSection />
