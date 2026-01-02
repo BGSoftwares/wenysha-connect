@@ -2,24 +2,24 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Import all carousel images
-import heroImage from "@/assets/hero-school.jpg";
+import studentsOutdoor from "@/assets/students-outdoor.webp";
+import studentsClassroom from "@/assets/students-classroom.webp";
+import studentsBlazer from "@/assets/students-blazers.webp";
+import studentsSports from "@/assets/students-sports.webp";
+import studentsGroup from "@/assets/students-group.webp";
+import studentsExam from "@/assets/students-exam.webp";
+import studentsComputer from "@/assets/students-computer.webp";
 import africaDay from "@/assets/africa_day_wenyasha.jpg";
-import chris from "@/assets/chris_wenyasha.jpg";
-import wenyasha from "@/assets/wenyasha.jpg";
-import classroom from "@/assets/carousel-classroom.jpg";
-import sports from "@/assets/carousel-sports.jpg";
-import lab from "@/assets/carousel-lab.jpg";
-import library from "@/assets/carousel-library.jpg";
 
 const slides = [
-  { image: heroImage, title: "Welcome to Wenyasha International School" },
+  { image: studentsOutdoor, title: "Welcome to Wenyasha International School" },
+  { image: studentsClassroom, title: "Dedicated Students" },
+  { image: studentsBlazer, title: "Excellence in Education" },
+  { image: studentsSports, title: "Sports & Recreation" },
+  { image: studentsGroup, title: "Building Future Leaders" },
+  { image: studentsExam, title: "Academic Excellence" },
+  { image: studentsComputer, title: "Technology & Innovation" },
   { image: africaDay, title: "Celebrating Our Heritage" },
-  { image: chris, title: "Excellence in Education" },
-  { image: wenyasha, title: "Building Future Leaders" },
-  { image: classroom, title: "Interactive Learning" },
-  { image: sports, title: "Sports & Athletics" },
-  { image: lab, title: "Science & Innovation" },
-  { image: library, title: "Knowledge & Discovery" },
 ];
 
 const HeroCarousel = () => {
