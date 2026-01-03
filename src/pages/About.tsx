@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
-import { BookOpen, GraduationCap, Award, Users, Target, Heart } from "lucide-react";
+import { BookOpen, GraduationCap, Award, Target, Heart, Users } from "lucide-react";
 import logo from "@/assets/wenyasha-logo.jpg";
+import StaffDirectory from "@/components/about/StaffDirectory";
 
 const values = [
   { icon: Target, title: "Excellence", description: "Striving for the highest standards in all endeavors." },
@@ -11,17 +12,10 @@ const values = [
 
 const achievements = [
   "National Mathematics Olympiad Champions 2025",
-  "Best Private School Award - Harare Province",
-  "100% Pass Rate in O-Level Examinations",
+  "Best Private School Award - Masvingo Province",
+  "100% Pass Rate in O-Level Examinations (ZIMSEC & Cambridge)",
   "Regional Debate Championship Winners",
   "Excellence in Sports - Inter-School Athletics",
-];
-
-const staff = [
-  { name: "Dr. Sarah Moyo", role: "Principal", image: null },
-  { name: "Mr. John Ndlovu", role: "Deputy Principal", image: null },
-  { name: "Mrs. Grace Chikwanda", role: "Head of Academics", image: null },
-  { name: "Mr. Peter Mukucha", role: "Head of Sports", image: null },
 ];
 
 const About = () => {
@@ -138,24 +132,7 @@ const About = () => {
       </section>
 
       {/* Staff Directory */}
-      <section className="py-20 bg-card">
-        <div className="container mx-auto px-4">
-          <h2 className="font-heading text-3xl font-bold text-foreground text-center mb-12">
-            Leadership Team
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {staff.map((member, index) => (
-              <div key={index} className="text-center">
-                <div className="h-32 w-32 rounded-full bg-primary/10 mx-auto mb-4 flex items-center justify-center">
-                  <Users className="h-12 w-12 text-primary/50" />
-                </div>
-                <h3 className="font-heading font-semibold text-foreground">{member.name}</h3>
-                <p className="text-sm text-muted-foreground">{member.role}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <StaffDirectory />
 
       {/* Achievements */}
       <section className="py-20 bg-gradient-hero">

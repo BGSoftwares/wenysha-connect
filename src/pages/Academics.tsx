@@ -1,15 +1,8 @@
 import { Layout } from "@/components/layout/Layout";
-import { BookOpen, Calculator, FlaskConical, Globe, Music, Dumbbell, Laptop, Upload, Download } from "lucide-react";
+import { BookOpen, Music, Dumbbell, Laptop, Upload, Download, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const subjects = [
-  { icon: Calculator, name: "Mathematics", description: "Advanced mathematical concepts and problem-solving skills." },
-  { icon: FlaskConical, name: "Sciences", description: "Physics, Chemistry, and Biology with practical experiments." },
-  { icon: BookOpen, name: "Languages", description: "English, Shona, and French language programs." },
-  { icon: Globe, name: "Humanities", description: "History, Geography, and Social Studies." },
-  { icon: Laptop, name: "Computer Science", description: "Programming, digital literacy, and IT skills." },
-  { icon: Music, name: "Creative Arts", description: "Music, Art, Drama, and Design." },
-];
+import CoreSubjectsSection from "@/components/academics/CoreSubjectsSection";
+import UniversityPathwaysSection from "@/components/academics/UniversityPathwaysSection";
 
 const resources = [
   { title: "Mathematics Notes - Grade 7", subject: "Mathematics", type: "PDF", size: "2.3 MB" },
@@ -37,10 +30,16 @@ const Academics = () => {
             Academic Programs
           </h1>
           <p className="text-xl text-primary-foreground/80 max-w-2xl mx-auto">
-            Comprehensive curriculum designed to prepare students for success in a global world.
+            Comprehensive ZIMSEC and Cambridge International curriculum designed to prepare students for success globally.
           </p>
         </div>
       </section>
+
+      {/* Core Subjects Section */}
+      <CoreSubjectsSection />
+
+      {/* University Pathways Section */}
+      <UniversityPathwaysSection />
 
       {/* Curriculum Overview */}
       <section className="py-20 bg-card">
@@ -50,26 +49,25 @@ const Academics = () => {
               Our Curriculum
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              We follow the Cambridge International Curriculum, enhanced with local 
+              We follow the ZIMSEC and Cambridge International Curriculum, enhanced with local 
               content to provide a well-rounded education.
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {subjects.map((subject, index) => (
-              <div 
-                key={index}
-                className="p-6 rounded-xl bg-background border border-border hover:border-primary/30 hover:shadow-elegant transition-all group"
-              >
-                <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary transition-colors">
-                  <subject.icon className="h-7 w-7 text-primary group-hover:text-primary-foreground transition-colors" />
-                </div>
-                <h3 className="font-heading text-xl font-semibold text-foreground mb-2">
-                  {subject.name}
-                </h3>
-                <p className="text-muted-foreground text-sm">{subject.description}</p>
-              </div>
-            ))}
+          {/* Dual Curriculum Info */}
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <div className="p-6 rounded-xl bg-primary/5 border border-primary/20">
+              <h3 className="font-heading font-bold text-lg text-primary mb-2">ZIMSEC Programme</h3>
+              <p className="text-sm text-muted-foreground">
+                Zimbabwe Schools Examination Council curriculum preparing students for national examinations with locally relevant content and practical skills.
+              </p>
+            </div>
+            <div className="p-6 rounded-xl bg-accent/5 border border-accent/20">
+              <h3 className="font-heading font-bold text-lg text-accent mb-2">Cambridge International</h3>
+              <p className="text-sm text-muted-foreground">
+                Internationally recognized qualifications opening doors to universities worldwide with rigorous academic standards.
+              </p>
+            </div>
           </div>
         </div>
       </section>
