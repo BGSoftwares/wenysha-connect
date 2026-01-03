@@ -37,11 +37,13 @@ const Portal = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Demo: redirect to student dashboard for student portal
+    // Demo: redirect based on portal type
     if (selectedPortal === "student") {
       navigate("/student-dashboard");
-    } else {
-      alert("Teacher and Admin portals require backend integration. Connect to Lovable Cloud to enable authentication.");
+    } else if (selectedPortal === "teacher") {
+      navigate("/teacher-dashboard");
+    } else if (selectedPortal === "admin") {
+      navigate("/admin-dashboard");
     }
   };
 
