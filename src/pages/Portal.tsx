@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { GraduationCap, Users, Shield, Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ const Portal = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const navigate = useNavigate();
 
   const portals = [
     { 
@@ -36,8 +37,12 @@ const Portal = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Login logic would go here
-    alert("Login functionality requires backend integration. Connect to Supabase to enable authentication.");
+    // Demo: redirect to student dashboard for student portal
+    if (selectedPortal === "student") {
+      navigate("/student-dashboard");
+    } else {
+      alert("Teacher and Admin portals require backend integration. Connect to Lovable Cloud to enable authentication.");
+    }
   };
 
   if (selectedPortal) {
