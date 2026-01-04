@@ -1,40 +1,21 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import AdminSidebar from "@/components/admin/AdminSidebar";
+import AdminHeader from "@/components/admin/AdminHeader";
+import DashboardOverview from "@/components/admin/DashboardOverview";
+import UsersRolesSection from "@/components/admin/UsersRolesSection";
+import SettingsSection from "@/components/admin/SettingsSection";
+import ProfileSection from "@/components/admin/ProfileSection";
 import { 
-  Home, 
-  Users, 
-  BookOpen, 
-  GraduationCap,
-  Calendar, 
-  Settings, 
-  Bell, 
-  LogOut,
-  Plus,
-  Edit,
-  Trash2,
-  Image,
-  School,
-  UserPlus,
-  ClipboardList,
+  Plus, 
+  Edit, 
+  Trash2, 
+  Search, 
   User,
-  Search,
-  ChevronDown
+  Image
 } from "lucide-react";
-import logo from "@/assets/wenyasha-logo.jpg";
 import { Button } from "@/components/ui/button";
 
-const navigation = [
-  { name: "Dashboard", icon: Home, id: "dashboard" },
-  { name: "Students", icon: GraduationCap, id: "students" },
-  { name: "Teachers", icon: Users, id: "teachers" },
-  { name: "Classes", icon: School, id: "classes" },
-  { name: "Subjects", icon: BookOpen, id: "subjects" },
-  { name: "Allocations", icon: ClipboardList, id: "allocations" },
-  { name: "Gallery", icon: Image, id: "gallery" },
-  { name: "Timetable", icon: Calendar, id: "timetable" },
-  { name: "Settings", icon: Settings, id: "settings" },
-];
-
+// Mock data
 const mockStudents = [
   { id: 1, name: "John Moyo", class: "Form 4A", gender: "Male", status: "Active" },
   { id: 2, name: "Sarah Ndlovu", class: "Form 3B", gender: "Female", status: "Active" },
@@ -81,132 +62,42 @@ const mockGalleryImages = [
 
 const AdminDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showModal, setShowModal] = useState<string | null>(null);
 
-  const renderDashboard = () => (
-    <div className="space-y-6">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Students</p>
-              <p className="text-3xl font-bold text-foreground mt-1">1,245</p>
-            </div>
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <GraduationCap className="h-6 w-6 text-primary" />
-            </div>
-          </div>
-          <p className="text-xs text-green-600 mt-2">+12 new this term</p>
-        </div>
-
-        <div className="bg-card rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Teachers</p>
-              <p className="text-3xl font-bold text-foreground mt-1">48</p>
-            </div>
-            <div className="h-12 w-12 rounded-full bg-accent/20 flex items-center justify-center">
-              <Users className="h-6 w-6 text-accent-foreground" />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">Across 8 departments</p>
-        </div>
-
-        <div className="bg-card rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Classes</p>
-              <p className="text-3xl font-bold text-foreground mt-1">32</p>
-            </div>
-            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-              <School className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">Forms 1-6</p>
-        </div>
-
-        <div className="bg-card rounded-xl border border-border p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Subjects Offered</p>
-              <p className="text-3xl font-bold text-foreground mt-1">24</p>
-            </div>
-            <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
-              <BookOpen className="h-6 w-6 text-amber-600" />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">ZIMSEC & Cambridge</p>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-card rounded-xl border border-border p-6">
-        <h2 className="font-heading font-bold text-lg text-foreground mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Button onClick={() => setShowModal("addStudent")} variant="outline" className="h-auto py-4 flex flex-col gap-2">
-            <UserPlus className="h-6 w-6" />
-            <span>Enroll Student</span>
-          </Button>
-          <Button onClick={() => setActiveNav("allocations")} variant="outline" className="h-auto py-4 flex flex-col gap-2">
-            <ClipboardList className="h-6 w-6" />
-            <span>Allocate Class</span>
-          </Button>
-          <Button onClick={() => setActiveNav("gallery")} variant="outline" className="h-auto py-4 flex flex-col gap-2">
-            <Image className="h-6 w-6" />
-            <span>Add to Gallery</span>
-          </Button>
-          <Button onClick={() => setActiveNav("timetable")} variant="outline" className="h-auto py-4 flex flex-col gap-2">
-            <Calendar className="h-6 w-6" />
-            <span>View Timetable</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="font-heading font-bold text-lg text-foreground mb-4">Recent Enrollments</h2>
-          <div className="space-y-3">
-            {mockStudents.slice(0, 4).map((student) => (
-              <div key={student.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground text-sm">{student.name}</p>
-                    <p className="text-xs text-muted-foreground">{student.class}</p>
-                  </div>
-                </div>
-                <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-700">{student.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="font-heading font-bold text-lg text-foreground mb-4">Class Capacity Overview</h2>
-          <div className="space-y-3">
-            {mockClasses.slice(0, 4).map((cls) => (
-              <div key={cls.id} className="p-3 rounded-lg bg-secondary/30">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-medium text-foreground text-sm">{cls.name}</p>
-                  <span className="text-xs text-muted-foreground">{cls.enrolled}/{cls.capacity}</span>
-                </div>
-                <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${(cls.enrolled / cls.capacity) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const getPageTitle = () => {
+    switch (activeNav) {
+      case "dashboard": return "Admin Dashboard";
+      case "students": 
+      case "admission":
+      case "promotion": return "Students";
+      case "teachers":
+      case "add-teacher": return "Teachers";
+      case "parents": return "Parents";
+      case "library": return "Library";
+      case "account": return "Account";
+      case "classes":
+      case "add-class": return "Classes";
+      case "subjects":
+      case "add-subject": return "Subjects";
+      case "timetable": return "Class Routine";
+      case "attendance": return "Attendance";
+      case "exam": return "Exam";
+      case "transport": return "Transport";
+      case "hostel": return "Hostel";
+      case "notice": return "Notice";
+      case "message": return "Messages";
+      case "gallery": return "Gallery";
+      case "map": return "Map";
+      case "users-roles":
+      case "roles": return "Users & Roles";
+      case "settings":
+      case "system-setup":
+      case "cache": return "Settings";
+      case "profile": return "Profile";
+      default: return "Dashboard";
+    }
+  };
 
   const renderStudents = () => (
     <div className="space-y-6">
@@ -464,7 +355,6 @@ const AdminDashboard = () => {
           </div>
         ))}
         
-        {/* Add Image Card */}
         <button 
           onClick={() => setShowModal("addGalleryImage")}
           className="aspect-[4/3] rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-colors"
@@ -527,92 +417,67 @@ const AdminDashboard = () => {
     );
   };
 
+  const renderPlaceholder = (title: string) => (
+    <div className="flex flex-col items-center justify-center h-64 bg-card rounded-xl border border-border">
+      <h2 className="font-heading text-xl font-bold text-foreground mb-2">{title}</h2>
+      <p className="text-muted-foreground text-sm">This section is coming soon. Enable Lovable Cloud for full functionality.</p>
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeNav) {
-      case "dashboard": return renderDashboard();
-      case "students": return renderStudents();
-      case "teachers": return renderTeachers();
-      case "classes": return renderClasses();
-      case "subjects": return renderSubjects();
+      case "dashboard": return <DashboardOverview />;
+      case "students":
+      case "admission":
+      case "promotion": return renderStudents();
+      case "teachers":
+      case "add-teacher": return renderTeachers();
+      case "classes":
+      case "add-class": return renderClasses();
+      case "subjects":
+      case "add-subject": return renderSubjects();
       case "allocations": return renderAllocations();
       case "gallery": return renderGallery();
       case "timetable": return renderTimetable();
-      default: return renderDashboard();
+      case "users-roles":
+      case "roles": return <UsersRolesSection activeSubNav={activeNav} />;
+      case "settings":
+      case "system-setup":
+      case "cache": return <SettingsSection activeSubNav={activeNav} />;
+      case "profile": return <ProfileSection />;
+      case "parents": return renderPlaceholder("Parents Management");
+      case "library": return renderPlaceholder("Library Management");
+      case "account": return renderPlaceholder("Account & Finance");
+      case "attendance": return renderPlaceholder("Attendance Management");
+      case "exam": return renderPlaceholder("Exam Management");
+      case "transport": return renderPlaceholder("Transport Management");
+      case "hostel": return renderPlaceholder("Hostel Management");
+      case "notice": return renderPlaceholder("Notice Board");
+      case "message": return renderPlaceholder("Messages");
+      case "map": return renderPlaceholder("School Map");
+      default: return <DashboardOverview />;
     }
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Sidebar */}
-      <aside className="w-64 bg-primary text-primary-foreground flex flex-col">
-        <div className="p-6 border-b border-primary-foreground/10">
-          <div className="flex items-center gap-3">
-            <img src={logo} alt="Wenyasha" className="h-10 w-10 rounded-lg object-contain bg-card" />
-            <div>
-              <h1 className="font-heading font-bold text-lg">Admin Portal</h1>
-              <p className="text-xs text-primary-foreground/70">Super Administrator</p>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen flex bg-background w-full">
+      <AdminSidebar 
+        activeNav={activeNav} 
+        setActiveNav={setActiveNav} 
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+      />
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navigation.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveNav(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${
-                activeNav === item.id
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-primary-foreground/80 hover:bg-primary-foreground/10"
-              }`}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </button>
-          ))}
-        </nav>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <AdminHeader 
+          title={getPageTitle()} 
+          breadcrumb={`Home > ${getPageTitle()}`}
+        />
 
-        <div className="p-4 border-t border-primary-foreground/10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-              <User className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="font-medium text-sm">Admin User</p>
-              <p className="text-xs text-primary-foreground/70">Super Admin</p>
-            </div>
-          </div>
-          <Link
-            to="/portal"
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-accent text-accent-foreground font-medium hover:bg-accent/90 transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Link>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <header className="bg-card border-b border-border p-6 flex items-center justify-between sticky top-0 z-10">
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground">
-              {navigation.find(n => n.id === activeNav)?.name || "Dashboard"}
-            </h1>
-            <p className="text-muted-foreground text-sm">Manage school operations</p>
-          </div>
-          <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
-            <Bell className="h-6 w-6 text-muted-foreground" />
-            <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-              5
-            </span>
-          </button>
-        </header>
-
-        <div className="p-6">
+        <main className="flex-1 overflow-auto p-6">
           {renderContent()}
-        </div>
-      </main>
+        </main>
+      </div>
 
       {/* Modal Placeholder */}
       {showModal && (
