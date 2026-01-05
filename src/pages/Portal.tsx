@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
-import { GraduationCap, Users, Shield, Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
+import { GraduationCap, Users, Shield, Eye, EyeOff, Mail, Lock, ArrowLeft, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/wenyasha-logo.jpg";
 
-type PortalType = "student" | "teacher" | "admin" | null;
+type PortalType = "student" | "teacher" | "admin" | "accounts" | null;
 
 const Portal = () => {
   const [selectedPortal, setSelectedPortal] = useState<PortalType>(null);
@@ -33,6 +33,12 @@ const Portal = () => {
       title: "Admin Portal", 
       description: "Manage school operations and data" 
     },
+    { 
+      type: "accounts" as PortalType, 
+      icon: Wallet, 
+      title: "Accounts Portal", 
+      description: "Manage fees, payments and finances" 
+    },
   ];
 
   const handleLogin = (e: React.FormEvent) => {
@@ -44,6 +50,8 @@ const Portal = () => {
       navigate("/teacher-dashboard");
     } else if (selectedPortal === "admin") {
       navigate("/admin-dashboard");
+    } else if (selectedPortal === "accounts") {
+      navigate("/accounts-dashboard");
     }
   };
 
@@ -130,7 +138,13 @@ const Portal = () => {
                   </Button>
                 </form>
 
-                <div className="mt-6 pt-6 border-t border-border text-center">
+                <div className="mt-6 pt-6 border-t border-border text-center space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Don't have an account?{" "}
+                    <Link to="/signup" className="text-primary hover:underline font-medium">
+                      Sign Up
+                    </Link>
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     Need help? Contact{" "}
                     <a href="mailto:support@wenyasha.edu.zw" className="text-primary hover:underline">
