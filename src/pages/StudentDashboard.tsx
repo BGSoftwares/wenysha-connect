@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import logo from "@/assets/wenyasha-logo.jpg";
 import ReportCardSection from "@/components/student/ReportCardSection";
+import StudentFeesSection from "@/components/student/StudentFeesSection";
+import { calculateGrade } from "@/lib/grading";
 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
@@ -31,10 +33,10 @@ const navigation = [
 ];
 
 const recentResults = [
-  { subject: "Mathematics", score: 85, grade: "A", trend: "up" },
-  { subject: "English", score: 78, grade: "B", trend: "up" },
-  { subject: "Physics", score: 72, grade: "B", trend: "down" },
-  { subject: "Chemistry", score: 68, grade: "C", trend: "down" },
+  { subject: "Mathematics", score: 85 },
+  { subject: "English", score: 78 },
+  { subject: "Physics", score: 72 },
+  { subject: "Chemistry", score: 48 },
 ];
 
 const assignments = [
@@ -212,32 +214,33 @@ const StudentDashboard = () => {
             </button>
           </div>
           <div className="space-y-4">
-            {recentResults.map((result, index) => (
-              <div key={index} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <BookOpen className="h-5 w-5 text-primary" />
+            {recentResults.map((result, index) => {
+              const gradeInfo = calculateGrade(result.score);
+              const prevScore = index === 0 ? 80 : index === 1 ? 75 : index === 2 ? 75 : 52;
+              const trend = result.score >= prevScore ? "up" : "down";
+              return (
+                <div key={index} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-foreground">{result.subject}</h4>
+                    <p className="text-xs text-muted-foreground">Latest assessment</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-foreground">{result.score}%</p>
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${gradeInfo.bgColor} ${gradeInfo.color}`}>
+                      Grade {gradeInfo.grade}
+                    </span>
+                  </div>
+                  {trend === "up" ? (
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  )}
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-foreground">{result.subject}</h4>
-                  <p className="text-xs text-muted-foreground">Latest assessment</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-foreground">{result.score}%</p>
-                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                    result.grade === "A" ? "bg-green-100 text-green-700" :
-                    result.grade === "B" ? "bg-blue-100 text-blue-700" :
-                    "bg-amber-100 text-amber-700"
-                  }`}>
-                    Grade {result.grade}
-                  </span>
-                </div>
-                {result.trend === "up" ? (
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-red-500" />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -299,6 +302,7 @@ const StudentDashboard = () => {
     switch (activeNav) {
       case "timetable": return renderTimetable();
       case "report-card": return <ReportCardSection />;
+      case "fees": return <StudentFeesSection />;
       case "dashboard": 
       default: return renderDashboard();
     }
@@ -364,7 +368,10 @@ const StudentDashboard = () => {
         <header className="bg-card border-b border-border p-6 flex items-center justify-between sticky top-0 z-10">
           <div>
           <h1 className="font-heading text-2xl font-bold text-foreground">
-              {activeNav === "timetable" ? "My Timetable" : activeNav === "report-card" ? "Report Card" : "Welcome back, John!"}
+              {activeNav === "timetable" ? "My Timetable" : 
+               activeNav === "report-card" ? "Report Card" : 
+               activeNav === "fees" ? "My Fees & Payments" :
+               "Welcome back, John!"}
             </h1>
             <p className="text-muted-foreground text-sm">Form 4A • Term 1 2024</p>
           </div>
