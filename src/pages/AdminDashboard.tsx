@@ -5,6 +5,8 @@ import DashboardOverview from "@/components/admin/DashboardOverview";
 import UsersRolesSection from "@/components/admin/UsersRolesSection";
 import SettingsSection from "@/components/admin/SettingsSection";
 import ProfileSection from "@/components/admin/ProfileSection";
+import ExamManagementSection from "@/components/admin/ExamManagementSection";
+import PendingApprovalsSection from "@/components/admin/PendingApprovalsSection";
 import { 
   Plus, 
   Edit, 
@@ -82,7 +84,9 @@ const AdminDashboard = () => {
       case "add-subject": return "Subjects";
       case "timetable": return "Class Routine";
       case "attendance": return "Attendance";
-      case "exam": return "Exam";
+      case "exam":
+      case "exam-management": return "Exam Management";
+      case "pending-approvals": return "Pending Approvals";
       case "transport": return "Transport";
       case "hostel": return "Hostel";
       case "notice": return "Notice";
@@ -449,7 +453,9 @@ const AdminDashboard = () => {
       case "library": return renderPlaceholder("Library Management");
       case "account": return renderPlaceholder("Account & Finance");
       case "attendance": return renderPlaceholder("Attendance Management");
-      case "exam": return renderPlaceholder("Exam Management");
+      case "exam":
+      case "exam-management": return <ExamManagementSection />;
+      case "pending-approvals": return <PendingApprovalsSection />;
       case "transport": return renderPlaceholder("Transport Management");
       case "hostel": return renderPlaceholder("Hostel Management");
       case "notice": return renderPlaceholder("Notice Board");
