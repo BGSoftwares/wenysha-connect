@@ -2,14 +2,12 @@ import { useState } from "react";
 import { Download, Printer, QrCode, Calendar, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/wenyasha-logo.jpg";
+import { calculateGrade, getGradeColorClasses, GRADING_SCALE } from "@/lib/grading";
 
 interface SubjectResult {
   subject: string;
   marks: number;
   scored: number;
-  percentage: string;
-  grade: number;
-  comment: string;
 }
 
 interface ReportCardData {
@@ -45,13 +43,13 @@ const mockReportCard: ReportCardData = {
   totalSubjects: 7,
   date: "2024-03-15",
   results: [
-    { subject: "Family And Religious Studies", marks: 100, scored: 86, percentage: "86.00%", grade: 1, comment: "Excellent" },
-    { subject: "Food Technology And Design", marks: 100, scored: 56, percentage: "56.00%", grade: 5, comment: "Good effort" },
-    { subject: "Shona", marks: 100, scored: 29, percentage: "29.00%", grade: 9, comment: "Poorly done" },
-    { subject: "English Language", marks: 100, scored: 66, percentage: "66.00%", grade: 3, comment: "Well Done" },
-    { subject: "Mathematics", marks: 100, scored: 54, percentage: "54.00%", grade: 6, comment: "Good" },
-    { subject: "Combined Science", marks: 100, scored: 68, percentage: "68.00%", grade: 3, comment: "Well Done" },
-    { subject: "ICT", marks: 100, scored: 58, percentage: "58.00%", grade: 5, comment: "Good effort" },
+    { subject: "Family And Religious Studies", marks: 100, scored: 86 },
+    { subject: "Food Technology And Design", marks: 100, scored: 56 },
+    { subject: "Shona", marks: 100, scored: 29 },
+    { subject: "English Language", marks: 100, scored: 66 },
+    { subject: "Mathematics", marks: 100, scored: 54 },
+    { subject: "Combined Science", marks: 100, scored: 68 },
+    { subject: "ICT", marks: 100, scored: 58 },
   ],
   teacherComment: "John has shown great improvement this term. Keep up the good work!",
   headComment: "A commendable performance. Continue striving for excellence.",
@@ -67,16 +65,16 @@ const ReportCardSection = () => {
   const [selectedTerm, setSelectedTerm] = useState("Term 1 2024");
   const reportCard = mockReportCard;
 
-  const getGradeColor = (grade: number) => {
-    if (grade <= 2) return "text-green-600 bg-green-50";
-    if (grade <= 4) return "text-blue-600 bg-blue-50";
-    if (grade <= 6) return "text-amber-600 bg-amber-50";
-    return "text-red-600 bg-red-50";
-  };
-
   const calculateAverage = () => {
     const total = reportCard.results.reduce((sum, r) => sum + r.scored, 0);
     return (total / reportCard.results.length).toFixed(2);
+  };
+
+  const countPassed = () => {
+    return reportCard.results.filter(r => {
+      const percentage = (r.scored / r.marks) * 100;
+      return percentage >= 40;
+    }).length;
   };
 
   return (
@@ -125,7 +123,7 @@ const ReportCardSection = () => {
               <p className="text-sm text-muted-foreground">Grade: {reportCard.grade}, {reportCard.class}</p>
               <p className="text-sm text-muted-foreground">Exam: {reportCard.exam}</p>
               <p className="text-sm text-muted-foreground">Position In Class: {reportCard.position} out of {reportCard.totalStudents}</p>
-              <p className="text-sm text-muted-foreground">Passed: {reportCard.passed} out of {reportCard.totalSubjects}</p>
+              <p className="text-sm text-muted-foreground">Passed: {countPassed()} out of {reportCard.results.length}</p>
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 Date: {new Date(reportCard.date).toLocaleDateString()}
@@ -164,37 +162,46 @@ const ReportCardSection = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {reportCard.results.map((result, idx) => (
-                <tr key={idx} className="hover:bg-secondary/30 transition-colors">
-                  <td className="px-4 py-3 text-sm font-medium text-foreground">{result.subject}</td>
-                  <td className="px-4 py-3 text-sm text-center text-muted-foreground">{result.marks}</td>
-                  <td className="px-4 py-3 text-sm text-center font-medium text-foreground">{result.scored.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm text-center text-muted-foreground">{result.percentage}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${getGradeColor(result.grade)}`}>
-                      {result.grade}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{result.comment}</td>
-                </tr>
-              ))}
+              {reportCard.results.map((result, idx) => {
+                const percentage = (result.scored / result.marks) * 100;
+                const gradeInfo = calculateGrade(percentage);
+                return (
+                  <tr key={idx} className="hover:bg-secondary/30 transition-colors">
+                    <td className="px-4 py-3 text-sm font-medium text-foreground">{result.subject}</td>
+                    <td className="px-4 py-3 text-sm text-center text-muted-foreground">{result.marks}</td>
+                    <td className="px-4 py-3 text-sm text-center font-medium text-foreground">{result.scored.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm text-center text-muted-foreground">{percentage.toFixed(2)}%</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${gradeInfo.bgColor} ${gradeInfo.color}`}>
+                        {gradeInfo.grade}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{gradeInfo.meaning}</td>
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot className="bg-secondary/50">
-              <tr>
-                <td className="px-4 py-3 text-sm font-bold text-foreground">Average</td>
-                <td className="px-4 py-3 text-sm text-center text-muted-foreground">-</td>
-                <td className="px-4 py-3 text-sm text-center font-bold text-foreground">{calculateAverage()}</td>
-                <td className="px-4 py-3 text-sm text-center font-bold text-foreground">{calculateAverage()}%</td>
-                <td className="px-4 py-3 text-center">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-primary/10 text-primary text-sm font-medium">
-                    <Award className="h-3 w-3" />
-                    Overall
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm font-medium text-foreground">
-                  {parseFloat(calculateAverage()) >= 60 ? "Good Performance" : "Needs Improvement"}
-                </td>
-              </tr>
+              {(() => {
+                const avg = parseFloat(calculateAverage());
+                const avgGrade = calculateGrade(avg);
+                return (
+                  <tr>
+                    <td className="px-4 py-3 text-sm font-bold text-foreground">Average</td>
+                    <td className="px-4 py-3 text-sm text-center text-muted-foreground">-</td>
+                    <td className="px-4 py-3 text-sm text-center font-bold text-foreground">{calculateAverage()}</td>
+                    <td className="px-4 py-3 text-sm text-center font-bold text-foreground">{calculateAverage()}%</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${avgGrade.bgColor} ${avgGrade.color}`}>
+                        {avgGrade.grade}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-foreground">
+                      {avgGrade.meaning}
+                    </td>
+                  </tr>
+                );
+              })()}
             </tfoot>
           </table>
         </div>

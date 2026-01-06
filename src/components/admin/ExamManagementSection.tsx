@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, Edit, Trash2, Search, Calendar, BookOpen, Users, CheckCircle, Clock, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { calculateGrade, GRADING_SCALE } from "@/lib/grading";
 
 interface Exam {
   id: string;
@@ -480,12 +481,29 @@ const ExamManagementSection = () => {
               </select>
             </div>
 
+            {/* Grading Scale Reference */}
+            <div className="bg-secondary/30 rounded-xl p-4 mb-6">
+              <h4 className="font-semibold text-foreground text-sm mb-3">Grading Scale Reference</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                {GRADING_SCALE.map((item) => {
+                  const gradeInfo = calculateGrade(parseInt(item.range.split(' ')[0]) + 1);
+                  return (
+                    <div key={item.grade} className={`p-2 rounded-lg text-center ${gradeInfo.bgColor}`}>
+                      <span className={`font-bold text-lg ${gradeInfo.color}`}>{item.grade}</span>
+                      <p className="text-xs text-muted-foreground">{item.range}%</p>
+                      <p className="text-xs font-medium text-foreground">{item.meaning}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="bg-secondary/30 rounded-xl p-4 mb-6">
               <p className="text-sm text-muted-foreground text-center">
                 Select a class and subject to load students and enter marks.
               </p>
               <p className="text-xs text-muted-foreground text-center mt-2">
-                Note: This feature requires backend integration to save marks permanently.
+                Grades are automatically calculated: A (75-100), B (60-74), C (50-59), D (45-49), E (40-44), U (0-39)
               </p>
             </div>
 
