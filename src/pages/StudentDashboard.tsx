@@ -14,13 +14,16 @@ import {
   Users,
   CheckCircle,
   Clock,
-  User
+  User,
+  Award
 } from "lucide-react";
 import logo from "@/assets/wenyasha-logo.jpg";
+import ReportCardSection from "@/components/student/ReportCardSection";
 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
   { name: "My Results", icon: FileText, id: "results" },
+  { name: "Report Card", icon: Award, id: "report-card" },
   { name: "E-Learning", icon: BookOpen, id: "elearning" },
   { name: "Fees", icon: DollarSign, id: "fees" },
   { name: "Timetable", icon: Calendar, id: "timetable" },
@@ -295,6 +298,7 @@ const StudentDashboard = () => {
   const renderContent = () => {
     switch (activeNav) {
       case "timetable": return renderTimetable();
+      case "report-card": return <ReportCardSection />;
       case "dashboard": 
       default: return renderDashboard();
     }
@@ -359,8 +363,8 @@ const StudentDashboard = () => {
         {/* Header */}
         <header className="bg-card border-b border-border p-6 flex items-center justify-between sticky top-0 z-10">
           <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground">
-              {activeNav === "timetable" ? "My Timetable" : "Welcome back, John!"}
+          <h1 className="font-heading text-2xl font-bold text-foreground">
+              {activeNav === "timetable" ? "My Timetable" : activeNav === "report-card" ? "Report Card" : "Welcome back, John!"}
             </h1>
             <p className="text-muted-foreground text-sm">Form 4A • Term 1 2024</p>
           </div>

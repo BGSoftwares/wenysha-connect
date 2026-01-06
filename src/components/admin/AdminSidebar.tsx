@@ -79,7 +79,20 @@ const navigation: NavItem[] = [
   },
   { name: "Class Routine", icon: Calendar, id: "timetable" },
   { name: "Attendance", icon: ClipboardList, id: "attendance" },
-  { name: "Exam", icon: FileText, id: "exam" },
+  { 
+    name: "Exam", 
+    icon: FileText, 
+    id: "exam",
+    children: [
+      { name: "All Exams", id: "exam" },
+      { name: "Exam Management", id: "exam-management" },
+    ]
+  },
+  { 
+    name: "Approvals", 
+    icon: UserCog, 
+    id: "pending-approvals",
+  },
   { name: "Transport", icon: Bus, id: "transport" },
   { name: "Hostel", icon: Building, id: "hostel" },
   { name: "Notice", icon: MessageSquare, id: "notice" },
