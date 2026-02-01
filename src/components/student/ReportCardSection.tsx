@@ -127,7 +127,7 @@ const ReportCardSection = () => {
       </div>
 
       {/* Report Card Document */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden print:border-none">
+      <div id="report-card-content" ref={reportCardRef} className="bg-card rounded-xl border border-border overflow-hidden print:border-none">
         {/* Report Card Header */}
         <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-6 border-b border-border">
           <div className="text-center mb-6">

@@ -385,6 +385,14 @@ const StudentFeesSection = () => {
           </div>
         </div>
       )}
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        balance={summary.balance}
+        studentName={studentInfo.name}
+      />
     </div>
   );
 };
