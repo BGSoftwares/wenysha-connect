@@ -64,7 +64,22 @@ const mockReportCard: ReportCardData = {
 
 const ReportCardSection = () => {
   const [selectedTerm, setSelectedTerm] = useState("Term 1 2024");
+  const [isExporting, setIsExporting] = useState(false);
+  const reportCardRef = useRef<HTMLDivElement>(null);
   const reportCard = mockReportCard;
+
+  const handleDownloadPdf = async () => {
+    setIsExporting(true);
+    try {
+      await exportReportCardPdf("report-card-content", reportCard.studentName);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const calculateAverage = () => {
     const total = reportCard.results.reduce((sum, r) => sum + r.scored, 0);
