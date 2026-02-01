@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Download, Printer, QrCode, Calendar, Award } from "lucide-react";
+import { useState, useRef } from "react";
+import { Download, Printer, QrCode, Calendar, Award, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/wenyasha-logo.jpg";
 import { calculateGrade, getGradeColorClasses, GRADING_SCALE } from "@/lib/grading";
+import { exportReportCardPdf } from "@/lib/pdfExport";
 
 interface SubjectResult {
   subject: string;
