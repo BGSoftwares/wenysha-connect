@@ -123,10 +123,22 @@ const StudentFeesSection = () => {
           <h2 className="font-heading text-xl font-bold text-foreground">My Fees & Payments</h2>
           <p className="text-muted-foreground text-sm">View your fee status, invoices, and payment history</p>
         </div>
-        <Button variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
-          Download Statement
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={handleDownloadStatement} disabled={isExporting}>
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {isExporting ? "Exporting..." : "Download Statement"}
+          </Button>
+          {summary.balance > 0 && (
+            <Button variant="gold" size="sm" onClick={() => setShowPaymentModal(true)}>
+              <Wallet className="h-4 w-4 mr-2" />
+              Pay Now
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
