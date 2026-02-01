@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { DollarSign, Download, FileText, AlertTriangle, CheckCircle, Clock, CreditCard, Receipt, TrendingUp } from "lucide-react";
+import { DollarSign, Download, FileText, AlertTriangle, CheckCircle, Clock, CreditCard, Receipt, TrendingUp, Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { exportFeeStatementPdf, FeeStatementPdfData } from "@/lib/pdfExport";
+import PaymentModal from "./PaymentModal";
 
 interface Transaction {
   id: string;
@@ -49,7 +51,44 @@ const mockTransactions: Transaction[] = [
 
 const StudentFeesSection = () => {
   const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "transactions">("overview");
+  const [isExporting, setIsExporting] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const summary = mockFeesSummary;
+
+  // Mock student info - will come from auth context
+  const studentInfo = {
+    name: "John Moyo",
+    studentId: "WIS-2024-0123",
+    grade: "Form 4A"
+  };
+
+  const handleDownloadStatement = async () => {
+    setIsExporting(true);
+    try {
+      const pdfData: FeeStatementPdfData = {
+        studentName: studentInfo.name,
+        studentId: studentInfo.studentId,
+        grade: studentInfo.grade,
+        date: new Date().toLocaleDateString(),
+        summary: {
+          totalFees: summary.totalFees,
+          totalPaid: summary.totalPaid,
+          balance: summary.balance,
+          arrears: summary.arrears
+        },
+        transactions: mockTransactions.map(txn => ({
+          date: new Date(txn.date).toLocaleDateString(),
+          description: txn.description,
+          amount: txn.amount,
+          type: txn.type,
+          reference: txn.reference
+        }))
+      };
+      await exportFeeStatementPdf(pdfData);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const getStatusBadge = (status: Invoice["status"]) => {
     const styles = {
@@ -84,10 +123,22 @@ const StudentFeesSection = () => {
           <h2 className="font-heading text-xl font-bold text-foreground">My Fees & Payments</h2>
           <p className="text-muted-foreground text-sm">View your fee status, invoices, and payment history</p>
         </div>
-        <Button variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
-          Download Statement
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={handleDownloadStatement} disabled={isExporting}>
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {isExporting ? "Exporting..." : "Download Statement"}
+          </Button>
+          {summary.balance > 0 && (
+            <Button variant="gold" size="sm" onClick={() => setShowPaymentModal(true)}>
+              <Wallet className="h-4 w-4 mr-2" />
+              Pay Now
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -334,6 +385,14 @@ const StudentFeesSection = () => {
           </div>
         </div>
       )}
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        balance={summary.balance}
+        studentName={studentInfo.name}
+      />
     </div>
   );
 };

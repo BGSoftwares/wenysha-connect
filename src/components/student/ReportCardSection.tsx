@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Download, Printer, QrCode, Calendar, Award } from "lucide-react";
+import { useState, useRef } from "react";
+import { Download, Printer, QrCode, Calendar, Award, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/wenyasha-logo.jpg";
 import { calculateGrade, getGradeColorClasses, GRADING_SCALE } from "@/lib/grading";
+import { exportReportCardPdf } from "@/lib/pdfExport";
 
 interface SubjectResult {
   subject: string;
@@ -63,7 +64,22 @@ const mockReportCard: ReportCardData = {
 
 const ReportCardSection = () => {
   const [selectedTerm, setSelectedTerm] = useState("Term 1 2024");
+  const [isExporting, setIsExporting] = useState(false);
+  const reportCardRef = useRef<HTMLDivElement>(null);
   const reportCard = mockReportCard;
+
+  const handleDownloadPdf = async () => {
+    setIsExporting(true);
+    try {
+      await exportReportCardPdf("report-card-content", reportCard.studentName);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const calculateAverage = () => {
     const total = reportCard.results.reduce((sum, r) => sum + r.scored, 0);
@@ -95,19 +111,23 @@ const ReportCardSection = () => {
             <option>Term 3 2023</option>
             <option>Term 2 2023</option>
           </select>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
-          <Button variant="gold" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Download PDF
+          <Button variant="gold" size="sm" onClick={handleDownloadPdf} disabled={isExporting}>
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {isExporting ? "Exporting..." : "Download PDF"}
           </Button>
         </div>
       </div>
 
       {/* Report Card Document */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden print:border-none">
+      <div id="report-card-content" ref={reportCardRef} className="bg-card rounded-xl border border-border overflow-hidden print:border-none">
         {/* Report Card Header */}
         <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-6 border-b border-border">
           <div className="text-center mb-6">
