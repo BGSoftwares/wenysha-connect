@@ -51,7 +51,44 @@ const mockTransactions: Transaction[] = [
 
 const StudentFeesSection = () => {
   const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "transactions">("overview");
+  const [isExporting, setIsExporting] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const summary = mockFeesSummary;
+
+  // Mock student info - will come from auth context
+  const studentInfo = {
+    name: "John Moyo",
+    studentId: "WIS-2024-0123",
+    grade: "Form 4A"
+  };
+
+  const handleDownloadStatement = async () => {
+    setIsExporting(true);
+    try {
+      const pdfData: FeeStatementPdfData = {
+        studentName: studentInfo.name,
+        studentId: studentInfo.studentId,
+        grade: studentInfo.grade,
+        date: new Date().toLocaleDateString(),
+        summary: {
+          totalFees: summary.totalFees,
+          totalPaid: summary.totalPaid,
+          balance: summary.balance,
+          arrears: summary.arrears
+        },
+        transactions: mockTransactions.map(txn => ({
+          date: new Date(txn.date).toLocaleDateString(),
+          description: txn.description,
+          amount: txn.amount,
+          type: txn.type,
+          reference: txn.reference
+        }))
+      };
+      await exportFeeStatementPdf(pdfData);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const getStatusBadge = (status: Invoice["status"]) => {
     const styles = {
