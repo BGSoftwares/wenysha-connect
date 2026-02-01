@@ -111,13 +111,17 @@ const ReportCardSection = () => {
             <option>Term 3 2023</option>
             <option>Term 2 2023</option>
           </select>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
-          <Button variant="gold" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Download PDF
+          <Button variant="gold" size="sm" onClick={handleDownloadPdf} disabled={isExporting}>
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {isExporting ? "Exporting..." : "Download PDF"}
           </Button>
         </div>
       </div>
