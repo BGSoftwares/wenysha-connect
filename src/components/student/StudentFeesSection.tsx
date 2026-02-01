@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { DollarSign, Download, FileText, AlertTriangle, CheckCircle, Clock, CreditCard, Receipt, TrendingUp } from "lucide-react";
+import { DollarSign, Download, FileText, AlertTriangle, CheckCircle, Clock, CreditCard, Receipt, TrendingUp, Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { exportFeeStatementPdf, FeeStatementPdfData } from "@/lib/pdfExport";
+import PaymentModal from "./PaymentModal";
 
 interface Transaction {
   id: string;
