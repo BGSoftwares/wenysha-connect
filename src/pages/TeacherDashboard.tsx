@@ -487,6 +487,91 @@ const TeacherDashboard = () => {
     );
   };
 
+  const renderSettings = () => (
+    <div className="space-y-6">
+      <h2 className="font-heading text-xl font-bold text-foreground">Account Settings</h2>
+      
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="bg-card rounded-xl border border-border p-6">
+          <h3 className="font-semibold text-foreground mb-4">Profile Information</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-muted-foreground">Full Name</label>
+              <input 
+                type="text" 
+                defaultValue="Mrs. Grace Moyo" 
+                className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">Email</label>
+              <input 
+                type="email" 
+                defaultValue="grace.moyo@wenyasha.edu.zw" 
+                className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">Phone</label>
+              <input 
+                type="tel" 
+                defaultValue="+263 77 123 4567" 
+                className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+              />
+            </div>
+            <Button variant="gold" className="w-full">Update Profile</Button>
+          </div>
+        </div>
+        
+        <div className="bg-card rounded-xl border border-border p-6">
+          <h3 className="font-semibold text-foreground mb-4">Change Password</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-muted-foreground">Current Password</label>
+              <input 
+                type="password" 
+                className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">New Password</label>
+              <input 
+                type="password" 
+                className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">Confirm New Password</label>
+              <input 
+                type="password" 
+                className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+              />
+            </div>
+            <Button variant="outline" className="w-full">Change Password</Button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-card rounded-xl border border-border p-6">
+        <h3 className="font-semibold text-foreground mb-4">Notification Preferences</h3>
+        <div className="space-y-3">
+          <label className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+            <span className="text-sm text-foreground">Email notifications for new assignments</span>
+            <input type="checkbox" defaultChecked className="h-4 w-4 accent-primary" />
+          </label>
+          <label className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+            <span className="text-sm text-foreground">SMS reminders for class schedules</span>
+            <input type="checkbox" className="h-4 w-4 accent-primary" />
+          </label>
+          <label className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+            <span className="text-sm text-foreground">Weekly grade submission reminders</span>
+            <input type="checkbox" defaultChecked className="h-4 w-4 accent-primary" />
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderContentSection = () => {
     switch (activeNav) {
       case "dashboard": return renderDashboard();
@@ -496,6 +581,7 @@ const TeacherDashboard = () => {
       case "attendance": return renderAttendance();
       case "content": return renderContent();
       case "timetable": return renderTimetable();
+      case "settings": return renderSettings();
       default: return renderDashboard();
     }
   };
