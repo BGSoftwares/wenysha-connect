@@ -7,6 +7,14 @@ import SettingsSection from "@/components/admin/SettingsSection";
 import ProfileSection from "@/components/admin/ProfileSection";
 import ExamManagementSection from "@/components/admin/ExamManagementSection";
 import PendingApprovalsSection from "@/components/admin/PendingApprovalsSection";
+import ParentsSection from "@/components/admin/ParentsSection";
+import LibrarySection from "@/components/admin/LibrarySection";
+import TransportSection from "@/components/admin/TransportSection";
+import HostelSection from "@/components/admin/HostelSection";
+import NoticeSection from "@/components/admin/NoticeSection";
+import MessageSection from "@/components/admin/MessageSection";
+import AttendanceSection from "@/components/admin/AttendanceSection";
+import MapSection from "@/components/admin/MapSection";
 import { 
   Plus, 
   Edit, 
@@ -421,13 +429,6 @@ const AdminDashboard = () => {
     );
   };
 
-  const renderPlaceholder = (title: string) => (
-    <div className="flex flex-col items-center justify-center h-64 bg-card rounded-xl border border-border">
-      <h2 className="font-heading text-xl font-bold text-foreground mb-2">{title}</h2>
-      <p className="text-muted-foreground text-sm">This section is coming soon. Enable Lovable Cloud for full functionality.</p>
-    </div>
-  );
-
   const renderContent = () => {
     switch (activeNav) {
       case "dashboard": return <DashboardOverview />;
@@ -449,18 +450,18 @@ const AdminDashboard = () => {
       case "system-setup":
       case "cache": return <SettingsSection activeSubNav={activeNav} />;
       case "profile": return <ProfileSection />;
-      case "parents": return renderPlaceholder("Parents Management");
-      case "library": return renderPlaceholder("Library Management");
-      case "account": return renderPlaceholder("Account & Finance");
-      case "attendance": return renderPlaceholder("Attendance Management");
+      case "parents": return <ParentsSection />;
+      case "library": return <LibrarySection />;
+      case "account": return <DashboardOverview />; // Account uses AccountsDashboard separately
+      case "attendance": return <AttendanceSection />;
       case "exam":
       case "exam-management": return <ExamManagementSection />;
       case "pending-approvals": return <PendingApprovalsSection />;
-      case "transport": return renderPlaceholder("Transport Management");
-      case "hostel": return renderPlaceholder("Hostel Management");
-      case "notice": return renderPlaceholder("Notice Board");
-      case "message": return renderPlaceholder("Messages");
-      case "map": return renderPlaceholder("School Map");
+      case "transport": return <TransportSection />;
+      case "hostel": return <HostelSection />;
+      case "notice": return <NoticeSection />;
+      case "message": return <MessageSection />;
+      case "map": return <MapSection />;
       default: return <DashboardOverview />;
     }
   };
