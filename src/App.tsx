@@ -15,6 +15,9 @@ import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AccountsDashboard from "./pages/AccountsDashboard";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
