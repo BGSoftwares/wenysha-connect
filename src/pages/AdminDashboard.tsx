@@ -434,9 +434,9 @@ const AdminDashboard = () => {
   const renderContent = () => {
     switch (activeNav) {
       case "dashboard": return <DashboardOverview />;
-      case "students":
-      case "admission":
-      case "promotion": return renderStudents();
+      case "students": return renderStudents();
+      case "admission": return <AdmissionSection />;
+      case "promotion": return <PromotionSection />;
       case "teachers":
       case "add-teacher": return renderTeachers();
       case "classes":
