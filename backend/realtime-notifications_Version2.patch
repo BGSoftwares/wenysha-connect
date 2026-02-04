@@ -1,0 +1,290 @@
+*** Begin Patch
+*** Update File: backend/requirements.txt
+@@
+-Django>=4.2,<5
+-djangorestframework>=3.14
+-mysqlclient>=2.1
+-djangorestframework-simplejwt>=5.2.2
+-django-cors-headers>=4.0
+-python-dotenv>=1.0
+-django-filter>=23.1
++Django>=4.2,<5
++djangorestframework>=3.14
++mysqlclient>=2.1
++djangorestframework-simplejwt>=5.2.2
++django-cors-headers>=4.0
++python-dotenv>=1.0
++django-filter>=23.1
++# Real-time
++channels>=4.0
+*** End Patch
+*** Begin Patch
+*** Add File: backend/wenysha_backend/asgi.py
++import os
++from django.core.asgi import get_asgi_application
++
++from channels.routing import ProtocolTypeRouter, URLRouter
++from channels.auth import AuthMiddlewareStack
++import core.routing
++
++os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wenysha_backend.settings")
++
++django_asgi_app = get_asgi_application()
++
++application = ProtocolTypeRouter({
++    "http": django_asgi_app,
++    "websocket": AuthMiddlewareStack(
++        URLRouter(core.routing.websocket_urlpatterns)
++    ),
++})
++
+*** End Patch
+*** Begin Patch
+*** Update File: backend/wenysha_backend/settings.py
+@@
+     "django.contrib.staticfiles",
+     "rest_framework",
+     "corsheaders",
+     "django_filters",
+-    "core",
++    "core",
++    "channels",
+ ]
+@@
+ WSGI_APPLICATION = "wenysha_backend.wsgi.application"
++# If using Channels, ensure ASGI app is configured
++ASGI_APPLICATION = "wenysha_backend.asgi.application"
++
++# Development channel layer: in-memory. For production, switch to Redis.
++CHANNEL_LAYERS = {
++    "default": {
++        "BACKEND": "channels.layers.InMemoryChannelLayer"
++    }
++}
+*** End Patch
+*** Begin Patch
+*** Add File: backend/core/routing.py
++from django.urls import re_path
++from . import consumers
++
++websocket_urlpatterns = [
++    # Notifications websocket endpoint
++    re_path(r"ws/notifications/?$", consumers.NotificationConsumer.as_asgi()),
++]
++
+*** End Patch
+*** Begin Patch
+*** Add File: backend/core/consumers.py
++import json
++from channels.generic.websocket import AsyncWebsocketConsumer
++
++class NotificationConsumer(AsyncWebsocketConsumer):
++    async def connect(self):
++        # Join notifications group
++        await self.channel_layer.group_add("notifications", self.channel_name)
++        await self.accept()
++
++    async def disconnect(self, close_code):
++        await self.channel_layer.group_discard("notifications", self.channel_name)
++
++    async def receive_json(self, content, **kwargs):
++        # (Optional) handle client-sent messages to broadcast
++        text = content.get("text", "")
++        await self.channel_layer.group_send(
++            "notifications",
++            {"type": "notify.message", "payload": {"text": text}}
++        )
++
++    async def notify_message(self, event):
++        payload = event.get("payload", {})
++        await self.send_json({"type": "notification", "payload": payload})
++
+*** End Patch
+*** Begin Patch
+*** Add File: backend/core/signals.py
++from django.db.models.signals import post_save
++from django.dispatch import receiver
++from asgiref.sync import async_to_sync
++from channels.layers import get_channel_layer
++
++from .models import Invoice, Payment
++
++channel_layer = get_channel_layer()
++
++def broadcast_notification(payload: dict):
++    async_to_sync(channel_layer.group_send)(
++        "notifications",
++        {"type": "notify.message", "payload": payload}
++    )
++
++@receiver(post_save, sender=Payment)
++def payment_created(sender, instance, created, **kwargs):
++    if created:
++        payload = {
++            "event": "payment_created",
++            "id": instance.id,
++            "amount": str(instance.amount),
++            "invoice_id": instance.invoice.id if getattr(instance, "invoice", None) else None,
++        }
++        broadcast_notification(payload)
++
++@receiver(post_save, sender=Invoice)
++def invoice_saved(sender, instance, created, **kwargs):
++    payload = {
++        "event": "invoice_created" if created else "invoice_updated",
++        "id": instance.id,
++        "invoice_number": getattr(instance, "invoice_number", None),
++        "status": getattr(instance, "status", None),
++    }
++    broadcast_notification(payload)
++
+*** End Patch
+*** Begin Patch
+*** Update File: backend/core/apps.py
+@@
+ class CoreConfig(AppConfig):
+     default_auto_field = "django.db.models.BigAutoField"
+     name = "core"
+ 
++    def ready(self):
++        # Import signals to register signal handlers (safe import)
++        try:
++            import core.signals  # noqa: F401
++        except Exception:
++            pass
++
+*** End Patch
+*** Begin Patch
+*** Add File: src/lib/ws.ts
++const makeWsUrl = () => {
++  const explicit = import.meta.env.VITE_WS_URL;
++  if (explicit) return explicit;
++  const api = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000").replace(/\/+$/, "");
++  return api.replace(/^http/, "ws") + "/ws/notifications/";
++};
++
++export const WS_URL = makeWsUrl();
++
++export function createWebSocket(onOpen?: () => void, onMessage?: (data: any) => void, onClose?: () => void) {
++  const url = WS_URL;
++  const ws = new WebSocket(url);
++
++  ws.onopen = () => onOpen?.();
++
++  ws.onmessage = (ev) => {
++    let payload;
++    try { payload = JSON.parse(ev.data); } catch { payload = ev.data; }
++    onMessage?.(payload);
++  };
++
++  ws.onclose = () => onClose?.();
++
++  ws.onerror = (err) => { console.error("WebSocket error", err); };
++
++  return ws;
++}
++
+*** End Patch
+*** Begin Patch
+*** Add File: src/hooks/useWebSocket.ts
++import { useEffect, useRef, useState } from "react";
++import { createWebSocket } from "@/lib/ws";
++
++export function useWebSocket() {
++  const wsRef = useRef<WebSocket | null>(null);
++  const [connected, setConnected] = useState(false);
++  const [messages, setMessages] = useState<any[]>([]);
++
++  useEffect(() => {
++    let reconnectTimer: any = null;
++    let shouldUnmount = false;
++
++    const connect = () => {
++      const ws = createWebSocket(
++        () => setConnected(true),
++        (message) => setMessages(prev => [message, ...prev].slice(0, 50)),
++        () => {
++          setConnected(false);
++          if (!shouldUnmount) reconnectTimer = setTimeout(connect, 2000);
++        }
++      );
++      wsRef.current = ws;
++    };
++
++    connect();
++
++    return () => {
++      shouldUnmount = true;
++      if (reconnectTimer) clearTimeout(reconnectTimer);
++      if (wsRef.current) wsRef.current.close();
++    };
++  }, []);
++
++  const send = (obj: any) => {
++    try { wsRef.current?.send(JSON.stringify(obj)); }
++    catch (e) { console.warn("WebSocket send failed", e); }
++  };
++
++  return { connected, messages, send };
++}
++
+*** End Patch
+*** Begin Patch
+*** Add File: src/components/Notifications.tsx
++import React from "react";
++import { useWebSocket } from "@/hooks/useWebSocket";
++
++const Notifications = () => {
++  const { connected, messages } = useWebSocket();
++
++  return (
++    <div className="p-4 border rounded bg-white">
++      <div className="flex items-center justify-between mb-2">
++        <h3 className="font-semibold">Live Notifications</h3>
++        <span className={`text-sm ${connected? 'text-green-600' : 'text-gray-500'}`}>
++          {connected ? "connected" : "disconnected"}
++        </span>
++      </div>
++      <div className="max-h-48 overflow-auto">
++        {messages.length === 0 ? (
++          <p className="text-sm text-muted-foreground">No notifications yet.</p>
++        ) : (
++          <ul className="space-y-2">
++            {messages.map((m, idx) => {
++              const payload = (m && m.payload) ? m.payload : m;
++              return (
++                <li key={idx} className="p-2 border rounded bg-muted/50">
++                  <pre className="text-xs">{JSON.stringify(payload, null, 2)}</pre>
++                </li>
++              );
++            })}
++          </ul>
++        )}
++      </div>
++    </div>
++  );
++};
++
++export default Notifications;
++
+*** End Patch
+*** Begin Patch
+*** Update File: src/pages/AdminDashboard.tsx
+@@
+ import { Button } from "@/components/ui/button";
++import Notifications from "@/components/Notifications";
+@@
+ const AdminDashboard = () => {
+   return (
+     <Layout>
+-      {/* ...existing dashboard content... */}
++      <div className="container mx-auto px-4 py-6 space-y-6">
++        <Notifications />
++        {/* ...existing dashboard content... */}
++      </div>
+     </Layout>
+   );
+ };
+ 
+ export default AdminDashboard;
+*** End Patch
