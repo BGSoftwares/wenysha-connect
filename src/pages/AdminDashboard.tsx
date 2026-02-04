@@ -15,6 +15,8 @@ import NoticeSection from "@/components/admin/NoticeSection";
 import MessageSection from "@/components/admin/MessageSection";
 import AttendanceSection from "@/components/admin/AttendanceSection";
 import MapSection from "@/components/admin/MapSection";
+import AdmissionSection from "@/components/admin/AdmissionSection";
+import PromotionSection from "@/components/admin/PromotionSection";
 import { 
   Plus, 
   Edit, 
@@ -432,9 +434,9 @@ const AdminDashboard = () => {
   const renderContent = () => {
     switch (activeNav) {
       case "dashboard": return <DashboardOverview />;
-      case "students":
-      case "admission":
-      case "promotion": return renderStudents();
+      case "students": return renderStudents();
+      case "admission": return <AdmissionSection />;
+      case "promotion": return <PromotionSection />;
       case "teachers":
       case "add-teacher": return renderTeachers();
       case "classes":
