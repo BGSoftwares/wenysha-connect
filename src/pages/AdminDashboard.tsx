@@ -15,6 +15,8 @@ import NoticeSection from "@/components/admin/NoticeSection";
 import MessageSection from "@/components/admin/MessageSection";
 import AttendanceSection from "@/components/admin/AttendanceSection";
 import MapSection from "@/components/admin/MapSection";
+import AdmissionSection from "@/components/admin/AdmissionSection";
+import PromotionSection from "@/components/admin/PromotionSection";
 import { 
   Plus, 
   Edit, 
