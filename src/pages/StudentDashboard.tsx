@@ -306,6 +306,9 @@ const StudentDashboard = () => {
       case "timetable": return renderTimetable();
       case "report-card": return <ReportCardSection />;
       case "fees": return <StudentFeesSection />;
+      case "results": return <ResultsSection />;
+      case "elearning": return <ELearningSection />;
+      case "settings": return <StudentSettingsSection />;
       case "dashboard": 
       default: return renderDashboard();
     }
