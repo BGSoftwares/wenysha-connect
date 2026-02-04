@@ -20,6 +20,9 @@ import {
 import logo from "@/assets/wenyasha-logo.jpg";
 import ReportCardSection from "@/components/student/ReportCardSection";
 import StudentFeesSection from "@/components/student/StudentFeesSection";
+import ResultsSection from "@/components/student/ResultsSection";
+import ELearningSection from "@/components/student/ELearningSection";
+import StudentSettingsSection from "@/components/student/StudentSettingsSection";
 import { calculateGrade } from "@/lib/grading";
 
 const navigation = [
