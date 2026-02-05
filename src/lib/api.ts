@@ -1,4 +1,4 @@
-// API client for Django backend
+// API client for Django backend with automatic fallback
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
@@ -7,12 +7,20 @@ interface TokenPair {
   refresh: string;
 }
 
+interface ApiResponse<T> {
+  data?: T;
+  error?: string;
+  status: number;
+  isOffline?: boolean;
+}
+
 class ApiClient {
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  private isBackendReachable: boolean | null = null;
+  private connectionCheckPromise: Promise<boolean> | null = null;
 
   constructor() {
-    // Load tokens from localStorage
     this.accessToken = localStorage.getItem('access_token');
     this.refreshToken = localStorage.getItem('refresh_token');
   }
@@ -33,6 +41,48 @@ class ApiClient {
 
   isAuthenticated(): boolean {
     return !!this.accessToken;
+  }
+
+  getBaseUrl(): string {
+    return API_BASE_URL;
+  }
+
+  // Check if backend is reachable
+  async checkConnection(): Promise<boolean> {
+    if (this.connectionCheckPromise) {
+      return this.connectionCheckPromise;
+    }
+
+    this.connectionCheckPromise = (async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(`${API_BASE_URL}/api/`, {
+          method: 'GET',
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        this.isBackendReachable = response.ok || response.status === 401;
+        return this.isBackendReachable;
+      } catch (error) {
+        console.warn('Backend not reachable, using mock data:', error);
+        this.isBackendReachable = false;
+        return false;
+      } finally {
+        this.connectionCheckPromise = null;
+      }
+    })();
+
+    return this.connectionCheckPromise;
+  }
+
+  async isConnected(): Promise<boolean> {
+    if (this.isBackendReachable !== null) {
+      return this.isBackendReachable;
+    }
+    return this.checkConnection();
   }
 
   private async refreshAccessToken(): Promise<boolean> {
@@ -62,7 +112,17 @@ class ApiClient {
   async request<T>(
     endpoint: string,
     options: RequestInit = {}
-  ): Promise<{ data?: T; error?: string; status: number }> {
+  ): Promise<ApiResponse<T>> {
+    // Check connection first
+    const connected = await this.isConnected();
+    if (!connected) {
+      return {
+        error: 'Backend not reachable',
+        status: 0,
+        isOffline: true,
+      };
+    }
+
     const url = `${API_BASE_URL}${endpoint}`;
 
     const headers: HeadersInit = {
@@ -94,18 +154,30 @@ class ApiClient {
         };
       }
 
+      // Handle empty responses (204 No Content)
+      if (response.status === 204) {
+        return { status: response.status };
+      }
+
       const data = await response.json();
       return { data, status: response.status };
     } catch (error) {
+      this.isBackendReachable = false;
       return {
         error: error instanceof Error ? error.message : 'Network error',
         status: 0,
+        isOffline: true,
       };
     }
   }
 
   // Auth methods
   async login(username: string, password: string) {
+    const connected = await this.isConnected();
+    if (!connected) {
+      return { error: 'Backend not reachable', status: 0, isOffline: true };
+    }
+
     const result = await this.request<TokenPair>('/api/auth/token/', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
@@ -150,6 +222,11 @@ class ApiClient {
 
   async delete(endpoint: string) {
     return this.request(endpoint, { method: 'DELETE' });
+  }
+
+  // Reset connection state (useful for retry)
+  resetConnectionState() {
+    this.isBackendReachable = null;
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 
@@ -11,10 +11,22 @@ interface User {
   role?: string;
 }
 
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+  isAuthenticated: boolean;
+  isOffline: boolean;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  checkAuth: () => Promise<void>;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
   const navigate = useNavigate();
 
   const checkAuth = useCallback(async () => {
@@ -25,6 +37,16 @@ export function useAuth() {
     }
 
     const result = await api.get<User>('/api/me/');
+    
+    if (result.isOffline) {
+      setIsOffline(true);
+      // Keep existing user if offline
+      setLoading(false);
+      return;
+    }
+
+    setIsOffline(false);
+    
     if (result.data) {
       setUser(result.data);
     } else {
@@ -42,6 +64,15 @@ export function useAuth() {
     setLoading(true);
 
     const result = await api.login(username, password);
+
+    if (result.isOffline) {
+      setIsOffline(true);
+      setError('Cannot connect to server. Please check your connection.');
+      setLoading(false);
+      return false;
+    }
+
+    setIsOffline(false);
 
     if (result.error) {
       setError(result.error);
@@ -64,6 +95,7 @@ export function useAuth() {
     loading,
     error,
     isAuthenticated: !!user,
+    isOffline,
     login,
     logout,
     checkAuth,
