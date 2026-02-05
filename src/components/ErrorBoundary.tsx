@@ -9,10 +9,10 @@ interface State {
     error: Error | null;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
     public state: State = {
         hasError: false,
-        error: null,
+        error: null
     };
 
     public static getDerivedStateFromError(error: Error): State {
@@ -20,16 +20,40 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error("Uncaught error:", error, errorInfo);
+        console.error("❌ UNCAUGHT ERROR:", error, errorInfo);
     }
 
     public render() {
         if (this.state.hasError) {
             return (
-                <div style={{ padding: "20px", color: "red", fontFamily: "monospace" }}>
-                    <h1>Something went wrong.</h1>
-                    <pre>{this.state.error?.toString()}</pre>
-                    <pre>{this.state.error?.stack}</pre>
+                <div style={{
+                    padding: "40px",
+                    backgroundColor: "#fff5f5",
+                    color: "#c53030",
+                    border: "4px solid #c53030",
+                    borderRadius: "8px",
+                    margin: "20px",
+                    fontFamily: "sans-serif"
+                }}>
+                    <h2 style={{ marginTop: 0 }}>🚨 Something went wrong</h2>
+                    <p style={{ fontWeight: "bold" }}>{this.state.error?.message}</p>
+                    <details style={{ whiteSpace: "pre-wrap", marginTop: "10px", fontSize: "14px" }}>
+                        {this.state.error?.stack}
+                    </details>
+                    <button
+                        onClick={() => window.location.reload()}
+                        style={{
+                            marginTop: "20px",
+                            padding: "10px 20px",
+                            backgroundColor: "#c53030",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer"
+                        }}
+                    >
+                        Reload Application
+                    </button>
                 </div>
             );
         }
@@ -37,3 +61,5 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.children;
     }
 }
+
+export default ErrorBoundary;

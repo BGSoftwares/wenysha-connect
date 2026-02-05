@@ -15,29 +15,29 @@ const Portal = () => {
   const navigate = useNavigate();
 
   const portals = [
-    { 
-      type: "student" as PortalType, 
-      icon: GraduationCap, 
-      title: "Student Portal", 
-      description: "Access assignments, grades, and resources" 
+    {
+      type: "student" as PortalType,
+      icon: GraduationCap,
+      title: "Student Portal",
+      description: "Access assignments, grades, and resources"
     },
-    { 
-      type: "teacher" as PortalType, 
-      icon: Users, 
-      title: "Teacher Portal", 
-      description: "Manage classes, enter marks, and attendance" 
+    {
+      type: "teacher" as PortalType,
+      icon: Users,
+      title: "Teacher Portal",
+      description: "Manage classes, enter marks, and attendance"
     },
-    { 
-      type: "admin" as PortalType, 
-      icon: Shield, 
-      title: "Admin Portal", 
-      description: "Manage school operations and data" 
+    {
+      type: "admin" as PortalType,
+      icon: Shield,
+      title: "Admin Portal",
+      description: "Manage school operations and data"
     },
-    { 
-      type: "accounts" as PortalType, 
-      icon: Wallet, 
-      title: "Accounts Portal", 
-      description: "Manage fees, payments and finances" 
+    {
+      type: "accounts" as PortalType,
+      icon: Wallet,
+      title: "Accounts Portal",
+      description: "Manage fees, payments and finances"
     },
   ];
 
@@ -45,13 +45,13 @@ const Portal = () => {
     e.preventDefault();
     // Demo: redirect based on portal type
     if (selectedPortal === "student") {
-      navigate("/student-dashboard");
+      navigate("/student");
     } else if (selectedPortal === "teacher") {
-      navigate("/teacher-dashboard");
+      navigate("/teacher");
     } else if (selectedPortal === "admin") {
-      navigate("/admin-dashboard");
+      navigate("/admin");
     } else if (selectedPortal === "accounts") {
-      navigate("/accounts-dashboard");
+      navigate("/accounts");
     }
   };
 
@@ -72,9 +72,9 @@ const Portal = () => {
 
               <div className="bg-card rounded-2xl border border-border p-8 shadow-elegant">
                 <div className="text-center mb-8">
-                  <img 
-                    src={logo} 
-                    alt="Wenyasha Logo" 
+                  <img
+                    src={logo}
+                    alt="Wenyasha Logo"
                     className="h-20 w-20 object-contain mx-auto mb-4"
                   />
                   <h1 className="font-heading text-2xl font-bold text-foreground">
@@ -165,9 +165,9 @@ const Portal = () => {
       <section className="min-h-[80vh] flex items-center justify-center py-12 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <img 
-              src={logo} 
-              alt="Wenyasha Logo" 
+            <img
+              src={logo}
+              alt="Wenyasha Logo"
               className="h-24 w-24 object-contain mx-auto mb-6"
             />
             <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4">

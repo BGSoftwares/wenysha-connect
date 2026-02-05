@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { 
-  Home, 
-  BookOpen, 
+import {
+  Home,
+  BookOpen,
   GraduationCap,
-  Calendar, 
-  Settings, 
-  Bell, 
+  Calendar,
+  Settings,
+  Bell,
   LogOut,
   FileText,
   CheckSquare,
@@ -17,10 +17,22 @@ import {
   Clock,
   User,
   TrendingUp,
-  Upload
+  Upload,
+  Check,
+  X
 } from "lucide-react";
 import logo from "@/assets/wenyasha-logo.jpg";
 import { Button } from "@/components/ui/button";
+import {
+  useTeacherProfile,
+  useAllocations,
+  useStudents,
+  useExams,
+  useExamMarks,
+  useAttendanceRecords,
+  useUpdateAttendance
+} from "@/lib/hooks";
+import { toast } from "sonner";
 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
@@ -66,8 +78,41 @@ const contentMaterials = [
 
 const TeacherDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
-  const [selectedClass, setSelectedClass] = useState("Form 4A");
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Data Hooks
+  const { data: teacher, isLoading: isLoadingProfile } = useTeacherProfile();
+  const { data: allocations = [], isLoading: isLoadingAllocations } = useAllocations({
+    teacher: teacher?.id
+  });
+
+  const { data: students = [] } = useStudents({
+    school_class: selectedClassId || undefined
+  });
+
+  const { data: exams = [] } = useExams({ status: "ongoing" });
+  const { data: attendanceRecords = [] } = useAttendanceRecords({
+    date: attendanceDate
+  });
+
+  const updateAttendanceMutation = useUpdateAttendance();
+
+  const uniqueClasses = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.school_class, name: a.class_name }))))
+    .map(s => JSON.parse(s));
+
+  const uniqueSubjects = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.subject, name: a.subject_name }))))
+    .map(s => JSON.parse(s));
+
+  // Initialize selected class
+  useState(() => {
+    if (uniqueClasses.length > 0 && !selectedClassId) {
+      setSelectedClassId(uniqueClasses[0].id);
+    }
+  });
+
+  const teacherName = teacher?.name || "Teacher";
+  const department = teacher?.department || "General";
 
   const renderDashboard = () => (
     <div className="space-y-6">
@@ -131,18 +176,18 @@ const TeacherDashboard = () => {
         <div className="bg-card rounded-xl border border-border p-6">
           <h2 className="font-heading font-bold text-lg text-foreground mb-4">Today's Schedule</h2>
           <div className="space-y-3">
-            {myClasses.map((cls) => (
-              <div key={cls.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30">
+            {allocations.map((alloc) => (
+              <div key={alloc.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Clock className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-medium text-foreground">{cls.name} - {cls.subject}</h4>
-                  <p className="text-xs text-muted-foreground">{cls.students} students</p>
+                  <h4 className="font-medium text-foreground">{alloc.class_name} - {alloc.subject_name}</h4>
+                  <p className="text-xs text-muted-foreground">{alloc.periods} periods/week</p>
                 </div>
-                <span className="text-sm text-primary font-medium">{cls.nextClass}</span>
               </div>
             ))}
+            {allocations.length === 0 && <p className="text-sm text-muted-foreground italic">No allocations found.</p>}
           </div>
         </div>
 
@@ -174,25 +219,21 @@ const TeacherDashboard = () => {
   const renderClasses = () => (
     <div className="space-y-6">
       <h2 className="font-heading text-xl font-bold text-foreground">My Classes</h2>
-      
+
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {myClasses.map((cls) => (
+        {uniqueClasses.map((cls) => (
           <div key={cls.id} className="bg-card rounded-xl border border-border p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Users className="h-6 w-6 text-primary" />
               </div>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => { setSelectedClassId(cls.id); setActiveNav("attendance"); }}>
                 <Eye className="h-4 w-4 mr-1" />
-                View
+                Manage
               </Button>
             </div>
             <h3 className="font-bold text-lg text-foreground">{cls.name}</h3>
-            <p className="text-sm text-muted-foreground mb-3">{cls.subject}</p>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{cls.students} students</span>
-              <span className="text-primary">{cls.nextClass}</span>
-            </div>
+            <p className="text-sm text-muted-foreground mb-3">Teaching {allocations.filter(a => a.school_class === cls.id).length} subjects</p>
           </div>
         ))}
       </div>
@@ -202,9 +243,9 @@ const TeacherDashboard = () => {
   const renderSubjects = () => (
     <div className="space-y-6">
       <h2 className="font-heading text-xl font-bold text-foreground">My Subjects</h2>
-      
+
       <div className="grid gap-4">
-        {mySubjects.map((subject) => (
+        {uniqueSubjects.map((subject) => (
           <div key={subject.id} className="bg-card rounded-xl border border-border p-5">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
@@ -213,16 +254,14 @@ const TeacherDashboard = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">{subject.name}</h3>
-                  <p className="text-sm text-muted-foreground">Code: {subject.code}</p>
                 </div>
               </div>
-              <span className="text-xs px-2 py-1 rounded bg-accent/20 text-accent-foreground">{subject.curriculum}</span>
             </div>
             <div className="mt-4">
-              <p className="text-xs text-muted-foreground mb-2">Classes:</p>
+              <p className="text-xs text-muted-foreground mb-2">My Classes for this Subject:</p>
               <div className="flex flex-wrap gap-2">
-                {subject.classes.map((cls, i) => (
-                  <span key={i} className="text-xs px-3 py-1 rounded-full bg-secondary text-foreground">{cls}</span>
+                {allocations.filter(a => a.subject === subject.id).map((a, i) => (
+                  <span key={i} className="text-xs px-3 py-1 rounded-full bg-secondary text-foreground">{a.class_name}</span>
                 ))}
               </div>
             </div>
@@ -236,15 +275,22 @@ const TeacherDashboard = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-xl font-bold text-foreground">Grading</h2>
-        <select 
-          value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
-          className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
-        >
-          {myClasses.map(c => <option key={c.id}>{c.name}</option>)}
-        </select>
+        <div className="flex gap-3">
+          <select
+            value={selectedClassId || ""}
+            onChange={(e) => setSelectedClassId(Number(e.target.value))}
+            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+          >
+            <option value="">Select Class</option>
+            {uniqueClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
+            <option value="">Select Exam</option>
+            {exams.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+        </div>
       </div>
-      
+
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-4 border-b border-border bg-secondary/30">
           <h3 className="font-medium text-foreground">{selectedClass} - Mathematics</h3>
@@ -271,32 +317,33 @@ const TeacherDashboard = () => {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <input 
-                    type="number" 
-                    defaultValue={student.avgGrade}
+                  <input
+                    type="number"
                     className="w-16 text-center px-2 py-1 rounded border border-border bg-background text-foreground"
                     min="0"
                     max="100"
+                    placeholder="-"
                   />
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <span className={`text-xs px-2 py-1 rounded font-medium ${
-                    student.avgGrade >= 80 ? "bg-green-100 text-green-700" :
-                    student.avgGrade >= 60 ? "bg-blue-100 text-blue-700" :
-                    "bg-amber-100 text-amber-700"
-                  }`}>
-                    {student.avgGrade >= 80 ? "A" : student.avgGrade >= 60 ? "B" : "C"}
-                  </span>
+                  <span className="text-xs px-2 py-1 rounded font-medium bg-secondary text-muted-foreground">-</span>
                 </td>
                 <td className="px-4 py-3 text-right">
                   <Button variant="outline" size="sm">Save</Button>
                 </td>
               </tr>
             ))}
+            {students.length === 0 && (
+              <tr>
+                <td colSpan={4} className="p-8 text-center text-muted-foreground italic">
+                  No students found for the selected class.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
         <div className="p-4 border-t border-border flex justify-end">
-          <Button variant="gold">Submit All Grades</Button>
+          <Button variant="gold" onClick={() => toast.info("Bulk submission coming soon")}>Submit All Grades</Button>
         </div>
       </div>
     </div>
@@ -307,14 +354,14 @@ const TeacherDashboard = () => {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="font-heading text-xl font-bold text-foreground">Attendance</h2>
         <div className="flex gap-3">
-          <select 
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
+          <select
+            value={selectedClassId || ""}
+            onChange={(e) => setSelectedClassId(Number(e.target.value))}
             className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
           >
-            {myClasses.map(c => <option key={c.id}>{c.name}</option>)}
+            {uniqueClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <input 
+          <input
             type="date"
             value={attendanceDate}
             onChange={(e) => setAttendanceDate(e.target.value)}
@@ -322,7 +369,7 @@ const TeacherDashboard = () => {
           />
         </div>
       </div>
-      
+
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-4 border-b border-border bg-secondary/30 flex items-center justify-between">
           <div>
@@ -343,43 +390,67 @@ const TeacherDashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {students.map((student) => (
-              <tr key={student.id} className="border-t border-border">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="h-4 w-4 text-primary" />
+            {students.map((student) => {
+              const record = attendanceRecords.find(r => r.student === student.id);
+              const status = record?.status || "present";
+
+              return (
+                <tr key={student.id} className="border-t border-border">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
+                      <span className="text-sm text-foreground">{student.name}</span>
                     </div>
-                    <span className="text-sm text-foreground">{student.name}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-center gap-2">
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <input type="radio" name={`attendance-${student.id}`} defaultChecked className="accent-green-600" />
-                      <span className="text-xs text-green-600">Present</span>
-                    </label>
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <input type="radio" name={`attendance-${student.id}`} className="accent-red-500" />
-                      <span className="text-xs text-red-500">Absent</span>
-                    </label>
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <input type="radio" name={`attendance-${student.id}`} className="accent-amber-500" />
-                      <span className="text-xs text-amber-500">Late</span>
-                    </label>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <span className={`text-sm font-medium ${student.attendance >= 90 ? "text-green-600" : "text-amber-600"}`}>
-                    {student.attendance}%
-                  </span>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-center gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "present" });
+                            toast.success(`Marked ${student.name} as present`);
+                          } catch (e) { toast.error("Failed to update attendance"); }
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors ${status === "present" ? "bg-green-500 text-white" : "bg-secondary text-muted-foreground hover:bg-green-100"}`}
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "absent" });
+                            toast.success(`Marked ${student.name} as absent`);
+                          } catch (e) { toast.error("Failed to update attendance"); }
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors ${status === "absent" ? "bg-destructive text-white" : "bg-secondary text-muted-foreground hover:bg-red-100"}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "late" });
+                            toast.success(`Marked ${student.name} as late`);
+                          } catch (e) { toast.error("Failed to update attendance"); }
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors ${status === "late" ? "bg-amber-500 text-white" : "bg-secondary text-muted-foreground hover:bg-amber-100"}`}
+                      >
+                        <Clock className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-sm font-medium text-muted-foreground">-</span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         <div className="p-4 border-t border-border flex justify-end">
-          <Button variant="gold">Save Attendance</Button>
+          <Button variant="gold" onClick={() => toast.success("Attendance verified for this class")}>Verify Attendance</Button>
         </div>
       </div>
     </div>
@@ -394,7 +465,7 @@ const TeacherDashboard = () => {
           Upload Material
         </Button>
       </div>
-      
+
       <div className="grid gap-4">
         {contentMaterials.map((material) => (
           <div key={material.id} className="bg-card rounded-xl border border-border p-5 flex items-center justify-between">
@@ -417,7 +488,7 @@ const TeacherDashboard = () => {
           </div>
         ))}
       </div>
-      
+
       {/* Upload Area */}
       <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
         <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -431,7 +502,7 @@ const TeacherDashboard = () => {
   const renderTimetable = () => {
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
     const periods = ["08:00-08:40", "08:40-09:20", "09:20-10:00", "10:30-11:10", "11:10-11:50", "11:50-12:30", "14:00-14:40", "14:40-15:20"];
-    
+
     const mySchedule: Record<string, Record<string, { class: string; room: string } | null>> = {
       "Monday": { "08:00-08:40": { class: "Form 4A", room: "Room 12" }, "10:30-11:10": { class: "Form 3B", room: "Room 8" } },
       "Tuesday": { "08:40-09:20": { class: "Form 4B", room: "Room 12" }, "14:00-14:40": { class: "Form 4A", room: "Room 12" } },
@@ -443,7 +514,7 @@ const TeacherDashboard = () => {
     return (
       <div className="space-y-6">
         <h2 className="font-heading text-xl font-bold text-foreground">My Timetable</h2>
-        
+
         <div className="bg-card rounded-xl border border-border overflow-x-auto">
           <table className="w-full min-w-[800px]">
             <thead className="bg-secondary/50">
@@ -490,60 +561,60 @@ const TeacherDashboard = () => {
   const renderSettings = () => (
     <div className="space-y-6">
       <h2 className="font-heading text-xl font-bold text-foreground">Account Settings</h2>
-      
+
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="bg-card rounded-xl border border-border p-6">
           <h3 className="font-semibold text-foreground mb-4">Profile Information</h3>
           <div className="space-y-4">
             <div>
               <label className="text-sm text-muted-foreground">Full Name</label>
-              <input 
-                type="text" 
-                defaultValue="Mrs. Grace Moyo" 
+              <input
+                type="text"
+                defaultValue="Mrs. Grace Moyo"
                 className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
               />
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Email</label>
-              <input 
-                type="email" 
-                defaultValue="grace.moyo@wenyasha.edu.zw" 
+              <input
+                type="email"
+                defaultValue="grace.moyo@wenyasha.edu.zw"
                 className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
               />
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Phone</label>
-              <input 
-                type="tel" 
-                defaultValue="+263 77 123 4567" 
+              <input
+                type="tel"
+                defaultValue="+263 77 123 4567"
                 className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
               />
             </div>
             <Button variant="gold" className="w-full">Update Profile</Button>
           </div>
         </div>
-        
+
         <div className="bg-card rounded-xl border border-border p-6">
           <h3 className="font-semibold text-foreground mb-4">Change Password</h3>
           <div className="space-y-4">
             <div>
               <label className="text-sm text-muted-foreground">Current Password</label>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
               />
             </div>
             <div>
               <label className="text-sm text-muted-foreground">New Password</label>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
               />
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Confirm New Password</label>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
               />
             </div>
@@ -551,7 +622,7 @@ const TeacherDashboard = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="bg-card rounded-xl border border-border p-6">
         <h3 className="font-semibold text-foreground mb-4">Notification Preferences</h3>
         <div className="space-y-3">
@@ -605,11 +676,10 @@ const TeacherDashboard = () => {
             <button
               key={item.id}
               onClick={() => setActiveNav(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${
-                activeNav === item.id
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-primary-foreground/80 hover:bg-primary-foreground/10"
-              }`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${activeNav === item.id
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-primary-foreground/80 hover:bg-primary-foreground/10"
+                }`}
             >
               <item.icon className="h-5 w-5" />
               {item.name}
@@ -623,8 +693,8 @@ const TeacherDashboard = () => {
               <User className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-medium text-sm">Mrs. Grace Moyo</p>
-              <p className="text-xs text-primary-foreground/70">Mathematics Dept.</p>
+              <p className="font-medium text-sm">{teacherName}</p>
+              <p className="text-xs text-primary-foreground/70">{department}</p>
             </div>
           </div>
           <Link
@@ -644,7 +714,7 @@ const TeacherDashboard = () => {
             <h1 className="font-heading text-2xl font-bold text-foreground">
               {navigation.find(n => n.id === activeNav)?.name || "Dashboard"}
             </h1>
-            <p className="text-muted-foreground text-sm">Mathematics Department</p>
+            <p className="text-muted-foreground text-sm">{department} Department</p>
           </div>
           <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
             <Bell className="h-6 w-6 text-muted-foreground" />

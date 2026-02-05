@@ -46,71 +46,15 @@ const newsHighlights = [
 const Index = () => {
   return (
     <Layout>
-      {/* Hero Section with Carousel - Full viewport height, connected to navbar */}
+      {/* Hero Section with Cinematic Carousel */}
       <section className="relative h-screen w-full">
-        {/* Background Carousel */}
         <HeroCarousel />
 
-        {/* Content - positioned below navbar */}
-        <div className="absolute inset-0 flex items-center pt-20">
-          <div className="container mx-auto px-4 relative z-10">
-            <div className="max-w-2xl animate-slide-up">
-              <div className="flex items-center gap-4 mb-6">
-                <img 
-                  src={logo} 
-                  alt="Wenyasha Logo" 
-                  className="h-24 w-24 object-contain bg-white/10 backdrop-blur-sm rounded-xl p-2 shadow-2xl border border-white/20"
-                />
-                <div>
-                  <p className="text-accent font-bold tracking-widest uppercase text-sm drop-shadow-lg">
-                    Welcome to
-                  </p>
-                  <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-white drop-shadow-lg">
-                    Wenyasha
-                  </h1>
-                  <h2 className="font-heading text-2xl md:text-3xl font-semibold text-accent drop-shadow-md">
-                    International School
-                  </h2>
-                </div>
-              </div>
-              
-              <p className="text-2xl md:text-3xl text-white/95 mb-4 font-heading italic drop-shadow-lg">
-                Smart • Innovative • Infinite
-              </p>
-              
-              <p className="text-lg text-white/85 mb-8 max-w-xl leading-relaxed drop-shadow-md">
-                Nurturing future leaders through excellence in education. Join our community 
-                of learners and discover your infinite potential.
-              </p>
-
-              <div className="flex flex-wrap gap-4">
-                <Button 
-                  size="xl" 
-                  className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold shadow-lg shadow-accent/30"
-                  asChild
-                >
-                  <Link to="/portal">
-                    Access Portal
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-                <Button 
-                  size="xl" 
-                  className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold shadow-lg shadow-accent/30"
-                  asChild
-                >
-                  <Link to="/about">Learn More</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom motto bar */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-r from-primary via-forest-dark to-primary py-4">
+        {/* Simple bottom motto bar for professional balance */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-r from-forest-dark/95 via-forest/90 to-forest-dark/95 backdrop-blur-sm py-5 border-t border-white/10">
           <div className="container mx-auto px-4 text-center">
-            <p className="text-white text-lg md:text-xl font-heading font-medium tracking-wide">
-              Equip & enable learners to develop their full potential.
+            <p className="text-white/90 text-lg md:text-xl font-heading font-medium tracking-wide animate-fade-in">
+              "Equipping & enabling learners to develop their full potential."
             </p>
           </div>
         </div>
@@ -178,7 +122,7 @@ const Index = () => {
               </div>
               <div className="space-y-4">
                 {upcomingEvents.map((event, index) => (
-                  <div 
+                  <div
                     key={index}
                     className="flex items-center gap-4 p-4 rounded-xl bg-background border border-border hover:border-accent/30 transition-all"
                   >
@@ -211,7 +155,7 @@ const Index = () => {
               </div>
               <div className="space-y-4">
                 {newsHighlights.map((news, index) => (
-                  <div 
+                  <div
                     key={index}
                     className="p-5 rounded-xl bg-background border border-border hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
                   >
@@ -233,7 +177,7 @@ const Index = () => {
             Ready to Join Our Community?
           </h2>
           <p className="text-primary-foreground/80 max-w-xl mx-auto mb-8">
-            Take the first step towards an exceptional education. 
+            Take the first step towards an exceptional education.
             Contact us today to learn more about admissions.
           </p>
           <div className="flex flex-wrap justify-center gap-4">

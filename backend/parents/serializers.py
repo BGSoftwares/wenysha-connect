@@ -8,7 +8,7 @@ class ParentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Parent
-        fields = ['id', 'name', 'phone', 'email', 'address', 'status', 'children']
+        fields = ['id', 'user', 'name', 'phone', 'email', 'address', 'status', 'children']
 
     def get_children(self, obj):
         links = StudentParent.objects.filter(parent=obj).select_related('student', 'student__school_class')

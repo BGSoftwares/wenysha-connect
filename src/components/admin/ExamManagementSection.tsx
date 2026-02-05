@@ -3,75 +3,24 @@ import { Plus, Edit, Trash2, Search, Calendar, BookOpen, Users, CheckCircle, Clo
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { calculateGrade, GRADING_SCALE } from "@/lib/grading";
-
-interface Exam {
-  id: string;
-  name: string;
-  term: string;
-  year: string;
-  startDate: string;
-  endDate: string;
-  classes: string[];
-  subjects: string[];
-  status: "scheduled" | "ongoing" | "completed" | "grading";
-  createdAt: string;
-}
-
-interface ExamSchedule {
-  id: string;
-  examId: string;
-  subject: string;
-  class: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  venue: string;
-  invigilator: string;
-}
-
-// Mock data
-const mockExams: Exam[] = [
-  {
-    id: "1",
-    name: "End of Term 1 Examinations",
-    term: "Term 1",
-    year: "2024",
-    startDate: "2024-03-18",
-    endDate: "2024-03-29",
-    classes: ["Form 4A", "Form 4B", "Form 3A", "Form 3B"],
-    subjects: ["Mathematics", "English", "Physics", "Chemistry", "Biology", "History"],
-    status: "completed",
-    createdAt: "2024-02-15"
-  },
-  {
-    id: "2",
-    name: "Mid-Term Assessment",
-    term: "Term 2",
-    year: "2024",
-    startDate: "2024-06-10",
-    endDate: "2024-06-14",
-    classes: ["Form 4A", "Form 4B"],
-    subjects: ["Mathematics", "English", "Physics"],
-    status: "scheduled",
-    createdAt: "2024-05-20"
-  },
-];
-
-const mockSchedules: ExamSchedule[] = [
-  { id: "1", examId: "1", subject: "Mathematics", class: "Form 4A", date: "2024-03-18", startTime: "08:00", endTime: "11:00", venue: "Hall A", invigilator: "Mrs. Moyo" },
-  { id: "2", examId: "1", subject: "English", class: "Form 4A", date: "2024-03-19", startTime: "08:00", endTime: "11:00", venue: "Hall A", invigilator: "Ms. Phiri" },
-  { id: "3", examId: "1", subject: "Physics", class: "Form 4A", date: "2024-03-20", startTime: "08:00", endTime: "11:00", venue: "Lab 1", invigilator: "Mr. Ncube" },
-];
-
-const mockClasses = ["Form 4A", "Form 4B", "Form 3A", "Form 3B", "Form 2A", "Form 2B"];
-const mockSubjects = ["Mathematics", "English Language", "Physics", "Chemistry", "Biology", "History", "Geography", "Shona", "ICT"];
+import { useExams, useExamSchedules, useExamMarks, useCreateExam, useUpdateExamMark, useClasses, useSubjects, Exam } from "@/lib/hooks";
 
 const ExamManagementSection = () => {
   const [activeTab, setActiveTab] = useState<"exams" | "schedules" | "marks">("exams");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showMarksModal, setShowMarksModal] = useState(false);
-  const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Logic Hooks
+  const { data: exams = [], isLoading: isLoadingExams } = useExams();
+  const { data: schedules = [] } = useExamSchedules({ exam: selectedExamId || undefined });
+  const { data: classes = [] } = useClasses();
+  const { data: subjects = [] } = useSubjects();
+
+  const createExamMutation = useCreateExam();
+
+  const selectedExam = exams.find(e => e.id === selectedExamId);
 
   // Form states
   const [newExam, setNewExam] = useState({
@@ -100,20 +49,33 @@ const ExamManagementSection = () => {
     return <span className={`text-xs px-2 py-1 rounded-full font-medium ${styles[status]}`}>{labels[status]}</span>;
   };
 
-  const handleCreateExam = () => {
-    if (!newExam.name || !newExam.startDate || !newExam.endDate || newExam.classes.length === 0) {
-      toast.error("Please fill all required fields");
-      return;
+  const handleCreateExam = async () => {
+    try {
+      if (!newExam.name || !newExam.startDate || !newExam.endDate || newExam.classes.length === 0) {
+        toast.error("Please fill all required fields");
+        return;
+      }
+      await createExamMutation.mutateAsync({
+        name: newExam.name,
+        term: newExam.term,
+        year: newExam.year,
+        start_date: newExam.startDate,
+        end_date: newExam.endDate,
+        classes: newExam.classes.map(id => Number(id)),
+        subjects: newExam.subjects.map(id => Number(id))
+      });
+      toast.success("Exam created successfully");
+      setShowCreateModal(false);
+      setNewExam({ name: "", term: "Term 1", year: "2024", startDate: "", endDate: "", classes: [], subjects: [] });
+    } catch (error) {
+      toast.error("Failed to create exam");
     }
-    toast.success("Exam created successfully");
-    setShowCreateModal(false);
-    setNewExam({ name: "", term: "Term 1", year: "2024", startDate: "", endDate: "", classes: [], subjects: [] });
   };
 
   const toggleClass = (cls: string) => {
     setNewExam(prev => ({
       ...prev,
-      classes: prev.classes.includes(cls) 
+      classes: prev.classes.includes(cls)
         ? prev.classes.filter(c => c !== cls)
         : [...prev.classes, cls]
     }));
@@ -128,7 +90,7 @@ const ExamManagementSection = () => {
     }));
   };
 
-  const filteredExams = mockExams.filter(exam => 
+  const filteredExams = (exams || []).filter(exam =>
     exam.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     exam.term.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -206,11 +168,10 @@ const ExamManagementSection = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
+              className={`flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
             >
               <tab.icon className="h-4 w-4" />
               {tab.label}
@@ -270,11 +231,11 @@ const ExamManagementSection = () => {
                     <p className="text-sm font-medium text-foreground">{exam.subjects.length} subjects</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => {
-                        setSelectedExam(exam);
+                        setSelectedExamId(exam.id);
                         setShowMarksModal(true);
                       }}
                     >
@@ -306,12 +267,12 @@ const ExamManagementSection = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {mockSchedules.map((schedule) => (
+              {schedules.map((schedule) => (
                 <tr key={schedule.id} className="hover:bg-secondary/30">
-                  <td className="px-4 py-3 text-sm font-medium text-foreground">{schedule.subject}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{schedule.class}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-foreground">{schedule.subject_name}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{schedule.class_name}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{new Date(schedule.date).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{schedule.startTime} - {schedule.endTime}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{schedule.start_time} - {schedule.end_time}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{schedule.venue}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{schedule.invigilator}</td>
                 </tr>
@@ -328,11 +289,11 @@ const ExamManagementSection = () => {
             <h3 className="font-semibold text-foreground">Select Exam for Marks Entry</h3>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockExams.filter(e => e.status === "completed" || e.status === "grading").map((exam) => (
+            {exams.filter(e => e.status === "completed" || e.status === "grading").map((exam) => (
               <button
                 key={exam.id}
                 onClick={() => {
-                  setSelectedExam(exam);
+                  setSelectedExamId(exam.id);
                   setShowMarksModal(true);
                 }}
                 className="p-4 rounded-lg border border-border hover:border-primary bg-background text-left transition-colors"
@@ -341,7 +302,7 @@ const ExamManagementSection = () => {
                 <p className="text-sm text-muted-foreground">{exam.term} {exam.year}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">{exam.classes.length} classes</span>
+                  <span className="text-xs text-muted-foreground">{exam.classes?.length || 0} classes</span>
                 </div>
               </button>
             ))}
@@ -354,7 +315,7 @@ const ExamManagementSection = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCreateModal(false)}>
           <div className="bg-card rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="font-heading text-xl font-bold text-foreground mb-6">Create New Exam</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Exam Name *</label>
@@ -417,18 +378,17 @@ const ExamManagementSection = () => {
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Assign Classes *</label>
                 <div className="flex flex-wrap gap-2">
-                  {mockClasses.map((cls) => (
+                  {classes.map((cls) => (
                     <button
-                      key={cls}
+                      key={cls.id}
                       type="button"
-                      onClick={() => toggleClass(cls)}
-                      className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                        newExam.classes.includes(cls)
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-foreground hover:bg-secondary/80"
-                      }`}
+                      onClick={() => toggleClass(String(cls.id))}
+                      className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${newExam.classes.includes(String(cls.id))
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-foreground hover:bg-secondary/80"
+                        }`}
                     >
-                      {cls}
+                      {cls.name}
                     </button>
                   ))}
                 </div>
@@ -437,18 +397,17 @@ const ExamManagementSection = () => {
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Select Subjects</label>
                 <div className="flex flex-wrap gap-2">
-                  {mockSubjects.map((subj) => (
+                  {subjects.map((subj) => (
                     <button
-                      key={subj}
+                      key={subj.id}
                       type="button"
-                      onClick={() => toggleSubject(subj)}
-                      className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                        newExam.subjects.includes(subj)
-                          ? "bg-accent text-accent-foreground"
-                          : "bg-secondary text-foreground hover:bg-secondary/80"
-                      }`}
+                      onClick={() => toggleSubject(String(subj.id))}
+                      className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${newExam.subjects.includes(String(subj.id))
+                        ? "bg-accent text-accent-foreground"
+                        : "bg-secondary text-foreground hover:bg-secondary/80"
+                        }`}
                     >
-                      {subj}
+                      {subj.name}
                     </button>
                   ))}
                 </div>
@@ -469,15 +428,15 @@ const ExamManagementSection = () => {
           <div className="bg-card rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="font-heading text-xl font-bold text-foreground mb-2">Enter Marks</h3>
             <p className="text-sm text-muted-foreground mb-6">{selectedExam.name}</p>
-            
+
             <div className="flex gap-4 mb-6">
               <select className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
                 <option>Select Class</option>
-                {selectedExam.classes.map(cls => <option key={cls}>{cls}</option>)}
+                {classes.filter(c => selectedExam?.classes.includes(c.id)).map(cls => <option key={cls.id}>{cls.name}</option>)}
               </select>
               <select className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
                 <option>Select Subject</option>
-                {selectedExam.subjects.map(subj => <option key={subj}>{subj}</option>)}
+                {subjects.filter(s => selectedExam?.subjects.includes(s.id)).map(subj => <option key={subj.id}>{subj.name}</option>)}
               </select>
             </div>
 

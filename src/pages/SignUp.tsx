@@ -37,6 +37,7 @@ const SignUp = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<RoleType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -242,8 +243,8 @@ const SignUp = () => {
                         type="button"
                         onClick={() => setSelectedRole(role.type)}
                         className={`p-4 rounded-lg border text-left transition-all ${selectedRole === role.type
-                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                            : "border-border hover:border-primary/50"
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "border-border hover:border-primary/50"
                           }`}
                       >
                         <role.icon className={`h-5 w-5 mb-2 ${selectedRole === role.type ? "text-primary" : "text-muted-foreground"

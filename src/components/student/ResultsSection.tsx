@@ -1,48 +1,48 @@
+import { useState } from "react";
+import { calculateGrade, getGradeColorClasses } from "@/lib/grading";
+import { useGrades, useStudentProfile } from "@/lib/hooks";
+import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Download, TrendingUp, TrendingDown, Minus, Award } from "lucide-react";
 
-const ResultsSection = () => {
-  const examResults = {
-    current: {
-      term: "Term 1 2024",
-      examType: "Mid-Term Examinations",
-      subjects: [
-        { name: "Mathematics", score: 78, grade: "B+", previousScore: 72, comment: "Good improvement in algebra" },
-        { name: "English Language", score: 85, grade: "A", previousScore: 88, comment: "Excellent essay writing" },
-        { name: "Physics", score: 72, grade: "B", previousScore: 70, comment: "Needs more practice on mechanics" },
-        { name: "Chemistry", score: 81, grade: "A-", previousScore: 75, comment: "Strong understanding of organic chemistry" },
-        { name: "Biology", score: 88, grade: "A", previousScore: 85, comment: "Excellent practical work" },
-        { name: "Geography", score: 76, grade: "B+", previousScore: 78, comment: "Good map reading skills" },
-        { name: "History", score: 82, grade: "A-", previousScore: 80, comment: "Well-researched essays" },
-        { name: "Computer Science", score: 90, grade: "A+", previousScore: 88, comment: "Outstanding programming skills" },
-      ],
-      average: 81.5,
-      rank: 5,
-      totalStudents: 45
-    },
-    previous: [
-      { term: "Term 3 2023", average: 79.2, rank: 7 },
-      { term: "Term 2 2023", average: 77.8, rank: 8 },
-      { term: "Term 1 2023", average: 75.5, rank: 12 },
-    ]
-  };
+export interface ResultsSectionProps {
+  studentId: number;
+}
 
-  const getGradeColor = (grade: string) => {
-    if (grade.startsWith("A")) return "bg-green-500/20 text-green-700 border-green-500/30";
-    if (grade.startsWith("B")) return "bg-blue-500/20 text-blue-700 border-blue-500/30";
-    if (grade.startsWith("C")) return "bg-yellow-500/20 text-yellow-700 border-yellow-500/30";
-    if (grade.startsWith("D")) return "bg-orange-500/20 text-orange-700 border-orange-500/30";
-    return "bg-red-500/20 text-red-700 border-red-500/30";
-  };
+const ResultsSection = ({ studentId }: ResultsSectionProps) => {
+  const [selectedTerm, setSelectedTerm] = useState("Term 1 2024");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const getTrend = (current: number, previous: number) => {
-    if (current > previous) return <TrendingUp className="h-4 w-4 text-green-600" />;
-    if (current < previous) return <TrendingDown className="h-4 w-4 text-red-500" />;
-    return <Minus className="h-4 w-4 text-muted-foreground" />;
-  };
+  const { data: profile } = useStudentProfile();
+  const { data: grades = [], isLoading } = useGrades({ student: studentId });
+
+  const filteredResults = grades.filter(result =>
+    result.subject_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    result.assessment_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (isLoading) {
+    return (
+      <div className="p-12 text-center flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading results...</p>
+      </div>
+    );
+  }
+
+  // Placeholder for summary calculations based on `grades`
+  const currentTermGrades = grades.filter(g => g.term_name === "Term 1 2024"); // Example filtering
+  const averageScore = currentTermGrades.length > 0
+    ? (currentTermGrades.reduce((sum, g) => sum + g.score, 0) / currentTermGrades.length).toFixed(1)
+    : "N/A";
+  const bestSubject = currentTermGrades.reduce((best, current) => (best.score > current.score ? best : current), { score: -1, subject_name: "N/A" }).subject_name;
+  // Rank and totalStudents would typically come from a separate API or be calculated with more context
+  const rank = "N/A";
+  const totalStudents = "N/A";
+  const improvement = "N/A"; // Requires previous term data
 
   return (
     <div className="space-y-6">
@@ -67,7 +67,7 @@ const ResultsSection = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Average Score</p>
-                <p className="text-2xl font-bold text-foreground">{examResults.current.average}%</p>
+                <p className="text-2xl font-bold text-foreground">{averageScore}%</p>
               </div>
             </div>
           </CardContent>
@@ -80,7 +80,7 @@ const ResultsSection = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Class Rank</p>
-                <p className="text-2xl font-bold text-foreground">{examResults.current.rank}<span className="text-sm text-muted-foreground">/{examResults.current.totalStudents}</span></p>
+                <p className="text-2xl font-bold text-foreground">{rank}<span className="text-sm text-muted-foreground">/{totalStudents}</span></p>
               </div>
             </div>
           </CardContent>
@@ -93,7 +93,7 @@ const ResultsSection = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Best Subject</p>
-                <p className="text-lg font-bold text-foreground">Computer Science</p>
+                <p className="text-lg font-bold text-foreground">{bestSubject}</p>
               </div>
             </div>
           </CardContent>
@@ -106,7 +106,7 @@ const ResultsSection = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Improvement</p>
-                <p className="text-2xl font-bold text-green-600">+2.3%</p>
+                <p className="text-2xl font-bold text-green-600">{improvement}</p>
               </div>
             </div>
           </CardContent>
@@ -124,11 +124,11 @@ const ResultsSection = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>{examResults.current.examType}</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">{examResults.current.term}</p>
+                  <CardTitle>Mid-Term Examinations</CardTitle> {/* Placeholder */}
+                  <p className="text-sm text-muted-foreground mt-1">Term 1 2024</p> {/* Placeholder */}
                 </div>
                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                  Grade A-
+                  Grade A- {/* Placeholder */}
                 </Badge>
               </div>
             </CardHeader>
@@ -145,27 +145,43 @@ const ResultsSection = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {examResults.current.subjects.map((subject, index) => (
-                      <tr key={index} className="border-b border-border/50 hover:bg-secondary/30">
-                        <td className="py-3 px-4 font-medium text-foreground">{subject.name}</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="font-semibold text-foreground">{subject.score}%</span>
-                          <span className="text-xs text-muted-foreground ml-1">({subject.previousScore}%)</span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <Badge className={getGradeColor(subject.grade)}>{subject.grade}</Badge>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            {getTrend(subject.score, subject.previousScore)}
-                            <span className={`text-xs ${subject.score > subject.previousScore ? 'text-green-600' : subject.score < subject.previousScore ? 'text-red-500' : 'text-muted-foreground'}`}>
-                              {subject.score > subject.previousScore ? '+' : ''}{subject.score - subject.previousScore}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">{subject.comment}</td>
+                    {/* This section needs to be updated to use `currentTermGrades` or similar filtered data */}
+                    {currentTermGrades.map((subject, index) => {
+                      const gradeInfo = calculateGrade(subject.score);
+                      // Assuming 'previousScore' is available or can be fetched/calculated
+                      const previousScore = 0; // Placeholder
+                      const trendIcon = subject.score > previousScore ? <TrendingUp className="h-4 w-4 text-green-600" /> :
+                        subject.score < previousScore ? <TrendingDown className="h-4 w-4 text-red-500" /> :
+                          <Minus className="h-4 w-4 text-muted-foreground" />;
+                      const scoreDifference = subject.score - previousScore;
+
+                      return (
+                        <tr key={index} className="border-b border-border/50 hover:bg-secondary/30">
+                          <td className="py-3 px-4 font-medium text-foreground">{subject.subject_name}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="font-semibold text-foreground">{subject.score}%</span>
+                            <span className="text-xs text-muted-foreground ml-1">({previousScore}%)</span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <Badge className={getGradeColorClasses(gradeInfo.grade)}>{gradeInfo.grade}</Badge>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              {trendIcon}
+                              <span className={`text-xs ${scoreDifference > 0 ? 'text-green-600' : scoreDifference < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                                {scoreDifference > 0 ? '+' : ''}{scoreDifference}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-muted-foreground">{subject.remarks || "No comment"}</td>
+                        </tr>
+                      );
+                    })}
+                    {currentTermGrades.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground italic">No results for the current term.</td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -175,32 +191,54 @@ const ResultsSection = () => {
 
         <TabsContent value="history" className="mt-4">
           <div className="grid gap-4">
-            {examResults.previous.map((term, index) => (
-              <Card key={index}>
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">{term.term}</p>
-                      <p className="text-sm text-muted-foreground">Final Examinations</p>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground">Average</p>
-                        <p className="font-semibold text-foreground">{term.average}%</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground">Rank</p>
-                        <p className="font-semibold text-foreground">#{term.rank}</p>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <FileText className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-border">
+                <thead>
+                  <tr className="bg-secondary/20">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Subject / Assessment</th>
+                    <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">Score</th>
+                    <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">Grade</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Remarks</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredResults.map((result, idx) => {
+                    const gradeInfo = calculateGrade(result.score);
+                    return (
+                      <tr key={idx} className="hover:bg-secondary/30 transition-colors">
+                        <td className="px-4 py-4">
+                          <div className="font-medium text-foreground">{result.subject_name}</div>
+                          <div className="text-xs text-muted-foreground">{result.assessment_name}</div>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <div className="text-sm font-bold text-foreground">{result.score}%</div>
+                          <div className="text-[10px] text-muted-foreground">out of 100</div>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${gradeInfo.bgColor} ${gradeInfo.color}`}>
+                            Grade {gradeInfo.grade}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <p className="text-sm text-muted-foreground italic line-clamp-1">
+                            {result.remarks || "No remarks provided"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-4 text-right text-xs text-muted-foreground">
+                          {new Date(result.date_recorded).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredResults.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground italic">No results found matching your search.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </TabsContent>
       </Tabs>

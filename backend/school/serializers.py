@@ -16,7 +16,7 @@ class SchoolClassSerializer(serializers.ModelSerializer):
 class TeacherSerializer(serializers.ModelSerializer):
     class Meta:
         model = Teacher
-        fields = ['id', 'name', 'department', 'phone']
+        fields = ['id', 'user', 'name', 'department', 'phone']
 
 
 class SubjectSerializer(serializers.ModelSerializer):
@@ -31,7 +31,7 @@ class StudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         fields = [
-            'id', 'student_id', 'name', 'school_class', 'class_name', 'gender', 'status',
+            'id', 'user', 'student_id', 'name', 'school_class', 'class_name', 'gender', 'status',
             'date_of_birth', 'address'
         ]
 

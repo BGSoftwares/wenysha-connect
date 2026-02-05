@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import logo from "@/assets/wenyasha-logo.jpg";
 import { calculateGrade, getGradeColorClasses, GRADING_SCALE } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
+import { useExamMarks, useStudentProfile } from "@/lib/hooks";
 
 interface SubjectResult {
   subject: string;
@@ -62,16 +63,28 @@ const mockReportCard: ReportCardData = {
   }
 };
 
-const ReportCardSection = () => {
+export interface ReportCardSectionProps {
+  studentId: number;
+}
+
+const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const [selectedTerm, setSelectedTerm] = useState("Term 1 2024");
   const [isExporting, setIsExporting] = useState(false);
   const reportCardRef = useRef<HTMLDivElement>(null);
-  const reportCard = mockReportCard;
+
+  const { data: profile } = useStudentProfile();
+  const { data: marks = [], isLoading } = useExamMarks({ student: studentId });
+
+  const results: SubjectResult[] = marks.map(m => ({
+    subject: m.subject_name,
+    marks: m.total_marks,
+    scored: Number(m.scored)
+  }));
 
   const handleDownloadPdf = async () => {
     setIsExporting(true);
     try {
-      await exportReportCardPdf("report-card-content", reportCard.studentName);
+      await exportReportCardPdf("report-card-content", profile?.name || "Student");
     } finally {
       setIsExporting(false);
     }
@@ -82,16 +95,26 @@ const ReportCardSection = () => {
   };
 
   const calculateAverage = () => {
-    const total = reportCard.results.reduce((sum, r) => sum + r.scored, 0);
-    return (total / reportCard.results.length).toFixed(2);
+    if (results.length === 0) return "0.00";
+    const total = results.reduce((sum, r) => sum + r.scored, 0);
+    return (total / results.length).toFixed(2);
   };
 
   const countPassed = () => {
-    return reportCard.results.filter(r => {
+    return results.filter(r => {
       const percentage = (r.scored / r.marks) * 100;
       return percentage >= 40;
     }).length;
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-12 text-center flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Generating report card...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -102,7 +125,7 @@ const ReportCardSection = () => {
           <p className="text-muted-foreground text-sm">View your academic performance</p>
         </div>
         <div className="flex items-center gap-3">
-          <select 
+          <select
             value={selectedTerm}
             onChange={(e) => setSelectedTerm(e.target.value)}
             className="px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
@@ -135,18 +158,17 @@ const ReportCardSection = () => {
               STUDENT ONLINE REPORT CARD
             </h1>
           </div>
-          
+
           <div className="grid md:grid-cols-3 gap-6">
             {/* Student Info */}
             <div className="space-y-2">
-              <p className="text-sm"><span className="font-semibold text-foreground">{reportCard.studentName}</span></p>
-              <p className="text-sm text-muted-foreground">Grade: {reportCard.grade}, {reportCard.class}</p>
-              <p className="text-sm text-muted-foreground">Exam: {reportCard.exam}</p>
-              <p className="text-sm text-muted-foreground">Position In Class: {reportCard.position} out of {reportCard.totalStudents}</p>
-              <p className="text-sm text-muted-foreground">Passed: {countPassed()} out of {reportCard.results.length}</p>
+              <p className="text-sm"><span className="font-semibold text-foreground">{profile?.name}</span></p>
+              <p className="text-sm text-muted-foreground">Grade: {profile?.class_name}</p>
+              <p className="text-sm text-muted-foreground">Exam: {selectedTerm} Final</p>
+              <p className="text-sm text-muted-foreground">Passed: {countPassed()} out of {results.length}</p>
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                Date: {new Date(reportCard.date).toLocaleDateString()}
+                Date: {new Date().toLocaleDateString()}
               </p>
             </div>
 
@@ -182,7 +204,7 @@ const ReportCardSection = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {reportCard.results.map((result, idx) => {
+              {results.map((result, idx) => {
                 const percentage = (result.scored / result.marks) * 100;
                 const gradeInfo = calculateGrade(percentage);
                 return (
@@ -200,6 +222,11 @@ const ReportCardSection = () => {
                   </tr>
                 );
               })}
+              {results.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-muted-foreground">No records found for this term.</td>
+                </tr>
+              )}
             </tbody>
             <tfoot className="bg-secondary/50">
               {(() => {
@@ -226,45 +253,12 @@ const ReportCardSection = () => {
           </table>
         </div>
 
-        {/* Overall Behavior Section */}
-        <div className="p-6 border-t border-border">
-          <div className="bg-[hsl(220,25%,18%)] text-white px-4 py-2 rounded-t-lg">
-            <h3 className="font-semibold text-sm">Overall Behavior</h3>
-          </div>
-          <div className="border border-border border-t-0 rounded-b-lg overflow-hidden">
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
-              <div className="p-3">
-                <p className="text-xs text-muted-foreground">Total days:</p>
-                <p className="font-medium text-foreground">{reportCard.attendance.totalDays}</p>
-              </div>
-              <div className="p-3">
-                <p className="text-xs text-muted-foreground">Behavior:</p>
-                <p className="font-medium text-foreground">{reportCard.attendance.behavior}</p>
-              </div>
-              <div className="p-3">
-                <p className="text-xs text-muted-foreground">Presents:</p>
-                <p className="font-medium text-green-600">{reportCard.attendance.present}</p>
-              </div>
-              <div className="p-3">
-                <p className="text-xs text-muted-foreground">Absent:</p>
-                <p className="font-medium text-red-600">{reportCard.attendance.absent}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Comments Section */}
         <div className="p-6 border-t border-border space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground block mb-2">Teacher Comment:</label>
             <div className="p-3 rounded-lg border border-border bg-secondary/20 min-h-[60px]">
-              <p className="text-sm text-muted-foreground italic">{reportCard.teacherComment || "No comment provided"}</p>
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground block mb-2">Head Comment:</label>
-            <div className="p-3 rounded-lg border border-border bg-secondary/20 min-h-[60px]">
-              <p className="text-sm text-muted-foreground italic">{reportCard.headComment || "No comment provided"}</p>
+              <p className="text-sm text-muted-foreground italic">Official comments will be visible once grading is finalized.</p>
             </div>
           </div>
         </div>

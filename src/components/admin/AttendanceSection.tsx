@@ -1,58 +1,54 @@
-import { useState } from "react";
-import { Search, Calendar, Check, X, Clock, Users, TrendingUp, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const mockClasses = [
-  { id: 1, name: "Form 4A", teacher: "Mrs. Grace Moyo" },
-  { id: 2, name: "Form 4B", teacher: "Mr. David Ncube" },
-  { id: 3, name: "Form 3A", teacher: "Ms. Linda Phiri" },
-  { id: 4, name: "Form 3B", teacher: "Mr. James Dube" },
-  { id: 5, name: "Form 2A", teacher: "Mrs. Susan Banda" },
-];
-
-const mockStudents = [
-  { id: 1, name: "John Moyo", class: "Form 4A", status: "present" },
-  { id: 2, name: "Sarah Ndlovu", class: "Form 4A", status: "present" },
-  { id: 3, name: "Peter Chikwanda", class: "Form 4A", status: "absent" },
-  { id: 4, name: "Mary Sibanda", class: "Form 4A", status: "present" },
-  { id: 5, name: "Grace Moyo", class: "Form 4A", status: "late" },
-  { id: 6, name: "David Tembo", class: "Form 4A", status: "present" },
-  { id: 7, name: "Linda Phiri", class: "Form 4A", status: "present" },
-  { id: 8, name: "James Dube", class: "Form 4A", status: "absent" },
-];
-
-const mockAttendanceStats = {
-  totalStudents: 450,
-  presentToday: 412,
-  absentToday: 28,
-  lateToday: 10,
-  averageAttendance: 94.5,
-};
-
-const mockRecentAbsences = [
-  { id: 1, student: "Peter Chikwanda", class: "Form 4A", date: "2024-12-05", reason: "Medical", days: 1 },
-  { id: 2, student: "James Dube", class: "Form 4A", date: "2024-12-05", reason: "Family Emergency", days: 1 },
-  { id: 3, student: "Susan Banda", class: "Form 3B", date: "2024-12-04", reason: "Sick Leave", days: 2 },
-  { id: 4, student: "Michael Ncube", class: "Form 2A", date: "2024-12-03", reason: "Medical Appointment", days: 1 },
-];
+import { useStudents, useClasses, useAttendanceRecords, useUpdateAttendance } from "@/lib/hooks";
+import { toast } from "sonner";
 
 const AttendanceSection = () => {
-  const [selectedClass, setSelectedClass] = useState(mockClasses[0]);
+  // Hooks
+  const { data: students = [] } = useStudents();
+  const { data: classes = [] } = useClasses();
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [attendanceData, setAttendanceData] = useState(mockStudents);
+
+  // Set initial class when data loads
+  useState(() => {
+    if (classes.length > 0 && !selectedClassId) {
+      setSelectedClassId(classes[0].id);
+    }
+  });
+
+  const { data: attendanceRecords = [], isLoading: isLoadingAttendance } = useAttendanceRecords({
+    date: selectedDate
+  });
+
+  const updateAttendanceMutation = useUpdateAttendance();
+
+  const selectedClass = classes.find(c => c.id === selectedClassId) || classes[0];
+
+  const attendanceData = students
+    .filter(s => s.school_class === selectedClassId)
+    .map(student => {
+      const record = attendanceRecords.find(r => r.student === student.id);
+      return {
+        ...student,
+        status: record?.status || "present"
+      };
+    });
 
   const filteredStudents = attendanceData.filter(student =>
     student.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const updateAttendance = (studentId: number, status: string) => {
-    setAttendanceData(prev => 
-      prev.map(s => s.id === studentId ? { ...s, status } : s)
-    );
+  const handleUpdateAttendance = async (studentId: number, status: "present" | "absent" | "late") => {
+    try {
+      await updateAttendanceMutation.mutateAsync({
+        student: studentId,
+        date: selectedDate,
+        status
+      });
+      toast.success("Attendance updated");
+    } catch (error) {
+      toast.error("Failed to update attendance");
+    }
   };
 
   const presentCount = attendanceData.filter(s => s.status === "present").length;
@@ -139,12 +135,12 @@ const AttendanceSection = () => {
           {/* Controls */}
           <div className="flex flex-col sm:flex-row gap-4">
             <select
-              value={selectedClass.id}
-              onChange={(e) => setSelectedClass(mockClasses.find(c => c.id === parseInt(e.target.value)) || mockClasses[0])}
+              value={selectedClassId || ""}
+              onChange={(e) => setSelectedClassId(parseInt(e.target.value))}
               className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
             >
-              {mockClasses.map(cls => (
-                <option key={cls.id} value={cls.id}>{cls.name} - {cls.teacher}</option>
+              {classes.map(cls => (
+                <option key={cls.id} value={cls.id}>{cls.name}</option>
               ))}
             </select>
             <Input
@@ -168,7 +164,7 @@ const AttendanceSection = () => {
           <div className="flex items-center gap-6 p-4 bg-secondary/50 rounded-lg">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm text-foreground font-medium">{selectedClass.name}</span>
+              <span className="text-sm text-foreground font-medium">{selectedClass?.name || "Select Class"}</span>
             </div>
             <div className="flex items-center gap-4 ml-auto">
               <span className="flex items-center gap-1 text-sm">
@@ -210,43 +206,39 @@ const AttendanceSection = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`text-xs px-3 py-1 rounded-full ${
-                        student.status === "present" ? "bg-green-100 text-green-700" :
-                        student.status === "absent" ? "bg-red-100 text-red-700" :
-                        "bg-amber-100 text-amber-700"
-                      }`}>
+                      <span className={`text-xs px-3 py-1 rounded-full ${student.status === "present" ? "bg-green-100 text-green-700" :
+                          student.status === "absent" ? "bg-red-100 text-red-700" :
+                            "bg-amber-100 text-amber-700"
+                        }`}>
                         {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => updateAttendance(student.id, "present")}
-                          className={`p-2 rounded-lg transition-colors ${
-                            student.status === "present" 
-                              ? "bg-green-500 text-white" 
+                          onClick={() => handleUpdateAttendance(student.id as number, "present")}
+                          className={`p-2 rounded-lg transition-colors ${student.status === "present"
+                              ? "bg-green-500 text-white"
                               : "bg-secondary hover:bg-green-100 text-muted-foreground hover:text-green-600"
-                          }`}
+                            }`}
                         >
                           <Check className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => updateAttendance(student.id, "absent")}
-                          className={`p-2 rounded-lg transition-colors ${
-                            student.status === "absent" 
-                              ? "bg-destructive text-white" 
+                          onClick={() => handleUpdateAttendance(student.id as number, "absent")}
+                          className={`p-2 rounded-lg transition-colors ${student.status === "absent"
+                              ? "bg-destructive text-white"
                               : "bg-secondary hover:bg-red-100 text-muted-foreground hover:text-red-600"
-                          }`}
+                            }`}
                         >
                           <X className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => updateAttendance(student.id, "late")}
-                          className={`p-2 rounded-lg transition-colors ${
-                            student.status === "late" 
-                              ? "bg-amber-500 text-white" 
+                          onClick={() => handleUpdateAttendance(student.id as number, "late")}
+                          className={`p-2 rounded-lg transition-colors ${student.status === "late"
+                              ? "bg-amber-500 text-white"
                               : "bg-secondary hover:bg-amber-100 text-muted-foreground hover:text-amber-600"
-                          }`}
+                            }`}
                         >
                           <Clock className="h-4 w-4" />
                         </button>

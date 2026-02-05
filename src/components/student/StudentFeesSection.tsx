@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { DollarSign, Download, FileText, AlertTriangle, CheckCircle, Clock, CreditCard, Receipt, TrendingUp, Loader2, Wallet } from "lucide-react";
+import { DollarSign, FileText, Download, CheckCircle, Clock, AlertTriangle, Calendar, Bell, User, LayoutDashboard, CreditCard, ChevronRight, AlertCircle, TrendingUp, Loader2, Wallet, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportFeeStatementPdf, FeeStatementPdfData } from "@/lib/pdfExport";
 import PaymentModal from "./PaymentModal";
+import { useInvoices, usePayments, useStudentFees, useStudentProfile } from "@/lib/hooks";
 
 interface Transaction {
   id: string;
@@ -49,39 +50,46 @@ const mockTransactions: Transaction[] = [
   { id: "TXN-005", date: "2024-01-10", description: "Term 1 Fee Payment", amount: 150, type: "payment", reference: "MOBILE-2024-0089", status: "completed" },
 ];
 
-const StudentFeesSection = () => {
+export interface StudentFeesSectionProps {
+  studentId: number;
+}
+
+const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
   const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "transactions">("overview");
   const [isExporting, setIsExporting] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const summary = mockFeesSummary;
 
-  // Mock student info - will come from auth context
-  const studentInfo = {
-    name: "John Moyo",
-    studentId: "WIS-2024-0123",
-    grade: "Form 4A"
-  };
+  const { data: profile } = useStudentProfile();
+  const { data: fees = [] } = useStudentFees({ student: studentId });
+  const { data: invoices = [] } = useInvoices({ student: studentId });
+  const { data: payments = [] } = usePayments(); // Note: usePayments might need studentId filter if available on backend
+
+  // Calculate summary stats
+  const totalBilled = fees.reduce((acc, f) => acc + Number(f.amount_due), 0);
+  const totalPaid = fees.reduce((acc, f) => acc + Number(f.amount_paid), 0);
+  const balance = totalBilled - totalPaid;
+  const arrears = 0; // Arrears logic could be complex, assuming 0 for now
 
   const handleDownloadStatement = async () => {
     setIsExporting(true);
     try {
       const pdfData: FeeStatementPdfData = {
-        studentName: studentInfo.name,
-        studentId: studentInfo.studentId,
-        grade: studentInfo.grade,
+        studentName: profile?.name || "Student",
+        studentId: profile?.student_id || "ID",
+        grade: profile?.class_name || "N/A",
         date: new Date().toLocaleDateString(),
         summary: {
-          totalFees: summary.totalFees,
-          totalPaid: summary.totalPaid,
-          balance: summary.balance,
-          arrears: summary.arrears
+          totalFees: totalBilled,
+          totalPaid: totalPaid,
+          balance: balance,
+          arrears: arrears
         },
-        transactions: mockTransactions.map(txn => ({
-          date: new Date(txn.date).toLocaleDateString(),
-          description: txn.description,
-          amount: txn.amount,
-          type: txn.type,
-          reference: txn.reference
+        transactions: payments.map(p => ({
+          date: new Date(p.date).toLocaleDateString(),
+          description: `Payment - Receipt ${p.receipt_no}`,
+          amount: Number(p.amount),
+          type: "payment",
+          reference: p.reference || p.receipt_no
         }))
       };
       await exportFeeStatementPdf(pdfData);
@@ -144,15 +152,23 @@ const StudentFeesSection = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-blue-600" />
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <DollarSign className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">${summary.totalFees}</p>
-              <p className="text-xs text-muted-foreground">Total Fees</p>
+              <p className="text-sm text-muted-foreground">Outstanding Balance</p>
+              <p className="text-2xl font-bold text-foreground">${balance}</p>
             </div>
           </div>
+        </div>
+        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+          <p className="text-sm text-muted-foreground mb-1">Arrears/Penalty</p>
+          <p className="text-2xl font-bold text-destructive">${arrears}</p>
+          <p className="text-xs text-destructive mt-2 flex items-center gap-1">
+            <AlertCircle className="h-3 w-3" />
+            Clear balance to avoid penalties
+          </p>
         </div>
         <div className="bg-card rounded-xl border border-border p-4">
           <div className="flex items-center gap-3">
@@ -160,34 +176,23 @@ const StudentFeesSection = () => {
               <CheckCircle className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-green-600">${summary.totalPaid}</p>
+              <p className="text-2xl font-bold text-green-600">${totalPaid}</p>
               <p className="text-xs text-muted-foreground">Total Paid</p>
             </div>
           </div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
-              <Clock className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-amber-600">${summary.balance}</p>
-              <p className="text-xs text-muted-foreground">Balance Due</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-3">
-            <div className={`h-10 w-10 rounded-lg ${summary.arrears > 0 ? 'bg-red-100' : 'bg-green-100'} flex items-center justify-center`}>
-              {summary.arrears > 0 ? (
+            <div className={`h-10 w-10 rounded-lg ${arrears > 0 ? 'bg-red-100' : 'bg-green-100'} flex items-center justify-center`}>
+              {arrears > 0 ? (
                 <AlertTriangle className="h-5 w-5 text-red-600" />
               ) : (
                 <CheckCircle className="h-5 w-5 text-green-600" />
               )}
             </div>
             <div>
-              <p className={`text-2xl font-bold ${summary.arrears > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                ${summary.arrears}
+              <p className={`text-2xl font-bold ${arrears > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                ${arrears}
               </p>
               <p className="text-xs text-muted-foreground">Arrears</p>
             </div>
@@ -200,19 +205,29 @@ const StudentFeesSection = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-semibold text-foreground">Payment Progress - Term 1 2024</h3>
-            <p className="text-sm text-muted-foreground">Next payment due: {new Date(summary.nextDueDate).toLocaleDateString()}</p>
+            <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+              <p className="text-sm text-muted-foreground mb-1">Total Fees Due</p>
+              <p className="text-2xl font-bold text-foreground">${totalBilled}</p>
+              <div className="mt-4 h-2 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-1000"
+                  style={{ width: `${(totalPaid / totalBilled) * 100}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">${totalPaid} paid so far</p>
+            </div>
           </div>
-          <span className="text-lg font-bold text-primary">{Math.round((summary.totalPaid / summary.totalFees) * 100)}%</span>
+          <span className="text-lg font-bold text-primary">{Math.round((totalPaid / totalBilled) * 100)}%</span>
         </div>
         <div className="h-3 bg-secondary rounded-full overflow-hidden">
-          <div 
+          <div
             className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500"
-            style={{ width: `${(summary.totalPaid / summary.totalFees) * 100}%` }}
+            style={{ width: `${(totalPaid / totalBilled) * 100}%` }}
           />
         </div>
         <div className="flex justify-between mt-2 text-sm">
-          <span className="text-muted-foreground">Paid: ${summary.totalPaid}</span>
-          <span className="text-muted-foreground">Remaining: ${summary.balance}</span>
+          <span className="text-muted-foreground">Paid: ${totalPaid}</span>
+          <span className="text-muted-foreground">Remaining: ${balance}</span>
         </div>
       </div>
 
@@ -224,7 +239,7 @@ const StudentFeesSection = () => {
           </div>
           <div className="flex-1">
             <p className="text-sm text-muted-foreground">Last Payment</p>
-            <p className="font-semibold text-foreground">${summary.lastPaymentAmount} on {new Date(summary.lastPaymentDate).toLocaleDateString()}</p>
+            <p className="font-semibold text-foreground">${payments.length > 0 ? payments[0].amount : 0} on {payments.length > 0 ? new Date(payments[0].date).toLocaleDateString() : 'N/A'}</p>
           </div>
           <Button variant="outline" size="sm">
             <FileText className="h-4 w-4 mr-2" />
@@ -244,11 +259,10 @@ const StudentFeesSection = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
+              className={`flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
             >
               <tab.icon className="h-4 w-4" />
               {tab.label}
@@ -280,7 +294,7 @@ const StudentFeesSection = () => {
               ))}
               <div className="flex justify-between items-center pt-2 border-t border-border">
                 <span className="font-semibold text-foreground">Total</span>
-                <span className="font-bold text-foreground">${summary.totalFees}</span>
+                <span className="font-bold text-foreground">${totalBilled}</span>
               </div>
             </div>
           </div>
@@ -318,29 +332,39 @@ const StudentFeesSection = () => {
                 <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Term</th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Amount</th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Paid</th>
-                <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Balance</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Due Date</th>
                 <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Status</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Due Date</th>
                 <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {mockInvoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-secondary/30">
-                  <td className="px-4 py-3 text-sm font-medium text-foreground">{invoice.id}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{invoice.term}</td>
-                  <td className="px-4 py-3 text-sm text-right text-foreground">${invoice.amount}</td>
-                  <td className="px-4 py-3 text-sm text-right text-green-600">${invoice.paid}</td>
-                  <td className="px-4 py-3 text-sm text-right text-amber-600">${invoice.balance}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-center">{getStatusBadge(invoice.status)}</td>
-                  <td className="px-4 py-3 text-center">
+              {invoices.map((invoice) => (
+                <tr key={invoice.id} className="hover:bg-secondary/30 transition-colors">
+                  <td className="px-4 py-4 text-sm font-medium text-foreground">{invoice.invoice_no}</td>
+                  <td className="px-4 py-4 text-sm text-muted-foreground">{invoice.term}</td>
+                  <td className="px-4 py-4 text-sm text-right text-foreground">${invoice.amount}</td>
+                  <td className="px-4 py-4 text-sm text-right text-green-600">${invoice.paid}</td>
+                  <td className="px-4 py-4 text-center">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${invoice.status === "paid" ? "bg-green-100 text-green-700" :
+                      invoice.status === "partial" ? "bg-amber-100 text-amber-700" :
+                        "bg-red-100 text-red-700"
+                      }`}>
+                      {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-sm text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</td>
+                  <td className="px-4 py-4 text-center">
                     <Button variant="outline" size="sm">
                       <Download className="h-4 w-4" />
                     </Button>
                   </td>
                 </tr>
               ))}
+              {invoices.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground italic">No invoices found.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
