@@ -1,0 +1,218 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Wenyasha School Colors */
+    --background: 45 30% 97%;
+    --foreground: 150 40% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 150 40% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 40% 15%;
+
+    /* Deep Forest Green - Primary */
+    --primary: 160 50% 20%;
+    --primary-foreground: 45 80% 95%;
+
+    /* Golden Yellow - Accent */
+    --accent: 48 95% 50%;
+    --accent-foreground: 150 40% 15%;
+
+    /* Secondary - Muted Green */
+    --secondary: 150 20% 92%;
+    --secondary-foreground: 150 40% 25%;
+
+    --muted: 45 20% 92%;
+    --muted-foreground: 150 15% 45%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 150 15% 85%;
+    --input: 150 15% 85%;
+    --ring: 160 50% 30%;
+
+    --radius: 0.625rem;
+
+    /* Custom School Tokens */
+    --gold: 48 95% 50%;
+    --gold-dark: 45 90% 40%;
+    --forest: 160 50% 20%;
+    --forest-light: 160 35% 35%;
+    --forest-dark: 160 55% 12%;
+    --cream: 45 30% 97%;
+    --warm-white: 40 40% 98%;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(160 50% 20%) 0%, hsl(160 55% 12%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(48 95% 50%) 0%, hsl(45 90% 40%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(45 30% 97%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 2px 8px -2px hsl(160 50% 20% / 0.08);
+    --shadow-md: 0 8px 24px -8px hsl(160 50% 20% / 0.12);
+    --shadow-lg: 0 16px 48px -12px hsl(160 50% 20% / 0.18);
+    --shadow-gold: 0 8px 24px -8px hsl(48 95% 50% / 0.3);
+
+    /* Sidebar */
+    --sidebar-background: 160 50% 20%;
+    --sidebar-foreground: 45 80% 95%;
+    --sidebar-primary: 48 95% 50%;
+    --sidebar-primary-foreground: 150 40% 15%;
+    --sidebar-accent: 160 35% 30%;
+    --sidebar-accent-foreground: 45 80% 95%;
+    --sidebar-border: 160 40% 25%;
+    --sidebar-ring: 48 95% 50%;
+  }
+
+  .dark {
+    --background: 160 55% 8%;
+    --foreground: 45 30% 95%;
+
+    --card: 160 45% 12%;
+    --card-foreground: 45 30% 95%;
+
+    --popover: 160 45% 12%;
+    --popover-foreground: 45 30% 95%;
+
+    --primary: 48 95% 50%;
+    --primary-foreground: 160 55% 10%;
+
+    --secondary: 160 35% 18%;
+    --secondary-foreground: 45 30% 90%;
+
+    --muted: 160 30% 18%;
+    --muted-foreground: 45 20% 65%;
+
+    --accent: 48 95% 50%;
+    --accent-foreground: 160 55% 10%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 160 30% 20%;
+    --input: 160 30% 20%;
+    --ring: 48 95% 50%;
+
+    --gold: 48 95% 50%;
+    --gold-dark: 45 90% 40%;
+    --forest: 160 50% 35%;
+    --forest-light: 160 35% 45%;
+    --forest-dark: 160 55% 8%;
+    --cream: 45 20% 15%;
+    --warm-white: 160 30% 12%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-semibold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    background: linear-gradient(135deg, hsl(48 95% 50%) 0%, hsl(45 90% 40%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-gradient-hero {
+    background: var(--gradient-hero);
+  }
+
+  .bg-gradient-gold {
+    background: var(--gradient-gold);
+  }
+
+  .shadow-elegant {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-gold-glow {
+    box-shadow: var(--shadow-gold);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.6s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.4s ease-out forwards;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.5);
+}
