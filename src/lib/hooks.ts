@@ -118,3 +118,37 @@ export const useTeachers = () => {
         },
     });
 };
+
+export const useCreateTeacher = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (newTeacher: Partial<Teacher>) => {
+            return await api.post<Teacher>("/school/teachers/", newTeacher);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["teachers"] });
+        },
+    });
+};
+
+// Subjects
+export const useSubjects = () => {
+    return useQuery({
+        queryKey: ["subjects"],
+        queryFn: async () => {
+            return await api.get<Subject[]>("/school/subjects/");
+        },
+    });
+};
+
+export const useCreateSubject = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (newSubject: Partial<Subject>) => {
+            return await api.post<Subject>("/school/subjects/", newSubject);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["subjects"] });
+        },
+    });
+};
