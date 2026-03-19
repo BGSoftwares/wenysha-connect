@@ -299,8 +299,8 @@ const ParentPortal = () => {
                                                                         </div>
                                                                     </div>
                                                                     <Badge variant="outline" className={
-                                                                        a.status === 'Present' ? 'text-green-600 border-green-200' :
-                                                                            a.status === 'Absent' ? 'text-red-600 border-red-200' : 'text-amber-600 border-amber-200'
+                                                                        a.status === 'present' ? 'text-green-600 border-green-200' :
+                                                                            a.status === 'absent' ? 'text-red-600 border-red-200' : 'text-amber-600 border-amber-200'
                                                                     }>
                                                                         {a.status}
                                                                     </Badge>

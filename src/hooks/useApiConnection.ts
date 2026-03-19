@@ -8,18 +8,18 @@ export function useApiConnection() {
 
   const checkConnection = useCallback(async () => {
     setIsChecking(true);
-    api.resetConnectionState();
-    const connected = await api.checkConnection();
-    setIsConnected(connected);
+    try {
+      await api.get('/health/');
+      setIsConnected(true);
+    } catch {
+      setIsConnected(false);
+    }
     setLastChecked(new Date());
     setIsChecking(false);
-    return connected;
   }, []);
 
   useEffect(() => {
     checkConnection();
-
-    // Re-check every 30 seconds
     const interval = setInterval(checkConnection, 30000);
     return () => clearInterval(interval);
   }, [checkConnection]);
@@ -29,6 +29,6 @@ export function useApiConnection() {
     isChecking,
     lastChecked,
     checkConnection,
-    apiBaseUrl: api.getBaseUrl(),
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api',
   };
 }

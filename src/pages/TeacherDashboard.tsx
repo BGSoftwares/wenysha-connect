@@ -371,7 +371,7 @@ const TeacherDashboard = () => {
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-4 border-b border-border bg-secondary/30 flex items-center justify-between">
           <div>
-            <h3 className="font-medium text-foreground">{selectedClass} - Attendance</h3>
+            <h3 className="font-medium text-foreground">{classes.find(c => c.id === selectedClassId)?.name || "Select Class"} - Attendance</h3>
             <p className="text-sm text-muted-foreground">{new Date(attendanceDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
           <div className="flex gap-4 text-sm">
