@@ -75,7 +75,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
       form: fee.form || "All Forms",
       category: fee.category || "Academic",
       boarding_type: fee.boarding_type || "All",
-      is_active: fee.is_active,
+      active: fee.active,
     });
     setShowModal(true);
   };
