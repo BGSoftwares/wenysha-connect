@@ -26,6 +26,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Plus, Edit2, Trash2, Search, Filter, DollarSign, Loader2, Landmark, ShieldCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useFeeStructures, useUpdateFeeStructure, useDeleteFeeStructure, useCreateFeeStructure, FeeStructure } from "@/lib/hooks";
 import { toast } from "sonner";
 
