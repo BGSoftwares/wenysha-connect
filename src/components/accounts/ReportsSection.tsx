@@ -21,7 +21,8 @@ import {
   Loader2,
   PieChart as PieChartIcon,
   ArrowUpRight,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles
 } from "lucide-react";
 import {
   BarChart,
