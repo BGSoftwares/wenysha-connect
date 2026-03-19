@@ -62,7 +62,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
 
   const handleAddFee = () => {
     setEditingFee(null);
-    setFormData({ name: "", amount: "0", term: "Term 1", form: "All Forms", category: "Academic", boarding_type: "All", is_active: true });
+    setFormData({ name: "", amount: "0", term: "Term 1", form: "All Forms", category: "Academic", boarding_type: "All", active: true });
     setShowModal(true);
   };
 
