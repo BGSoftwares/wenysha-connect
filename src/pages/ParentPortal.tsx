@@ -71,7 +71,7 @@ const ParentPortal = () => {
 
     const attendanceRate = useMemo(() => {
         if (!attendance || attendance.length === 0) return 0;
-        const present = attendance.filter(a => a.status === 'Present').length;
+        const present = attendance.filter(a => a.status === 'present').length;
         return (present / attendance.length) * 100;
     }, [attendance]);
 
