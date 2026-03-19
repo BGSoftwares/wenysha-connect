@@ -404,7 +404,7 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
           <div>
             <h4 className="font-semibold text-red-800">Outstanding Arrears</h4>
             <p className="text-sm text-red-700">
-              You have outstanding arrears of ${summary.arrears}. Please clear your balance to avoid restrictions on accessing academic services.
+              You have outstanding arrears of ${arrears}. Please clear your balance to avoid restrictions on accessing academic services.
             </p>
           </div>
         </div>
