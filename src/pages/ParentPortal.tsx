@@ -180,7 +180,7 @@ const ParentPortal = () => {
                                                 </div>
                                                 <h3 className="text-muted-foreground text-sm font-medium">Academic Average</h3>
                                                 <p className="text-3xl font-black text-foreground mt-1">{averageScore.toFixed(1)}%</p>
-                                                <Progress value={averageScore} className="h-2 mt-4 bg-blue-100" indicatorClassName="bg-blue-500" />
+                                                <Progress value={averageScore} className="h-2 mt-4 bg-blue-100" />
                                             </CardContent>
                                         </Card>
 
