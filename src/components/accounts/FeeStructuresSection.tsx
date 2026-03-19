@@ -90,7 +90,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
       if (editingFee) {
         await updateMutation.mutateAsync({
           id: editingFee.id,
-          data: { ...formData, amount: parseFloat(formData.amount) }
+          data: { ...formData, amount: formData.amount }
         });
         toast.success("Structure updated successfully");
       } else {
