@@ -69,7 +69,7 @@ const ReportsSection = () => {
     if (!payments) return [];
     const methods: Record<string, number> = {};
     payments.forEach(p => {
-      methods[p.payment_method] = (methods[p.payment_method] || 0) + parseFloat(p.amount.toString());
+      methods[p.method] = (methods[p.method] || 0) + parseFloat(p.amount.toString());
     });
 
     const colors = ["#064e3b", "#eab308", "#0ea5e9", "#8b5cf6", "#ec4899"];
