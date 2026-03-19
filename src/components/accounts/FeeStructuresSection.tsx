@@ -96,7 +96,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
       } else {
         await createMutation.mutateAsync({
           ...formData,
-          amount: parseFloat(formData.amount)
+          amount: formData.amount
         });
         toast.success("New structure added to registry");
       }
