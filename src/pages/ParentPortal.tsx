@@ -295,7 +295,7 @@ const ParentPortal = () => {
                                                                         </div>
                                                                         <div>
                                                                             <p className="font-bold text-foreground">{new Date(a.date).toLocaleDateString()}</p>
-                                                                            <p className="text-xs text-muted-foreground">{a.remarks || "No remarks"}</p>
+                                                                            <p className="text-xs text-muted-foreground">{"No remarks"}</p>
                                                                         </div>
                                                                     </div>
                                                                     <Badge variant="outline" className={
