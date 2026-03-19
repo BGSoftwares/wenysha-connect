@@ -398,7 +398,7 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
       )}
 
       {/* Arrears Warning (if applicable) */}
-      {summary.arrears > 0 && (
+      {arrears > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
           <div>
