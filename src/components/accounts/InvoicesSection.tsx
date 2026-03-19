@@ -336,5 +336,3 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
 };
 
 export default InvoicesSection;
-
-export default InvoicesSection;

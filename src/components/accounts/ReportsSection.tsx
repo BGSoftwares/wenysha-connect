@@ -302,5 +302,3 @@ const ReportsSection = () => {
 };
 
 export default ReportsSection;
-
-export default ReportsSection;

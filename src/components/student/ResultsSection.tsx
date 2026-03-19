@@ -163,7 +163,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                             <span className="text-xs text-muted-foreground ml-1">({previousScore}%)</span>
                           </td>
                           <td className="py-3 px-4 text-center">
-                            <Badge className={getGradeColorClasses(gradeInfo.grade)}>{gradeInfo.grade}</Badge>
+                            <Badge className={getGradeColorClasses(gradeInfo.grade) as string}>{gradeInfo.grade}</Badge>
                           </td>
                           <td className="py-3 px-4 text-center">
                             <div className="flex items-center justify-center gap-1">

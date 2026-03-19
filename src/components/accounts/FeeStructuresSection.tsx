@@ -209,7 +209,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
                       </TableCell>
                       <TableCell className="text-center">
                         <Switch
-                          checked={fee.is_active}
+                          checked={fee.active}
                           onCheckedChange={() => handleToggleActive(fee)}
                           className="data-[state=checked]:bg-primary"
                         />

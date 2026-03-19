@@ -274,5 +274,3 @@ const AccountsOverview = () => {
 };
 
 export default AccountsOverview;
-
-export default AccountsOverview;

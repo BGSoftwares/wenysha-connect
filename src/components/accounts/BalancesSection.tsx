@@ -325,5 +325,3 @@ const BalancesSection = () => {
 };
 
 export default BalancesSection;
-
-export default BalancesSection;

@@ -61,7 +61,7 @@ const ClassesSection = ({ classes, onAddClass }: ClassesSectionProps) => {
                                     />
                                 </div>
                                 <p className="text-[10px] text-right text-muted-foreground font-medium uppercase tracking-tight">
-                                    {occupancyRate >= 100 ? "FULLY ENROLLED" : `${100 - occupancyRate.toFixed(0)}% SEATS VACANT`}
+                                    {occupancyRate >= 100 ? "FULLY ENROLLED" : `${(100 - occupancyRate).toFixed(0)}% SEATS VACANT`}
                                 </p>
                             </div>
                         </div>

@@ -309,5 +309,3 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
 };
 
 export default PaymentsSection;
-
-export default PaymentsSection;
