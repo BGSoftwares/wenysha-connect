@@ -291,7 +291,7 @@ const TeacherDashboard = () => {
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-4 border-b border-border bg-secondary/30">
-          <h3 className="font-medium text-foreground">{selectedClass} - Mathematics</h3>
+          <h3 className="font-medium text-foreground">{classes.find(c => c.id === selectedClassId)?.name || "Select Class"} - Mathematics</h3>
           <p className="text-sm text-muted-foreground">Mid-Term Examination</p>
         </div>
         <table className="w-full">
