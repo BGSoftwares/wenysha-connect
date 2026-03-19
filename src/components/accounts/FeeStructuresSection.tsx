@@ -51,7 +51,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
     form: "All Forms",
     category: "Academic",
     boarding_type: "All",
-    is_active: true
+    active: true
   });
 
   const filteredFees = (feeStructures || []).filter(fee => {
