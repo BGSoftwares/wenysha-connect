@@ -153,7 +153,7 @@ export async function refreshAccessToken(): Promise<string> {
     body: JSON.stringify({ refresh }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as ApiError).detail || "Refresh failed");
+  if (!res.ok) throw new Error(String((data as ApiError).detail) || "Refresh failed");
   const access = (data as { access: string }).access;
   localStorage.setItem(TOKEN_KEY, access);
   return access;

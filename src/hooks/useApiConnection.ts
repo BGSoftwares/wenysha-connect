@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import api from '@/lib/api';
+import { api } from '@/lib/api';
 
 export function useApiConnection() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);

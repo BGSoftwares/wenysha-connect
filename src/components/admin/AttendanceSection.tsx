@@ -1,8 +1,13 @@
+import { useState } from "react";
 import { useStudents, useClasses, useAttendanceRecords, useUpdateAttendance } from "@/lib/hooks";
 import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Check, X, Clock, Calendar, Search, Users, TrendingUp, AlertCircle } from "lucide-react";
 
 const AttendanceSection = () => {
-  // Hooks
   const { data: students = [] } = useStudents();
   const { data: classes = [] } = useClasses();
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
@@ -10,11 +15,9 @@ const AttendanceSection = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Set initial class when data loads
-  useState(() => {
-    if (classes.length > 0 && !selectedClassId) {
-      setSelectedClassId(classes[0].id);
-    }
-  });
+  if (classes.length > 0 && !selectedClassId) {
+    setSelectedClassId(classes[0].id);
+  }
 
   const { data: attendanceRecords = [], isLoading: isLoadingAttendance } = useAttendanceRecords({
     date: selectedDate
@@ -54,10 +57,17 @@ const AttendanceSection = () => {
   const presentCount = attendanceData.filter(s => s.status === "present").length;
   const absentCount = attendanceData.filter(s => s.status === "absent").length;
   const lateCount = attendanceData.filter(s => s.status === "late").length;
+  const totalCount = attendanceData.length;
+  const avgAttendance = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(0) : "0";
+
+  const mockRecentAbsences = [
+    { id: 1, student: "John Mutasa", class: "Form 1A", date: "2024-01-15", reason: "Illness", days: 2 },
+    { id: 2, student: "Sarah Moyo", class: "Form 2B", date: "2024-01-14", reason: "Family", days: 1 },
+    { id: 3, student: "Peter Ncube", class: "Form 3A", date: "2024-01-13", reason: "Unknown", days: 3 },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="font-heading text-xl font-bold text-foreground">Attendance Management</h2>
@@ -69,7 +79,6 @@ const AttendanceSection = () => {
         </Button>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -78,7 +87,7 @@ const AttendanceSection = () => {
                 <Check className="h-5 w-5 text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{mockAttendanceStats.presentToday}</p>
+                <p className="text-2xl font-bold text-foreground">{presentCount}</p>
                 <p className="text-xs text-muted-foreground">Present Today</p>
               </div>
             </div>
@@ -91,7 +100,7 @@ const AttendanceSection = () => {
                 <X className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{mockAttendanceStats.absentToday}</p>
+                <p className="text-2xl font-bold text-foreground">{absentCount}</p>
                 <p className="text-xs text-muted-foreground">Absent Today</p>
               </div>
             </div>
@@ -104,7 +113,7 @@ const AttendanceSection = () => {
                 <Clock className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{mockAttendanceStats.lateToday}</p>
+                <p className="text-2xl font-bold text-foreground">{lateCount}</p>
                 <p className="text-xs text-muted-foreground">Late Today</p>
               </div>
             </div>
@@ -117,7 +126,7 @@ const AttendanceSection = () => {
                 <TrendingUp className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{mockAttendanceStats.averageAttendance}%</p>
+                <p className="text-2xl font-bold text-foreground">{avgAttendance}%</p>
                 <p className="text-xs text-muted-foreground">Avg Attendance</p>
               </div>
             </div>
@@ -132,7 +141,6 @@ const AttendanceSection = () => {
         </TabsList>
 
         <TabsContent value="mark" className="space-y-4 mt-4">
-          {/* Controls */}
           <div className="flex flex-col sm:flex-row gap-4">
             <select
               value={selectedClassId || ""}
@@ -160,7 +168,6 @@ const AttendanceSection = () => {
             </div>
           </div>
 
-          {/* Summary Bar */}
           <div className="flex items-center gap-6 p-4 bg-secondary/50 rounded-lg">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-muted-foreground" />
@@ -182,7 +189,6 @@ const AttendanceSection = () => {
             </div>
           </div>
 
-          {/* Attendance Table */}
           <div className="bg-card rounded-xl border border-border overflow-hidden">
             <table className="w-full">
               <thead className="bg-secondary/50">

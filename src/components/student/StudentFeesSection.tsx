@@ -414,8 +414,8 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        balance={summary.balance}
-        studentName={studentInfo.name}
+        balance={balance}
+        studentName={profile?.name || "Student"}
       />
     </div>
   );
