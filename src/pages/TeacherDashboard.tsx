@@ -87,9 +87,7 @@ const TeacherDashboard = () => {
     teacher: teacher?.id
   });
 
-  const { data: students = [] } = useStudents({
-    school_class: selectedClassId || undefined
-  });
+  const { data: students = [] } = useStudents();
 
   const { data: exams = [] } = useExams({ status: "ongoing" });
   const { data: attendanceRecords = [] } = useAttendanceRecords({
@@ -293,7 +291,7 @@ const TeacherDashboard = () => {
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-4 border-b border-border bg-secondary/30">
-          <h3 className="font-medium text-foreground">{selectedClass} - Mathematics</h3>
+          <h3 className="font-medium text-foreground">{uniqueClasses.find(c => c.id === selectedClassId)?.name || "Select Class"} - Mathematics</h3>
           <p className="text-sm text-muted-foreground">Mid-Term Examination</p>
         </div>
         <table className="w-full">
@@ -373,7 +371,7 @@ const TeacherDashboard = () => {
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-4 border-b border-border bg-secondary/30 flex items-center justify-between">
           <div>
-            <h3 className="font-medium text-foreground">{selectedClass} - Attendance</h3>
+            <h3 className="font-medium text-foreground">{uniqueClasses.find(c => c.id === selectedClassId)?.name || "Select Class"} - Attendance</h3>
             <p className="text-sm text-muted-foreground">{new Date(attendanceDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
           <div className="flex gap-4 text-sm">

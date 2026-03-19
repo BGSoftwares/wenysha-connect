@@ -140,7 +140,7 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
             )}
             {isExporting ? "Exporting..." : "Download Statement"}
           </Button>
-          {summary.balance > 0 && (
+          {balance > 0 && (
             <Button variant="gold" size="sm" onClick={() => setShowPaymentModal(true)}>
               <Wallet className="h-4 w-4 mr-2" />
               Pay Now
@@ -398,13 +398,13 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
       )}
 
       {/* Arrears Warning (if applicable) */}
-      {summary.arrears > 0 && (
+      {arrears > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
           <div>
             <h4 className="font-semibold text-red-800">Outstanding Arrears</h4>
             <p className="text-sm text-red-700">
-              You have outstanding arrears of ${summary.arrears}. Please clear your balance to avoid restrictions on accessing academic services.
+              You have outstanding arrears of ${arrears}. Please clear your balance to avoid restrictions on accessing academic services.
             </p>
           </div>
         </div>
@@ -414,8 +414,8 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        balance={summary.balance}
-        studentName={studentInfo.name}
+        balance={balance}
+        studentName={profile?.name || "Student"}
       />
     </div>
   );

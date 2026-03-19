@@ -71,7 +71,7 @@ const ParentPortal = () => {
 
     const attendanceRate = useMemo(() => {
         if (!attendance || attendance.length === 0) return 0;
-        const present = attendance.filter(a => a.status === 'Present').length;
+        const present = attendance.filter(a => a.status === 'present').length;
         return (present / attendance.length) * 100;
     }, [attendance]);
 
@@ -180,7 +180,7 @@ const ParentPortal = () => {
                                                 </div>
                                                 <h3 className="text-muted-foreground text-sm font-medium">Academic Average</h3>
                                                 <p className="text-3xl font-black text-foreground mt-1">{averageScore.toFixed(1)}%</p>
-                                                <Progress value={averageScore} className="h-2 mt-4 bg-blue-100" indicatorClassName="bg-blue-500" />
+                                                <Progress value={averageScore} className="h-2 mt-4 bg-blue-100" />
                                             </CardContent>
                                         </Card>
 
@@ -194,7 +194,7 @@ const ParentPortal = () => {
                                                 </div>
                                                 <h3 className="text-muted-foreground text-sm font-medium">Attendance Rate</h3>
                                                 <p className="text-3xl font-black text-foreground mt-1">{attendanceRate.toFixed(0)}%</p>
-                                                <Progress value={attendanceRate} className="h-2 mt-4 bg-green-100" indicatorClassName="bg-green-500" />
+                                                <Progress value={attendanceRate} className="h-2 mt-4 bg-green-100" />
                                             </CardContent>
                                         </Card>
 
@@ -288,19 +288,19 @@ const ParentPortal = () => {
                                                             {attendance?.slice(0, 10).map(a => (
                                                                 <div key={a.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-background hover:border-accent/30 transition-all">
                                                                     <div className="flex items-center gap-4">
-                                                                        <div className={`h-10 w-10 rounded-full flex items-center justify-center ${a.status === 'Present' ? 'bg-green-100 text-green-600' :
-                                                                            a.status === 'Absent' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                                                                        <div className={`h-10 w-10 rounded-full flex items-center justify-center ${a.status === 'present' ? 'bg-green-100 text-green-600' :
+                                                                            a.status === 'absent' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
                                                                             }`}>
-                                                                            {a.status === 'Present' ? <CheckCircle2 className="h-5 w-5" /> : a.status === 'Absent' ? <AlertCircle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                                                                            {a.status === 'present' ? <CheckCircle2 className="h-5 w-5" /> : a.status === 'absent' ? <AlertCircle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
                                                                         </div>
                                                                         <div>
                                                                             <p className="font-bold text-foreground">{new Date(a.date).toLocaleDateString()}</p>
-                                                                            <p className="text-xs text-muted-foreground">{a.remarks || "No remarks"}</p>
+                                                                            <p className="text-xs text-muted-foreground">{"No remarks"}</p>
                                                                         </div>
                                                                     </div>
                                                                     <Badge variant="outline" className={
-                                                                        a.status === 'Present' ? 'text-green-600 border-green-200' :
-                                                                            a.status === 'Absent' ? 'text-red-600 border-red-200' : 'text-amber-600 border-amber-200'
+                                                                        a.status === 'present' ? 'text-green-600 border-green-200' :
+                                                                            a.status === 'absent' ? 'text-red-600 border-red-200' : 'text-amber-600 border-amber-200'
                                                                     }>
                                                                         {a.status}
                                                                     </Badge>
@@ -377,7 +377,7 @@ const ParentPortal = () => {
                                                                             <span>Payment Progress</span>
                                                                             <span>{((f.amount_paid / f.amount_due) * 100).toFixed(0)}%</span>
                                                                         </div>
-                                                                        <Progress value={(f.amount_paid / f.amount_due) * 100} className="h-3 bg-secondary" indicatorClassName="bg-accent" />
+                                                                        <Progress value={(f.amount_paid / f.amount_due) * 100} className="h-3 bg-secondary" />
                                                                     </div>
                                                                 )}
                                                             </div>

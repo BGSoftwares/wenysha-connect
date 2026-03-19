@@ -210,7 +210,7 @@ const ExamManagementSection = () => {
                     <p className="text-sm text-muted-foreground">{exam.term} {exam.year}</p>
                     <p className="text-sm text-muted-foreground mt-1">
                       <Calendar className="inline h-3 w-3 mr-1" />
-                      {new Date(exam.startDate).toLocaleDateString()} - {new Date(exam.endDate).toLocaleDateString()}
+                      {new Date(exam.start_date).toLocaleDateString()} - {new Date(exam.end_date).toLocaleDateString()}
                     </p>
                   </div>
                 </div>

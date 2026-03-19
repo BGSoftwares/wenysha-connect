@@ -21,7 +21,8 @@ import {
   Loader2,
   PieChart as PieChartIcon,
   ArrowUpRight,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles
 } from "lucide-react";
 import {
   BarChart,
@@ -57,7 +58,7 @@ const ReportsSection = () => {
     return Array.from({ length: 5 }).map((_, i) => {
       const day = addDays(startOfCurrentWeek, i);
       const dayName = format(day, "EEE");
-      const dayAmount = payments?.filter(p => isSameDay(parseISO(p.payment_date), day))
+      const dayAmount = payments?.filter(p => isSameDay(parseISO(p.date), day))
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
       return { day: dayName, amount: dayAmount };
@@ -68,7 +69,7 @@ const ReportsSection = () => {
     if (!payments) return [];
     const methods: Record<string, number> = {};
     payments.forEach(p => {
-      methods[p.payment_method] = (methods[p.payment_method] || 0) + parseFloat(p.amount.toString());
+      methods[p.method] = (methods[p.method] || 0) + parseFloat(p.amount.toString());
     });
 
     const colors = ["#064e3b", "#eab308", "#0ea5e9", "#8b5cf6", "#ec4899"];
@@ -84,7 +85,7 @@ const ReportsSection = () => {
   }, [payments]);
 
   const totalOutstanding = useMemo(() => {
-    return balances?.reduce((sum, b) => sum + b.total_balance, 0) || 0;
+    return balances?.reduce((sum, b) => sum + b.balance, 0) || 0;
   }, [balances]);
 
   const reportTypes = [
@@ -299,7 +300,5 @@ const ReportsSection = () => {
     </div>
   );
 };
-
-export default ReportsSection;
 
 export default ReportsSection;

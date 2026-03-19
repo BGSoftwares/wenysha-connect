@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '@/lib/api';
+import { api, login as apiLogin, clearAuth, getStoredUser, getToken } from '@/lib/api';
 
 interface User {
   id: number;
@@ -9,17 +9,7 @@ interface User {
   first_name?: string;
   last_name?: string;
   role?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  error: string | null;
-  isAuthenticated: boolean;
-  isOffline: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
-  logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
+  full_name?: string;
 }
 
 export function useAuth() {
@@ -30,27 +20,26 @@ export function useAuth() {
   const navigate = useNavigate();
 
   const checkAuth = useCallback(async () => {
-    if (!api.isAuthenticated()) {
+    const token = getToken();
+    if (!token) {
       setUser(null);
       setLoading(false);
       return;
     }
 
-    const result = await api.get<User>('/api/me/');
-    
-    if (result.isOffline) {
-      setIsOffline(true);
-      // Keep existing user if offline
-      setLoading(false);
-      return;
-    }
-
-    setIsOffline(false);
-    
-    if (result.data) {
-      setUser(result.data);
-    } else {
-      setUser(null);
+    try {
+      const result = await api.get<User>('/auth/me/');
+      setUser(result);
+      setIsOffline(false);
+    } catch {
+      // Try stored user as fallback
+      const stored = getStoredUser();
+      if (stored) {
+        setUser(stored as User);
+        setIsOffline(true);
+      } else {
+        setUser(null);
+      }
     }
     setLoading(false);
   }, []);
@@ -63,29 +52,21 @@ export function useAuth() {
     setError(null);
     setLoading(true);
 
-    const result = await api.login(username, password);
-
-    if (result.isOffline) {
-      setIsOffline(true);
-      setError('Cannot connect to server. Please check your connection.');
+    try {
+      const result = await apiLogin(username, password);
+      setUser(result.user as User);
+      setIsOffline(false);
+      setLoading(false);
+      return true;
+    } catch (err: any) {
+      setError(err?.detail || 'Login failed. Please check your credentials.');
       setLoading(false);
       return false;
     }
-
-    setIsOffline(false);
-
-    if (result.error) {
-      setError(result.error);
-      setLoading(false);
-      return false;
-    }
-
-    await checkAuth();
-    return true;
   };
 
   const logout = async () => {
-    await api.logout();
+    clearAuth();
     setUser(null);
     navigate('/portal');
   };

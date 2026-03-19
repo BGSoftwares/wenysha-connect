@@ -8,4 +8,4 @@ export * from './applications';
 export * from './feeStructures';
 
 // Re-export API client
-export { default as api } from '@/lib/api';
+export { api } from '@/lib/api';

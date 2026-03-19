@@ -196,7 +196,7 @@ const AdminDashboard = () => {
       case "dashboard": return <DashboardOverview />;
       case "students": return (
         <StudentsSection
-          students={students}
+          students={students as any}
           isLoading={isLoadingStudents}
           error={studentsError}
           classes={classes}

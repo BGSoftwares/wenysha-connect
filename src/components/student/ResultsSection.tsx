@@ -34,7 +34,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
   }
 
   // Placeholder for summary calculations based on `grades`
-  const currentTermGrades = grades.filter(g => g.term_name === "Term 1 2024"); // Example filtering
+  const currentTermGrades = grades.filter(g => g.assessment_name?.includes("Term 1")); // Example filtering
   const averageScore = currentTermGrades.length > 0
     ? (currentTermGrades.reduce((sum, g) => sum + g.score, 0) / currentTermGrades.length).toFixed(1)
     : "N/A";
@@ -163,7 +163,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                             <span className="text-xs text-muted-foreground ml-1">({previousScore}%)</span>
                           </td>
                           <td className="py-3 px-4 text-center">
-                            <Badge className={getGradeColorClasses(gradeInfo.grade)}>{gradeInfo.grade}</Badge>
+                            <Badge className={`${getGradeColorClasses(gradeInfo.grade).color} ${getGradeColorClasses(gradeInfo.grade).bgColor}`}>{gradeInfo.grade}</Badge>
                           </td>
                           <td className="py-3 px-4 text-center">
                             <div className="flex items-center justify-center gap-1">

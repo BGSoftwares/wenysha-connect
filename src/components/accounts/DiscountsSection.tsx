@@ -59,7 +59,7 @@ const DiscountsSection = ({ activeSubNav }: DiscountsSectionProps) => {
     return matchesSearch && matchesType;
   });
 
-  const defaulters = (balances || []).filter(b => b.total_balance > 0).sort((a, b) => b.total_balance - a.total_balance);
+  const defaulters = (balances || []).filter(b => b.balance > 0).sort((a, b) => b.balance - a.balance);
 
   const getStatusBadge = (status: string) => {
     switch (status?.toLowerCase()) {

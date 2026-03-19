@@ -25,7 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Printer, Download, Search, CreditCard, Receipt, Loader2, Calendar } from "lucide-react";
+import { Plus, Printer, Download, Search, CreditCard, Receipt, Loader2, Calendar, DollarSign, TrendingUp } from "lucide-react";
 import { usePayments, useCreatePayment, useInvoices, Payment as PaymentType } from "@/lib/hooks";
 import { toast } from "sonner";
 import { format, isToday } from "date-fns";
@@ -307,7 +307,5 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
     </div>
   );
 };
-
-export default PaymentsSection;
 
 export default PaymentsSection;

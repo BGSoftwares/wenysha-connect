@@ -26,6 +26,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Plus, Edit2, Trash2, Search, Filter, DollarSign, Loader2, Landmark, ShieldCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useFeeStructures, useUpdateFeeStructure, useDeleteFeeStructure, useCreateFeeStructure, FeeStructure } from "@/lib/hooks";
 import { toast } from "sonner";
 
@@ -50,7 +51,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
     form: "All Forms",
     category: "Academic",
     boarding_type: "All",
-    is_active: true
+    active: true
   });
 
   const filteredFees = (feeStructures || []).filter(fee => {
@@ -61,7 +62,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
 
   const handleAddFee = () => {
     setEditingFee(null);
-    setFormData({ name: "", amount: "0", term: "Term 1", form: "All Forms", category: "Academic", boarding_type: "All", is_active: true });
+    setFormData({ name: "", amount: "0", term: "Term 1", form: "All Forms", category: "Academic", boarding_type: "All", active: true });
     setShowModal(true);
   };
 
@@ -74,7 +75,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
       form: fee.form || "All Forms",
       category: fee.category || "Academic",
       boarding_type: fee.boarding_type || "All",
-      is_active: fee.is_active,
+      active: fee.active,
     });
     setShowModal(true);
   };
@@ -89,13 +90,13 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
       if (editingFee) {
         await updateMutation.mutateAsync({
           id: editingFee.id,
-          data: { ...formData, amount: parseFloat(formData.amount) }
+          data: { ...formData, amount: formData.amount }
         });
         toast.success("Structure updated successfully");
       } else {
         await createMutation.mutateAsync({
           ...formData,
-          amount: parseFloat(formData.amount)
+          amount: formData.amount
         });
         toast.success("New structure added to registry");
       }
@@ -109,9 +110,9 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
     try {
       await updateMutation.mutateAsync({
         id: fee.id,
-        data: { is_active: !fee.is_active }
+        data: { active: !fee.active }
       });
-      toast.success(`Structure ${!fee.is_active ? 'activated' : 'deactivated'}`);
+      toast.success(`Structure ${!fee.active ? 'activated' : 'deactivated'}`);
     } catch (error) {
       toast.error("Operation failed");
     }
@@ -208,7 +209,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
                       </TableCell>
                       <TableCell className="text-center">
                         <Switch
-                          checked={fee.is_active}
+                          checked={fee.active}
                           onCheckedChange={() => handleToggleActive(fee)}
                           className="data-[state=checked]:bg-primary"
                         />
