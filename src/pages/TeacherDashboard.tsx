@@ -87,9 +87,7 @@ const TeacherDashboard = () => {
     teacher: teacher?.id
   });
 
-  const { data: students = [] } = useStudents({
-    school_class: selectedClassId || undefined
-  });
+  const { data: students = [] } = useStudents();
 
   const { data: exams = [] } = useExams({ status: "ongoing" });
   const { data: attendanceRecords = [] } = useAttendanceRecords({
