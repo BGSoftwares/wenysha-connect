@@ -85,7 +85,7 @@ const ReportsSection = () => {
   }, [payments]);
 
   const totalOutstanding = useMemo(() => {
-    return balances?.reduce((sum, b) => sum + b.total_balance, 0) || 0;
+    return balances?.reduce((sum, b) => sum + b.balance, 0) || 0;
   }, [balances]);
 
   const reportTypes = [
