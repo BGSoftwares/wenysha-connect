@@ -110,9 +110,9 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
     try {
       await updateMutation.mutateAsync({
         id: fee.id,
-        data: { is_active: !fee.is_active }
+        data: { active: !fee.active }
       });
-      toast.success(`Structure ${!fee.is_active ? 'activated' : 'deactivated'}`);
+      toast.success(`Structure ${!fee.active ? 'activated' : 'deactivated'}`);
     } catch (error) {
       toast.error("Operation failed");
     }
