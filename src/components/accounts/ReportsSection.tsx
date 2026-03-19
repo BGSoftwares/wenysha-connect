@@ -58,7 +58,7 @@ const ReportsSection = () => {
     return Array.from({ length: 5 }).map((_, i) => {
       const day = addDays(startOfCurrentWeek, i);
       const dayName = format(day, "EEE");
-      const dayAmount = payments?.filter(p => isSameDay(parseISO(p.payment_date), day))
+      const dayAmount = payments?.filter(p => isSameDay(parseISO(p.date), day))
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
       return { day: dayName, amount: dayAmount };
