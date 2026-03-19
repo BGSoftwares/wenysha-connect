@@ -140,7 +140,7 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
             )}
             {isExporting ? "Exporting..." : "Download Statement"}
           </Button>
-          {summary.balance > 0 && (
+          {balance > 0 && (
             <Button variant="gold" size="sm" onClick={() => setShowPaymentModal(true)}>
               <Wallet className="h-4 w-4 mr-2" />
               Pay Now
