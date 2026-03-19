@@ -377,7 +377,7 @@ const ParentPortal = () => {
                                                                             <span>Payment Progress</span>
                                                                             <span>{((f.amount_paid / f.amount_due) * 100).toFixed(0)}%</span>
                                                                         </div>
-                                                                        <Progress value={(f.amount_paid / f.amount_due) * 100} className="h-3 bg-secondary" indicatorClassName="bg-accent" />
+                                                                        <Progress value={(f.amount_paid / f.amount_due) * 100} className="h-3 bg-secondary" />
                                                                     </div>
                                                                 )}
                                                             </div>
