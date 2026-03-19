@@ -194,7 +194,7 @@ const ParentPortal = () => {
                                                 </div>
                                                 <h3 className="text-muted-foreground text-sm font-medium">Attendance Rate</h3>
                                                 <p className="text-3xl font-black text-foreground mt-1">{attendanceRate.toFixed(0)}%</p>
-                                                <Progress value={attendanceRate} className="h-2 mt-4 bg-green-100" indicatorClassName="bg-green-500" />
+                                                <Progress value={attendanceRate} className="h-2 mt-4 bg-green-100" />
                                             </CardContent>
                                         </Card>
 
