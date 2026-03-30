@@ -6,7 +6,9 @@
 const getApiBaseUrl = (): string => {
   const url = import.meta.env.VITE_API_BASE_URL;
   if (!url) {
-    return "http://127.0.0.1:8000/api";
+    // Use relative API path and Vite proxy for development to avoid hardcoded localhost when
+    // running in Codespaces or remote environments.
+    return "/api";
   }
   return url.replace(/\/$/, "");
 };
