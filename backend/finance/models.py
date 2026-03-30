@@ -63,8 +63,12 @@ class Payment(models.Model):
         is_new = self.pk is None
         super().save(*args, **kwargs)
         if is_new:
-            self.invoice.paid += self.amount
-            self.invoice.save(update_fields=['paid'])
+            # Update the invoice paid amount and recalculate status
+            from decimal import Decimal
+            add_amount = Decimal(str(self.amount)) if not isinstance(self.amount, Decimal) else self.amount
+            self.invoice.paid = (self.invoice.paid or Decimal('0')) + add_amount
+            # Call save without restricting update_fields so invoice.status is recalculated
+            self.invoice.save()
 
 
 class Discount(models.Model):

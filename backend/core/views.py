@@ -6,6 +6,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
 from .models import Role, UserProfile, PendingApproval
+from school.models import Student, SchoolClass
 from .serializers import (
     RoleSerializer,
     UserProfileSerializer,
@@ -104,6 +105,43 @@ class PendingApprovalViewSet(ModelViewSet):
         pending.save(update_fields=['status'])
         role, _ = Role.objects.get_or_create(name=pending.role.capitalize(), defaults={'description': pending.role})
         UserProfile.objects.create(user=user, role=role, full_name=pending.full_name)
+        # If this was a student signup, try to create a corresponding Student record
+        if pending.role == 'student':
+            try:
+                # Try to resolve a class from additional_info (id or name), else use first available class
+                class_obj = None
+                info = pending.additional_info or {}
+                cls_id = info.get('school_class') or info.get('school_class_id')
+                cls_name = info.get('class_name')
+                if cls_id:
+                    try:
+                        class_obj = SchoolClass.objects.get(id=cls_id)
+                    except SchoolClass.DoesNotExist:
+                        class_obj = None
+                if not class_obj and cls_name:
+                    try:
+                        class_obj = SchoolClass.objects.get(name=cls_name)
+                    except SchoolClass.DoesNotExist:
+                        class_obj = None
+                if not class_obj:
+                    class_obj = SchoolClass.objects.first()
+
+                if class_obj:
+                    # Generate a simple unique student_id
+                    base_num = (Student.objects.count() or 0) + 1
+                    student_id = f"STU{base_num:04d}"
+                    while Student.objects.filter(student_id=student_id).exists():
+                        base_num += 1
+                        student_id = f"STU{base_num:04d}"
+                    Student.objects.create(
+                        user=user,
+                        student_id=student_id,
+                        name=pending.full_name,
+                        school_class=class_obj,
+                    )
+            except Exception:
+                # Do not block approval if student record creation fails; admin can create later.
+                pass
         return Response({'detail': 'User approved and created.', 'user_id': user.id})
 
     @action(detail=True, methods=['post'])
