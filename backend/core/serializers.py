@@ -53,11 +53,29 @@ class SignUpSerializer(serializers.Serializer):
         validated_data.pop('confirm_password')
         password = validated_data.pop('password')
         from django.contrib.auth.hashers import make_password
-        return PendingApproval.objects.create(
+        pa = PendingApproval.objects.create(
             password_hash=make_password(password),
             status='pending',
             **validated_data
         )
+        # Notify admins about new pending approval (development: console backend)
+        try:
+            from django.core.mail import send_mail
+            from django.conf import settings
+            # Prefer configured ADMINS emails, fallback to staff users' emails
+            recipients = []
+            if getattr(settings, 'ADMINS', None):
+                recipients = [email for name, email in settings.ADMINS if email]
+            if not recipients:
+                from django.contrib.auth.models import User as _User
+                recipients = list(_User.objects.filter(is_staff=True, email__isnull=False).values_list('email', flat=True))
+            if recipients:
+                subj = f"New account approval request: {pa.full_name}"
+                body = f"A new account has requested access and requires approval.\n\nName: {pa.full_name}\nEmail: {pa.email}\nRole: {pa.role}\nRequested at: {pa.requested_at}\n\nApprove at the admin panel or via API."
+                send_mail(subj, body, settings.DEFAULT_FROM_EMAIL, recipients, fail_silently=True)
+        except Exception:
+            pass
+        return pa
 
 
 class LoginSerializer(serializers.Serializer):

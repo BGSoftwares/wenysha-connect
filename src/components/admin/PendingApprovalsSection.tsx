@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, CheckCircle, XCircle, Clock, User, Mail, Calendar, Shield, Eye, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { api, getErrorMessage } from "@/lib/api";
 
 interface PendingUser {
   id: string;
@@ -17,56 +18,10 @@ interface PendingUser {
   };
 }
 
-// Mock data
-const mockPendingUsers: PendingUser[] = [
-  {
-    id: "1",
-    fullName: "Tendai Chikwanda",
-    email: "tendai.c@email.com",
-    role: "student",
-    requestedAt: "2024-01-05T10:30:00",
-    status: "pending",
-    additionalInfo: { class: "Form 4A" }
-  },
-  {
-    id: "2",
-    fullName: "Margaret Dube",
-    email: "m.dube@email.com",
-    role: "teacher",
-    requestedAt: "2024-01-04T14:20:00",
-    status: "pending",
-    additionalInfo: { department: "Sciences" }
-  },
-  {
-    id: "3",
-    fullName: "Robert Moyo",
-    email: "r.moyo@email.com",
-    role: "parent",
-    requestedAt: "2024-01-04T09:15:00",
-    status: "pending",
-    additionalInfo: { studentName: "Peter Moyo" }
-  },
-  {
-    id: "4",
-    fullName: "Susan Banda",
-    email: "s.banda@email.com",
-    role: "accounts",
-    requestedAt: "2024-01-03T16:45:00",
-    status: "pending"
-  },
-  {
-    id: "5",
-    fullName: "James Ncube",
-    email: "j.ncube@email.com",
-    role: "teacher",
-    requestedAt: "2024-01-02T11:30:00",
-    status: "pending",
-    additionalInfo: { department: "Mathematics" }
-  },
-];
+// real data fetched from backend
 
 const PendingApprovalsSection = () => {
-  const [users, setUsers] = useState<PendingUser[]>(mockPendingUsers);
+  const [users, setUsers] = useState<PendingUser[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [showConfirmModal, setShowConfirmModal] = useState<{ type: "approve" | "reject"; user: PendingUser } | null>(null);
@@ -89,16 +44,53 @@ const PendingApprovalsSection = () => {
   };
 
   const handleApprove = (user: PendingUser) => {
-    setUsers(prev => prev.filter(u => u.id !== user.id));
-    toast.success(`${user.fullName} has been approved and activated`);
-    setShowConfirmModal(null);
+    (async () => {
+      try {
+        await api.post(`/auth/pending-approvals/${user.id}/approve/`);
+        setUsers(prev => prev.filter(u => u.id !== user.id));
+        toast.success(`${user.fullName} has been approved and activated`);
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+      } finally {
+        setShowConfirmModal(null);
+      }
+    })();
   };
 
   const handleReject = (user: PendingUser) => {
-    setUsers(prev => prev.filter(u => u.id !== user.id));
-    toast.error(`${user.fullName}'s registration has been rejected`);
-    setShowConfirmModal(null);
+    (async () => {
+      try {
+        await api.post(`/auth/pending-approvals/${user.id}/reject/`);
+        setUsers(prev => prev.filter(u => u.id !== user.id));
+        toast.success(`${user.fullName}'s registration has been rejected`);
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+      } finally {
+        setShowConfirmModal(null);
+      }
+    })();
   };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await api.get<PendingUser[]>("/auth/pending-approvals/");
+        if (mounted) setUsers(data.map(d => ({
+          id: String((d as any).id),
+          fullName: (d as any).full_name || '',
+          email: (d as any).email || '',
+          role: (d as any).role,
+          requestedAt: (d as any).requested_at,
+          status: (d as any).status,
+          additionalInfo: (d as any).additional_info || undefined,
+        })));
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||

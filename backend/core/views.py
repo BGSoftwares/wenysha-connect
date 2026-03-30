@@ -85,7 +85,8 @@ class UserProfileViewSet(ModelViewSet):
 class PendingApprovalViewSet(ModelViewSet):
     queryset = PendingApproval.objects.all()
     serializer_class = PendingApprovalSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # Only admin/staff users should approve/reject accounts
+    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['status', 'role']
 
     def get_queryset(self):
