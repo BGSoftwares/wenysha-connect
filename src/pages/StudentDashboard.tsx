@@ -394,9 +394,9 @@ const StudentDashboard = () => {
   const renderContent = () => {
     switch (activeNav) {
       case "timetable": return renderTimetable();
-      case "report-card": return <ReportCardSection studentId={profile.id} />;
-      case "fees": return <StudentFeesSection studentId={profile.id} />;
-      case "results": return <ResultsSection studentId={profile.id} />;
+      case "report-card": return <ReportCardSection studentId={activeProfile.id} />;
+      case "fees": return <StudentFeesSection studentId={activeProfile.id} />;
+      case "results": return <ResultsSection studentId={activeProfile.id} />;
       case "elearning": return <ELearningSection />;
       case "settings": return <StudentSettingsSection />;
       case "dashboard":
