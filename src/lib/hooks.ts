@@ -408,6 +408,7 @@ export const useGrades = (params?: { student?: number; assessment?: number }) =>
         queryFn: async () => {
             return await api.get<Grade[]>("/school/grades/", params as any);
         },
+        enabled: !!params?.student,
     });
 };
 
@@ -448,6 +449,7 @@ export const useExamMarks = (params?: { exam?: number; student?: number; subject
         queryFn: async () => {
             return await api.get<ExamMark[]>("/exams/marks/", params as any);
         },
+        enabled: !!params?.student || !!params?.exam,
     });
 };
 
@@ -470,6 +472,7 @@ export const useAttendanceRecords = (params?: { student?: number; date?: string;
         queryFn: async () => {
             return await api.get<AttendanceRecord[]>("/attendance/attendance/", params as any);
         },
+        enabled: !params?.student ? true : !!params.student,
     });
 };
 
@@ -502,6 +505,7 @@ export const useStudentFees = (params?: { student?: number; status?: string }) =
         queryFn: async () => {
             return await api.get<StudentFee[]>("/school/student-fees/", params as any);
         },
+        enabled: !!params?.student,
     });
 };
 
@@ -622,6 +626,7 @@ export const useInvoices = (params?: { student?: number; status?: string }) => {
             if (params?.status) cleanParams.status = params.status;
             return await api.get<Invoice[]>("/finance/invoices/", cleanParams);
         },
+        enabled: !!params?.student,
     });
 };
 
