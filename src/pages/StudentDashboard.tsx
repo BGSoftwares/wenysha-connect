@@ -205,7 +205,7 @@ const StudentDashboard = () => {
   const renderTimetable = () => (
     <div className="space-y-6">
       <h2 className="font-heading text-xl font-bold text-foreground">My Class Timetable</h2>
-      <p className="text-muted-foreground">{profile?.class_name || "Assigned Class"} - Term 1 2024</p>
+      <p className="text-muted-foreground">{activeProfile?.class_name || "Assigned Class"} - Term 1 2024</p>
 
       <div className="grid gap-4">
         {timetableData.map((daySchedule) => (
