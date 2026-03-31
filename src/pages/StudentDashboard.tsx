@@ -120,21 +120,9 @@ const timetableData = [
   },
 ];
 
-// Demo profile used when no user is authenticated
-const demoProfile = {
-  id: 0,
-  student_id: "STU0001",
-  name: "Tatenda Moyo",
-  school_class: 1,
-  class_name: "Form 4A",
-  gender: "Male",
-  status: "Active" as const,
-};
-
 const StudentDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const user = getStoredUser();
-  const isDemo = !user;
 
   const { data: profile, isLoading: isLoadingProfile } = useStudentProfile();
   const { data: grades = [] } = useGrades({ student: profile?.id });
@@ -142,39 +130,48 @@ const StudentDashboard = () => {
   const { data: fees = [] } = useStudentFees({ student: profile?.id });
   const { data: invoices = [] } = useInvoices({ student: profile?.id });
 
-  // Use demo profile when not authenticated
-  const activeProfile = profile || (isDemo ? demoProfile : null);
-
-  // Calculate aggregated stats (use sample data in demo mode)
   const averageGrade = useMemo(() => {
-    if (isDemo) return "70.8";
     if (!grades.length) return 0;
     return (grades.reduce((acc, g) => acc + Number(g.score), 0) / grades.length).toFixed(1);
-  }, [grades, isDemo]);
+  }, [grades]);
 
   const attendanceRate = useMemo(() => {
-    if (isDemo) return "94";
     if (!attendance.length) return 100;
     const presentCount = attendance.filter(a => a.status === 'present').length;
     return ((presentCount / attendance.length) * 100).toFixed(0);
-  }, [attendance, isDemo]);
+  }, [attendance]);
 
   const totalFeesDue = useMemo(() => {
-    if (isDemo) return 450;
     return fees.reduce((acc, f) => acc + (Number(f.amount_due) - Number(f.amount_paid)), 0);
-  }, [fees, isDemo]);
+  }, [fees]);
 
   const totalPaid = useMemo(() => {
-    if (isDemo) return 1050;
     return fees.reduce((acc, f) => acc + Number(f.amount_paid), 0);
-  }, [fees, isDemo]);
+  }, [fees]);
 
   const totalBilled = useMemo(() => {
-    if (isDemo) return 1500;
     return fees.reduce((acc, f) => acc + Number(f.amount_due), 0);
-  }, [fees, isDemo]);
+  }, [fees]);
 
-  if (!isDemo && isLoadingProfile) {
+  // Require authentication
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="max-w-md w-full text-center space-y-6 bg-card p-8 rounded-2xl border border-border shadow-elegant">
+          <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <User className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-2xl font-heading font-bold text-foreground">Login Required</h2>
+          <p className="text-muted-foreground">Please log in to access the student portal. Your data will be loaded from the server.</p>
+          <Link to="/portal" className="inline-block px-6 py-2 rounded-xl bg-primary text-primary-foreground font-medium">
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoadingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
