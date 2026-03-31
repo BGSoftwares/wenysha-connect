@@ -471,6 +471,7 @@ export const useAttendanceRecords = (params?: { student?: number; date?: string;
         queryFn: async () => {
             return await api.get<AttendanceRecord[]>("/attendance/attendance/", params as any);
         },
+        enabled: !params?.student ? true : !!params.student,
     });
 };
 
