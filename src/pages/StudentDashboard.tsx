@@ -466,9 +466,9 @@ const StudentDashboard = () => {
               {activeNav === "timetable" ? "My Timetable" :
                 activeNav === "report-card" ? "Report Card" :
                   activeNav === "fees" ? "My Fees & Payments" :
-                    `Welcome back, ${profile.name.split(' ')[0]}!`}
+                    `Welcome back, ${activeProfile.name.split(' ')[0]}!`}
             </h1>
-            <p className="text-muted-foreground text-sm">{profile.class_name} • Term 1 2024</p>
+            <p className="text-muted-foreground text-sm">{activeProfile.class_name} • Term 1 2024</p>
           </div>
           <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
             <Bell className="h-6 w-6 text-muted-foreground" />
