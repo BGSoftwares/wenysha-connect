@@ -408,6 +408,7 @@ export const useGrades = (params?: { student?: number; assessment?: number }) =>
         queryFn: async () => {
             return await api.get<Grade[]>("/school/grades/", params as any);
         },
+        enabled: !!params?.student,
     });
 };
 
