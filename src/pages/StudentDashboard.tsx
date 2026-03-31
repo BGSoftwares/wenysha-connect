@@ -120,9 +120,21 @@ const timetableData = [
   },
 ];
 
+// Demo profile used when no user is authenticated
+const demoProfile = {
+  id: 0,
+  student_id: "STU0001",
+  name: "Tatenda Moyo",
+  school_class: 1,
+  class_name: "Form 4A",
+  gender: "Male",
+  status: "Active" as const,
+};
+
 const StudentDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const user = getStoredUser();
+  const isDemo = !user;
 
   const { data: profile, isLoading: isLoadingProfile } = useStudentProfile();
   const { data: grades = [] } = useGrades({ student: profile?.id });
@@ -130,31 +142,39 @@ const StudentDashboard = () => {
   const { data: fees = [] } = useStudentFees({ student: profile?.id });
   const { data: invoices = [] } = useInvoices({ student: profile?.id });
 
-  // Calculate aggregated stats
+  // Use demo profile when not authenticated
+  const activeProfile = profile || (isDemo ? demoProfile : null);
+
+  // Calculate aggregated stats (use sample data in demo mode)
   const averageGrade = useMemo(() => {
+    if (isDemo) return "70.8";
     if (!grades.length) return 0;
     return (grades.reduce((acc, g) => acc + Number(g.score), 0) / grades.length).toFixed(1);
-  }, [grades]);
+  }, [grades, isDemo]);
 
   const attendanceRate = useMemo(() => {
-    if (!attendance.length) return 100; // Assume 100 if no records
+    if (isDemo) return "94";
+    if (!attendance.length) return 100;
     const presentCount = attendance.filter(a => a.status === 'present').length;
     return ((presentCount / attendance.length) * 100).toFixed(0);
-  }, [attendance]);
+  }, [attendance, isDemo]);
 
   const totalFeesDue = useMemo(() => {
+    if (isDemo) return 450;
     return fees.reduce((acc, f) => acc + (Number(f.amount_due) - Number(f.amount_paid)), 0);
-  }, [fees]);
+  }, [fees, isDemo]);
 
   const totalPaid = useMemo(() => {
+    if (isDemo) return 1050;
     return fees.reduce((acc, f) => acc + Number(f.amount_paid), 0);
-  }, [fees]);
+  }, [fees, isDemo]);
 
   const totalBilled = useMemo(() => {
+    if (isDemo) return 1500;
     return fees.reduce((acc, f) => acc + Number(f.amount_due), 0);
-  }, [fees]);
+  }, [fees, isDemo]);
 
-  if (isLoadingProfile) {
+  if (!isDemo && isLoadingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -165,7 +185,7 @@ const StudentDashboard = () => {
     );
   }
 
-  if (!profile && !isLoadingProfile) {
+  if (!activeProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="max-w-md w-full text-center space-y-6 bg-card p-8 rounded-2xl border border-border shadow-elegant">
@@ -185,7 +205,7 @@ const StudentDashboard = () => {
   const renderTimetable = () => (
     <div className="space-y-6">
       <h2 className="font-heading text-xl font-bold text-foreground">My Class Timetable</h2>
-      <p className="text-muted-foreground">{profile?.class_name || "Assigned Class"} - Term 1 2024</p>
+      <p className="text-muted-foreground">{activeProfile?.class_name || "Assigned Class"} - Term 1 2024</p>
 
       <div className="grid gap-4">
         {timetableData.map((daySchedule) => (
@@ -374,9 +394,9 @@ const StudentDashboard = () => {
   const renderContent = () => {
     switch (activeNav) {
       case "timetable": return renderTimetable();
-      case "report-card": return <ReportCardSection studentId={profile.id} />;
-      case "fees": return <StudentFeesSection studentId={profile.id} />;
-      case "results": return <ResultsSection studentId={profile.id} />;
+      case "report-card": return <ReportCardSection studentId={activeProfile.id} />;
+      case "fees": return <StudentFeesSection studentId={activeProfile.id} />;
+      case "results": return <ResultsSection studentId={activeProfile.id} />;
       case "elearning": return <ELearningSection />;
       case "settings": return <StudentSettingsSection />;
       case "dashboard":
@@ -423,8 +443,8 @@ const StudentDashboard = () => {
               <User className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-medium text-sm">{profile.name}</p>
-              <p className="text-xs text-primary-foreground/70">{profile.class_name}</p>
+              <p className="font-medium text-sm">{activeProfile.name}</p>
+              <p className="text-xs text-primary-foreground/70">{activeProfile.class_name}</p>
             </div>
           </div>
           <Link
@@ -446,9 +466,9 @@ const StudentDashboard = () => {
               {activeNav === "timetable" ? "My Timetable" :
                 activeNav === "report-card" ? "Report Card" :
                   activeNav === "fees" ? "My Fees & Payments" :
-                    `Welcome back, ${profile.name.split(' ')[0]}!`}
+                    `Welcome back, ${activeProfile.name.split(' ')[0]}!`}
             </h1>
-            <p className="text-muted-foreground text-sm">{profile.class_name} • Term 1 2024</p>
+            <p className="text-muted-foreground text-sm">{activeProfile.class_name} • Term 1 2024</p>
           </div>
           <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
             <Bell className="h-6 w-6 text-muted-foreground" />
