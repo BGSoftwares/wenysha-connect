@@ -120,9 +120,21 @@ const timetableData = [
   },
 ];
 
+// Demo profile used when no user is authenticated
+const demoProfile = {
+  id: 0,
+  student_id: "STU0001",
+  name: "Tatenda Moyo",
+  school_class: 1,
+  class_name: "Form 4A",
+  gender: "Male",
+  status: "Active" as const,
+};
+
 const StudentDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const user = getStoredUser();
+  const isDemo = !user;
 
   const { data: profile, isLoading: isLoadingProfile } = useStudentProfile();
   const { data: grades = [] } = useGrades({ student: profile?.id });
@@ -130,31 +142,39 @@ const StudentDashboard = () => {
   const { data: fees = [] } = useStudentFees({ student: profile?.id });
   const { data: invoices = [] } = useInvoices({ student: profile?.id });
 
-  // Calculate aggregated stats
+  // Use demo profile when not authenticated
+  const activeProfile = profile || (isDemo ? demoProfile : null);
+
+  // Calculate aggregated stats (use sample data in demo mode)
   const averageGrade = useMemo(() => {
+    if (isDemo) return "70.8";
     if (!grades.length) return 0;
     return (grades.reduce((acc, g) => acc + Number(g.score), 0) / grades.length).toFixed(1);
-  }, [grades]);
+  }, [grades, isDemo]);
 
   const attendanceRate = useMemo(() => {
-    if (!attendance.length) return 100; // Assume 100 if no records
+    if (isDemo) return "94";
+    if (!attendance.length) return 100;
     const presentCount = attendance.filter(a => a.status === 'present').length;
     return ((presentCount / attendance.length) * 100).toFixed(0);
-  }, [attendance]);
+  }, [attendance, isDemo]);
 
   const totalFeesDue = useMemo(() => {
+    if (isDemo) return 450;
     return fees.reduce((acc, f) => acc + (Number(f.amount_due) - Number(f.amount_paid)), 0);
-  }, [fees]);
+  }, [fees, isDemo]);
 
   const totalPaid = useMemo(() => {
+    if (isDemo) return 1050;
     return fees.reduce((acc, f) => acc + Number(f.amount_paid), 0);
-  }, [fees]);
+  }, [fees, isDemo]);
 
   const totalBilled = useMemo(() => {
+    if (isDemo) return 1500;
     return fees.reduce((acc, f) => acc + Number(f.amount_due), 0);
-  }, [fees]);
+  }, [fees, isDemo]);
 
-  if (isLoadingProfile) {
+  if (!isDemo && isLoadingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -165,7 +185,7 @@ const StudentDashboard = () => {
     );
   }
 
-  if (!profile && !isLoadingProfile) {
+  if (!activeProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="max-w-md w-full text-center space-y-6 bg-card p-8 rounded-2xl border border-border shadow-elegant">
