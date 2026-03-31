@@ -626,6 +626,7 @@ export const useInvoices = (params?: { student?: number; status?: string }) => {
             if (params?.status) cleanParams.status = params.status;
             return await api.get<Invoice[]>("/finance/invoices/", cleanParams);
         },
+        enabled: !!params?.student,
     });
 };
 

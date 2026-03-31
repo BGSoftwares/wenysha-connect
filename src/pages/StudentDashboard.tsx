@@ -182,7 +182,7 @@ const StudentDashboard = () => {
     );
   }
 
-  if (!activeProfile) {
+  if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="max-w-md w-full text-center space-y-6 bg-card p-8 rounded-2xl border border-border shadow-elegant">
