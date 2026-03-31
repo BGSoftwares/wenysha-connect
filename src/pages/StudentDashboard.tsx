@@ -202,7 +202,7 @@ const StudentDashboard = () => {
   const renderTimetable = () => (
     <div className="space-y-6">
       <h2 className="font-heading text-xl font-bold text-foreground">My Class Timetable</h2>
-      <p className="text-muted-foreground">{activeProfile?.class_name || "Assigned Class"} - Term 1 2024</p>
+      <p className="text-muted-foreground">{profile?.class_name || "Assigned Class"} - Term 1 2024</p>
 
       <div className="grid gap-4">
         {timetableData.map((daySchedule) => (
@@ -391,9 +391,9 @@ const StudentDashboard = () => {
   const renderContent = () => {
     switch (activeNav) {
       case "timetable": return renderTimetable();
-      case "report-card": return <ReportCardSection studentId={activeProfile.id} />;
-      case "fees": return <StudentFeesSection studentId={activeProfile.id} />;
-      case "results": return <ResultsSection studentId={activeProfile.id} />;
+      case "report-card": return <ReportCardSection studentId={profile.id} />;
+      case "fees": return <StudentFeesSection studentId={profile.id} />;
+      case "results": return <ResultsSection studentId={profile.id} />;
       case "elearning": return <ELearningSection />;
       case "settings": return <StudentSettingsSection />;
       case "dashboard":
@@ -440,8 +440,8 @@ const StudentDashboard = () => {
               <User className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-medium text-sm">{activeProfile.name}</p>
-              <p className="text-xs text-primary-foreground/70">{activeProfile.class_name}</p>
+              <p className="font-medium text-sm">{profile.name}</p>
+              <p className="text-xs text-primary-foreground/70">{profile.class_name}</p>
             </div>
           </div>
           <Link
@@ -463,9 +463,9 @@ const StudentDashboard = () => {
               {activeNav === "timetable" ? "My Timetable" :
                 activeNav === "report-card" ? "Report Card" :
                   activeNav === "fees" ? "My Fees & Payments" :
-                    `Welcome back, ${activeProfile.name.split(' ')[0]}!`}
+                    `Welcome back, ${profile.name.split(' ')[0]}!`}
             </h1>
-            <p className="text-muted-foreground text-sm">{activeProfile.class_name} • Term 1 2024</p>
+            <p className="text-muted-foreground text-sm">{profile.class_name} • Term 1 2024</p>
           </div>
           <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
             <Bell className="h-6 w-6 text-muted-foreground" />
