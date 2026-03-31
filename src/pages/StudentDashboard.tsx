@@ -443,8 +443,8 @@ const StudentDashboard = () => {
               <User className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-medium text-sm">{profile.name}</p>
-              <p className="text-xs text-primary-foreground/70">{profile.class_name}</p>
+              <p className="font-medium text-sm">{activeProfile.name}</p>
+              <p className="text-xs text-primary-foreground/70">{activeProfile.class_name}</p>
             </div>
           </div>
           <Link
