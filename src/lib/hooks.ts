@@ -449,6 +449,7 @@ export const useExamMarks = (params?: { exam?: number; student?: number; subject
         queryFn: async () => {
             return await api.get<ExamMark[]>("/exams/marks/", params as any);
         },
+        enabled: !!params?.student || !!params?.exam,
     });
 };
 
