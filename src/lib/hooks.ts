@@ -504,6 +504,7 @@ export const useStudentFees = (params?: { student?: number; status?: string }) =
         queryFn: async () => {
             return await api.get<StudentFee[]>("/school/student-fees/", params as any);
         },
+        enabled: !!params?.student,
     });
 };
 
