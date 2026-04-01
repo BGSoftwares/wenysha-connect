@@ -1,32 +1,23 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Printer, Download, Search, CreditCard, Receipt, Loader2, Calendar, DollarSign, TrendingUp } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Plus, Printer, Download, Search, CreditCard, Receipt, Loader2, Calendar, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
 import { usePayments, useCreatePayment, useInvoices, Payment as PaymentType } from "@/lib/hooks";
+import { paymentSchema, type PaymentFormData } from "@/lib/validations";
 import { toast } from "sonner";
 import { format, isToday } from "date-fns";
 
@@ -42,12 +33,21 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMethod, setFilterMethod] = useState("all");
   const [showRecordModal, setShowRecordModal] = useState(false);
-  const [recordForm, setRecordForm] = useState({
-    invoiceId: "",
-    amount: "0",
-    method: "Bank Transfer",
-    reference: "",
+
+  const form = useForm<PaymentFormData>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: { invoiceId: "", amount: "", method: "Bank Transfer", reference: "" },
   });
+
+  // When invoice is selected, show the max payable amount
+  const selectedInvoiceId = form.watch("invoiceId");
+  const selectedInvoice = useMemo(
+    () => invoices?.find(inv => inv.id.toString() === selectedInvoiceId),
+    [invoices, selectedInvoiceId]
+  );
+  const maxPayable = selectedInvoice
+    ? parseFloat(selectedInvoice.amount) - parseFloat(selectedInvoice.paid)
+    : 0;
 
   const filteredPayments = (payments || []).filter(payment => {
     const matchesSearch =
@@ -73,25 +73,30 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
     }
   };
 
-  const handleRecordPayment = async () => {
-    if (!recordForm.invoiceId || !recordForm.amount || !recordForm.method) {
-      toast.error("Please fill all required fields");
-      return;
+  const onRecordPayment = async (data: PaymentFormData) => {
+    const amount = parseFloat(data.amount);
+
+    // Edge case: warn on overpayment
+    if (selectedInvoice && amount > maxPayable) {
+      const confirmed = window.confirm(
+        `This payment of $${amount.toLocaleString()} exceeds the outstanding balance of $${maxPayable.toLocaleString()}. The excess will be recorded as an overpayment. Continue?`
+      );
+      if (!confirmed) return;
     }
 
     try {
       await createPaymentMutation.mutateAsync({
-        invoice: parseInt(recordForm.invoiceId),
-        amount: parseFloat(recordForm.amount),
-        method: recordForm.method,
-        reference: recordForm.reference,
-        date: new Date().toISOString().split('T')[0],
+        invoice: parseInt(data.invoiceId),
+        amount,
+        method: data.method,
+        reference: data.reference || "",
+        date: new Date().toISOString().split("T")[0],
       });
       setShowRecordModal(false);
-      setRecordForm({ invoiceId: "", amount: "0", method: "Bank Transfer", reference: "" });
-      toast.success("Payment recorded successfully");
-    } catch (error) {
-      toast.error("Failed to record payment");
+      form.reset();
+      toast.success("Payment recorded successfully — invoice updated");
+    } catch {
+      toast.error("Failed to record payment. Please try again.");
     }
   };
 
@@ -235,73 +240,106 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
         </CardContent>
       </Card>
 
-      {/* Record Payment Modal */}
-      <Dialog open={showRecordModal} onOpenChange={setShowRecordModal}>
+      {/* Record Payment Modal — Zod validated with overpayment warning */}
+      <Dialog open={showRecordModal} onOpenChange={(o) => { setShowRecordModal(o); if (!o) form.reset(); }}>
         <DialogContent className="max-w-md bg-card border-none shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-heading font-black">Record Transaction</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">Target Invoice *</label>
-              <Select value={recordForm.invoiceId} onValueChange={(v) => setRecordForm({ ...recordForm, invoiceId: v })}>
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder="Select outstanding invoice" />
-                </SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {invoices?.filter(inv => inv.status !== 'paid').map(inv => (
-                    <SelectItem key={inv.id} value={inv.id.toString()}>
-                      {inv.invoice_no} - {inv.student_name} (${(parseFloat(inv.amount) - parseFloat(inv.paid)).toLocaleString()} pending)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">Payment Amount ($) *</label>
-              <Input
-                type="number"
-                value={recordForm.amount}
-                onChange={(e) => setRecordForm({ ...recordForm, amount: e.target.value })}
-                placeholder="0.00"
-                className="h-12"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onRecordPayment)} className="space-y-4 py-4" noValidate>
+              <FormField
+                control={form.control}
+                name="invoiceId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold text-accent uppercase tracking-widest">Target Invoice *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="h-12"><SelectValue placeholder="Select outstanding invoice" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="max-h-64">
+                        {invoices?.filter(inv => inv.status !== "paid").map(inv => (
+                          <SelectItem key={inv.id} value={inv.id.toString()}>
+                            {inv.invoice_no} - {inv.student_name} (${(parseFloat(inv.amount) - parseFloat(inv.paid)).toLocaleString()} pending)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">Payment Channel *</label>
-              <Select value={recordForm.method} onValueChange={(v) => setRecordForm({ ...recordForm, method: v })}>
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder="Select method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Cash">Physical Cash</SelectItem>
-                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="Mobile Money">Mobile Money</SelectItem>
-                  <SelectItem value="POS">Point of Sale (POS)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">External Reference</label>
-              <Input
-                value={recordForm.reference}
-                onChange={(e) => setRecordForm({ ...recordForm, reference: e.target.value })}
-                placeholder="Transaction or Reference ID"
-                className="h-12"
+
+              {selectedInvoice && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+                  <AlertTriangle className="h-4 w-4 text-accent flex-shrink-0" />
+                  <span>Outstanding balance: <strong className="text-foreground">${maxPayable.toLocaleString()}</strong></span>
+                </div>
+              )}
+
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold text-accent uppercase tracking-widest">Payment Amount ($) *</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0.00" className="h-12" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowRecordModal(false)} className="h-12 flex-1 rounded-xl">Discard</Button>
-            <Button
-              variant="gold"
-              onClick={handleRecordPayment}
-              className="h-12 flex-1 rounded-xl shadow-lg shadow-accent/20"
-              disabled={createPaymentMutation.isPending}
-            >
-              {createPaymentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Post Payment"}
-            </Button>
-          </DialogFooter>
+              <FormField
+                control={form.control}
+                name="method"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold text-accent uppercase tracking-widest">Payment Channel *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="h-12"><SelectValue placeholder="Select method" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Cash">Physical Cash</SelectItem>
+                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="Mobile Money">Mobile Money</SelectItem>
+                        <SelectItem value="POS">Point of Sale (POS)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="reference"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold text-accent uppercase tracking-widest">External Reference</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Transaction or Reference ID" className="h-12" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter className="gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowRecordModal(false)} className="h-12 flex-1 rounded-xl">
+                  Discard
+                </Button>
+                <Button
+                  type="submit"
+                  variant="gold"
+                  className="h-12 flex-1 rounded-xl shadow-lg shadow-accent/20"
+                  disabled={createPaymentMutation.isPending}
+                >
+                  {createPaymentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Post Payment"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

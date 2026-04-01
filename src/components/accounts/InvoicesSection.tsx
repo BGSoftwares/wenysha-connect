@@ -1,32 +1,23 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Eye, Printer, Download, Search, FileText, Send, Loader2 } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Plus, Eye, Printer, Search, FileText, Loader2, AlertTriangle } from "lucide-react";
 import { useInvoices, useCreateInvoice, useStudents, Invoice as InvoiceType } from "@/lib/hooks";
+import { invoiceSchema, type InvoiceFormData } from "@/lib/validations";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -44,10 +35,10 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceType | null>(null);
-  const [generateForm, setGenerateForm] = useState({
-    term: "Term 1",
-    studentId: "",
-    amount: "0",
+
+  const form = useForm<InvoiceFormData>({
+    resolver: zodResolver(invoiceSchema),
+    defaultValues: { term: "Term 1", studentId: "", amount: "" },
   });
 
   const filteredInvoices = (invoices || []).filter(inv => {
@@ -71,24 +62,19 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
     }
   };
 
-  const handleGenerateInvoice = async () => {
-    if (!generateForm.studentId || !generateForm.amount) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
+  const onGenerateInvoice = async (data: InvoiceFormData) => {
     try {
       await createInvoiceMutation.mutateAsync({
-        student: parseInt(generateForm.studentId),
-        term: generateForm.term,
-        amount: parseFloat(generateForm.amount),
-        date: new Date().toISOString().split('T')[0],
+        student: parseInt(data.studentId),
+        term: data.term,
+        amount: parseFloat(data.amount),
+        date: new Date().toISOString().split("T")[0],
       });
       setShowGenerateModal(false);
       toast.success("Invoice generated successfully");
-      setGenerateForm({ term: "Term 1", studentId: "", amount: "0" });
-    } catch (error) {
-      toast.error("Failed to generate invoice");
+      form.reset();
+    } catch {
+      toast.error("Failed to generate invoice. Please try again.");
     }
   };
 
@@ -175,11 +161,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
                       <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewInvoice(invoice)}
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => handleViewInvoice(invoice)}>
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon">
@@ -202,61 +184,82 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
         </CardContent>
       </Card>
 
-      {/* Generate Invoice Modal */}
-      <Dialog open={showGenerateModal} onOpenChange={setShowGenerateModal}>
+      {/* Generate Invoice Modal — Zod validated */}
+      <Dialog open={showGenerateModal} onOpenChange={(o) => { setShowGenerateModal(o); if (!o) form.reset(); }}>
         <DialogContent className="max-w-md bg-card border-none shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-heading font-black">Generate New Invoice</DialogTitle>
           </DialogHeader>
-          <div className="space-y-5 py-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-accent uppercase tracking-widest ml-1">Academic Term</label>
-              <Select value={generateForm.term} onValueChange={(v) => setGenerateForm({ ...generateForm, term: v })}>
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder="Select term" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Term 1">Term 1</SelectItem>
-                  <SelectItem value="Term 2">Term 2</SelectItem>
-                  <SelectItem value="Term 3">Term 3</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-accent uppercase tracking-widest ml-1">Student</label>
-              <Select value={generateForm.studentId} onValueChange={(v) => setGenerateForm({ ...generateForm, studentId: v })}>
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder="Select student" />
-                </SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {students?.map(s => (
-                    <SelectItem key={s.id} value={s.id.toString()}>{s.name} ({s.class_name})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-accent uppercase tracking-widest ml-1">Fee Amount ($)</label>
-              <Input
-                type="number"
-                value={generateForm.amount}
-                onChange={(e) => setGenerateForm({ ...generateForm, amount: e.target.value })}
-                placeholder="0.00"
-                className="h-12"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onGenerateInvoice)} className="space-y-5 py-4" noValidate>
+              <FormField
+                control={form.control}
+                name="term"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold text-accent uppercase tracking-widest">Academic Term</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="h-12"><SelectValue placeholder="Select term" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Term 1">Term 1</SelectItem>
+                        <SelectItem value="Term 2">Term 2</SelectItem>
+                        <SelectItem value="Term 3">Term 3</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowGenerateModal(false)} className="h-12 flex-1 rounded-xl">Cancel</Button>
-            <Button
-              variant="gold"
-              onClick={handleGenerateInvoice}
-              className="h-12 flex-1 rounded-xl shadow-lg shadow-accent/20"
-              disabled={createInvoiceMutation.isPending}
-            >
-              {createInvoiceMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Commit Invoice"}
-            </Button>
-          </DialogFooter>
+              <FormField
+                control={form.control}
+                name="studentId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold text-accent uppercase tracking-widest">Student</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="h-12"><SelectValue placeholder="Select student" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="max-h-64">
+                        {students?.map(s => (
+                          <SelectItem key={s.id} value={s.id.toString()}>{s.name} ({s.class_name})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold text-accent uppercase tracking-widest">Fee Amount ($)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0.00" className="h-12" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter className="gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowGenerateModal(false)} className="h-12 flex-1 rounded-xl">
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="gold"
+                  className="h-12 flex-1 rounded-xl shadow-lg shadow-accent/20"
+                  disabled={createInvoiceMutation.isPending}
+                >
+                  {createInvoiceMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Commit Invoice"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
@@ -304,16 +307,22 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
                 <h4 className="text-[10px] font-bold text-accent uppercase tracking-widest">Financial Summary</h4>
                 <div className="bg-secondary/30 rounded-2xl p-6 space-y-4 border border-border">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Original Indebtedness:</span>
+                    <span className="text-muted-foreground">Total Billed:</span>
                     <span className="font-bold">${parseFloat(selectedInvoice.amount).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm text-primary">
-                    <span className="text-muted-foreground font-medium">Redemption Amount:</span>
+                    <span className="text-muted-foreground font-medium">Total Paid:</span>
                     <span className="font-bold">-${parseFloat(selectedInvoice.paid).toLocaleString()}</span>
                   </div>
+                  {parseFloat(selectedInvoice.amount) - parseFloat(selectedInvoice.paid) > 0 && (
+                    <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/5 rounded-lg p-3">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                      <span>Outstanding balance requires attention</span>
+                    </div>
+                  )}
                   <div className="pt-4 border-t border-border/50 flex justify-between items-end">
                     <div>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase">Net Residual Liability</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase">Balance Due</p>
                       <p className="font-black text-2xl text-destructive tracking-tighter">
                         ${(parseFloat(selectedInvoice.amount) - parseFloat(selectedInvoice.paid)).toLocaleString()}
                       </p>
@@ -324,7 +333,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
             </div>
           )}
           <DialogFooter className="gap-3">
-            <Button variant="outline" className="flex-1 h-14 rounded-xl font-bold bg-white/5 border-white/10 text-foreground hover:bg-white/10 transition-all uppercase tracking-widest text-[10px]" onClick={() => window.print()}>
+            <Button variant="outline" className="flex-1 h-14 rounded-xl font-bold uppercase tracking-widest text-[10px]" onClick={() => window.print()}>
               <Printer className="mr-2 h-4 w-4" />
               Generate PDF
             </Button>
