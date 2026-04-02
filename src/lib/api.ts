@@ -6,9 +6,7 @@
 const getApiBaseUrl = (): string => {
   const url = import.meta.env.VITE_API_BASE_URL;
   if (!url) {
-    // Use relative API path and Vite proxy for development to avoid hardcoded localhost when
-    // running in Codespaces or remote environments.
-    return "/api";
+    return "https://katia-serpentiform-humiliatingly.ngrok-free.dev/api";
   }
   return url.replace(/\/$/, "");
 };
