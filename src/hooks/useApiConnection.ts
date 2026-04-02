@@ -29,6 +29,6 @@ export function useApiConnection() {
     isChecking,
     lastChecked,
     checkConnection,
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api',
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'https://katia-serpentiform-humiliatingly.ngrok-free.dev/api',
   };
 }
