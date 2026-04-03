@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8000",
+        // Backend runs on 8001 in this workspace; proxy `/api` to that port.
+        target: "http://127.0.0.1:8001",
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, "/api"),
