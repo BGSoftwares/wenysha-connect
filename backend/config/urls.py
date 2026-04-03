@@ -5,13 +5,17 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 
 def health_check(request):
-    return JsonResponse({'status': 'ok', 'backend': 'running'})
+    return JsonResponse({'status': 'ok'})
 
 
 urlpatterns = [
     path('', health_check, name='health_check'),
     path('admin/', admin.site.urls),
+    path('api/health/', health_check, name='health_check'),
+    path('admin/', admin.site.urls),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # Legacy top-level endpoints (kept for frontend compatibility)
+    path('api/', include('school.legacy_urls')),
     path('api/auth/', include('core.urls')),
     path('api/school/', include('school.urls')),
     path('api/finance/', include('finance.urls')),
