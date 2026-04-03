@@ -100,7 +100,12 @@ async function request<T>(
   if (token) {
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
-  const res = await fetch(url, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(url, { ...init, headers });
+  } catch {
+    throw { detail: "Unable to reach the server. Please check your internet connection or try again later." } as ApiError;
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err: ApiError = typeof data === "object" ? data : { detail: res.statusText };
