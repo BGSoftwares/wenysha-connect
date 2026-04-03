@@ -17,6 +17,13 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-secret-change-in-productio
 DEBUG = os.environ.get('DJANGO_DEBUG', os.environ.get('DEBUG', 'True')).lower() == 'true'
 
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,::1')).split(',')
+# Add ngrok and preview domains dynamically
+ngrok_domain = os.environ.get('NGROK_DOMAIN', '').strip()
+preview_domain = os.environ.get('PREVIEW_DOMAIN', '').strip()
+if ngrok_domain:
+    ALLOWED_HOSTS.append(ngrok_domain.replace('https://', '').replace('http://', ''))
+if preview_domain:
+    ALLOWED_HOSTS.append(preview_domain.replace('https://', '').replace('http://', ''))
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -115,9 +122,21 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom user: use Django's User; link to Role and profiles via OneToOne
 AUTH_USER_MODEL = 'auth.User'
 
-# CORS: allow React dev server
+# CORS: allow React dev server, ngrok, and preview domains
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080')).split(',')
+# Add ngrok and preview domains
+if ngrok_domain:
+    CORS_ALLOWED_ORIGINS.append(f"https://{ngrok_domain.replace('https://', '').replace('http://', '')}")
+if preview_domain:
+    CORS_ALLOWED_ORIGINS.append(f"https://{preview_domain.replace('https://', '').replace('http://', '')}")
 CORS_ALLOW_CREDENTIALS = True
+
+# CSRF: trust HTTPS origins for ngrok and preview domains
+CSRF_TRUSTED_ORIGINS = []
+if ngrok_domain:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{ngrok_domain.replace('https://', '').replace('http://', '')}")
+if preview_domain:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{preview_domain.replace('https://', '').replace('http://', '')}")
 
 # REST Framework
 REST_FRAMEWORK = {

@@ -40,10 +40,13 @@ const Auth = () => {
                 const data = await login(email, password);
                 toast.success(`Welcome back, ${data.user.full_name || data.user.username}`);
 
-                // Redirect based on role
-                const role = data.user.role;
+                // Redirect based on role (normalize casing)
+                const role = (data.user.role || '').toString().toLowerCase();
                 if (role === 'admin') navigate('/admin');
-                else if (role === 'parent') navigate('/parent-portal');
+                else if (role === 'parent') navigate('/parent');
+                else if (role === 'teacher') navigate('/teacher');
+                else if (role === 'accounts') navigate('/accounts');
+                else if (role === 'student') navigate('/student');
                 else navigate('/portal');
             } else {
                 if (password !== confirmPassword) {

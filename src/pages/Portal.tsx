@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
+import { getStoredUser } from '@/lib/api';
 import { GraduationCap, Users, Shield, Eye, EyeOff, Mail, Lock, ArrowLeft, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/wenyasha-logo.jpg";
@@ -13,6 +14,19 @@ const Portal = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // If user already logged in, redirect them to their portal
+    const u = getStoredUser();
+    if (u && u.role) {
+      const r = (u.role || '').toString().toLowerCase();
+      if (r === 'student') navigate('/student');
+      else if (r === 'teacher') navigate('/teacher');
+      else if (r === 'admin') navigate('/admin');
+      else if (r === 'accounts') navigate('/accounts');
+      else if (r === 'parent') navigate('/parent');
+    }
+  }, [navigate]);
 
   const portals = [
     {

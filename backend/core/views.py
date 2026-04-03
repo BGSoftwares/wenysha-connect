@@ -50,7 +50,24 @@ class LoginView(APIView):
         # Include role if profile exists
         try:
             profile = user.profile
-            tokens['user']['role'] = profile.role.name if profile.role else None
+            # Normalize role string to a predictable lowercase value
+            def _normalize_role(name: str) -> str:
+                if not name:
+                    return ''
+                n = name.lower()
+                if 'student' in n:
+                    return 'student'
+                if 'admin' in n:
+                    return 'admin'
+                if 'teacher' in n:
+                    return 'teacher'
+                if 'parent' in n:
+                    return 'parent'
+                if 'account' in n or 'accounts' in n:
+                    return 'accounts'
+                return n
+
+            tokens['user']['role'] = _normalize_role(profile.role.name) if profile.role else None
             tokens['user']['full_name'] = profile.full_name or user.username
         except UserProfile.DoesNotExist:
             tokens['user']['role'] = None

@@ -17,10 +17,28 @@ class RoleSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
     role_name = serializers.CharField(source='role.name', read_only=True)
+    role_normalized = serializers.SerializerMethodField()
 
     class Meta:
         model = UserProfile
-        fields = ['id', 'user', 'email', 'role', 'role_name', 'full_name']
+        fields = ['id', 'user', 'email', 'role', 'role_name', 'role_normalized', 'full_name']
+
+    def get_role_normalized(self, obj):
+        name = getattr(obj.role, 'name', '') if obj.role else ''
+        if not name:
+            return ''
+        n = name.lower()
+        if 'student' in n:
+            return 'student'
+        if 'admin' in n:
+            return 'admin'
+        if 'teacher' in n:
+            return 'teacher'
+        if 'parent' in n:
+            return 'parent'
+        if 'account' in n or 'accounts' in n:
+            return 'accounts'
+        return n
 
 
 class PendingApprovalSerializer(serializers.ModelSerializer):
