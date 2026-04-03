@@ -7,6 +7,7 @@ from .serializers import (
     StudentSerializer,
     TeacherSubjectClassSerializer,
 )
+from core.permissions import IsAdminOrReadOwnOnly
 
 
 class SchoolClassViewSet(viewsets.ModelViewSet):
@@ -29,6 +30,7 @@ class StudentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentSerializer
     search_fields = ['student_id', 'name']
     filterset_fields = ['school_class', 'status']
+    permission_classes = [IsAdminOrReadOwnOnly]
 
 
 class TeacherSubjectClassViewSet(viewsets.ModelViewSet):

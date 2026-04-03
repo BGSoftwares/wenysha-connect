@@ -88,6 +88,26 @@ class SignUpView(APIView):
         )
 
 
+class MeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        data = {
+            'id': user.id,
+            'email': user.email,
+            'username': user.username,
+        }
+        try:
+            profile = user.profile
+            data['role'] = profile.role.name.lower() if profile.role else None
+            data['full_name'] = profile.full_name or user.username
+        except UserProfile.DoesNotExist:
+            data['role'] = None
+            data['full_name'] = user.username
+        return Response(data)
+
+
 class RoleViewSet(ModelViewSet):
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
