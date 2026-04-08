@@ -1,4 +1,5 @@
-import { api } from '@/lib/api';
+import { api } from '../lib/api';
+import type { Student as StudentType } from '../lib/hooks';
 
 export const studentsService = {
   async getAll() {
@@ -18,16 +19,4 @@ export const studentsService = {
   },
 };
 
-export interface Student {
-  id: number;
-  student_id: string;
-  name: string;
-  school_class: number;
-  class_name?: string;
-  gender?: string;
-  status?: string;
-  date_of_birth?: string;
-  address?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+export type Student = StudentType;

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { getStoredUser } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 import { GraduationCap, Users, Shield, Eye, EyeOff, Mail, Lock, ArrowLeft, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/wenyasha-logo.jpg";
@@ -61,7 +62,11 @@ const Portal = () => {
     e.preventDefault();
     if (!selectedPortal) return;
     const ok = await auth.login(email, password);
-    if (!ok) return; // auth.error will contain message
+    if (!ok) {
+      toast.error(auth.error || 'Login failed');
+      return;
+    }
+    toast.success('Signed in successfully');
 
     const r = (auth.user?.role || '').toString().toLowerCase();
     if (r === 'student') navigate('/student');

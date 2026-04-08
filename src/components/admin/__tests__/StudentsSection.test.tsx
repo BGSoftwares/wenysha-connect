@@ -29,7 +29,7 @@ describe('StudentsSection', () => {
     const input = screen.getByPlaceholderText(/Search students/i);
     fireEvent.change(input, { target: { value: 'Alice' } });
 
-    expect(screen.getByText(/Alice Smith/)).toBeInTheDocument();
+    expect(screen.getByText(/Alice Smith/)).toBeTruthy();
     expect(screen.queryByText(/Bob Jones/)).toBeNull();
   });
 

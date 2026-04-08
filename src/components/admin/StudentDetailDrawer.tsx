@@ -9,7 +9,15 @@ interface StudentDetailProps {
 }
 
 const StudentDetailDrawer = ({ open, onClose, student, classes = [], onSave }: StudentDetailProps) => {
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<any>(() => ({
+    name: student?.name ?? '',
+    student_id: student?.student_id ?? '',
+    school_class: student?.school_class ?? student?.class_name ?? '',
+    gender: student?.gender ?? '',
+    status: student?.status ?? '',
+    date_of_birth: student?.date_of_birth ?? '',
+    address: student?.address ?? '',
+  }));
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
