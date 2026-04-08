@@ -69,11 +69,13 @@ const Portal = () => {
     toast.success('Signed in successfully');
 
     const r = (auth.user?.role || '').toString().toLowerCase();
-    if (r === 'student') navigate('/student');
-    else if (r === 'teacher') navigate('/teacher');
-    else if (r === 'admin') navigate('/admin');
-    else if (r === 'accounts') navigate('/accounts');
-    else if (r === 'parent') navigate('/parent');
+    const uid = auth.user?.id;
+    if (r === 'student') navigate(`/student/${uid}`);
+    else if (r === 'teacher') navigate(`/teacher/${uid}`);
+    else if (r === 'admin') navigate(`/admin/${uid}`);
+    else if (r === 'accounts') navigate(`/accounts/${uid}`);
+    else if (r === 'parent') navigate(`/parent/${uid}`);
+    else navigate('/');
     else navigate('/');
   };
 

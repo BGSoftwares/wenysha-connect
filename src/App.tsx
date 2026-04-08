@@ -92,9 +92,20 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/portal" element={<Portal />} />
               <Route path="/signup" element={<SignUp />} />
+              <Route path="/admin/:id/*" element={
+                <ProtectedRoute>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
               <Route path="/admin/*" element={
                 <ProtectedRoute>
                   <AdminDashboard />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/student/:id/*" element={
+                <ProtectedRoute>
+                  <StudentDashboard />
                 </ProtectedRoute>
               } />
               <Route path="/student/*" element={
@@ -102,9 +113,21 @@ const App = () => (
                   <StudentDashboard />
                 </ProtectedRoute>
               } />
+
+              <Route path="/teacher/:id/*" element={
+                <ProtectedRoute>
+                  <TeacherDashboard />
+                </ProtectedRoute>
+              } />
               <Route path="/teacher/*" element={
                 <ProtectedRoute>
                   <TeacherDashboard />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/accounts/:id/*" element={
+                <ProtectedRoute allowedRoles={["accounts", "admin"]}>
+                  <AccountsDashboard />
                 </ProtectedRoute>
               } />
               <Route path="/accounts/*" element={
@@ -112,6 +135,7 @@ const App = () => (
                   <AccountsDashboard />
                 </ProtectedRoute>
               } />
+              <Route path="/parent/:id/*" element={<ParentPortal />} />
               <Route path="/parent/*" element={<ParentPortal />} />
               <Route path="/about" element={<About />} />
               <Route path="/academics" element={<Academics />} />

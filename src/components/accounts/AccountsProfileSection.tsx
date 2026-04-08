@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,13 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const AccountsProfileSection = () => {
+interface AccountsProfileSectionProps {
+  userId?: number;
+}
+
+import { api } from "@/lib/api";
+
+const AccountsProfileSection = ({ userId }: AccountsProfileSectionProps) => {
   const [profileData, setProfileData] = useState({
     name: "John Doe",
     email: "john.doe@wenyasha.edu.zw",
@@ -53,6 +59,29 @@ const AccountsProfileSection = () => {
     setPasswordData({ current: "", new: "", confirm: "" });
   };
 
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!userId) return;
+      try {
+        const res = await api.get<{ id: number; user: number; email?: string; full_name?: string; role_name?: string; role?: number }>(`/core/profiles/${userId}/`);
+        if (!mounted) return;
+        setProfileData((p) => ({
+          ...p,
+          name: res.full_name || p.name,
+          email: res.email || p.email,
+          role: res.role_name || p.role,
+        }));
+      } catch (err) {
+        // ignore - keep defaults
+        // eslint-disable-next-line no-console
+        console.error("Failed to load profile:", err);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [userId]);
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Profile Picture & Basic Info */}
@@ -60,7 +89,7 @@ const AccountsProfileSection = () => {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
-            Profile Information
+              Profile Information {userId ? `(ID: ${userId})` : ''}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">

@@ -153,29 +153,39 @@ export const useAllocations = (params?: { teacher?: number; subject?: number; sc
     });
 };
 
-export const useTeacherProfile = () => {
+export const useTeacherProfile = (opts?: { teacherId?: number; userId?: number }) => {
     const user = getStoredUser();
+    const teacherId = opts?.teacherId;
+    const userId = opts?.userId ?? user?.id;
     return useQuery({
-        queryKey: ["teacher-profile", user?.id],
+        queryKey: ["teacher-profile", teacherId ?? userId],
         queryFn: async () => {
-            if (!user) return null;
-            const teachers = await api.get<Teacher[]>("/school/teachers/");
-            return teachers.find(t => t.user === user.id) || null;
+            if (teacherId) {
+                return await api.get<Teacher>(`/school/teachers/${teacherId}/`);
+            }
+            if (!userId) return null;
+            const teachers = await api.get<Teacher[]>('/school/teachers/');
+            return teachers.find(t => t.user === userId) || null;
         },
-        enabled: !!user
+        enabled: !!(teacherId || userId)
     });
 };
 
-export const useStudentProfile = () => {
-    const user = getStoredUser();
+export const useStudentProfile = (opts?: { studentId?: number; userId?: number }) => {
+    const storedUser = getStoredUser();
+    const studentId = opts?.studentId;
+    const userId = opts?.userId ?? storedUser?.id;
     return useQuery({
-        queryKey: ["student-profile", user?.id],
+        queryKey: ["student-profile", studentId ?? userId],
         queryFn: async () => {
-            if (!user) return null;
-            const students = await api.get<Student[]>("/school/students/");
-            return students.find(s => s.user === user.id) || null;
+            if (studentId) {
+                return await api.get<Student>(`/school/students/${studentId}/`);
+            }
+            if (!userId) return null;
+            const students = await api.get<Student[]>('/school/students/');
+            return students.find(s => s.user === userId) || null;
         },
-        enabled: !!user
+        enabled: !!(studentId || userId)
     });
 };
 

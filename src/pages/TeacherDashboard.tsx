@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   Home,
   BookOpen,
@@ -81,8 +81,11 @@ const TeacherDashboard = () => {
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
 
+  const params = useParams();
+  const routeId = params.id ? Number(params.id) : undefined;
+
   // Data Hooks
-  const { data: teacher, isLoading: isLoadingProfile } = useTeacherProfile();
+  const { data: teacher, isLoading: isLoadingProfile } = useTeacherProfile(routeId ? { userId: routeId } : undefined);
   const { data: allocations = [], isLoading: isLoadingAllocations } = useAllocations({
     teacher: teacher?.id
   });

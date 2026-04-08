@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 import { 
   User, 
   Mail, 
@@ -14,7 +15,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 
-const ProfileSection = () => {
+interface ProfileSectionProps {
+  userId?: number;
+}
+
+const ProfileSection = ({ userId }: ProfileSectionProps) => {
   const [fullName, setFullName] = useState("Admin User");
   const [email, setEmail] = useState("admin@wenyasha.edu.zw");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -109,6 +114,24 @@ const ProfileSection = () => {
     });
   };
 
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!userId) return;
+      try {
+        const res = await api.get<{ id: number; user: number; email?: string; full_name?: string; role_name?: string }>(`/core/profiles/${userId}/`);
+        if (!mounted) return;
+        if (res.full_name) setFullName(res.full_name);
+        if (res.email) setEmail(res.email);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load admin profile', err);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [userId]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -139,7 +162,7 @@ const ProfileSection = () => {
               </label>
             </div>
             <h3 className="font-semibold text-lg text-foreground mt-4">{fullName}</h3>
-            <p className="text-sm text-muted-foreground">Super Administrator</p>
+            <p className="text-sm text-muted-foreground">Super Administrator {userId ? `(ID: ${userId})` : ''}</p>
             <div className="mt-4 inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
               <CheckCircle className="h-3 w-3" />
               Active Account

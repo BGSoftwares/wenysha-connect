@@ -30,8 +30,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 
+import { useParams } from 'react-router-dom';
+
 const ParentPortal = () => {
-    const { data: parentProfile, isLoading: isLoadingParent } = useParentProfile();
+    const params = useParams();
+    const routeId = params.id ? Number(params.id) : undefined;
+    const { data: parentProfile, isLoading: isLoadingParent } = useParentProfile(routeId ? { userId: routeId } : undefined);
     const isParent = !!parentProfile; // A user is a parent if parentProfile exists
 
     const { data: parentLinks } = useStudentParentLinks(

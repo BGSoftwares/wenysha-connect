@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams } from 'react-router-dom';
 import AccountsSidebar from "@/components/accounts/AccountsSidebar";
 import AccountsHeader from "@/components/accounts/AccountsHeader";
 import AccountsOverview from "@/components/accounts/AccountsOverview";
@@ -11,6 +12,8 @@ import ReportsSection from "@/components/accounts/ReportsSection";
 import AccountsProfileSection from "@/components/accounts/AccountsProfileSection";
 
 const AccountsDashboard = () => {
+  const params = useParams();
+  const routeId = params.id ? Number(params.id) : undefined;
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -53,7 +56,7 @@ const AccountsDashboard = () => {
       case "reports":
         return <ReportsSection />;
       case "profile":
-        return <AccountsProfileSection />;
+        return <AccountsProfileSection userId={routeId} />;
       default:
         return <AccountsOverview />;
     }

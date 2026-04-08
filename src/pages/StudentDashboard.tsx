@@ -32,6 +32,7 @@ import {
   useInvoices
 } from "@/lib/hooks";
 import { getStoredUser } from "@/lib/api";
+import { useParams } from 'react-router-dom';
 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
@@ -123,8 +124,10 @@ const timetableData = [
 const StudentDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const user = getStoredUser();
+  const params = useParams();
+  const routeId = params.id ? Number(params.id) : undefined;
 
-  const { data: profile, isLoading: isLoadingProfile } = useStudentProfile();
+  const { data: profile, isLoading: isLoadingProfile } = useStudentProfile(routeId ? { studentId: routeId } : undefined);
   const { data: grades = [] } = useGrades({ student: profile?.id });
   const { data: attendance = [] } = useAttendanceRecords({ student: profile?.id });
   const { data: fees = [] } = useStudentFees({ student: profile?.id });

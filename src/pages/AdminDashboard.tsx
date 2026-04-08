@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams } from 'react-router-dom';
 import { useStudents, useTeachers, useClasses, useSubjects, useCreateStudent, useCreateTeacher, useCreateClass, useCreateSubject, useAllocations } from "@/lib/hooks";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
@@ -51,6 +52,8 @@ const mockGalleryImages = [
 ];
 
 const AdminDashboard = () => {
+  const params = useParams();
+  const adminRouteId = params.id ? Number(params.id) : undefined;
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showModal, setShowModal] = useState<string | null>(null);
@@ -257,7 +260,7 @@ const AdminDashboard = () => {
       case "settings":
       case "system-setup":
       case "cache": return <SettingsSection activeSubNav={activeNav} />;
-      case "profile": return <ProfileSection />;
+      case "profile": return <ProfileSection userId={adminRouteId} />;
       case "parents": return <ParentsSection />;
       case "library": return <LibrarySection />;
       case "account": return <DashboardOverview />;
