@@ -14,30 +14,30 @@ export interface Application {
 
 export const applicationsService = {
   async getAll() {
-    return api.get<Application[]>('/api/applications/');
+    return api.get<Application[]>('/admissions/applications/');
   },
 
   async getById(id: number) {
-    return api.get<Application>(`/api/applications/${id}/`);
+    return api.get<Application>(`/admissions/applications/${id}/`);
   },
 
   async create(data: Partial<Application>) {
-    return api.post<Application>('/api/applications/', data);
+    return api.post<Application>('/admissions/applications/', data);
   },
 
   async update(id: number, data: Partial<Application>) {
-    return api.patch<Application>(`/api/applications/${id}/`, data);
+    return api.patch<Application>(`/admissions/applications/${id}/`, data);
   },
 
   async delete(id: number) {
-    return api.delete(`/api/applications/${id}/`);
+    return api.delete(`/admissions/applications/${id}/`);
   },
 
   async approve(id: number) {
-    return api.post(`/api/applications/${id}/approve/`, {});
+    return api.post(`/admissions/applications/${id}/approve/`, {});
   },
 
   async reject(id: number, reason?: string) {
-    return api.post(`/api/applications/${id}/reject/`, { reason });
+    return api.post(`/admissions/applications/${id}/reject/`, { reason });
   },
 };

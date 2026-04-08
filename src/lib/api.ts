@@ -6,7 +6,8 @@
 const getApiBaseUrl = (): string => {
   const url = import.meta.env.VITE_API_BASE_URL;
   if (!url) {
-    return "https://katia-serpentiform-humiliatingly.ngrok-free.dev/api";
+    // Default to local development server if env var is not provided
+    return "http://127.0.0.1:8000/api";
   }
   return url.replace(/\/$/, "");
 };
@@ -100,12 +101,33 @@ async function request<T>(
   if (token) {
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
-  const res = await fetch(url, { ...init, headers });
-  const data = await res.json().catch(() => ({}));
+  let res = await fetch(url, { ...init, headers });
+  let data = await res.json().catch(() => ({}));
+
+  // If unauthorized, try to refresh access token once and retry
+  if (res.status === 401) {
+    try {
+      const newAccess = await refreshAccessToken();
+      // retry request with new token
+      const retryHeaders: HeadersInit = {
+        ...headers,
+        Authorization: `Bearer ${newAccess}`,
+      };
+      res = await fetch(url, { ...init, headers: retryHeaders });
+      data = await res.json().catch(() => ({}));
+    } catch (refreshErr) {
+      // refresh failed — clear auth and surface original 401
+      clearAuth();
+      const err: ApiError = typeof data === "object" ? data : { detail: res.statusText };
+      throw err;
+    }
+  }
+
   if (!res.ok) {
     const err: ApiError = typeof data === "object" ? data : { detail: res.statusText };
     throw err;
   }
+
   return data as T;
 }
 

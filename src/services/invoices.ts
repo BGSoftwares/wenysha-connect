@@ -15,18 +15,18 @@ export interface Invoice {
 
 export const invoicesService = {
   async getAll() {
-    return api.get<Invoice[]>('/api/invoices/');
+    return api.get<Invoice[]>('/finance/invoices/');
   },
   async getById(id: number) {
-    return api.get<Invoice>(`/api/invoices/${id}/`);
+    return api.get<Invoice>(`/finance/invoices/${id}/`);
   },
   async create(data: Partial<Invoice>) {
-    return api.post<Invoice>('/api/invoices/', data);
+    return api.post<Invoice>('/finance/invoices/', data);
   },
   async update(id: number, data: Partial<Invoice>) {
-    return api.patch<Invoice>(`/api/invoices/${id}/`, data);
+    return api.patch<Invoice>(`/finance/invoices/${id}/`, data);
   },
   async delete(id: number) {
-    return api.delete(`/api/invoices/${id}/`);
+    return api.delete(`/finance/invoices/${id}/`);
   },
 };

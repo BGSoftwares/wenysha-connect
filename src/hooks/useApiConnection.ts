@@ -9,7 +9,8 @@ export function useApiConnection() {
   const checkConnection = useCallback(async () => {
     setIsChecking(true);
     try {
-      await api.get('/health/');
+      // Backend exposes a root health endpoint; call base root
+      await api.get('/');
       setIsConnected(true);
     } catch {
       setIsConnected(false);
@@ -29,6 +30,6 @@ export function useApiConnection() {
     isChecking,
     lastChecked,
     checkConnection,
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'https://katia-serpentiform-humiliatingly.ngrok-free.dev/api',
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api',
   };
 }

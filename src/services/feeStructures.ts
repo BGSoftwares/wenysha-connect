@@ -15,18 +15,18 @@ export interface FeeStructure {
 
 export const feeStructuresService = {
   async getAll() {
-    return api.get<FeeStructure[]>('/api/fee-structures/');
+    return api.get<FeeStructure[]>('/finance/fee-structures/');
   },
   async getById(id: number) {
-    return api.get<FeeStructure>(`/api/fee-structures/${id}/`);
+    return api.get<FeeStructure>(`/finance/fee-structures/${id}/`);
   },
   async create(data: Partial<FeeStructure>) {
-    return api.post<FeeStructure>('/api/fee-structures/', data);
+    return api.post<FeeStructure>('/finance/fee-structures/', data);
   },
   async update(id: number, data: Partial<FeeStructure>) {
-    return api.patch<FeeStructure>(`/api/fee-structures/${id}/`, data);
+    return api.patch<FeeStructure>(`/finance/fee-structures/${id}/`, data);
   },
   async delete(id: number) {
-    return api.delete(`/api/fee-structures/${id}/`);
+    return api.delete(`/finance/fee-structures/${id}/`);
   },
 };

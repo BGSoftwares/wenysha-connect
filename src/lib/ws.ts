@@ -1,8 +1,10 @@
 const makeWsUrl = () => {
   const explicit = import.meta.env.VITE_WS_URL;
   if (explicit) return explicit;
-  const api = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000").replace(/\/+$/, "");
-  return api.replace(/^http/, "ws") + "/ws/notifications/";
+  const api = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000").replace(/\/+$/, "");
+  // If API base contains /api, strip it when constructing ws host
+  const host = api.replace(/\/api$/, "");
+  return host.replace(/^http/, "ws") + "/ws/notifications/";
 };
 
 export const WS_URL = makeWsUrl();

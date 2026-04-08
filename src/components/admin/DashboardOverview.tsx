@@ -1,5 +1,7 @@
 import { GraduationCap, Users, UserCog, DollarSign, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { 
   AreaChart, 
   Area, 
@@ -15,36 +17,7 @@ import {
   Cell
 } from "recharts";
 
-const statsCards = [
-  { 
-    icon: GraduationCap, 
-    label: "Students", 
-    value: "150000", 
-    bgColor: "bg-[hsl(200,85%,92%)]",
-    iconColor: "text-[hsl(200,85%,50%)]"
-  },
-  { 
-    icon: Users, 
-    label: "Teachers", 
-    value: "2250", 
-    bgColor: "bg-[hsl(150,60%,90%)]",
-    iconColor: "text-[hsl(150,60%,40%)]"
-  },
-  { 
-    icon: UserCog, 
-    label: "Parents", 
-    value: "5690", 
-    bgColor: "bg-[hsl(35,90%,90%)]",
-    iconColor: "text-[hsl(35,90%,50%)]"
-  },
-  { 
-    icon: DollarSign, 
-    label: "Earnings", 
-    value: "$193000", 
-    bgColor: "bg-[hsl(350,80%,92%)]",
-    iconColor: "text-[hsl(350,80%,55%)]"
-  },
-];
+let statsCards: Array<any> = [];
 
 const earningsData = [
   { day: "Mon", total: 65000, fees: 12000 },
@@ -97,6 +70,22 @@ const socialStats = [
 
 const DashboardOverview = () => {
   const [currentMonth, setCurrentMonth] = useState("April 2019");
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: async () => {
+      return await api.get<any>('/school/dashboard-stats/');
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (stats && statsCards.length === 0) {
+    statsCards = [
+      { icon: GraduationCap, label: 'Students', value: stats.students?.toLocaleString?.() ?? String(stats.students ?? '-'), bgColor: 'bg-[hsl(200,85%,92%)]', iconColor: 'text-[hsl(200,85%,50%)]' },
+      { icon: Users, label: 'Teachers', value: stats.teachers?.toLocaleString?.() ?? String(stats.teachers ?? '-'), bgColor: 'bg-[hsl(150,60%,90%)]', iconColor: 'text-[hsl(150,60%,40%)]' },
+      { icon: UserCog, label: 'Parents', value: stats.parents?.toLocaleString?.() ?? String(stats.parents ?? '-'), bgColor: 'bg-[hsl(35,90%,90%)]', iconColor: 'text-[hsl(35,90%,50%)]' },
+      { icon: DollarSign, label: 'Earnings', value: stats.earnings ? `$${stats.earnings}` : '-', bgColor: 'bg-[hsl(350,80%,92%)]', iconColor: 'text-[hsl(350,80%,55%)]' },
+    ];
+  }
   
   // Calendar data for April 2019
   const calendarEvents = [
@@ -107,6 +96,22 @@ const DashboardOverview = () => {
     { day: 19, label: "", color: "" },
     { day: 20, label: "7a Birthday", color: "bg-[hsl(150,60%,45%)]" },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-heading text-2xl font-bold text-foreground">Admin Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Loading dashboard...</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-card rounded-xl border border-border p-5 h-28 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

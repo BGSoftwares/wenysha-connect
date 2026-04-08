@@ -11,18 +11,18 @@ export interface ClassRoom {
 
 export const classroomsService = {
   async getAll() {
-    return api.get<ClassRoom[]>('/api/classrooms/');
+    return api.get<ClassRoom[]>('/school/classes/');
   },
   async getById(id: number) {
-    return api.get<ClassRoom>(`/api/classrooms/${id}/`);
+    return api.get<ClassRoom>(`/school/classes/${id}/`);
   },
   async create(data: Partial<ClassRoom>) {
-    return api.post<ClassRoom>('/api/classrooms/', data);
+    return api.post<ClassRoom>('/school/classes/', data);
   },
   async update(id: number, data: Partial<ClassRoom>) {
-    return api.patch<ClassRoom>(`/api/classrooms/${id}/`, data);
+    return api.patch<ClassRoom>(`/school/classes/${id}/`, data);
   },
   async delete(id: number) {
-    return api.delete(`/api/classrooms/${id}/`);
+    return api.delete(`/school/classes/${id}/`);
   },
 };

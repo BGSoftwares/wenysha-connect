@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { getStoredUser } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import { GraduationCap, Users, Shield, Eye, EyeOff, Mail, Lock, ArrowLeft, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/wenyasha-logo.jpg";
@@ -14,19 +15,20 @@ const Portal = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const auth = useAuth();
 
   useEffect(() => {
     // If user already logged in, redirect them to their portal
-    const u = getStoredUser();
-    if (u && u.role) {
-      const r = (u.role || '').toString().toLowerCase();
+    const u = getStoredUser() || auth.user;
+    if (u && (u as any).role) {
+      const r = ((u as any).role || '').toString().toLowerCase();
       if (r === 'student') navigate('/student');
       else if (r === 'teacher') navigate('/teacher');
       else if (r === 'admin') navigate('/admin');
       else if (r === 'accounts') navigate('/accounts');
       else if (r === 'parent') navigate('/parent');
     }
-  }, [navigate]);
+  }, [navigate, auth.user]);
 
   const portals = [
     {
@@ -55,18 +57,19 @@ const Portal = () => {
     },
   ];
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Demo: redirect based on portal type
-    if (selectedPortal === "student") {
-      navigate("/student");
-    } else if (selectedPortal === "teacher") {
-      navigate("/teacher");
-    } else if (selectedPortal === "admin") {
-      navigate("/admin");
-    } else if (selectedPortal === "accounts") {
-      navigate("/accounts");
-    }
+    if (!selectedPortal) return;
+    const ok = await auth.login(email, password);
+    if (!ok) return; // auth.error will contain message
+
+    const r = (auth.user?.role || '').toString().toLowerCase();
+    if (r === 'student') navigate('/student');
+    else if (r === 'teacher') navigate('/teacher');
+    else if (r === 'admin') navigate('/admin');
+    else if (r === 'accounts') navigate('/accounts');
+    else if (r === 'parent') navigate('/parent');
+    else navigate('/');
   };
 
   if (selectedPortal) {
@@ -147,9 +150,12 @@ const Portal = () => {
                     <a href="#" className="text-primary hover:underline">Forgot password?</a>
                   </div>
 
-                  <Button type="submit" variant="gold" size="lg" className="w-full">
+                  <Button type="submit" variant="gold" size="lg" className="w-full" disabled={auth.loading}>
                     Sign In
                   </Button>
+                  {auth.error && (
+                    <p className="text-sm text-destructive mt-2">{auth.error}</p>
+                  )}
                 </form>
 
                 <div className="mt-6 pt-6 border-t border-border text-center space-y-3">

@@ -13,6 +13,9 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const AccountsDashboard = lazy(() => import("./pages/AccountsDashboard"));
+const SignUp = lazy(() => import("./pages/SignUp"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
 const About = lazy(() => import("./pages/About"));
 const Academics = lazy(() => import("./pages/Academics"));
 const Gallery = lazy(() => import("./pages/Gallery"));
@@ -88,10 +91,27 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/portal" element={<Portal />} />
-              <Route path="/admin/*" element={<AdminDashboard />} />
-              <Route path="/student/*" element={<StudentDashboard />} />
-              <Route path="/teacher/*" element={<TeacherDashboard />} />
-              <Route path="/accounts/*" element={<AccountsDashboard />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route path="/admin/*" element={
+                <ProtectedRoute>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/*" element={
+                <ProtectedRoute>
+                  <StudentDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/*" element={
+                <ProtectedRoute>
+                  <TeacherDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/accounts/*" element={
+                <ProtectedRoute allowedRoles={["accounts", "admin"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              } />
               <Route path="/parent/*" element={<ParentPortal />} />
               <Route path="/about" element={<About />} />
               <Route path="/academics" element={<Academics />} />
@@ -101,7 +121,7 @@ const App = () => (
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/library" element={<Library />} />
-              <Route path="*" element={<Index />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </BrowserRouter>
