@@ -155,8 +155,14 @@ const Portal = () => {
                     <a href="#" className="text-primary hover:underline">Forgot password?</a>
                   </div>
 
-                  <Button type="submit" variant="gold" size="lg" className="w-full" disabled={auth.loading}>
-                    Sign In
+                  <Button type="submit" variant="gold" size="lg" className="w-full flex items-center justify-center gap-3" disabled={auth.loading}>
+                    {auth.loading ? (
+                      <svg className="animate-spin h-5 w-5 text-foreground" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      </svg>
+                    ) : null}
+                    <span>{auth.loading ? 'Signing in…' : 'Sign In'}</span>
                   </Button>
                   {auth.error && (
                     <p className="text-sm text-destructive mt-2">{auth.error}</p>

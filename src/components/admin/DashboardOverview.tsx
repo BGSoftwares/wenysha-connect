@@ -1,5 +1,5 @@
 import { GraduationCap, Users, UserCog, DollarSign, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { createWebSocket } from '@/lib/ws';
@@ -71,6 +71,9 @@ const socialStats = [
 
 const DashboardOverview = () => {
   const [currentMonth, setCurrentMonth] = useState("April 2019");
+  const [wsStatus, setWsStatus] = useState<'connecting'|'connected'|'disconnected'>('connecting');
+  const [reconnectCountdownSec, setReconnectCountdownSec] = useState<number | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
@@ -83,28 +86,53 @@ const DashboardOverview = () => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    setWsStatus('connecting');
     // Create a websocket to listen for server-side dashboard notifications
-    const ws = createWebSocket(
-      undefined,
+    const sock = createWebSocket(
+      () => {
+        setWsStatus('connected');
+        setReconnectCountdownSec(null);
+        if (reconnectTimerRef.current) { clearInterval(reconnectTimerRef.current); reconnectTimerRef.current = null; }
+      },
       (payload) => {
         try {
-          // If server indicates dashboard stats changed, refetch
           if (payload && typeof payload === 'object' && (payload as any).type === 'dashboard-stats') {
             queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
           } else {
-            // Generic invalidation for any notification payload to keep data fresh
             queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
           }
         } catch (e) {
           // ignore
         }
       },
-      undefined,
-      undefined,
+      () => {
+        setWsStatus('disconnected');
+      },
+      (err) => {
+        setWsStatus('disconnected');
+      },
+      { onReconnect: (attempt, delayMs) => {
+        // show countdown in seconds
+        const secs = Math.ceil(delayMs / 1000);
+        setReconnectCountdownSec(secs);
+        // clear any existing interval
+        if (reconnectTimerRef.current) { clearInterval(reconnectTimerRef.current); reconnectTimerRef.current = null; }
+        reconnectTimerRef.current = window.setInterval(() => {
+          setReconnectCountdownSec(s => {
+            if (s == null) return null;
+            if (s <= 1) {
+              if (reconnectTimerRef.current) { clearInterval(reconnectTimerRef.current); reconnectTimerRef.current = null; }
+              return null;
+            }
+            return s - 1;
+          });
+        }, 1000);
+      } }
     );
 
     return () => {
-      try { ws?.close(); } catch {};
+      try { if (reconnectTimerRef.current) { clearInterval(reconnectTimerRef.current); reconnectTimerRef.current = null; } } catch {}
+      try { sock?.close(); } catch {}
     };
   }, [queryClient]);
 
@@ -144,9 +172,17 @@ const DashboardOverview = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="font-heading text-2xl font-bold text-foreground">Admin Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Home &gt; <span className="text-accent">Admin</span></p>
+      <div className="flex items-center gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-bold text-foreground">Admin Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Home &gt; <span className="text-accent">Admin</span></p>
+        </div>
+        <div className="ml-auto">
+          <span className={`inline-flex items-center gap-2 px-3 py-1 text-xs rounded-full font-medium ${wsStatus === 'connected' ? 'bg-green-100 text-green-800' : wsStatus === 'connecting' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+            <span className={`h-2 w-2 rounded-full ${wsStatus === 'connected' ? 'bg-green-600' : wsStatus === 'connecting' ? 'bg-yellow-600' : 'bg-red-600'}`} />
+            {wsStatus === 'connected' ? 'Connected' : reconnectCountdownSec ? `Reconnecting in ${reconnectCountdownSec}s` : wsStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
+          </span>
+        </div>
       </div>
 
       {/* Stats Cards */}
