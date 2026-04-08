@@ -74,12 +74,24 @@ const AdminDashboard = () => {
 
   const handleCreateStudent = async () => {
     try {
+      // Required fields
       if (!newStudent.name || !newStudent.student_id || !newStudent.school_class) {
-        toast.error("Please fill in all fields");
+        toast.error("Please fill in all required fields");
         return;
       }
-      const classId = classes?.find(c => c.name === newStudent.school_class)?.id;
-      if (!classId) {
+      // student_id validation
+      const idPattern = /^[A-Za-z0-9\-]{3,}$/;
+      if (!idPattern.test(newStudent.student_id)) {
+        toast.error("Student ID must be at least 3 characters and contain only letters, numbers, or dashes");
+        return;
+      }
+      // uniqueness check
+      if (students && Array.isArray(students) && students.some((s: any) => s.student_id === newStudent.student_id)) {
+        toast.error("Student ID already exists");
+        return;
+      }
+      const classId = Number(newStudent.school_class);
+      if (!classId || !classes?.some(c => c.id === classId)) {
         toast.error("Invalid class selected");
         return;
       }
@@ -317,7 +329,7 @@ const AdminDashboard = () => {
                       <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Class</label>
                       <select className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={newStudent.school_class} onChange={e => setNewStudent({ ...newStudent, school_class: e.target.value })}>
                         <option value="">Select</option>
-                        {classes?.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        {classes?.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1.5">
