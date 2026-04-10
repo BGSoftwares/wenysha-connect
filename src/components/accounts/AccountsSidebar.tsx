@@ -157,7 +157,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
                       "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors",
                       activeNav === child.id
                         ? "bg-accent/20 text-accent font-medium"
-                        : "text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,90%)] hover:bg-[hsl(220,20%,22%)]"
+                        : "text-white/60 hover:text-white/90 hover:bg-white/10"
                     )}
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-current" />
