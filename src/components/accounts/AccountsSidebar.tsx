@@ -93,8 +93,8 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
 
   return (
     <aside className={cn(
-      "bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-all duration-300 border-r border-white/5",
-      collapsed ? "w-16" : "w-64"
+      "glass-dark text-white/90 flex flex-col transition-all duration-500 ease-in-out border-r border-white/5",
+      collapsed ? "w-20" : "w-72"
     )}>
       {/* Header */}
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
