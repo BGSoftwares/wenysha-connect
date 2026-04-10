@@ -93,11 +93,11 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
 
   return (
     <aside className={cn(
-      "bg-[hsl(220,25%,18%)] text-[hsl(0,0%,95%)] flex flex-col transition-all duration-300",
+      "bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-all duration-300 border-r border-white/5",
       collapsed ? "w-16" : "w-64"
     )}>
       {/* Header */}
-      <div className="p-4 border-b border-[hsl(220,20%,25%)] flex items-center justify-between">
+      <div className="p-4 border-b border-white/10 flex items-center justify-between">
         {!collapsed && (
           <div className="flex items-center gap-3">
             <img src={logo} alt="Wenyasha" className="h-10 w-10 rounded-lg object-contain bg-accent" />
@@ -108,7 +108,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
         )}
         <button 
           onClick={() => setCollapsed(!collapsed)}
-          className="p-2 rounded-lg hover:bg-[hsl(220,20%,25%)] transition-colors"
+          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -130,7 +130,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all text-sm",
                 isActive(item)
                   ? "bg-accent text-accent-foreground font-medium"
-                  : "text-[hsl(0,0%,80%)] hover:bg-[hsl(220,20%,25%)]"
+                  : "text-white/70 hover:bg-white/10"
               )}
             >
               <item.icon className="h-4 w-4 flex-shrink-0" />
@@ -157,7 +157,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
                       "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors",
                       activeNav === child.id
                         ? "bg-accent/20 text-accent font-medium"
-                        : "text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,90%)] hover:bg-[hsl(220,20%,22%)]"
+                        : "text-white/60 hover:text-white/90 hover:bg-white/10"
                     )}
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -172,7 +172,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
 
       {/* User & Sign Out */}
       {!collapsed && (
-        <div className="p-4 border-t border-[hsl(220,20%,25%)]">
+        <div className="p-4 border-t border-white/10">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center">
               <Wallet className="h-5 w-5 text-accent-foreground" />
