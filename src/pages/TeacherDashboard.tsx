@@ -658,13 +658,17 @@ const TeacherDashboard = () => {
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
-      <aside className="w-64 bg-primary text-primary-foreground flex flex-col">
-        <div className="p-6 border-b border-primary-foreground/10">
+      <aside className="w-64 bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col">
+        <div className="p-6 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="Wenyasha" className="h-10 w-10 rounded-lg object-contain bg-card" />
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-accent to-gold-dark p-[2px] shadow-lg shadow-accent/20">
+              <div className="h-full w-full rounded-[10px] bg-forest flex items-center justify-center border border-white/10">
+                <img src={logo} alt="Wenyasha" className="h-7 w-7 object-contain" />
+              </div>
+            </div>
             <div>
-              <h1 className="font-heading font-bold text-lg">Teacher Portal</h1>
-              <p className="text-xs text-primary-foreground/70">Wenyasha International</p>
+              <h1 className="font-heading font-bold text-lg text-white">Teacher Portal</h1>
+              <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em]">Wenyasha International</p>
             </div>
           </div>
         </div>
@@ -674,9 +678,9 @@ const TeacherDashboard = () => {
             <button
               key={item.id}
               onClick={() => setActiveNav(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${activeNav === item.id
-                ? "bg-accent text-accent-foreground font-medium"
-                : "text-primary-foreground/80 hover:bg-primary-foreground/10"
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all text-sm ${activeNav === item.id
+                ? "bg-accent text-accent-foreground font-bold shadow-lg shadow-accent/25"
+                : "text-white/40 hover:text-white hover:bg-white/5"
                 }`}
             >
               <item.icon className="h-5 w-5" />
@@ -685,19 +689,19 @@ const TeacherDashboard = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-primary-foreground/10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-              <User className="h-5 w-5" />
+        <div className="p-4 border-t border-white/5">
+          <div className="flex items-center gap-3 mb-4 p-2 rounded-2xl bg-white/5 border border-white/5">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-accent to-gold-dark flex items-center justify-center shadow-lg shadow-accent/20">
+              <User className="h-5 w-5 text-accent-foreground" />
             </div>
             <div>
-              <p className="font-medium text-sm">{teacherName}</p>
-              <p className="text-xs text-primary-foreground/70">{department}</p>
+              <p className="font-bold text-sm text-white">{teacherName}</p>
+              <p className="text-[10px] text-accent font-bold uppercase tracking-tight">{department}</p>
             </div>
           </div>
           <Link
             to="/portal"
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-accent text-accent-foreground font-medium hover:bg-accent/90 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-destructive/10 text-destructive font-bold hover:bg-destructive/20 transition-all border border-destructive/20 text-sm"
           >
             <LogOut className="h-4 w-4" />
             Sign Out
@@ -707,15 +711,15 @@ const TeacherDashboard = () => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        <header className="bg-card border-b border-border p-6 flex items-center justify-between sticky top-0 z-10">
+        <header className="bg-[hsl(var(--forest-dark))] border-b border-white/5 p-6 flex items-center justify-between sticky top-0 z-10">
           <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground">
+            <h1 className="font-heading text-2xl font-bold text-white">
               {navigation.find(n => n.id === activeNav)?.name || "Dashboard"}
             </h1>
-            <p className="text-muted-foreground text-sm">{department} Department</p>
+            <p className="text-white/50 text-sm">{department} Department</p>
           </div>
-          <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
-            <Bell className="h-6 w-6 text-muted-foreground" />
+          <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
+            <Bell className="h-6 w-6 text-white/60" />
             <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
               2
             </span>
