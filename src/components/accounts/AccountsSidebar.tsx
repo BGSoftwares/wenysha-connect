@@ -172,7 +172,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
 
       {/* User & Sign Out */}
       {!collapsed && (
-        <div className="p-4 border-t border-[hsl(220,20%,25%)]">
+        <div className="p-4 border-t border-white/10">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center">
               <Wallet className="h-5 w-5 text-accent-foreground" />
