@@ -144,7 +144,7 @@ const AdminSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: Admi
 
   return (
     <aside className={cn(
-      "glass-dark text-white/90 flex flex-col transition-all duration-500 ease-in-out border-r border-white/5",
+      "bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-all duration-500 ease-in-out border-r border-white/5",
       collapsed ? "w-20" : "w-72"
     )}>
       {/* Header */}
