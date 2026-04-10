@@ -93,11 +93,11 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
 
   return (
     <aside className={cn(
-      "bg-[hsl(220,25%,18%)] text-[hsl(0,0%,95%)] flex flex-col transition-all duration-300",
+      "bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-all duration-300 border-r border-white/5",
       collapsed ? "w-16" : "w-64"
     )}>
       {/* Header */}
-      <div className="p-4 border-b border-[hsl(220,20%,25%)] flex items-center justify-between">
+      <div className="p-4 border-b border-white/10 flex items-center justify-between">
         {!collapsed && (
           <div className="flex items-center gap-3">
             <img src={logo} alt="Wenyasha" className="h-10 w-10 rounded-lg object-contain bg-accent" />
