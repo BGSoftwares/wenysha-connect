@@ -130,7 +130,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all text-sm",
                 isActive(item)
                   ? "bg-accent text-accent-foreground font-medium"
-                  : "text-[hsl(0,0%,80%)] hover:bg-[hsl(220,20%,25%)]"
+                  : "text-white/70 hover:bg-white/10"
               )}
             >
               <item.icon className="h-4 w-4 flex-shrink-0" />
