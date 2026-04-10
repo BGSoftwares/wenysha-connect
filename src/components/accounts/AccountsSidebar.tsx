@@ -108,7 +108,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
         )}
         <button 
           onClick={() => setCollapsed(!collapsed)}
-          className="p-2 rounded-lg hover:bg-[hsl(220,20%,25%)] transition-colors"
+          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
         >
           <Menu className="h-5 w-5" />
         </button>
