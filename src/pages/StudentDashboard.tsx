@@ -123,6 +123,7 @@ const timetableData = [
 
 const StudentDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const user = getStoredUser();
 
   const { data: profile, isLoading: isLoadingProfile } = useStudentProfile();
