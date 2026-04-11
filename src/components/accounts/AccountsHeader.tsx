@@ -1,17 +1,25 @@
-import { Search, Bell, Mail, Globe, User } from "lucide-react";
+import { Search, Bell, Mail, Globe, User, Menu } from "lucide-react";
 
 interface AccountsHeaderProps {
   title: string;
   breadcrumb: string;
+  onMenuClick?: () => void;
 }
 
-const AccountsHeader = ({ title, breadcrumb }: AccountsHeaderProps) => {
+const AccountsHeader = ({ title, breadcrumb, onMenuClick }: AccountsHeaderProps) => {
   return (
     <header className="sticky top-0 z-30 bg-card border-b border-border px-6 py-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-heading font-bold text-foreground">{title}</h1>
-          <p className="text-sm text-muted-foreground">{breadcrumb}</p>
+        <div className="flex items-center gap-3">
+          {onMenuClick && (
+            <button onClick={onMenuClick} className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors">
+              <Menu className="h-5 w-5 text-foreground" />
+            </button>
+          )}
+          <div>
+            <h1 className="text-xl font-heading font-bold text-foreground">{title}</h1>
+            <p className="text-sm text-muted-foreground">{breadcrumb}</p>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">

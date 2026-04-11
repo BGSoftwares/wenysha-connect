@@ -1,14 +1,20 @@
-import { Bell, Search, MessageSquare, Settings, ChevronDown, Globe } from "lucide-react";
+import { Bell, Search, MessageSquare, Settings, ChevronDown, Globe, Menu } from "lucide-react";
 
 interface AdminHeaderProps {
   title: string;
   breadcrumb: string;
+  onMenuClick?: () => void;
 }
 
-const AdminHeader = ({ title, breadcrumb }: AdminHeaderProps) => {
+const AdminHeader = ({ title, breadcrumb, onMenuClick }: AdminHeaderProps) => {
   return (
     <header className="glass-dark border-b border-white/10 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-lg">
       <div className="flex items-center gap-4 flex-1">
+        {onMenuClick && (
+          <button onClick={onMenuClick} className="lg:hidden p-2 rounded-xl hover:bg-white/10 transition-colors">
+            <Menu className="h-5 w-5 text-white" />
+          </button>
+        )}
         <div className="relative flex-1 max-w-md group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 group-focus-within:text-accent transition-colors" />
           <input
