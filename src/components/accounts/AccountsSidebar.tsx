@@ -132,6 +132,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mob
                   toggleExpanded(item.id);
                 } else {
                   setActiveNav(item.id);
+                  setMobileOpen?.(false);
                 }
               }}
               className={cn(
@@ -160,7 +161,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mob
                 {item.children.map((child) => (
                   <button
                     key={child.id}
-                    onClick={() => setActiveNav(child.id)}
+                    onClick={() => { setActiveNav(child.id); setMobileOpen?.(false); }}
                     className={cn(
                       "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors",
                       activeNav === child.id

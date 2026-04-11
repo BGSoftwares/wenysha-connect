@@ -13,6 +13,7 @@ import AccountsProfileSection from "@/components/accounts/AccountsProfileSection
 const AccountsDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const getPageTitle = () => {
     const titles: Record<string, string> = {
@@ -66,12 +67,15 @@ const AccountsDashboard = () => {
         setActiveNav={setActiveNav}
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        setMobileOpen={setMobileSidebarOpen}
       />
       
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <AccountsHeader 
           title={getPageTitle()} 
-          breadcrumb={`Dashboard > ${getPageTitle()}`} 
+          breadcrumb={`Dashboard > ${getPageTitle()}`}
+          onMenuClick={() => setMobileSidebarOpen(true)}
         />
         
         <main className="flex-1 p-6 overflow-auto">
