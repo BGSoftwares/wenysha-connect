@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { Menu } from "lucide-react";
 import {
   Home,
   FileText,
@@ -122,6 +123,7 @@ const timetableData = [
 
 const StudentDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const user = getStoredUser();
 
   const { data: profile, isLoading: isLoadingProfile } = useStudentProfile();
@@ -403,28 +405,37 @@ const StudentDashboard = () => {
 
   return (
     <div className="min-h-screen flex bg-background">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-primary text-primary-foreground flex flex-col">
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Logo & School Name */}
-        <div className="p-6 border-b border-primary-foreground/10">
+        <div className="p-6 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="Wenyasha" className="h-10 w-10 rounded-lg object-contain bg-card" />
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-accent to-gold-dark p-[2px] shadow-lg shadow-accent/20">
+              <div className="h-full w-full rounded-[10px] bg-forest flex items-center justify-center border border-white/10">
+                <img src={logo} alt="Wenyasha" className="h-7 w-7 object-contain" />
+              </div>
+            </div>
             <div>
-              <h1 className="font-heading font-bold text-lg">Student Portal</h1>
-              <p className="text-xs text-primary-foreground/70">Wenyasha International School</p>
+              <h1 className="font-heading font-bold text-lg text-white">Student Portal</h1>
+              <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em]">Wenyasha International</p>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navigation.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveNav(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${activeNav === item.id
-                ? "bg-accent text-accent-foreground font-medium"
-                : "text-primary-foreground/80 hover:bg-primary-foreground/10"
+              onClick={() => { setActiveNav(item.id); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all text-sm ${activeNav === item.id
+                ? "bg-accent text-accent-foreground font-bold shadow-lg shadow-accent/25"
+                : "text-white/40 hover:text-white hover:bg-white/5"
                 }`}
             >
               <item.icon className="h-5 w-5" />
@@ -434,19 +445,19 @@ const StudentDashboard = () => {
         </nav>
 
         {/* User Profile */}
-        <div className="p-4 border-t border-primary-foreground/10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-              <User className="h-5 w-5" />
+        <div className="p-4 border-t border-white/5">
+          <div className="flex items-center gap-3 mb-4 p-2 rounded-2xl bg-white/5 border border-white/5">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-accent to-gold-dark flex items-center justify-center shadow-lg shadow-accent/20">
+              <User className="h-5 w-5 text-accent-foreground" />
             </div>
             <div>
-              <p className="font-medium text-sm">{profile.name}</p>
-              <p className="text-xs text-primary-foreground/70">{profile.class_name}</p>
+              <p className="font-bold text-sm text-white">{profile.name}</p>
+              <p className="text-[10px] text-accent font-bold uppercase tracking-tight">{profile.class_name}</p>
             </div>
           </div>
           <Link
             to="/portal"
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-accent text-accent-foreground font-medium hover:bg-accent/90 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-destructive/10 text-destructive font-bold hover:bg-destructive/20 transition-all border border-destructive/20 text-sm"
           >
             <LogOut className="h-4 w-4" />
             Sign Out
@@ -457,18 +468,23 @@ const StudentDashboard = () => {
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         {/* Header */}
-        <header className="bg-card border-b border-border p-6 flex items-center justify-between sticky top-0 z-10">
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground">
-              {activeNav === "timetable" ? "My Timetable" :
-                activeNav === "report-card" ? "Report Card" :
-                  activeNav === "fees" ? "My Fees & Payments" :
-                    `Welcome back, ${profile.name.split(' ')[0]}!`}
-            </h1>
-            <p className="text-muted-foreground text-sm">{profile.class_name} • Term 1 2024</p>
+        <header className="bg-[hsl(var(--forest-dark))] border-b border-white/5 p-6 flex items-center justify-between sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-xl hover:bg-white/10 transition-colors">
+              <Menu className="h-5 w-5 text-white" />
+            </button>
+            <div>
+              <h1 className="font-heading text-2xl font-bold text-white">
+                {activeNav === "timetable" ? "My Timetable" :
+                  activeNav === "report-card" ? "Report Card" :
+                    activeNav === "fees" ? "My Fees & Payments" :
+                      `Welcome back, ${profile.name.split(' ')[0]}!`}
+              </h1>
+              <p className="text-white/50 text-sm">{profile.class_name} • Term 1 2024</p>
+            </div>
           </div>
-          <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
-            <Bell className="h-6 w-6 text-muted-foreground" />
+          <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
+            <Bell className="h-6 w-6 text-white/60" />
             <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
               3
             </span>

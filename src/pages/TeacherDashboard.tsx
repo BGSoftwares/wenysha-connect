@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   Home,
   BookOpen,
+  Menu as MenuIcon,
   GraduationCap,
   Calendar,
   Settings,
@@ -78,6 +79,7 @@ const contentMaterials = [
 
 const TeacherDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -657,8 +659,13 @@ const TeacherDashboard = () => {
 
   return (
     <div className="min-h-screen flex bg-background">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col">
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 border-b border-white/5">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-accent to-gold-dark p-[2px] shadow-lg shadow-accent/20">
@@ -677,7 +684,7 @@ const TeacherDashboard = () => {
           {navigation.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveNav(item.id)}
+              onClick={() => { setActiveNav(item.id); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all text-sm ${activeNav === item.id
                 ? "bg-accent text-accent-foreground font-bold shadow-lg shadow-accent/25"
                 : "text-white/40 hover:text-white hover:bg-white/5"
@@ -712,11 +719,16 @@ const TeacherDashboard = () => {
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <header className="bg-[hsl(var(--forest-dark))] border-b border-white/5 p-6 flex items-center justify-between sticky top-0 z-10">
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-white">
-              {navigation.find(n => n.id === activeNav)?.name || "Dashboard"}
-            </h1>
-            <p className="text-white/50 text-sm">{department} Department</p>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-xl hover:bg-white/10 transition-colors">
+              <MenuIcon className="h-5 w-5 text-white" />
+            </button>
+            <div>
+              <h1 className="font-heading text-2xl font-bold text-white">
+                {navigation.find(n => n.id === activeNav)?.name || "Dashboard"}
+              </h1>
+              <p className="text-white/50 text-sm">{department} Department</p>
+            </div>
           </div>
           <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
             <Bell className="h-6 w-6 text-white/60" />
