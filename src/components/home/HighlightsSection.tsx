@@ -4,12 +4,12 @@ const highlights = [
   {
     icon: Award,
     title: "A Registered College",
-    description: "Wenyasha International School is a private learning institution registered as a full time Cambridge international school.",
+    description: "Wenyasha International School is a private learning institution registered as a full time ZIMSEC school.",
   },
   {
     icon: BookOpen,
     title: "Accredited Courses",
-    description: "We offer a range of nationally and internationally accredited qualifications and courses.",
+    description: "We offer a range of nationally and internationally accredited qualifications and HEXCO courses.",
   },
   {
     icon: Building2,

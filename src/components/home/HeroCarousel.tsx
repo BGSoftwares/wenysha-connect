@@ -72,7 +72,7 @@ const HeroCarousel = () => {
       <div className="absolute inset-0 z-10 flex flex-col items-start justify-center px-6 md:px-20 max-w-5xl">
         <div className="space-y-4 animate-in slide-in-from-left duration-1000">
           <span className="inline-block px-4 py-1.5 rounded-full bg-accent text-accent-foreground text-xs font-bold uppercase tracking-widest shadow-lg shadow-accent/20">
-            Est. 1995 • Wenyasha International
+            Est. 2024 • Wenyasha International
           </span>
           <h1 className="text-4xl md:text-7xl font-heading font-black text-white leading-tight transition-all duration-1000">
             {slides[currentSlide].title.split(' ').map((word, i) => (

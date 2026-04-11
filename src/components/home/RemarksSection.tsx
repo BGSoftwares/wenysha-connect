@@ -20,7 +20,7 @@ const RemarksSection = () => {
               that all revision programs run smoothly to achieve more together in the year 2026.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-4 text-justify">
-              Located in Sikato, Great Zimbabwe Road, Masvingo, Zimbabwe, Wenyasha International 
+              Located in Sikato, Great Zimbabwe Road, Masvingo, Zimbabwe. Wenyasha International 
               School continues to uphold its commitment to academic excellence while nurturing 
               the holistic development of every learner.
             </p>
