@@ -223,7 +223,7 @@ const AdminSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mobile
                 {item.children.map((child) => (
                   <button
                     key={child.id}
-                    onClick={() => setActiveNav(child.id)}
+                    onClick={() => { setActiveNav(child.id); setMobileOpen?.(false); }}
                     className={cn(
                       "w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-sm transition-all",
                       activeNav === child.id

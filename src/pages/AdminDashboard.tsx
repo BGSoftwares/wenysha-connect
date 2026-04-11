@@ -53,6 +53,7 @@ const mockGalleryImages = [
 const AdminDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showModal, setShowModal] = useState<string | null>(null);
 
   // Hook Integration
@@ -269,12 +270,15 @@ const AdminDashboard = () => {
         setActiveNav={setActiveNav}
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        setMobileOpen={setMobileSidebarOpen}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <AdminHeader
           title={getPageTitle()}
           breadcrumb={`Home > ${getPageTitle()}`}
+          onMenuClick={() => setMobileSidebarOpen(true)}
         />
 
         <main className="flex-1 overflow-auto p-6 bg-secondary/10">
