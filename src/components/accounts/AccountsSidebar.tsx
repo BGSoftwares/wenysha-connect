@@ -74,9 +74,11 @@ interface AccountsSidebarProps {
   setActiveNav: (id: string) => void;
   collapsed: boolean;
   setCollapsed: (value: boolean) => void;
+  mobileOpen?: boolean;
+  setMobileOpen?: (value: boolean) => void;
 }
 
-const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: AccountsSidebarProps) => {
+const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mobileOpen, setMobileOpen }: AccountsSidebarProps) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const toggleExpanded = (id: string) => {
@@ -92,10 +94,16 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: A
   };
 
   return (
-    <aside className={cn(
-      "bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-all duration-300 border-r border-white/5",
-      collapsed ? "w-16" : "w-64"
-    )}>
+    <>
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileOpen?.(false)} />
+      )}
+      <aside className={cn(
+        "bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-all duration-300 border-r border-white/5",
+        "fixed lg:static inset-y-0 left-0 z-50 lg:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+        collapsed ? "w-16" : "w-64"
+      )}>
       {/* Header */}
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         {!collapsed && (
