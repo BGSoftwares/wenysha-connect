@@ -719,11 +719,16 @@ const TeacherDashboard = () => {
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <header className="bg-[hsl(var(--forest-dark))] border-b border-white/5 p-6 flex items-center justify-between sticky top-0 z-10">
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-white">
-              {navigation.find(n => n.id === activeNav)?.name || "Dashboard"}
-            </h1>
-            <p className="text-white/50 text-sm">{department} Department</p>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-xl hover:bg-white/10 transition-colors">
+              <MenuIcon className="h-5 w-5 text-white" />
+            </button>
+            <div>
+              <h1 className="font-heading text-2xl font-bold text-white">
+                {navigation.find(n => n.id === activeNav)?.name || "Dashboard"}
+              </h1>
+              <p className="text-white/50 text-sm">{department} Department</p>
+            </div>
           </div>
           <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
             <Bell className="h-6 w-6 text-white/60" />
