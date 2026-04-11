@@ -22,24 +22,24 @@ const upcomingEvents = [
   { date: "Jan 15", title: "New Term Begins", type: "Academic" },
   { date: "Jan 22", title: "Parent-Teacher Meeting", type: "Meeting" },
   { date: "Feb 5", title: "Inter-School Sports Day", type: "Sports" },
-  { date: "Feb 14", title: "Science Fair", type: "Academic" },
+  { date: "Feb 14", title: "Valentine Day", type: "Academic" },
 ];
 
 const newsHighlights = [
   {
-    title: "Students Excel in National Mathematics Olympiad",
-    excerpt: "Our students secured top positions in the 2025 National Mathematics Olympiad.",
-    date: "Dec 20, 2025",
+    title: "Students Excel in Chess competitions at NICAZ District level.",
+    excerpt: "Our students secured top positions in the 2025 NICAZ District Competitions.",
+    date: "Marc 20, 2026",
   },
   {
     title: "New Computer Lab Inaugurated",
     excerpt: "State-of-the-art computer laboratory with 50 workstations now open.",
-    date: "Dec 15, 2025",
+    date: "Dec 15, 2026",
   },
   {
     title: "Annual Sports Day Success",
     excerpt: "Record participation and outstanding performances at this year's sports day.",
-    date: "Dec 10, 2025",
+    date: "Dec 01, 2026",
   },
 ];
 

@@ -84,12 +84,12 @@ export const Footer = () => {
               <li className="flex items-start gap-3 text-sm">
                 <MapPin className="h-4 w-4 mt-0.5 text-accent shrink-0" />
                 <span className="text-primary-foreground/80">
-                  123 Education Drive, Harare, Zimbabwe
+                  Longdale Farm (Sikato), Masvingo Zimbabwe
                 </span>
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <Phone className="h-4 w-4 text-accent shrink-0" />
-                <span className="text-primary-foreground/80">+263 242 123 456</span>
+                <span className="text-primary-foreground/80">+263 773 436 377 / +263 784 696 633</span>
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <Mail className="h-4 w-4 text-accent shrink-0" />
