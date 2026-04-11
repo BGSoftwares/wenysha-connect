@@ -684,7 +684,7 @@ const TeacherDashboard = () => {
           {navigation.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveNav(item.id)}
+              onClick={() => { setActiveNav(item.id); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all text-sm ${activeNav === item.id
                 ? "bg-accent text-accent-foreground font-bold shadow-lg shadow-accent/25"
                 : "text-white/40 hover:text-white hover:bg-white/5"
