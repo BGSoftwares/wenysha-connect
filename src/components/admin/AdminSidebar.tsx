@@ -125,9 +125,11 @@ interface AdminSidebarProps {
   setActiveNav: (id: string) => void;
   collapsed: boolean;
   setCollapsed: (value: boolean) => void;
+  mobileOpen?: boolean;
+  setMobileOpen?: (value: boolean) => void;
 }
 
-const AdminSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: AdminSidebarProps) => {
+const AdminSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mobileOpen, setMobileOpen }: AdminSidebarProps) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const toggleExpanded = (id: string) => {
@@ -143,10 +145,16 @@ const AdminSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: Admi
   };
 
   return (
-    <aside className={cn(
-      "bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-all duration-500 ease-in-out border-r border-white/5",
-      collapsed ? "w-20" : "w-72"
-    )}>
+    <>
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileOpen?.(false)} />
+      )}
+      <aside className={cn(
+        "bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-all duration-500 ease-in-out border-r border-white/5",
+        "fixed lg:static inset-y-0 left-0 z-50 lg:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+        collapsed ? "w-20" : "w-72"
+      )}>
       {/* Header */}
       <div className="p-6 border-b border-white/5 flex items-center justify-between">
         {!collapsed && (
@@ -180,6 +188,7 @@ const AdminSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed }: Admi
                   toggleExpanded(item.id);
                 } else {
                   setActiveNav(item.id);
+                  setMobileOpen?.(false);
                 }
               }}
               className={cn(
