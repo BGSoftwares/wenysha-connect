@@ -277,6 +277,7 @@ const AdminSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mobile
         )}
       </div>
     </aside>
+    </>
   );
 };
 
