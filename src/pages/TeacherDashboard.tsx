@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   Home,
   BookOpen,
+  Menu as MenuIcon,
   GraduationCap,
   Calendar,
   Settings,
@@ -78,6 +79,7 @@ const contentMaterials = [
 
 const TeacherDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
 
