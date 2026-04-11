@@ -200,6 +200,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mob
         </div>
       )}
     </aside>
+    </>
   );
 };
 
