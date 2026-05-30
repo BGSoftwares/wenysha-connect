@@ -121,13 +121,13 @@ const Index = () => {
                   </Link>
                 </Button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 perspective-1500">
                 {upcomingEvents.map((event, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-4 p-4 rounded-xl bg-background border border-border hover:border-accent/30 transition-all"
+                    className="group flex items-center gap-4 p-4 rounded-xl bg-background border border-border card-3d"
                   >
-                    <div className="h-14 w-14 rounded-lg bg-accent flex flex-col items-center justify-center text-accent-foreground shrink-0">
+                    <div className="h-14 w-14 rounded-lg bg-accent flex flex-col items-center justify-center text-accent-foreground shrink-0 icon-3d">
                       <span className="text-xs font-medium">{event.date.split(" ")[0]}</span>
                       <span className="text-lg font-bold">{event.date.split(" ")[1]}</span>
                     </div>
@@ -140,6 +140,7 @@ const Index = () => {
                   </div>
                 ))}
               </div>
+
             </div>
 
             {/* News Highlights */}
