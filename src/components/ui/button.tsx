@@ -9,17 +9,17 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-forest-light shadow-sm hover:shadow-md",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-border bg-card text-foreground hover:bg-secondary hover:border-primary/30",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-secondary hover:text-foreground",
+        default: "bg-primary text-primary-foreground hover:bg-forest-light btn-3d",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 btn-3d",
+        outline: "border border-border bg-card text-foreground hover:bg-secondary hover:border-primary/30 btn-3d-soft",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 btn-3d-soft",
+        ghost: "hover:bg-secondary hover:text-foreground btn-3d-soft",
         link: "text-primary underline-offset-4 hover:underline",
         // Custom Wenyasha variants
-        gold: "bg-accent text-accent-foreground hover:bg-gold-dark shadow-sm hover:shadow-gold-glow font-semibold",
-        hero: "bg-accent text-accent-foreground hover:bg-gold-dark shadow-lg hover:shadow-gold-glow font-semibold text-base",
-        "outline-gold": "border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground font-semibold",
-        "outline-light": "border-2 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:border-primary-foreground/50",
+        gold: "bg-accent text-accent-foreground hover:bg-gold-dark font-semibold btn-3d",
+        hero: "bg-accent text-accent-foreground hover:bg-gold-dark font-semibold text-base btn-3d",
+        "outline-gold": "border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground font-semibold btn-3d-soft",
+        "outline-light": "border-2 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:border-primary-foreground/50 btn-3d-soft",
       },
       size: {
         default: "h-10 px-4 py-2",
