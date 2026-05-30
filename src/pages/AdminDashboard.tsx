@@ -264,7 +264,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-background w-full">
+    <div className="min-h-screen flex bg-background w-full dashboard-3d">
       <AdminSidebar
         activeNav={activeNav}
         setActiveNav={setActiveNav}
