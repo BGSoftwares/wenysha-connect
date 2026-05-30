@@ -38,12 +38,12 @@ const FeaturesSection = () => {
   return (
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-8 perspective-1500">
           {/* Features Grid */}
           <div className="lg:col-span-2 grid sm:grid-cols-2 gap-6">
             {features.map((feature, index) => (
-              <div key={index} className="flex gap-4">
-                <div className="h-12 w-12 rounded-full bg-accent flex items-center justify-center shrink-0">
+              <div key={index} className="group flex gap-4 p-4 rounded-xl card-3d bg-card">
+                <div className="h-12 w-12 rounded-full bg-accent flex items-center justify-center shrink-0 icon-3d">
                   <feature.icon className="h-6 w-6 text-accent-foreground" />
                 </div>
                 <div>
@@ -60,7 +60,7 @@ const FeaturesSection = () => {
 
           {/* Image */}
           <div className="hidden lg:block">
-            <div className="rounded-2xl overflow-hidden shadow-elegant h-full">
+            <div className="rounded-2xl overflow-hidden img-3d h-full">
               <img 
                 src={studentImage} 
                 alt="Wenyasha International School student" 
@@ -69,6 +69,7 @@ const FeaturesSection = () => {
             </div>
           </div>
         </div>
+
       </div>
     </section>
   );
