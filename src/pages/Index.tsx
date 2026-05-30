@@ -155,11 +155,11 @@ const Index = () => {
                   </Link>
                 </Button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 perspective-1500">
                 {newsHighlights.map((news, index) => (
                   <div
                     key={index}
-                    className="p-5 rounded-xl bg-background border border-border hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
+                    className="p-5 rounded-xl bg-background border border-border card-3d cursor-pointer"
                   >
                     <p className="text-xs text-accent font-medium mb-2">{news.date}</p>
                     <h4 className="font-semibold text-foreground mb-2">{news.title}</h4>
@@ -167,6 +167,7 @@ const Index = () => {
                   </div>
                 ))}
               </div>
+
             </div>
           </div>
         </div>
