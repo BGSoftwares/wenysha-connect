@@ -84,14 +84,14 @@ const Index = () => {
           <h2 className="font-heading text-3xl font-bold text-foreground text-center mb-12">
             Quick Access
           </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 perspective-1500">
             {quickLinks.map((link, index) => (
               <Link
                 key={index}
                 to={link.path}
-                className="group p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-elegant transition-all duration-300"
+                className="group p-6 rounded-xl bg-card border border-border card-3d shadow-3d"
               >
-                <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center mb-4 icon-3d">
                   <link.icon className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <h3 className="font-heading text-lg font-semibold text-foreground mb-1">
@@ -101,6 +101,7 @@ const Index = () => {
               </Link>
             ))}
           </div>
+
         </div>
       </section>
 
