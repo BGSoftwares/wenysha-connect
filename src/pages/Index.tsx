@@ -84,14 +84,14 @@ const Index = () => {
           <h2 className="font-heading text-3xl font-bold text-foreground text-center mb-12">
             Quick Access
           </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 perspective-1500">
             {quickLinks.map((link, index) => (
               <Link
                 key={index}
                 to={link.path}
-                className="group p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-elegant transition-all duration-300"
+                className="group p-6 rounded-xl bg-card border border-border card-3d shadow-3d"
               >
-                <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center mb-4 icon-3d">
                   <link.icon className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <h3 className="font-heading text-lg font-semibold text-foreground mb-1">
@@ -101,6 +101,7 @@ const Index = () => {
               </Link>
             ))}
           </div>
+
         </div>
       </section>
 
@@ -120,13 +121,13 @@ const Index = () => {
                   </Link>
                 </Button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 perspective-1500">
                 {upcomingEvents.map((event, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-4 p-4 rounded-xl bg-background border border-border hover:border-accent/30 transition-all"
+                    className="group flex items-center gap-4 p-4 rounded-xl bg-background border border-border card-3d"
                   >
-                    <div className="h-14 w-14 rounded-lg bg-accent flex flex-col items-center justify-center text-accent-foreground shrink-0">
+                    <div className="h-14 w-14 rounded-lg bg-accent flex flex-col items-center justify-center text-accent-foreground shrink-0 icon-3d">
                       <span className="text-xs font-medium">{event.date.split(" ")[0]}</span>
                       <span className="text-lg font-bold">{event.date.split(" ")[1]}</span>
                     </div>
@@ -139,6 +140,7 @@ const Index = () => {
                   </div>
                 ))}
               </div>
+
             </div>
 
             {/* News Highlights */}
@@ -153,11 +155,11 @@ const Index = () => {
                   </Link>
                 </Button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 perspective-1500">
                 {newsHighlights.map((news, index) => (
                   <div
                     key={index}
-                    className="p-5 rounded-xl bg-background border border-border hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
+                    className="p-5 rounded-xl bg-background border border-border card-3d cursor-pointer"
                   >
                     <p className="text-xs text-accent font-medium mb-2">{news.date}</p>
                     <h4 className="font-semibold text-foreground mb-2">{news.title}</h4>
@@ -165,6 +167,7 @@ const Index = () => {
                   </div>
                 ))}
               </div>
+
             </div>
           </div>
         </div>
