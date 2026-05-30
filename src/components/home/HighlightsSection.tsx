@@ -25,16 +25,16 @@ const highlights = [
 
 const HighlightsSection = () => {
   return (
-    <section className="py-0">
+    <section className="py-0 perspective-1500">
       <div className="grid sm:grid-cols-2 lg:grid-cols-4">
         {highlights.map((highlight, index) => (
           <div 
             key={index}
-            className={`p-8 text-center ${
+            className={`group p-8 text-center card-3d cursor-pointer ${
               index % 2 === 0 ? "bg-primary" : "bg-primary/90"
             }`}
           >
-            <div className="h-16 w-16 rounded-full border-2 border-primary-foreground/30 flex items-center justify-center mx-auto mb-4">
+            <div className="h-16 w-16 rounded-full border-2 border-primary-foreground/30 flex items-center justify-center mx-auto mb-4 icon-3d">
               <highlight.icon className="h-8 w-8 text-primary-foreground" />
             </div>
             <h3 className="font-heading text-lg font-semibold text-primary-foreground mb-3">
@@ -47,6 +47,7 @@ const HighlightsSection = () => {
         ))}
       </div>
     </section>
+
   );
 };
 
