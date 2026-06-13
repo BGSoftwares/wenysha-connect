@@ -55,10 +55,11 @@ const HeroCarousel = () => {
             }`}
         >
           <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-[8000ms] ease-out"
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform ease-out"
             style={{
               backgroundImage: `url(${slide.image})`,
-              transform: index === currentSlide ? 'scale(1.1)' : 'scale(1)'
+              transform: index === currentSlide ? 'scale(1.1)' : 'scale(1)',
+              transitionDuration: '8000ms'
             }}
           />
           {/* Multi-layered gradients for cinematic feel */}
