@@ -17,7 +17,7 @@ roles_dict = {}
 for role_name in ROLES:
     role, _ = Role.objects.get_or_create(name=role_name, defaults={'description': f'{role_name} role'})
     roles_dict[role_name] = role
-    print(f"✓ Role '{role_name}' ready")
+    print(f"[OK] Role '{role_name}' ready")
 
 # Test users to create
 test_users = [
@@ -71,23 +71,29 @@ test_users = [
 # Create users
 print("\n--- Creating Test Users ---")
 for user_data in test_users:
-    username = user_data.pop('username')
-    email = user_data.pop('email')
-    password = user_data.pop('password')
-    role_name = user_data.pop('role')
-    full_name = user_data.pop('full_name')
+    username = user_data['username']
+    email = user_data['email']
+    password = user_data['password']
+    role_name = user_data['role']
+    full_name = user_data['full_name']
+    is_staff = user_data['is_staff']
+    is_superuser = user_data['is_superuser']
     
     user, created = User.objects.get_or_create(
         username=username,
-        defaults={'email': email, **user_data}
+        defaults={
+            'email': email,
+            'is_staff': is_staff,
+            'is_superuser': is_superuser
+        }
     )
     
     if created:
         user.set_password(password)
         user.save()
-        print(f"✓ Created user: {username} ({email})")
+        print(f"[OK] Created user: {username} ({email})")
     else:
-        print(f"→ User already exists: {username}")
+        print(f"[INFO] User already exists: {username}")
         # Update password if needed
         if not user.check_password(password):
             user.set_password(password)
@@ -106,7 +112,7 @@ for user_data in test_users:
         profile.full_name = full_name
         profile.save()
 
-print("\n✅ All test users created successfully!")
+print("\n[OK] All test users created successfully!")
 print("\n--- Available Test Accounts ---")
 for user_data in test_users:
     print(f"Username: {user_data['username']}")
@@ -114,3 +120,4 @@ for user_data in test_users:
     print(f"Password: {user_data['password']}")
     print(f"Role:     {user_data['role']}")
     print()
+

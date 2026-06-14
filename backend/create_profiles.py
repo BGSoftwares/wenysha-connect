@@ -16,7 +16,7 @@ from finance.models import FeeStructure
 print("--- Creating Test Profiles ---\n")
 
 # ===== ADMIN PROFILE =====
-print("1️⃣ Creating Admin Profile...")
+print("[1] Creating Admin Profile...")
 admin_user = User.objects.get(username='admin')
 admin_profile, created = UserProfile.objects.get_or_create(
     user=admin_user,
@@ -28,10 +28,10 @@ admin_profile, created = UserProfile.objects.get_or_create(
 if not created:
     admin_profile.full_name = 'Dr. Margaret Chinyanga'
     admin_profile.save()
-print(f"✓ Admin profile created: {admin_profile.full_name}\n")
+print(f"[OK] Admin profile created: {admin_profile.full_name}\n")
 
 # ===== TEACHER PROFILE =====
-print("2️⃣ Creating Teacher Profile...")
+print("[2] Creating Teacher Profile...")
 teacher_user = User.objects.get(username='teacher01')
 teacher_profile, created = UserProfile.objects.get_or_create(
     user=teacher_user,
@@ -57,12 +57,12 @@ if not created:
     teacher.department = 'Mathematics'
     teacher.phone = '+263 773 123 456'
     teacher.save()
-print(f"✓ Teacher profile created: {teacher.name}")
+print(f"[OK] Teacher profile created: {teacher.name}")
 print(f"  Department: {teacher.department}")
 print(f"  Phone: {teacher.phone}\n")
 
 # ===== SCHOOL CLASS =====
-print("3️⃣ Creating School Class...")
+print("[3] Creating School Class...")
 school_class, created = SchoolClass.objects.get_or_create(
     name='Form 4A',
     defaults={
@@ -74,12 +74,12 @@ school_class, created = SchoolClass.objects.get_or_create(
 if not created:
     school_class.class_teacher = teacher
     school_class.save()
-print(f"✓ School class created: {school_class.name}")
+print(f"[OK] School class created: {school_class.name}")
 print(f"  Capacity: {school_class.capacity}")
 print(f"  Class Teacher: {school_class.class_teacher.name}\n")
 
 # ===== STUDENT PROFILE =====
-print("4️⃣ Creating Student Profile...")
+print("[4] Creating Student Profile...")
 student_user = User.objects.get(username='student01')
 student_profile, created = UserProfile.objects.get_or_create(
     user=student_user,
@@ -113,7 +113,7 @@ if not created:
     student.date_of_birth = date(2008, 3, 15)
     student.address = '123 Main Street, Harare'
     student.save()
-print(f"✓ Student profile created: {student.name}")
+print(f"[OK] Student profile created: {student.name}")
 print(f"  Student ID: {student.student_id}")
 print(f"  Class: {student.school_class.name}")
 print(f"  Gender: {student.gender}")
@@ -121,7 +121,7 @@ print(f"  Date of Birth: {student.date_of_birth}")
 print(f"  Status: {student.status}\n")
 
 # ===== PARENT PROFILE =====
-print("5️⃣ Creating Parent Profile...")
+print("[5] Creating Parent Profile...")
 parent_user = User.objects.get(username='parent01')
 parent_profile, created = UserProfile.objects.get_or_create(
     user=parent_user,
@@ -152,24 +152,24 @@ if not created:
     parent.address = '123 Main Street, Harare'
     parent.status = 'Active'
     parent.save()
-print(f"✓ Parent profile created: {parent.name}")
+print(f"[OK] Parent profile created: {parent.name}")
 print(f"  Phone: {parent.phone}")
 print(f"  Email: {parent.email}")
 print(f"  Address: {parent.address}\n")
 
 # ===== LINK PARENT TO STUDENT =====
-print("6️⃣ Linking Parent to Student...")
+print("[6] Linking Parent to Student...")
 student_parent, created = StudentParent.objects.get_or_create(
     student=student,
     parent=parent
 )
 if created:
-    print(f"✓ Parent {parent.name} linked to Student {student.name}\n")
+    print(f"[OK] Parent {parent.name} linked to Student {student.name}\n")
 else:
-    print(f"→ Link already exists between {parent.name} and {student.name}\n")
+    print(f"[INFO] Link already exists between {parent.name} and {student.name}\n")
 
 # ===== ACCOUNTS OFFICER PROFILE =====
-print("7️⃣ Creating Accounts Officer Profile...")
+print("[7] Creating Accounts Officer Profile...")
 accounts_user = User.objects.get(username='accounts01')
 accounts_profile, created = UserProfile.objects.get_or_create(
     user=accounts_user,
@@ -181,10 +181,10 @@ accounts_profile, created = UserProfile.objects.get_or_create(
 if not created:
     accounts_profile.full_name = 'Mr. Tinashe Mwandiwa'
     accounts_profile.save()
-print(f"✓ Accounts Officer profile created: {accounts_profile.full_name}\n")
+print(f"[OK] Accounts Officer profile created: {accounts_profile.full_name}\n")
 
 # ===== CREATE SAMPLE SUBJECT & FEE STRUCTURE =====
-print("8️⃣ Creating Sample Subjects...")
+print("[8] Creating Sample Subjects...")
 subjects_list = ['Mathematics', 'English', 'Sciences', 'History', 'Geography']
 for subject_name in subjects_list:
     subject, created = Subject.objects.get_or_create(
@@ -195,9 +195,9 @@ for subject_name in subjects_list:
         }
     )
     if created:
-        print(f"✓ Subject created: {subject.name}")
+        print(f"[OK] Subject created: {subject.name}")
 
-print("\n9️⃣ Creating Fee Structures...")
+print("\n[9] Creating Fee Structures...")
 fee_structures = [
     {'name': 'Form 4 Tuition Term 1', 'amount': 25000, 'term': 'Term 1', 'form': 'Form 4'},
     {'name': 'Form 4 Tuition Term 2', 'amount': 25000, 'term': 'Term 2', 'form': 'Form 4'},
@@ -214,10 +214,10 @@ for fee_data in fee_structures:
         }
     )
     if created:
-        print(f"✓ Fee structure created: {fee.name} - ZWL {fee.amount}")
+        print(f"[OK] Fee structure created: {fee.name} - ZWL {fee.amount}")
 
 print("\n" + "="*60)
-print("✅ All profiles created successfully!")
+print("[OK] All profiles created successfully!")
 print("="*60)
 print("\n--- Profile Summary ---")
 print(f"Admin:    {admin_profile.full_name} (admin@wenysha.com)")
@@ -225,3 +225,4 @@ print(f"Teacher:  {teacher_profile.full_name} ({teacher.department})")
 print(f"Student:  {student_profile.full_name} ({student.student_id})")
 print(f"Parent:   {parent_profile.full_name}")
 print(f"Accounts: {accounts_profile.full_name}")
+
