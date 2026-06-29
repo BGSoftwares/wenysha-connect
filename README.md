@@ -50,7 +50,24 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
+**Reconnect / resync with GitHub (one-click)**
+
+If the Lovable ↔ GitHub link is disconnected or the default branch (`main`) needs to be resynced, use one of the bundled scripts from the project root:
+
+- **Windows:** right-click `reconnect-github.ps1` and choose **Run with PowerShell**.
+- **macOS / Linux:** run `./reconnect-github.sh` in a terminal.
+
+Each script will:
+
+1. Point the `origin` remote to `https://github.com/BGSoftwares/wenyasha-connect.git`.
+2. Fetch the latest `main` from GitHub.
+3. Merge any remote changes into the local `main`.
+4. Push the local `main` to GitHub so both branches are in sync.
+
+> Note: If the GitHub App authorization in Lovable itself has expired, reconnect it first via the Lovable editor: **Plus (+) menu → GitHub → Connect project**. Then run the script to resync `main`.
+
 ## What technologies are used for this project?
+
 
 This project is built with:
 
