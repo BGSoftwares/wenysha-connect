@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -436,3 +436,47 @@ html {
 }
 
 
+
+/* ===== Starlink-inspired public site ===== */
+.site-starlink {
+  --background: 160 45% 5%;
+  --card: 160 40% 8%;
+  --secondary: 160 30% 10%;
+  --muted: 160 25% 12%;
+  --border: 160 20% 18%;
+  --primary: 160 45% 28%;
+  --primary-foreground: 45 80% 96%;
+  font-family: 'Barlow', system-ui, sans-serif;
+  letter-spacing: 0.01em;
+}
+.site-starlink h1, .site-starlink h2, .site-starlink h3 {
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.site-starlink main h2 { text-transform: uppercase; letter-spacing: 0.08em; }
+.site-starlink main .rounded-xl,
+.site-starlink main .rounded-2xl,
+.site-starlink main .rounded-3xl { border-radius: 0.25rem; }
+.site-starlink main .bg-card { background: hsl(var(--card) / 0.6); backdrop-filter: blur(6px); }
+
+.sl-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0.95rem 2.5rem;
+  border: 2px solid hsl(0 0% 100% / 0.9);
+  color: hsl(0 0% 100%);
+  text-transform: uppercase; letter-spacing: 0.14em;
+  font-size: 0.8rem; font-weight: 600;
+  background: transparent;
+  transition: background .35s ease, color .35s ease, border-color .35s ease;
+}
+.sl-btn:hover { background: hsl(0 0% 100%); color: hsl(var(--forest-dark)); }
+.sl-btn-gold { border-color: hsl(var(--gold)); color: hsl(var(--gold)); }
+.sl-btn-gold:hover { background: hsl(var(--gold)); color: hsl(var(--forest-dark)); }
+
+.sl-reveal { opacity: 0; transform: translateY(40px); transition: opacity 1.1s cubic-bezier(.22,1,.36,1), transform 1.1s cubic-bezier(.22,1,.36,1); }
+.sl-reveal.sl-visible { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-reveal { opacity: 1; transform: none; transition: none; }
+}

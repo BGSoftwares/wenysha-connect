@@ -50,14 +50,6 @@ const Index = () => {
       <section className="relative h-screen w-full">
         <HeroCarousel />
 
-        {/* Simple bottom motto bar for professional balance */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-r from-forest-dark/95 via-forest/90 to-forest-dark/95 backdrop-blur-sm py-5 border-t border-white/10">
-          <div className="container mx-auto px-4 text-center">
-            <p className="text-white/90 text-lg md:text-xl font-heading font-medium tracking-wide animate-fade-in">
-              "Equipping & enabling learners to develop their full potential."
-            </p>
-          </div>
-        </div>
       </section>
 
       {/* Highlights Section - Green cards */}
@@ -174,7 +166,8 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-hero">
+      <section className="py-32 bg-gradient-hero">
+        <p className="text-center text-xs uppercase tracking-[0.35em] text-white/60 mb-6">"Equipping & enabling learners to develop their full potential."</p>
         <div className="container mx-auto px-4 text-center">
           <h2 className="font-heading text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
             Ready to Join Our Community?
@@ -184,12 +177,8 @@ const Index = () => {
             Contact us today to learn more about admissions.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Button variant="hero" size="lg" asChild>
-              <Link to="/contact">Contact Us</Link>
-            </Button>
-            <Button variant="outline-light" size="lg" asChild>
-              <Link to="/about">About Our School</Link>
-            </Button>
+            <Link to="/contact" className="sl-btn">Contact Us</Link>
+            <Link to="/about" className="sl-btn sl-btn-gold">About Our School</Link>
           </div>
         </div>
       </section>
