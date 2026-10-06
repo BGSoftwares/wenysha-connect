@@ -444,6 +444,8 @@ html {
   --secondary: 160 30% 10%;
   --muted: 160 25% 12%;
   --border: 160 20% 18%;
+  --primary: 160 45% 28%;
+  --primary-foreground: 45 80% 96%;
   font-family: 'Barlow', system-ui, sans-serif;
   letter-spacing: 0.01em;
 }
