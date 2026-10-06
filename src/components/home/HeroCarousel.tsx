@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 // Import all carousel images
 import slideGroupClass from "@/assets/slide-group-class.webp";
@@ -62,73 +63,49 @@ const HeroCarousel = () => {
               transitionDuration: '8000ms'
             }}
           />
-          {/* Multi-layered gradients for cinematic feel */}
-          <div className="absolute inset-0 bg-gradient-to-r from-forest-dark/90 via-forest-dark/40 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-forest-dark/80 via-transparent to-forest-dark/30" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
+          {/* Starlink-style darkening */}
+          <div className="absolute inset-0 bg-forest-dark/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
         </div>
       ))}
 
-      {/* Hero Content Overlay */}
-      <div className="absolute inset-0 z-10 flex flex-col items-start justify-center px-6 md:px-20 max-w-5xl">
-        <div className="space-y-4 animate-in slide-in-from-left duration-1000">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-accent text-accent-foreground text-xs font-bold uppercase tracking-widest shadow-lg shadow-accent/20">
+      {/* Hero Content — bottom-left, minimal */}
+      <div className="absolute inset-x-0 bottom-28 md:bottom-32 z-10 px-6 md:px-20">
+        <div key={currentSlide} className="max-w-3xl animate-fade-in">
+          <p className="text-xs md:text-sm uppercase tracking-[0.35em] text-white/70 mb-4">
             Est. 2024 • Wenyasha International
-          </span>
-          <h1 className="text-4xl md:text-7xl font-heading font-black text-white leading-tight transition-all duration-1000">
-            {slides[currentSlide].title.split(' ').map((word, i) => (
-              <span key={i} className="inline-block mr-4 opacity-0 animate-in slide-in-from-bottom fill-mode-forwards" style={{ animationDelay: `${i * 100}ms` }}>
-                {word}
-              </span>
-            ))}
-          </h1>
-          <p className="text-lg md:text-xl text-white/80 max-w-2xl font-light border-l-4 border-accent pl-6 py-2 opacity-0 animate-in fade-in slide-in-from-left duration-1000 delay-500 fill-mode-forwards">
-            Empowering the next generation of global leaders through academic excellence, character building, and innovative learning.
           </p>
-          <div className="flex gap-4 pt-8 opacity-0 animate-in fade-in slide-in-from-bottom duration-1000 delay-700 fill-mode-forwards">
-            <button className="px-8 py-4 rounded-xl bg-accent text-accent-foreground font-bold shadow-xl shadow-accent/30 hover:scale-105 active:scale-95 transition-all">
-              Apply for Admission
-            </button>
-            <button className="px-8 py-4 rounded-xl bg-white/10 backdrop-blur-md text-white border border-white/20 font-bold hover:bg-white/20 transition-all">
-              Take a Virtual Tour
-            </button>
+          <h1 className="text-4xl md:text-6xl font-medium uppercase tracking-wide text-white leading-[1.05]">
+            {slides[currentSlide].title}
+          </h1>
+          <p className="mt-5 text-base md:text-lg text-white/75 max-w-xl font-light">
+            Empowering the next generation of global leaders through academic excellence and character.
+          </p>
+          <div className="flex flex-wrap gap-4 pt-8">
+            <Link to="/contact" className="sl-btn">Apply Now</Link>
+            <Link to="/about" className="sl-btn sl-btn-gold">Learn More</Link>
           </div>
         </div>
       </div>
 
-      {/* Navigation Controls */}
-      <div className="absolute inset-y-0 right-0 w-24 flex flex-col items-center justify-center gap-4 z-20 pr-6">
-        <button
-          onClick={goToPrevious}
-          className="h-12 w-12 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white hover:bg-accent hover:text-accent-foreground transition-all group"
-        >
-          <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+      {/* Minimal controls */}
+      <div className="absolute bottom-10 right-6 md:right-20 z-20 flex items-center gap-5">
+        <button onClick={goToPrevious} aria-label="Previous slide" className="text-white/60 hover:text-white transition-colors">
+          <ChevronLeft className="h-5 w-5" />
         </button>
-        <button
-          onClick={goToNext}
-          className="h-12 w-12 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white hover:bg-accent hover:text-accent-foreground transition-all group"
-        >
-          <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-        </button>
-      </div>
-
-      {/* Progressive Page Indicators */}
-      <div className="absolute bottom-12 right-12 z-20 flex items-center gap-4">
-        <div className="flex gap-2.5">
+        <div className="flex gap-2">
           {slides.map((_, index) => (
             <button
               key={index}
+              aria-label={`Slide ${index + 1}`}
               onClick={() => goToSlide(index)}
-              className={`h-1.5 rounded-full transition-all duration-700 ${index === currentSlide
-                  ? "w-12 bg-accent"
-                  : "w-2 bg-white/30 hover:bg-white/60"
-                }`}
+              className={`h-[2px] transition-all duration-700 ${index === currentSlide ? "w-10 bg-white" : "w-4 bg-white/30 hover:bg-white/60"}`}
             />
           ))}
         </div>
-        <span className="text-white font-mono text-sm opacity-60">
-          0{currentSlide + 1} / 0{slides.length}
-        </span>
+        <button onClick={goToNext} aria-label="Next slide" className="text-white/60 hover:text-white transition-colors">
+          <ChevronRight className="h-5 w-5" />
+        </button>
       </div>
     </div>
   );
