@@ -27,6 +27,14 @@ export const Header = () => {
     setUser(getStoredUser());
   }, [location.pathname]);
 
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   const isActive = (path: string) => location.pathname === path;
 
   const handleLogout = () => {
@@ -37,7 +45,7 @@ export const Header = () => {
   };
 
   return (
-    <header className="absolute top-0 left-0 right-0 z-50 w-full bg-gradient-to-b from-forest-dark/95 to-forest-dark/80 backdrop-blur-sm">
+    <header className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ${scrolled ? "bg-background/90 backdrop-blur-md border-b border-white/10" : "bg-transparent"}`}>
       <div className="container mx-auto px-4">
         <div className="flex h-20 items-center justify-between">
           {/* Logo */}
@@ -61,9 +69,9 @@ export const Header = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`px-4 py-2 text-sm font-medium transition-all duration-200 border-b-2 ${isActive(link.path)
-                  ? "text-accent border-accent"
-                  : "text-white/90 border-transparent hover:text-accent hover:border-accent/50"
+                className={`px-4 py-2 text-xs uppercase tracking-[0.18em] font-semibold transition-all duration-300 border-b ${isActive(link.path)
+                  ? "text-white border-white"
+                  : "text-white/75 border-transparent hover:text-white"
                   }`}
               >
                 {link.name}
@@ -101,13 +109,7 @@ export const Header = () => {
                 </Button>
               </div>
             ) : (
-              <Button
-                variant="outline"
-                className="border-accent text-accent hover:bg-accent hover:text-accent-foreground font-semibold rounded-full px-8"
-                asChild
-              >
-                <Link to="/auth">Secure Login</Link>
-              </Button>
+              <Link to="/auth" className="sl-btn !py-2.5 !px-6">Login</Link>
             )}
           </div>
 
@@ -178,8 +180,6 @@ export const Header = () => {
           </div>
         )}
       </div>
-      {/* Gradient line at bottom */}
-      <div className="h-1 bg-gradient-to-r from-accent via-primary to-accent opacity-50" />
     </header>
   );
 };
