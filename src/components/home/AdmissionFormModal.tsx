@@ -76,7 +76,7 @@ Result Slip: ${selectedFile ? selectedFile.name : "Not uploaded"}
 Name: ${data.guardianName}
 Phone: ${data.guardianPhone}
 
-Submitted from: Wenyasha International School Website`;
+Submitted from: Able God College Website`;
 
       const encodedMessage = encodeURIComponent(message);
       const whatsappUrl = `https://wa.me/263784654328?text=${encodedMessage}`;
@@ -129,7 +129,7 @@ Submitted from: Wenyasha International School Website`;
             Admission Application
           </DialogTitle>
           <p className="text-center text-muted-foreground text-sm">
-            Wenyasha International School Admissions
+            Able God College Admissions
           </p>
         </DialogHeader>
 

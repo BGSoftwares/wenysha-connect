@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { BookOpen, GraduationCap, Award, Target, Heart, Users } from "lucide-react";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
 import StaffDirectory from "@/components/about/StaffDirectory";
 
 const values = [
@@ -24,13 +24,13 @@ const About = () => {
       {/* Hero Section */}
       <section className="py-20 bg-gradient-hero">
         <div className="container mx-auto px-4 text-center">
-          <img 
-            src={logo} 
-            alt="Wenyasha Logo" 
+          <img
+            src={logo}
+            alt="Able God College Logo"
             className="h-32 w-32 object-contain mx-auto mb-6 bg-card rounded-2xl p-3"
           />
           <h1 className="font-heading text-4xl md:text-5xl font-bold text-primary-foreground mb-4">
-            About Wenyasha
+            About Able God College
           </h1>
           <p className="text-xl text-primary-foreground/80 max-w-2xl mx-auto">
             Smart • Innovative • Infinite
@@ -47,17 +47,17 @@ const About = () => {
                 Our Story
               </h2>
               <p className="text-muted-foreground mb-4">
-                Founded with a vision to provide world-class education in Zimbabwe, 
-                Wenyasha International School has grown from humble beginnings to become 
+                Founded with a vision to provide world-class education in Zimbabwe,
+                Able God College has grown from humble beginnings to become
                 one of the most respected educational institutions in the region.
               </p>
               <p className="text-muted-foreground mb-4">
-                Our name "Wenyasha" reflects our commitment to grace and excellence 
-                in everything we do. We believe every child has infinite potential 
+                Our name "Able God College" reflects our commitment to grace and excellence
+                in everything we do. We believe every child has infinite potential
                 waiting to be unlocked through quality education.
               </p>
               <p className="text-muted-foreground">
-                Today, we serve hundreds of students from diverse backgrounds, 
+                Today, we serve hundreds of students from diverse backgrounds,
                 united by their pursuit of knowledge and personal growth.
               </p>
             </div>
@@ -66,15 +66,15 @@ const About = () => {
                 Our Mission
               </h3>
               <p className="text-muted-foreground mb-6">
-                To nurture innovative, responsible, and globally-minded individuals 
-                through a holistic education that balances academic excellence with 
+                To nurture innovative, responsible, and globally-minded individuals
+                through a holistic education that balances academic excellence with
                 character development.
               </p>
               <h3 className="font-heading text-2xl font-bold text-foreground mb-4">
                 Our Vision
               </h3>
               <p className="text-muted-foreground">
-                To be the leading international school in Africa, recognized for 
+                To be the leading college in Africa, recognized for
                 producing graduates who make meaningful contributions to society.
               </p>
             </div>
@@ -94,9 +94,9 @@ const About = () => {
                 <GraduationCap className="h-12 w-12 text-primary" />
               </div>
               <blockquote className="text-lg text-muted-foreground italic mb-6">
-                "At Wenyasha International School, we believe that education is not just 
-                about acquiring knowledge, but about developing the whole person. Our 
-                commitment is to provide an environment where every student can discover 
+                "At Able God College, we believe that education is not just
+                about acquiring knowledge, but about developing the whole person. Our
+                commitment is to provide an environment where every student can discover
                 their unique talents and reach their full potential."
               </blockquote>
               <p className="font-heading font-semibold text-foreground">Dr. Sarah Moyo</p>
@@ -114,7 +114,7 @@ const About = () => {
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {values.map((value, index) => (
-              <div 
+              <div
                 key={index}
                 className="text-center p-6 rounded-xl bg-card border border-border hover:border-accent/30 transition-all"
               >
@@ -142,7 +142,7 @@ const About = () => {
           </h2>
           <div className="max-w-2xl mx-auto">
             {achievements.map((achievement, index) => (
-              <div 
+              <div
                 key={index}
                 className="flex items-center gap-4 p-4 rounded-lg bg-primary-foreground/5 mb-3"
               >

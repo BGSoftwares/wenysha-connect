@@ -1,4 +1,4 @@
-# Push Wenyasha Connect to GitHub
+# Push Able God College to GitHub
 # Requires: Git installed and on PATH
 # Repo: https://github.com/BGSoftwares/wenysha-connect.git
 # Run from project root: .\push-to-github.ps1
@@ -46,7 +46,7 @@ if ($status -match "backend\\\.env|backend\\venv") {
 
 git status
 Write-Host ""
-$commitMsg = "Wenyasha Connect: React + Django backend, API integration, docs"
+$commitMsg = "Able God College: React + Django backend, API integration, docs"
 if ($args.Count -gt 0) { $commitMsg = $args -join " " }
 git commit -m $commitMsg 2>$null
 if ($LASTEXITCODE -ne 0) {

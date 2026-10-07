@@ -1,5 +1,5 @@
 """
-Django settings for Wenyasha Connect backend.
+Django settings for Able God College backend.
 Uses MySQL and Django REST Framework with JWT.
 """
 import os

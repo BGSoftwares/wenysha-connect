@@ -72,7 +72,7 @@ const ReportsSection = () => {
       methods[p.method] = (methods[p.method] || 0) + parseFloat(p.amount.toString());
     });
 
-    const colors = ["#064e3b", "#eab308", "#0ea5e9", "#8b5cf6", "#ec4899"];
+    const colors = ["#14295f", "#db2777", "#8a3e78", "#526aa5", "#f18ab8"];
     return Object.entries(methods).map(([name, value], i) => ({
       name,
       value,
@@ -212,9 +212,9 @@ const ReportsSection = () => {
                         borderRadius: '16px',
                         boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                       }}
-                      itemStyle={{ color: '#064e3b', fontWeight: 900 }}
+                      itemStyle={{ color: '#14295f', fontWeight: 900 }}
                     />
-                    <Bar dataKey="amount" fill="#064e3b" radius={[12, 12, 0, 0]} />
+                    <Bar dataKey="amount" fill="#14295f" radius={[12, 12, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

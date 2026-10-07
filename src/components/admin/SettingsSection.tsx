@@ -279,7 +279,7 @@ const SettingsSection = ({ activeSubNav }: SettingsSectionProps) => {
                 type="email"
                 value={emailAddress}
                 onChange={(e) => setEmailAddress(e.target.value)}
-                placeholder="noreply@wenyasha.edu.zw"
+                placeholder="Enter a verified school email address"
               />
             </div>
 

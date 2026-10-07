@@ -61,9 +61,9 @@ const FeaturesSection = () => {
           {/* Image */}
           <div className="hidden lg:block">
             <div className="rounded-2xl overflow-hidden img-3d h-full">
-              <img 
-                src={studentImage} 
-                alt="Wenyasha International School student" 
+              <img
+                src={studentImage}
+                alt="Able God College student"
                 className="w-full h-full object-cover"
               />
             </div>

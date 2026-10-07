@@ -1,8 +1,9 @@
 import { Layout } from "@/components/layout/Layout";
-import { Mail, Phone, MapPin, Clock, Send } from "lucide-react";
+import { Phone, MapPin, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { schoolContact } from "@/lib/schoolContact";
 
 const Contact = () => {
   const { toast } = useToast();
@@ -93,7 +94,7 @@ const Contact = () => {
                       value={formData.phone}
                       onChange={handleChange}
                       className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                      placeholder="+263 77 123 4567"
+                      placeholder="Your phone number"
                     />
                   </div>
                   <div>
@@ -152,11 +153,7 @@ const Contact = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground mb-1">Our Address</h3>
-                    <p className="text-muted-foreground text-sm">
-                      123 Education Drive<br />
-                      Borrowdale, Harare<br />
-                      Zimbabwe
-                    </p>
+                    <p className="text-muted-foreground text-sm">{schoolContact.address}</p>
                   </div>
                 </div>
 
@@ -166,38 +163,10 @@ const Contact = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground mb-1">Phone Numbers</h3>
-                    <p className="text-muted-foreground text-sm">
-                      Main Office: +263 242 123 456<br />
-                      Admissions: +263 242 123 457<br />
-                      Emergency: +263 77 123 4567
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4 p-5 rounded-xl bg-card border border-border">
-                  <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                    <Mail className="h-6 w-6 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-1">Email Addresses</h3>
-                    <p className="text-muted-foreground text-sm">
-                      General: info@wenyasha.edu.zw<br />
-                      Admissions: admissions@wenyasha.edu.zw<br />
-                      Principal: principal@wenyasha.edu.zw
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4 p-5 rounded-xl bg-card border border-border">
-                  <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                    <Clock className="h-6 w-6 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-1">Office Hours</h3>
-                    <p className="text-muted-foreground text-sm">
-                      Monday - Friday: 7:30 AM - 4:30 PM<br />
-                      Saturday: 8:00 AM - 12:00 PM<br />
-                      Sunday: Closed
+                    <p className="text-muted-foreground text-sm space-y-1">
+                      {schoolContact.phones.map((phone) => (
+                        <a key={phone.href} className="block hover:text-primary" href={phone.href}>{phone.label}</a>
+                      ))}
                     </p>
                   </div>
                 </div>

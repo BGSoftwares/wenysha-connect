@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
+from django.db.models import Q
 from .models import Role, UserProfile, PendingApproval
 from school.models import Student, SchoolClass
 from .serializers import (
@@ -36,12 +37,11 @@ class LoginView(APIView):
     def post(self, request):
         ser = LoginSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        email = ser.validated_data['email']
+        email_or_username = ser.validated_data['email']
         password = ser.validated_data['password']
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return Response({'detail': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
+        user = User.objects.filter(Q(email=email_or_username) | Q(username=email_or_username)).first()
+        if not user:
+            return Response({'detail': 'Invalid username/email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.check_password(password):
             return Response({'detail': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.is_active:
@@ -56,6 +56,31 @@ class LoginView(APIView):
             tokens['user']['role'] = None
             tokens['user']['full_name'] = user.username
         return Response(tokens)
+
+
+class CurrentUserView(APIView):
+    """Return the signed-in user's profile for session restoration."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        role = None
+        full_name = user.get_full_name() or user.username
+        try:
+            profile = user.profile
+            role = profile.role.name if profile.role else None
+            full_name = profile.full_name or full_name
+        except UserProfile.DoesNotExist:
+            pass
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': role,
+            'full_name': full_name,
+        })
 
 
 class SignUpView(APIView):

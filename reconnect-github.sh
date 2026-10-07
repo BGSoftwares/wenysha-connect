@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reconnect and resync the Wenyasha Connect project with GitHub
+# Reconnect and resync the Able God College project with GitHub
 # One-click script: run from project root
 # Repo: https://github.com/BGSoftwares/wenyasha-connect.git
 # Branch: main

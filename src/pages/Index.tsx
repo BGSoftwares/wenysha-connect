@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, BookOpen, Image, Bell, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
 import HeroCarousel from "@/components/home/HeroCarousel";
 import RemarksSection from "@/components/home/RemarksSection";
 import FeaturesSection from "@/components/home/FeaturesSection";
@@ -29,7 +29,7 @@ const newsHighlights = [
   {
     title: "Students Excel in Chess competitions at NICAZ District level.",
     excerpt: "Our students secured top positions in the 2025 NICAZ District Competitions.",
-    date: "Marc 20, 2026",
+    date: "Mar 20, 2026",
   },
   {
     title: "New Computer Lab Inaugurated",

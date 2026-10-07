@@ -22,7 +22,7 @@ import {
   Check,
   X
 } from "lucide-react";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
 import { Button } from "@/components/ui/button";
 import {
   useTeacherProfile,
@@ -578,7 +578,7 @@ const TeacherDashboard = () => {
               <label className="text-sm text-muted-foreground">Email</label>
               <input
                 type="email"
-                defaultValue="grace.moyo@wenyasha.edu.zw"
+                defaultValue=""
                 className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
               />
             </div>
@@ -586,7 +586,7 @@ const TeacherDashboard = () => {
               <label className="text-sm text-muted-foreground">Phone</label>
               <input
                 type="tel"
-                defaultValue="+263 77 123 4567"
+                defaultValue=""
                 className="w-full mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
               />
             </div>
@@ -670,12 +670,12 @@ const TeacherDashboard = () => {
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-accent to-gold-dark p-[2px] shadow-lg shadow-accent/20">
               <div className="h-full w-full rounded-[10px] bg-forest flex items-center justify-center border border-white/10">
-                <img src={logo} alt="Wenyasha" className="h-7 w-7 object-contain" />
+                <img src={logo} alt="Able God College" className="h-7 w-7 object-contain" />
               </div>
             </div>
             <div>
               <h1 className="font-heading font-bold text-lg text-white">Teacher Portal</h1>
-              <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em]">Wenyasha International</p>
+              <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em]">Able God College</p>
             </div>
           </div>
         </div>

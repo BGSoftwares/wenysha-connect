@@ -15,7 +15,7 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 btn-3d-soft",
         ghost: "hover:bg-secondary hover:text-foreground btn-3d-soft",
         link: "text-primary underline-offset-4 hover:underline",
-        // Custom Wenyasha variants
+        // Custom Able God College variants
         gold: "bg-accent text-accent-foreground hover:bg-gold-dark font-semibold btn-3d",
         hero: "bg-accent text-accent-foreground hover:bg-gold-dark font-semibold text-base btn-3d",
         "outline-gold": "border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground font-semibold btn-3d-soft",

@@ -18,6 +18,18 @@ interface PendingUser {
   };
 }
 
+interface PendingApprovalRecord {
+  id: number | string;
+  full_name?: string;
+  email?: string;
+  role: PendingUser["role"];
+  requested_at: string;
+  status: PendingUser["status"];
+  additional_info?: PendingUser["additionalInfo"];
+}
+
+type PendingApprovalResponse = PendingApprovalRecord[] | { results: PendingApprovalRecord[] };
+
 // real data fetched from backend
 
 const PendingApprovalsSection = () => {
@@ -75,15 +87,16 @@ const PendingApprovalsSection = () => {
     let mounted = true;
     (async () => {
       try {
-        const data = await api.get<PendingUser[]>("/auth/pending-approvals/");
-        if (mounted) setUsers(data.map(d => ({
-          id: String((d as any).id),
-          fullName: (d as any).full_name || '',
-          email: (d as any).email || '',
-          role: (d as any).role,
-          requestedAt: (d as any).requested_at,
-          status: (d as any).status,
-          additionalInfo: (d as any).additional_info || undefined,
+        const response = await api.get<PendingApprovalResponse>("/auth/pending-approvals/");
+        const records = Array.isArray(response) ? response : response.results;
+        if (mounted) setUsers(records.map(record => ({
+          id: String(record.id),
+          fullName: record.full_name || "",
+          email: record.email || "",
+          role: record.role,
+          requestedAt: record.requested_at,
+          status: record.status,
+          additionalInfo: record.additional_info,
         })));
       } catch (err) {
         toast.error(getErrorMessage(err));

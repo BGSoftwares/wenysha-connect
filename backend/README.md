@@ -1,4 +1,4 @@
-# Wenyasha Connect – Backend (Django + MySQL)
+# Able God College – Backend (Django + MySQL)
 
 ## Python
 
@@ -9,15 +9,9 @@ You need **Python 3.10+** on this machine.
 
 There is no “Python in this folder” – the virtual environment (`venv`) will use whatever `python` (or `py`) is on your PATH.
 
-## Superuser (already configured)
+## Superuser
 
-In `backend/.env` (do not commit this file):
-
-- **Username:** `wenyasha`
-- **Email:** `admin@wenyasha.edu.zw`
-- **Password:** (stored as `DJANGO_SUPERUSER_PASSWORD` in `.env`)
-
-When you run the setup script, the superuser is created automatically if these three env vars are set.
+Configure a local administrator using Django's `createsuperuser` command or the optional `DJANGO_SUPERUSER_*` environment variables. Keep credentials private and do not commit `.env`.
 
 ## Quick run
 
@@ -34,7 +28,7 @@ When you run the setup script, the superuser is created automatically if these t
    setup-and-run.bat
    ```
 
-4. Open: **http://127.0.0.1:8000/admin** and log in with the superuser above.
+4. Open: **http://127.0.0.1:8000/admin** and log in with your configured administrator account.
 
 ## GitHub
 

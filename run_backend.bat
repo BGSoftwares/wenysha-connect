@@ -1,7 +1,7 @@
 @echo off
-echo Starting Wenyasha Backend (SQLite Mode)...
+echo Starting Able God College Backend (SQLite Mode)...
 echo.
-set PY="C:\Users\user\AppData\Local\Programs\Python\Python311\python.exe"
+set PY="C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
 set USE_SQLITE=True
 set DJANGO_SETTINGS_MODULE=config.settings
 

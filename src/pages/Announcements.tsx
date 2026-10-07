@@ -90,7 +90,7 @@ const Announcements = () => {
             Announcements
           </h1>
           <p className="text-xl text-primary-foreground/80 max-w-2xl mx-auto">
-            Stay updated with the latest news, events, and important notices from Wenyasha.
+            Stay updated with the latest news, events, and important notices from Able God College.
           </p>
         </div>
       </section>

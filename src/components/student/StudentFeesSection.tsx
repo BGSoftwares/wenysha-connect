@@ -304,7 +304,7 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
             <h3 className="font-semibold text-foreground mb-4">Accepted Payment Methods</h3>
             <div className="space-y-3">
               {[
-                { method: "Bank Transfer", details: "Wenyasha School Account - CBZ Bank", icon: "🏦" },
+                { method: "Bank Transfer", details: "Able God College School Account - CBZ Bank", icon: "🏦" },
                 { method: "Cash", details: "Pay at School Accounts Office", icon: "💵" },
                 { method: "Mobile Money", details: "EcoCash, OneMoney", icon: "📱" },
                 { method: "POS", details: "Available at School Office", icon: "💳" }

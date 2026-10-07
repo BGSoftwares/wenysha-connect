@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Users, CreditCard, BookOpen, AlertTriangle, Scale } from "lucide-react";
+import { schoolContact } from "@/lib/schoolContact";
 
 const Terms = () => {
   const sections = [
@@ -88,7 +89,7 @@ const Terms = () => {
               Terms of Service
             </h1>
             <p className="text-muted-foreground text-lg">
-              Please read these terms carefully before using Wenyasha International School's 
+              Please read these terms carefully before using Able God College's
               portal and services.
             </p>
             <p className="text-sm text-muted-foreground mt-4">
@@ -99,8 +100,8 @@ const Terms = () => {
           <div className="bg-accent/10 border border-accent/30 rounded-xl p-6 mb-8">
             <h2 className="font-heading font-semibold text-foreground mb-2">Agreement to Terms</h2>
             <p className="text-muted-foreground">
-              By accessing or using the Wenyasha International School portal, you agree to be bound 
-              by these Terms of Service and all applicable laws and regulations. If you do not agree 
+              By accessing or using the Able God College portal, you agree to be bound
+              by these Terms of Service and all applicable laws and regulations. If you do not agree
               with any of these terms, you are prohibited from using or accessing this portal.
             </p>
           </div>
@@ -131,11 +132,14 @@ const Terms = () => {
           <div className="mt-12 p-6 bg-secondary/50 rounded-xl">
             <h3 className="font-heading font-semibold text-foreground mb-3">Questions?</h3>
             <p className="text-muted-foreground">
-              If you have any questions about these Terms of Service, please contact us at{" "}
-              <a href="mailto:legal@wenyasha.edu.zw" className="text-primary hover:underline">
-                legal@wenyasha.edu.zw
-              </a>{" "}
-              or visit the school administration office.
+              If you have any questions about these Terms of Service, call{" "}
+              {schoolContact.phones.map((phone, index) => (
+                <span key={phone.href}>
+                  {index > 0 && " or "}
+                  <a href={phone.href} className="text-primary hover:underline">{phone.label}</a>
+                </span>
+              ))}{" "}
+              or visit us at {schoolContact.address}.
             </p>
           </div>
         </div>

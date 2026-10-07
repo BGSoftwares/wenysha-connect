@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Youtube } from "lucide-react";
-import logo from "@/assets/wenyasha-logo.jpg";
+import { Phone, MapPin, Facebook, Twitter, Instagram, Youtube } from "lucide-react";
+import logo from "/able-god-college-logo.png";
+import { schoolContact } from "@/lib/schoolContact";
 
 const quickLinks = [
   { name: "About Us", path: "/about" },
@@ -25,14 +26,14 @@ export const Footer = () => {
           {/* School Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <img 
-                src={logo} 
-                alt="Wenyasha International School" 
+              <img
+                src={logo}
+                alt="Able God College"
                 className="h-16 w-16 object-contain bg-card rounded-lg p-1"
               />
               <div>
-                <h3 className="font-heading text-xl font-bold">Wenyasha</h3>
-                <p className="text-sm text-primary-foreground/70">International School</p>
+                <h3 className="font-heading text-xl font-bold">Able God College</h3>
+                <p className="text-sm text-primary-foreground/70">College</p>
               </div>
             </div>
             <p className="text-primary-foreground/80 text-sm leading-relaxed">
@@ -49,7 +50,7 @@ export const Footer = () => {
             <ul className="space-y-2">
               {quickLinks.map((link) => (
                 <li key={link.path}>
-                  <Link 
+                  <Link
                     to={link.path}
                     className="text-primary-foreground/80 hover:text-accent transition-colors text-sm"
                   >
@@ -66,7 +67,7 @@ export const Footer = () => {
             <ul className="space-y-2">
               {portalLinks.map((link, index) => (
                 <li key={index}>
-                  <Link 
+                  <Link
                     to={link.path}
                     className="text-primary-foreground/80 hover:text-accent transition-colors text-sm"
                   >
@@ -84,16 +85,19 @@ export const Footer = () => {
               <li className="flex items-start gap-3 text-sm">
                 <MapPin className="h-4 w-4 mt-0.5 text-accent shrink-0" />
                 <span className="text-primary-foreground/80">
-                  Longdale Farm (Sikato), Masvingo Zimbabwe
+                  {schoolContact.address}
                 </span>
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <Phone className="h-4 w-4 text-accent shrink-0" />
-                <span className="text-primary-foreground/80">+263 773 436 377 / +263 784 696 633</span>
-              </li>
-              <li className="flex items-center gap-3 text-sm">
-                <Mail className="h-4 w-4 text-accent shrink-0" />
-                <span className="text-primary-foreground/80">info@wenyasha.edu.zw</span>
+                <span className="text-primary-foreground/80">
+                  {schoolContact.phones.map((phone, index) => (
+                    <span key={phone.href}>
+                      {index > 0 && <br />}
+                      <a href={phone.href} className="hover:text-white">{phone.label}</a>
+                    </span>
+                  ))}
+                </span>
               </li>
             </ul>
 
@@ -117,7 +121,7 @@ export const Footer = () => {
       <div className="border-t border-primary-foreground/10">
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-primary-foreground/60">
-            <p>© 2026 Wenyasha International School. All rights reserved.</p>
+            <p>© 2026 Able God College. All rights reserved.</p>
             <div className="flex gap-6">
               <Link to="/privacy" className="hover:text-accent transition-colors">
                 Privacy Policy

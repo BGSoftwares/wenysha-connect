@@ -50,11 +50,11 @@ const AdminHeader = ({ title, breadcrumb, onMenuClick }: AdminHeaderProps) => {
         <div className="flex items-center gap-4 pl-6 border-l border-white/10">
           <div className="flex flex-col items-end hidden md:flex">
             <p className="font-bold text-sm text-white">Administrator</p>
-            <p className="text-[10px] text-accent font-bold uppercase tracking-widest">Wenyasha High</p>
+            <p className="text-[10px] text-accent font-bold uppercase tracking-widest">Able God College High</p>
           </div>
           <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-accent to-gold-dark p-[2px] shadow-lg shadow-accent/20">
             <div className="h-full w-full rounded-[14px] bg-forest flex items-center justify-center border border-white/10">
-              <span className="font-black text-xs text-white">W.I</span>
+              <span className="font-black text-xs text-white">AG</span>
             </div>
           </div>
         </div>

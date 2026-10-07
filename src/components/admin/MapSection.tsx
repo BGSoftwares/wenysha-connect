@@ -3,13 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const facilities = [
   { id: 1, name: "Main Administration Block", icon: Building, color: "bg-primary", position: { top: "20%", left: "45%" } },
-  { id: 2, name: "Science Laboratory", icon: Compass, color: "bg-blue-500", position: { top: "35%", left: "30%" } },
-  { id: 3, name: "Library", icon: School, color: "bg-green-500", position: { top: "40%", left: "60%" } },
-  { id: 4, name: "Sports Field", icon: Flag, color: "bg-amber-500", position: { top: "70%", left: "25%" } },
-  { id: 5, name: "Hostels", icon: Building, color: "bg-purple-500", position: { top: "65%", left: "70%" } },
-  { id: 6, name: "Garden Area", icon: TreePine, color: "bg-emerald-500", position: { top: "50%", left: "45%" } },
-  { id: 7, name: "Parking", icon: Car, color: "bg-gray-500", position: { top: "15%", left: "70%" } },
-  { id: 8, name: "Main Entrance", icon: MapPin, color: "bg-red-500", position: { top: "85%", left: "45%" } },
+  { id: 2, name: "Science Laboratory", icon: Compass, color: "bg-accent", position: { top: "35%", left: "30%" } },
+  { id: 3, name: "Library", icon: School, color: "bg-primary/80", position: { top: "40%", left: "60%" } },
+  { id: 4, name: "Sports Field", icon: Flag, color: "bg-accent/80", position: { top: "70%", left: "25%" } },
+  { id: 5, name: "Hostels", icon: Building, color: "bg-primary/70", position: { top: "65%", left: "70%" } },
+  { id: 6, name: "Garden Area", icon: TreePine, color: "bg-accent/70", position: { top: "50%", left: "45%" } },
+  { id: 7, name: "Parking", icon: Car, color: "bg-muted-foreground", position: { top: "15%", left: "70%" } },
+  { id: 8, name: "Main Entrance", icon: MapPin, color: "bg-accent", position: { top: "85%", left: "45%" } },
 ];
 
 const MapSection = () => {
@@ -18,7 +18,7 @@ const MapSection = () => {
       {/* Header */}
       <div>
         <h2 className="font-heading text-xl font-bold text-foreground">School Campus Map</h2>
-        <p className="text-sm text-muted-foreground">Interactive map of Wenyasha International School facilities</p>
+        <p className="text-sm text-muted-foreground">Interactive map of Able God College facilities</p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -26,12 +26,12 @@ const MapSection = () => {
         <div className="lg:col-span-2">
           <Card className="overflow-hidden">
             <CardContent className="p-0">
-              <div className="relative aspect-[4/3] bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/20 dark:to-green-800/20">
+              <div className="relative aspect-[4/3] bg-gradient-to-br from-pink-50 to-blue-100 dark:from-primary/20 dark:to-accent/20">
                 {/* Campus background pattern */}
                 <div className="absolute inset-0 opacity-30">
                   <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
                     <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-green-600" />
+                      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-primary/50" />
                     </pattern>
                     <rect width="100%" height="100%" fill="url(#grid)" />
                   </svg>

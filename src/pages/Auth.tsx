@@ -14,7 +14,7 @@ import {
     Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
 import { login, signup, getErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -41,9 +41,12 @@ const Auth = () => {
                 toast.success(`Welcome back, ${data.user.full_name || data.user.username}`);
 
                 // Redirect based on role
-                const role = data.user.role;
+                const role = (data.user.role || '').toLowerCase();
                 if (role === 'admin') navigate('/admin');
-                else if (role === 'parent') navigate('/parent-portal');
+                else if (role === 'parent') navigate('/parent');
+                else if (role === 'student') navigate('/student');
+                else if (role === 'teacher') navigate('/teacher');
+                else if (role === 'accounts') navigate('/accounts');
                 else navigate('/portal');
             } else {
                 if (password !== confirmPassword) {
@@ -72,7 +75,7 @@ const Auth = () => {
         <Layout>
             <section className="min-h-screen flex items-center justify-center py-20 bg-background relative overflow-hidden">
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,#004d4020,transparent)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,#14295f20,transparent)]" />
 
                 <div className="container mx-auto px-4 relative z-10">
                     <div className="max-w-md mx-auto">
@@ -82,7 +85,7 @@ const Auth = () => {
                                     <img src={logo} alt="Logo" className="h-20 w-20 mx-auto rounded-2xl shadow-xl border border-border p-1 bg-white" />
                                 </Link>
                                 <h1 className="text-3xl font-heading font-black text-foreground">
-                                    {isLogin ? "Secure Entrance" : "Join Wenyasha"}
+                                    {isLogin ? "Secure Entrance" : "Join Able God College"}
                                 </h1>
                                 <p className="text-muted-foreground text-sm mt-2">
                                     {isLogin ? "Access your academic sanctuary" : "Begin your journey to excellence"}
@@ -110,7 +113,7 @@ const Auth = () => {
                                             <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">Identify As</label>
                                             <select
                                                 value={role}
-                                                onChange={(e) => setRole(e.target.value as any)}
+                                                onChange={(e) => setRole(e.target.value as typeof role)}
                                                 className="w-full bg-secondary/50 border border-border rounded-xl py-3.5 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm appearance-none"
                                             >
                                                 <option value="student">Student</option>
@@ -123,13 +126,14 @@ const Auth = () => {
                                 )}
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">Email Address</label>
+                                    <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">{isLogin ? "Email or Username" : "Email Address"}</label>
                                     <div className="relative">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <input
                                             required
-                                            type="email"
-                                            placeholder="name@wenyasha.edu"
+                                            type={isLogin ? "text" : "email"}
+                                            autoComplete={isLogin ? "username" : "email"}
+                                            placeholder={isLogin ? "name@ablegodcollege.edu or username" : "name@ablegodcollege.edu"}
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             className="w-full bg-secondary/50 border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
@@ -147,6 +151,7 @@ const Auth = () => {
                                         <input
                                             required
                                             type={showPassword ? "text" : "password"}
+                                            autoComplete={isLogin ? "current-password" : "new-password"}
                                             placeholder="••••••••"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}

@@ -4,7 +4,7 @@ const highlights = [
   {
     icon: Award,
     title: "A Registered College",
-    description: "Wenyasha International School is a private learning institution registered as a full time ZIMSEC school.",
+    description: "Able God College is a private learning institution registered as a full time ZIMSEC school.",
   },
   {
     icon: BookOpen,
@@ -13,7 +13,7 @@ const highlights = [
   },
   {
     icon: Building2,
-    title: "State Of Art Facilities",
+    title: "State-of-the-Art Facilities",
     description: "Our facilities have been designed specifically to match international standards, equipping students with the best resources.",
   },
   {

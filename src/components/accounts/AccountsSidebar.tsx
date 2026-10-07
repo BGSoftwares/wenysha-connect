@@ -15,7 +15,7 @@ import {
   AlertTriangle,
   Wallet
 } from "lucide-react";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -108,7 +108,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mob
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         {!collapsed && (
           <div className="flex items-center gap-3">
-            <img src={logo} alt="Wenyasha" className="h-10 w-10 rounded-lg object-contain bg-accent" />
+            <img src={logo} alt="Able God College" className="h-10 w-10 rounded-lg object-contain bg-accent" />
             <div>
               <h1 className="font-heading font-bold text-lg text-accent">ACCOUNTS</h1>
             </div>

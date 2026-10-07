@@ -10,7 +10,7 @@ const mockNotices = [
     id: 1, 
     title: "End of Term Examinations", 
     content: "End of term examinations will commence on December 9th, 2024. All students are required to be in full school uniform and arrive 30 minutes before the start of each exam. Examination timetables have been posted on the notice boards.",
-    author: "Mr. Christopher Wenyasha",
+    author: "Mr. Christopher Able God College",
     date: "2024-12-05",
     audience: "All Students",
     priority: "High",

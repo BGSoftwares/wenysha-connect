@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { Download, Printer, QrCode, Calendar, Award, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
+import { schoolContact } from "@/lib/schoolContact";
 import { calculateGrade, getGradeColorClasses, GRADING_SCALE } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
 import { useExamMarks, useStudentProfile } from "@/lib/hooks";
@@ -181,11 +182,9 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
 
             {/* School Info */}
             <div className="text-right space-y-1">
-              <p className="font-semibold text-foreground">Wenyasha International School</p>
-              <p className="text-sm text-muted-foreground">Phone: +263 242 123456</p>
-              <p className="text-sm text-muted-foreground">Email: info@wenyasha.ac.zw</p>
-              <p className="text-sm text-muted-foreground">P.O. Box 1234</p>
-              <p className="text-sm text-muted-foreground">Harare, Zimbabwe</p>
+              <p className="font-semibold text-foreground">Able God College</p>
+              <p className="text-sm text-muted-foreground">Phone: {schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
+              <p className="text-sm text-muted-foreground">{schoolContact.address}</p>
             </div>
           </div>
         </div>

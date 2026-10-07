@@ -6,17 +6,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const mockBuses = [
-  { id: 1, number: "WEN-001", route: "Borrowdale - School", driver: "James Sithole", phone: "+263 77 111 2222", capacity: 45, students: 38, status: "Active" },
-  { id: 2, number: "WEN-002", route: "Avondale - School", driver: "Peter Moyo", phone: "+263 77 222 3333", capacity: 45, students: 42, status: "Active" },
-  { id: 3, number: "WEN-003", route: "Mount Pleasant - School", driver: "David Ncube", phone: "+263 77 333 4444", capacity: 40, students: 35, status: "Active" },
-  { id: 4, number: "WEN-004", route: "Eastlea - School", driver: "Thomas Banda", phone: "+263 77 444 5555", capacity: 40, students: 28, status: "Maintenance" },
+  { id: 1, number: "AGC-001", route: "Borrowdale - School", driver: "James Sithole", phone: "+263 77 111 2222", capacity: 45, students: 38, status: "Active" },
+  { id: 2, number: "AGC-002", route: "Avondale - School", driver: "Peter Moyo", phone: "+263 77 222 3333", capacity: 45, students: 42, status: "Active" },
+  { id: 3, number: "AGC-003", route: "Mount Pleasant - School", driver: "David Ncube", phone: "+263 77 333 4444", capacity: 40, students: 35, status: "Active" },
+  { id: 4, number: "AGC-004", route: "Eastlea - School", driver: "Thomas Banda", phone: "+263 77 444 5555", capacity: 40, students: 28, status: "Maintenance" },
 ];
 
 const mockRoutes = [
-  { id: 1, name: "Borrowdale Route", stops: ["Borrowdale Brooke", "Sam Levy Village", "Groombridge", "School"], bus: "WEN-001", departureAM: "06:30", departureAM_School: "07:15", departurePM: "15:30" },
-  { id: 2, name: "Avondale Route", stops: ["Avondale Shops", "King George", "Montagu", "School"], bus: "WEN-002", departureAM: "06:45", departureAM_School: "07:20", departurePM: "15:30" },
-  { id: 3, name: "Mount Pleasant Route", stops: ["Mt Pleasant Shops", "UZ", "Highlands", "School"], bus: "WEN-003", departureAM: "06:30", departureAM_School: "07:10", departurePM: "15:30" },
-  { id: 4, name: "Eastlea Route", stops: ["Eastlea Shops", "Greendale", "Msasa", "School"], bus: "WEN-004", departureAM: "06:40", departureAM_School: "07:15", departurePM: "15:30" },
+  { id: 1, name: "Borrowdale Route", stops: ["Borrowdale Brooke", "Sam Levy Village", "Groombridge", "School"], bus: "AGC-001", departureAM: "06:30", departureAM_School: "07:15", departurePM: "15:30" },
+  { id: 2, name: "Avondale Route", stops: ["Avondale Shops", "King George", "Montagu", "School"], bus: "AGC-002", departureAM: "06:45", departureAM_School: "07:20", departurePM: "15:30" },
+  { id: 3, name: "Mount Pleasant Route", stops: ["Mt Pleasant Shops", "UZ", "Highlands", "School"], bus: "AGC-003", departureAM: "06:30", departureAM_School: "07:10", departurePM: "15:30" },
+  { id: 4, name: "Eastlea Route", stops: ["Eastlea Shops", "Greendale", "Msasa", "School"], bus: "AGC-004", departureAM: "06:40", departureAM_School: "07:15", departurePM: "15:30" },
 ];
 
 const TransportSection = () => {

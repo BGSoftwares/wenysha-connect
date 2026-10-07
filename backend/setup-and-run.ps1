@@ -1,4 +1,4 @@
-# Wenyasha Backend - Setup and Run
+# Able God College Backend - Setup and Run
 # Run this from the backend folder after installing Python 3.10+
 # Usage: .\setup-and-run.ps1
 

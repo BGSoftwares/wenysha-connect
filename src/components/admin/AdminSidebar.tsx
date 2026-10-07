@@ -24,7 +24,7 @@ import {
   CreditCard,
   FileText
 } from "lucide-react";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -161,12 +161,12 @@ const AdminSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mobile
           <div className="flex items-center gap-4 animate-in fade-in slide-in-from-left duration-700">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-accent to-gold-dark p-[2px] shadow-lg shadow-accent/20">
               <div className="h-full w-full rounded-[10px] bg-forest flex items-center justify-center border border-white/10">
-                <img src={logo} alt="Wenyasha" className="h-7 w-7 object-contain" />
+                <img src={logo} alt="Able God College" className="h-7 w-7 object-contain" />
               </div>
             </div>
             <div>
-              <h1 className="font-heading font-black text-lg tracking-wider text-white">WENYASHA</h1>
-              <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em]">International</p>
+              <h1 className="font-heading font-black text-lg tracking-wider text-white">ABLE GOD COLLEGE</h1>
+              <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em]">College</p>
             </div>
           </div>
         )}

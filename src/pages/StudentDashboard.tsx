@@ -18,7 +18,7 @@ import {
   User,
   Award
 } from "lucide-react";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
 import ReportCardSection from "@/components/student/ReportCardSection";
 import StudentFeesSection from "@/components/student/StudentFeesSection";
 import ResultsSection from "@/components/student/ResultsSection";
@@ -420,12 +420,12 @@ const StudentDashboard = () => {
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-accent to-gold-dark p-[2px] shadow-lg shadow-accent/20">
               <div className="h-full w-full rounded-[10px] bg-forest flex items-center justify-center border border-white/10">
-                <img src={logo} alt="Wenyasha" className="h-7 w-7 object-contain" />
+                <img src={logo} alt="Able God College" className="h-7 w-7 object-contain" />
               </div>
             </div>
             <div>
               <h1 className="font-heading font-bold text-lg text-white">Student Portal</h1>
-              <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em]">Wenyasha International</p>
+              <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em]">Able God College</p>
             </div>
           </div>
         </div>

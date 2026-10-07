@@ -3,9 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   HelpCircle, 
-  Mail, 
   Phone, 
-  MessageSquare, 
+  MapPin,
   BookOpen, 
   Key, 
   CreditCard,
@@ -14,6 +13,7 @@ import {
   Users,
   ChevronRight
 } from "lucide-react";
+import { schoolContact } from "@/lib/schoolContact";
 import {
   Accordion,
   AccordionContent,
@@ -29,11 +29,11 @@ const Help = () => {
       questions: [
         {
           q: "How do I reset my password?",
-          a: "Click 'Forgot Password' on the login page and enter your registered email. You'll receive a reset link within 5 minutes. If you don't receive it, check your spam folder or contact IT support."
+          a: `For help resetting your password, call Able God College at ${schoolContact.phones[0].label} or ${schoolContact.phones[1].label}.`
         },
         {
           q: "Why can't I log into my account?",
-          a: "Common reasons include: incorrect credentials, account not yet activated (check with admin), or temporary lockout after multiple failed attempts. Wait 30 minutes or contact support."
+          a: `Check that your username and password are correct and that your account has been approved. For help, call ${schoolContact.phones[0].label} or ${schoolContact.phones[1].label}.`
         },
         {
           q: "How do I update my profile information?",
@@ -151,25 +151,27 @@ const Help = () => {
           <div className="grid md:grid-cols-3 gap-4 mb-12">
             <Card className="text-center hover:shadow-md transition-shadow">
               <CardContent className="pt-6">
-                <Mail className="h-10 w-10 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold mb-1">Email Support</h3>
-                <a href="mailto:support@wenyasha.edu.zw" className="text-sm text-muted-foreground hover:text-primary">
-                  support@wenyasha.edu.zw
+                <Phone className="h-10 w-10 text-primary mx-auto mb-3" />
+                <h3 className="font-semibold mb-1">Phone Support</h3>
+                <a href={schoolContact.phones[0].href} className="text-sm text-muted-foreground hover:text-primary">
+                  {schoolContact.phones[0].label}
                 </a>
               </CardContent>
             </Card>
             <Card className="text-center hover:shadow-md transition-shadow">
               <CardContent className="pt-6">
                 <Phone className="h-10 w-10 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold mb-1">Phone Support</h3>
-                <p className="text-sm text-muted-foreground">+263 39 123 456</p>
+                <h3 className="font-semibold mb-1">Contact the College</h3>
+                <a href={schoolContact.phones[1].href} className="text-sm text-muted-foreground hover:text-primary">
+                  {schoolContact.phones[1].label}
+                </a>
               </CardContent>
             </Card>
             <Card className="text-center hover:shadow-md transition-shadow">
               <CardContent className="pt-6">
-                <MessageSquare className="h-10 w-10 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold mb-1">Office Hours</h3>
-                <p className="text-sm text-muted-foreground">Mon-Fri, 8am-4pm</p>
+                <MapPin className="h-10 w-10 text-primary mx-auto mb-3" />
+                <h3 className="font-semibold mb-1">Visit the College</h3>
+                <p className="text-sm text-muted-foreground">{schoolContact.address}</p>
               </CardContent>
             </Card>
           </div>
@@ -211,15 +213,15 @@ const Help = () => {
               </p>
               <div className="flex gap-4 justify-center flex-wrap">
                 <Button variant="gold" asChild>
-                  <a href="mailto:support@wenyasha.edu.zw">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Contact Support
+                  <a href={schoolContact.phones[0].href}>
+                    <Phone className="h-4 w-4 mr-2" />
+                    Call {schoolContact.phones[0].label}
                   </a>
                 </Button>
                 <Button variant="outline" asChild>
-                  <a href="tel:+26339123456">
+                  <a href={schoolContact.phones[1].href}>
                     <Phone className="h-4 w-4 mr-2" />
-                    Call Us
+                    Call {schoolContact.phones[1].label}
                   </a>
                 </Button>
               </div>

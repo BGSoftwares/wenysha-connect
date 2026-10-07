@@ -1,5 +1,6 @@
 import { Search, Edit, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { SchoolClass, Student as StudentRecord } from "@/lib/hooks";
 
 interface Student {
     id: number | string;
@@ -12,10 +13,10 @@ interface Student {
 }
 
 interface StudentsSectionProps {
-    students: Student[] | undefined;
+    students: StudentRecord[] | undefined;
     isLoading: boolean;
-    error: any;
-    classes: any[] | undefined;
+    error: Error | null;
+    classes: SchoolClass[] | undefined;
     onAddStudent: () => void;
 }
 

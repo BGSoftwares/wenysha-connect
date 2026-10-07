@@ -314,7 +314,7 @@ const BalancesSection = () => {
                 </div>
               </div>
               <div className="bg-muted p-4 text-center border-t border-border mt-4">
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">© 2024 Wenyasha Connect Financial Compliance Engine</p>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">© 2024 Able God College Connect Financial Compliance Engine</p>
               </div>
             </div>
           )}

@@ -1,5 +1,5 @@
 @echo off
-echo Starting Wenyasha Backend (Direct Mode)...
+echo Starting Able God College Backend (Direct Mode)...
 echo.
 set PY="C:\Users\user\AppData\Local\Programs\Python\Python311\python.exe"
 

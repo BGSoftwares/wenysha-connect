@@ -1,5 +1,5 @@
 # Verify Backend Setup
-Write-Host "Verifying Wenyasha Backend Setup..." -ForegroundColor Cyan
+Write-Host "Verifying Able God College Backend Setup..." -ForegroundColor Cyan
 
 # Check Python
 try {

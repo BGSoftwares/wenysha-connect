@@ -48,7 +48,7 @@ The `.gitignore` already excludes:
 git add .
 git status
 # Review: ensure backend/.env and backend/venv/ do NOT appear
-git commit -m "Wenyasha Connect: React + Django backend + MySQL schema"
+git commit -m "Able God College: React + Django backend + MySQL schema"
 git branch -M main
 git push -u origin main
 ```
@@ -68,10 +68,6 @@ git push -u origin main
 
 ---
 
-**Superuser (already set in `backend/.env`, not committed):**
-
-- Username: `wenyasha`
-- Email: `admin@wenyasha.edu.zw`
-- Password: (stored in `backend/.env` as `DJANGO_SUPERUSER_PASSWORD`)
+**Superuser:** use the account configured in your local `backend/.env`. Do not share or commit its credentials.
 
 Run backend setup (after installing Python and MySQL): `cd backend` then `.\setup-and-run.ps1` or `setup-and-run.bat`. The superuser will be created automatically on first migrate.

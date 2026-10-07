@@ -1,6 +1,5 @@
-import { Mail, Phone } from "lucide-react";
-import chrisWenyasha from "@/assets/chris_wenyasha.jpg";
-import africaDay from "@/assets/africa_day_wenyasha.jpg";
+import chrisMoyo from "@/assets/christopher-moyo.jpg";
+import africaDay from "@/assets/school-africa-day.jpg";
 
 interface StaffMember {
   name: string;
@@ -8,17 +7,15 @@ interface StaffMember {
   department: string;
   bio: string;
   image: string | null;
-  email?: string;
 }
 
 const leadership: StaffMember[] = [
   {
     name: "Mr. Christopher Moyo",
-    role: "School Director",
+    role: "College Director",
     department: "Administration",
-    bio: "A visionary leader with over 20 years in education, Mr. Moyo founded Wenyasha International School with a mission to provide world-class education in Zimbabwe.",
-    image: chrisWenyasha,
-    email: "director@wenyasha.edu.zw"
+    bio: "A visionary leader with over 20 years in education, Mr. Moyo founded Able God College with a mission to provide world-class education in Zimbabwe.",
+    image: chrisMoyo,
   },
   {
     name: "Mrs. Grace Chikwanda",
@@ -26,7 +23,6 @@ const leadership: StaffMember[] = [
     department: "Academic Affairs",
     bio: "With a Masters in Education from the University of Zimbabwe, Mrs. Chikwanda oversees curriculum development for both ZIMSEC and Cambridge programmes.",
     image: africaDay,
-    email: "academics@wenyasha.edu.zw"
   },
 ];
 
@@ -84,7 +80,7 @@ const StaffDirectory = () => {
             Our Leadership & Staff
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Meet the dedicated professionals who make Wenyasha International School a centre of excellence.
+            Meet the dedicated professionals who make Able God College a centre of excellence.
           </p>
         </div>
 
@@ -122,15 +118,6 @@ const StaffDirectory = () => {
                     <p className="text-accent font-medium text-sm">{member.role}</p>
                     <p className="text-xs text-muted-foreground mb-2">{member.department}</p>
                     <p className="text-sm text-muted-foreground">{member.bio}</p>
-                    {member.email && (
-                      <a 
-                        href={`mailto:${member.email}`}
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2"
-                      >
-                        <Mail className="h-3 w-3" />
-                        {member.email}
-                      </a>
-                    )}
                   </div>
                 </div>
               </div>

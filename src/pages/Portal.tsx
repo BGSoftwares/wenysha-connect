@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { GraduationCap, Users, Shield, Eye, EyeOff, Mail, Lock, ArrowLeft, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
+import { schoolContact } from "@/lib/schoolContact";
 
 type PortalType = "student" | "teacher" | "admin" | "accounts" | null;
 
@@ -74,7 +75,7 @@ const Portal = () => {
                 <div className="text-center mb-8">
                   <img
                     src={logo}
-                    alt="Wenyasha Logo"
+                    alt="Able God College Logo"
                     className="h-20 w-20 object-contain mx-auto mb-4"
                   />
                   <h1 className="font-heading text-2xl font-bold text-foreground">
@@ -91,12 +92,13 @@ const Portal = () => {
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <input
-                        type="email"
+                        type="text"
+                        autoComplete="username"
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className="w-full pl-10 pr-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                        placeholder="you@wenyasha.edu.zw"
+                        placeholder="Enter your school email or username"
                       />
                     </div>
                   </div>
@@ -147,8 +149,8 @@ const Portal = () => {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Need help? Contact{" "}
-                    <a href="mailto:support@wenyasha.edu.zw" className="text-primary hover:underline">
-                      IT Support
+                    <a href={schoolContact.phones[0].href} className="text-primary hover:underline">
+                      {schoolContact.phones[0].label}
                     </a>
                   </p>
                 </div>
@@ -167,7 +169,7 @@ const Portal = () => {
           <div className="text-center mb-12">
             <img
               src={logo}
-              alt="Wenyasha Logo"
+              alt="Able God College Logo"
               className="h-24 w-24 object-contain mx-auto mb-6"
             />
             <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4">

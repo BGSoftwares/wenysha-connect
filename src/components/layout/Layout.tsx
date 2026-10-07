@@ -10,7 +10,7 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
 
-  // Starlink-style scroll reveal for every section on public pages
+  // Reveal public page sections as they enter the viewport.
   useEffect(() => {
     const sections = document.querySelectorAll<HTMLElement>(".site-starlink main section");
     sections.forEach((s) => s.classList.add("sl-reveal"));
@@ -29,7 +29,7 @@ export const Layout = ({ children }: LayoutProps) => {
   }, [location.pathname]);
 
   return (
-    <div className="dark site-starlink min-h-screen flex flex-col bg-background text-foreground">
+    <div className="site-starlink min-h-screen flex flex-col bg-background text-foreground">
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />

@@ -16,8 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 const AccountsProfileSection = () => {
   const [profileData, setProfileData] = useState({
     name: "John Doe",
-    email: "john.doe@wenyasha.edu.zw",
-    phone: "+263 77 123 4567",
+    email: "",
+    phone: "",
     department: "Accounts",
     role: "Accounts Officer",
   });

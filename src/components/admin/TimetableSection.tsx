@@ -1,7 +1,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { SchoolClass } from "@/lib/hooks";
 
 interface TimetableSectionProps {
-    classes: any[];
+    classes: SchoolClass[];
 }
 
 const TimetableSection = ({ classes }: TimetableSectionProps) => {

@@ -38,11 +38,11 @@ interface Role {
 }
 
 const mockUsers: User[] = [
-  { id: 1, name: "John Moyo", email: "john@wenyasha.edu.zw", role: "Student", status: "Active", createdAt: "2024-01-15" },
-  { id: 2, name: "Mrs. Grace Moyo", email: "grace@wenyasha.edu.zw", role: "Teacher", status: "Active", createdAt: "2023-08-01" },
-  { id: 3, name: "Admin User", email: "admin@wenyasha.edu.zw", role: "Admin", status: "Active", createdAt: "2023-01-01" },
-  { id: 4, name: "Sarah Ndlovu", email: "sarah@wenyasha.edu.zw", role: "Student", status: "Inactive", createdAt: "2024-02-10" },
-  { id: 5, name: "Mr. David Ncube", email: "david@wenyasha.edu.zw", role: "Teacher", status: "Active", createdAt: "2023-06-15" },
+  { id: 1, name: "John Moyo", email: "", role: "Student", status: "Active", createdAt: "2024-01-15" },
+  { id: 2, name: "Mrs. Grace Moyo", email: "", role: "Teacher", status: "Active", createdAt: "2023-08-01" },
+  { id: 3, name: "Admin User", email: "", role: "Admin", status: "Active", createdAt: "2023-01-01" },
+  { id: 4, name: "Sarah Ndlovu", email: "", role: "Student", status: "Inactive", createdAt: "2024-02-10" },
+  { id: 5, name: "Mr. David Ncube", email: "", role: "Teacher", status: "Active", createdAt: "2023-06-15" },
 ];
 
 const mockRoles: Role[] = [
@@ -358,7 +358,7 @@ const UsersRolesSection = ({ activeSubNav }: UsersRolesSectionProps) => {
                       <span className="font-medium text-foreground">{user.name}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{user.email}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{user.email || "Not provided"}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                       user.role === "Admin" ? "bg-primary/10 text-primary" :

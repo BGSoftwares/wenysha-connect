@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Menu, X, LogOut, User as UserIcon, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
 import { getStoredUser, clearAuth } from "@/lib/api";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -45,21 +45,21 @@ export const Header = () => {
   };
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ${scrolled ? "bg-background/90 backdrop-blur-md border-b border-white/10" : "bg-transparent"}`}>
+    <header className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ${scrolled ? "bg-primary/95 backdrop-blur-md border-b border-white/10 shadow-lg" : "bg-transparent"}`}>
       <div className="container mx-auto px-4">
         <div className="flex h-20 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
             <img
               src={logo}
-              alt="Wenyasha International School"
+              alt="Able God College"
               className="h-14 w-14 object-contain rounded-lg border-2 border-accent/30 transition-transform group-hover:scale-105"
             />
             <div className="hidden sm:block">
               <h1 className="font-heading text-xl font-bold text-white leading-tight drop-shadow-md">
-                Wenyasha
+                Able God College
               </h1>
-              <p className="text-xs text-accent font-medium">International School</p>
+              <p className="text-xs text-accent font-medium">College</p>
             </div>
           </Link>
 

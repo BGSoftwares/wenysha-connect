@@ -97,7 +97,7 @@ export const exportFeeStatementPdf = async (data: FeeStatementPdfData) => {
   // Header
   pdf.setFontSize(18);
   pdf.setFont("helvetica", "bold");
-  pdf.text("WENYASHA INTERNATIONAL SCHOOL", pageWidth / 2, yPos, { align: "center" });
+  pdf.text("ABLE GOD COLLEGE", pageWidth / 2, yPos, { align: "center" });
   yPos += 8;
   
   pdf.setFontSize(14);

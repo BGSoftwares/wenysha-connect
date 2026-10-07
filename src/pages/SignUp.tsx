@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import logo from "@/assets/wenyasha-logo.jpg";
+import logo from "/able-god-college-logo.png";
 import { signup, getErrorMessage } from "@/lib/api";
 
 type RoleType = "student" | "parent" | "teacher" | "accounts";
@@ -133,14 +133,14 @@ const SignUp = () => {
               <div className="text-center mb-8">
                 <img
                   src={logo}
-                  alt="Wenyasha Logo"
+                  alt="Able God College Logo"
                   className="h-20 w-20 object-contain mx-auto mb-4"
                 />
                 <h1 className="font-heading text-2xl font-bold text-foreground">
                   Create an Account
                 </h1>
                 <p className="text-muted-foreground text-sm">
-                  Register to access the Wenyasha school portal
+                  Register to access the Able God College school portal
                 </p>
               </div>
 

@@ -8,18 +8,14 @@ import slideBlazers from "@/assets/slide-blazers.webp";
 import slideSportsTeam from "@/assets/slide-sports-team.webp";
 import slideExam from "@/assets/slide-exam.webp";
 import slideOutdoorGroup from "@/assets/slide-outdoor-group.webp";
-import slidePrizeGiving from "@/assets/slide-prize-giving.jpeg";
-import slideAward from "@/assets/slide-award.jpeg";
 import slideStudentsSeated from "@/assets/slide-students-seated.jpeg";
 
 const slides = [
-  { image: slideGroupClass, title: "Welcome to Wenyasha International School" },
+  { image: slideGroupClass, title: "Welcome to Able God College" },
   { image: slideBlazers, title: "Excellence in Education" },
   { image: slideSportsTeam, title: "Sports & Recreation" },
   { image: slideExam, title: "Academic Focus" },
   { image: slideOutdoorGroup, title: "Building Future Leaders" },
-  { image: slidePrizeGiving, title: "Celebrating Achievement" },
-  { image: slideAward, title: "Recognizing Excellence" },
   { image: slideStudentsSeated, title: "Proud Students" },
 ];
 
@@ -63,9 +59,7 @@ const HeroCarousel = () => {
               transitionDuration: '8000ms'
             }}
           />
-          {/* Starlink-style darkening */}
-          <div className="absolute inset-0 bg-forest-dark/40" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          <div className="absolute inset-0 hero-image-shade" />
         </div>
       ))}
 
@@ -73,7 +67,7 @@ const HeroCarousel = () => {
       <div className="absolute inset-x-0 bottom-28 md:bottom-32 z-10 px-6 md:px-20">
         <div key={currentSlide} className="max-w-3xl animate-fade-in">
           <p className="text-xs md:text-sm uppercase tracking-[0.35em] text-white/70 mb-4">
-            Est. 2024 • Wenyasha International
+            Est. 2024 • Able God College
           </p>
           <h1 className="text-4xl md:text-6xl font-medium uppercase tracking-wide text-white leading-[1.05]">
             {slides[currentSlide].title}

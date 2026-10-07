@@ -2,7 +2,7 @@
 
 ## Summary
 
-The Wenyasha Connect frontend is a React 18 + TypeScript (Vite) SPA with four portal types: **Student**, **Teacher**, **Admin**, **Accounts**. All data is currently **mock** (in-memory); no API calls exist.
+The Able God College frontend is a React 18 + TypeScript (Vite) SPA with four portal types: **Student**, **Teacher**, **Admin**, **Accounts**.
 
 ---
 

@@ -20,7 +20,7 @@ const CoreSubjectsSection = () => {
             Core Subjects
           </h2>
           <p className="text-muted-foreground max-w-3xl mx-auto">
-            At Wenyasha International School, our O-Level curriculum offers a broad and balanced foundation following the{" "}
+            At Able God College, our O-Level curriculum offers a broad and balanced foundation following the{" "}
             <span className="font-semibold text-primary">Cambridge International Examinations (CIE)</span> and{" "}
             <span className="font-semibold text-accent">ZIMSEC</span> syllabi.
           </p>

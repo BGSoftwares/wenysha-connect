@@ -55,14 +55,24 @@ export interface Subject {
 // --- Hooks ---
 
 // Helper function to extract array from paginated or non-paginated response
-function extractArray<T>(response: any): T[] {
+function extractArray<T>(response: unknown): T[] {
     if (Array.isArray(response)) {
-        return response;
+        return response as T[];
     }
-    if (response && Array.isArray(response.results)) {
-        return response.results;
+    if (typeof response === "object" && response !== null && "results" in response) {
+        const results = response.results;
+        if (Array.isArray(results)) return results as T[];
     }
     return [];
+}
+
+function toQueryParams(params?: Record<string, string | number | undefined>): Record<string, string> | undefined {
+    if (!params) return undefined;
+    return Object.fromEntries(
+        Object.entries(params)
+            .filter((entry): entry is [string, string | number] => entry[1] !== undefined)
+            .map(([key, value]) => [key, String(value)]),
+    );
 }
 
 // Students
@@ -70,7 +80,7 @@ export const useStudents = () => {
     return useQuery({
         queryKey: ["students"],
         queryFn: async () => {
-            const response = await api.get<any>("/school/students/");
+            const response = await api.get<unknown>("/school/students/");
             return extractArray<Student>(response);
         },
     });
@@ -117,7 +127,7 @@ export const useClasses = () => {
     return useQuery({
         queryKey: ["classes"],
         queryFn: async () => {
-            const response = await api.get<any>("/school/classes/");
+            const response = await api.get<unknown>("/school/classes/");
             return extractArray<SchoolClass>(response);
         },
     });
@@ -140,7 +150,7 @@ export const useTeachers = () => {
     return useQuery({
         queryKey: ["teachers"],
         queryFn: async () => {
-            const response = await api.get<any>("/school/teachers/");
+            const response = await api.get<unknown>("/school/teachers/");
             return extractArray<Teacher>(response);
         },
     });
@@ -162,7 +172,7 @@ export const useAllocations = (params?: { teacher?: number; subject?: number; sc
     return useQuery({
         queryKey: ["allocations", params],
         queryFn: async () => {
-            const response = await api.get<any>("/school/allocations/", params as any);
+            const response = await api.get<unknown>("/school/allocations/", toQueryParams(params));
             return extractArray<Allocation>(response);
         },
     });
@@ -174,7 +184,7 @@ export const useTeacherProfile = () => {
         queryKey: ["teacher-profile", user?.id],
         queryFn: async () => {
             if (!user) return null;
-            const response = await api.get<any>("/school/teachers/");
+            const response = await api.get<unknown>("/school/teachers/");
             const teachers = extractArray<Teacher>(response);
             return teachers.find(t => t.user === user.id) || null;
         },
@@ -189,7 +199,7 @@ export const useStudentProfile = () => {
         queryFn: async () => {
             if (!user) return null;
             try {
-                const response = await api.get<any>("/school/students/");
+                const response = await api.get<unknown>("/school/students/");
                 const students = extractArray<Student>(response);
                 
                 // Find student - handle both number and string comparison
@@ -213,7 +223,7 @@ export const useParentProfile = () => {
         queryKey: ["parent-profile", user?.id],
         queryFn: async () => {
             if (!user) return null;
-            const response = await api.get<any>("/parents/parents/");
+            const response = await api.get<unknown>("/parents/parents/");
             const parents = extractArray<Parent>(response);
             return parents.find(p => p.user === user.id) || null;
         },
@@ -226,7 +236,7 @@ export const useSubjects = () => {
     return useQuery({
         queryKey: ["subjects"],
         queryFn: async () => {
-            const response = await api.get<any>("/school/subjects/");
+            const response = await api.get<unknown>("/school/subjects/");
             return extractArray<Subject>(response);
         },
     });
@@ -277,7 +287,7 @@ export const useBooks = (params?: { category?: string; search?: string }) => {
             const cleanParams: Record<string, string> = {};
             if (params?.category) cleanParams.category = params.category;
             if (params?.search) cleanParams.search = params.search;
-            const response = await api.get<any>("/library/books/", cleanParams);
+            const response = await api.get<unknown>("/library/books/", cleanParams);
             return extractArray<Book>(response);
         },
     });
@@ -319,7 +329,7 @@ export const useBorrowings = (params?: { status?: string }) => {
         queryFn: async () => {
             const p: Record<string, string> = {};
             if (params?.status) p.status = params.status;
-            return extractArray<Borrowing>(await api.get<any>("/library/borrowings/", p));
+            return extractArray<Borrowing>(await api.get<unknown>("/library/borrowings/", p));
         },
     });
 };
@@ -327,7 +337,7 @@ export const useBorrowings = (params?: { status?: string }) => {
 export const useMyBorrowings = () => {
     return useQuery({
         queryKey: ["borrowings", "mine"],
-        queryFn: async () => extractArray<Borrowing>(await api.get<any>("/library/borrowings/mine/")),
+        queryFn: async () => extractArray<Borrowing>(await api.get<unknown>("/library/borrowings/mine/")),
     });
 };
 
@@ -372,7 +382,7 @@ export const useParents = () => {
     return useQuery({
         queryKey: ["parents"],
         queryFn: async () => {
-            const response = await api.get<any>("/parents/parents/");
+            const response = await api.get<unknown>("/parents/parents/");
             return extractArray<Parent>(response);
         },
     });
@@ -382,7 +392,7 @@ export const useStudentParentLinks = (params?: { parent?: number; student?: numb
     return useQuery({
         queryKey: ["student-parents", params],
         queryFn: async () => {
-            const response = await api.get<any>("/parents/student-parents/", params as any);
+            const response = await api.get<unknown>("/parents/student-parents/", toQueryParams(params));
             return extractArray<StudentParent>(response);
         },
     });
@@ -490,7 +500,7 @@ export const useGrades = (params?: { student?: number; assessment?: number }) =>
     return useQuery({
         queryKey: ["grades", params],
         queryFn: async () => {
-            const response = await api.get<any>("/school/grades/", params as any);
+            const response = await api.get<unknown>("/school/grades/", toQueryParams(params));
             return extractArray<Grade>(response);
         },
         enabled: !!params?.student,
@@ -502,7 +512,7 @@ export const useExams = (params?: { term?: string; year?: string; status?: strin
     return useQuery({
         queryKey: ["exams", params],
         queryFn: async () => {
-            const response = await api.get<any>("/exams/exams/", params as any);
+            const response = await api.get<unknown>("/exams/exams/", toQueryParams(params));
             return extractArray<Exam>(response);
         },
     });
@@ -524,7 +534,7 @@ export const useExamSchedules = (params?: { exam?: number; subject?: number; sch
     return useQuery({
         queryKey: ["exam-schedules", params],
         queryFn: async () => {
-            const response = await api.get<any>("/exams/schedules/", params as any);
+            const response = await api.get<unknown>("/exams/schedules/", toQueryParams(params));
             return extractArray<ExamSchedule>(response);
         },
     });
@@ -534,7 +544,7 @@ export const useExamMarks = (params?: { exam?: number; student?: number; subject
     return useQuery({
         queryKey: ["exam-marks", params],
         queryFn: async () => {
-            const response = await api.get<any>("/exams/marks/", params as any);
+            const response = await api.get<unknown>("/exams/marks/", toQueryParams(params));
             return extractArray<ExamMark>(response);
         },
         enabled: !!params?.student || !!params?.exam,
@@ -558,7 +568,7 @@ export const useAttendanceRecords = (params?: { student?: number; date?: string;
     return useQuery({
         queryKey: ["attendance-records", params],
         queryFn: async () => {
-            const response = await api.get<any>("/attendance/attendance/", params as any);
+            const response = await api.get<unknown>("/attendance/attendance/", toQueryParams(params));
             return extractArray<AttendanceRecord>(response);
         },
         enabled: !params?.student ? true : !!params.student,
@@ -583,7 +593,7 @@ export const useAdmissions = () => {
     return useQuery({
         queryKey: ["admissions"],
         queryFn: async () => {
-            const response = await api.get<any>("/admissions/applications/");
+            const response = await api.get<unknown>("/admissions/applications/");
             return extractArray<AdmissionApplication>(response);
         },
     });
@@ -593,7 +603,7 @@ export const useStudentFees = (params?: { student?: number; status?: string }) =
     return useQuery({
         queryKey: ["student-fees", params],
         queryFn: async () => {
-            const response = await api.get<any>("/school/student-fees/", params as any);
+            const response = await api.get<unknown>("/school/student-fees/", toQueryParams(params));
             return extractArray<StudentFee>(response);
         },
         enabled: !!params?.student,
@@ -667,7 +677,7 @@ export const useFeeStructures = () => {
     return useQuery({
         queryKey: ["fee-structures"],
         queryFn: async () => {
-            const response = await api.get<any>("/finance/fee-structures/");
+            const response = await api.get<unknown>("/finance/fee-structures/");
             return extractArray<FeeStructure>(response);
         },
     });
@@ -716,7 +726,7 @@ export const useInvoices = (params?: { student?: number; status?: string }) => {
             const cleanParams: Record<string, string> = {};
             if (params?.student) cleanParams.student = String(params.student);
             if (params?.status) cleanParams.status = params.status;
-            const response = await api.get<any>("/finance/invoices/", cleanParams);
+            const response = await api.get<unknown>("/finance/invoices/", cleanParams);
             return extractArray<Invoice>(response);
         },
     });
@@ -728,7 +738,7 @@ export const usePayments = (params?: { invoice?: number }) => {
         queryFn: async () => {
             const cleanParams: Record<string, string> = {};
             if (params?.invoice) cleanParams.invoice = String(params.invoice);
-            const response = await api.get<any>("/finance/payments/", cleanParams);
+            const response = await api.get<unknown>("/finance/payments/", cleanParams);
             return extractArray<Payment>(response);
         },
     });
@@ -738,7 +748,7 @@ export const useStudentBalances = () => {
     return useQuery({
         queryKey: ["student-balances"],
         queryFn: async () => {
-            const response = await api.get<any>("/finance/balances/");
+            const response = await api.get<unknown>("/finance/balances/");
             return extractArray<StudentBalance>(response);
         },
     });
@@ -748,7 +758,7 @@ export const useDiscounts = (params?: { student?: number }) => {
     return useQuery({
         queryKey: ["discounts", params],
         queryFn: async () => {
-            const response = await api.get<any>("/finance/discounts/", params as any);
+            const response = await api.get<unknown>("/finance/discounts/", toQueryParams(params));
             return extractArray<Discount>(response);
         },
     });

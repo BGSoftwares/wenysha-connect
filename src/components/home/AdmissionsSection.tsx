@@ -26,16 +26,16 @@ const AdmissionsSection = () => {
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4 text-center">
           <h3 className="font-heading text-2xl md:text-3xl font-bold text-foreground mb-4">
-            Wenyasha International School Admissions
+            Able God College Admissions
           </h3>
           <div className="w-16 h-1 bg-primary mx-auto mb-8" />
           
           <p className="text-muted-foreground max-w-3xl mx-auto mb-6 leading-relaxed">
-            Welcome to Wenyasha International School admissions, where academic excellence meets tradition
+            Welcome to Able God College admissions, where academic excellence meets tradition
             and opportunity. Every year, we welcome new learners into our community through a fair and
             transparent admissions process. Whether you are applying for Form One, seeking a
             transfer, or joining us at A-Level (Lower 6), this page provides everything you need to begin
-            your journey at Wenyasha International School.
+            your journey at Able God College.
           </p>
           
           <p className="text-muted-foreground max-w-3xl mx-auto mb-8 leading-relaxed">

@@ -1,4 +1,4 @@
-# MySQL Database Schema (Wenyasha Connect)
+# MySQL Database Schema (Able God College)
 
 Normalized schema derived from frontend entities. All IDs are integer primary keys unless noted.
 

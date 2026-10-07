@@ -1,4 +1,4 @@
-# How to Run Wenyasha Connect (Frontend + Backend)
+# How to Run Able God College (Frontend + Backend)
 
 ## Prerequisites
 

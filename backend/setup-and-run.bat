@@ -1,5 +1,5 @@
 @echo off
-REM Wenyasha Backend - Setup and Run (Windows CMD)
+REM Able God College Backend - Setup and Run (Windows CMD)
 REM Run from backend folder after installing Python 3.10+
 REM Usage: setup-and-run.bat
 

@@ -1,5 +1,5 @@
 @echo off
-echo Starting Wenyasha Frontend...
+echo Starting Able God College Frontend...
 echo.
 set "PATH=C:\Program Files\nodejs;%PATH%"
 

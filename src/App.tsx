@@ -35,7 +35,7 @@ const PageLoader = () => (
         </div>
       </div>
       <div className="flex flex-col items-center gap-2">
-        <h2 className="font-heading font-black text-2xl text-white tracking-widest">WENYASHA</h2>
+        <h2 className="font-heading font-black text-2xl text-white tracking-widest">ABLE GOD COLLEGE</h2>
         <div className="flex gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
           <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />

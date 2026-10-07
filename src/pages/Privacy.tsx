@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Lock, Eye, Database, UserCheck, Mail } from "lucide-react";
+import { schoolContact } from "@/lib/schoolContact";
 
 const Privacy = () => {
   const sections = [
@@ -69,9 +70,8 @@ const Privacy = () => {
       title: "Contact Us",
       content: [
         "For privacy concerns, contact our Data Protection Officer",
-        "Email: privacy@wenyasha.edu.zw",
-        "Phone: +263 39 123 456",
-        "Address: Wenyasha International School, Masvingo",
+        `Phone: ${schoolContact.phones.map((phone) => phone.label).join(" / ")}`,
+        `Address: ${schoolContact.address}`,
         "Response time: Within 48 business hours",
         "Written requests processed within 30 days"
       ]
@@ -88,7 +88,7 @@ const Privacy = () => {
               Privacy Policy
             </h1>
             <p className="text-muted-foreground text-lg">
-              Your privacy is important to us. This policy explains how Wenyasha International School 
+              Your privacy is important to us. This policy explains how Able God College
               collects, uses, and protects your personal information.
             </p>
             <p className="text-sm text-muted-foreground mt-4">
@@ -121,7 +121,7 @@ const Privacy = () => {
 
           <div className="mt-12 p-6 bg-secondary/50 rounded-xl text-center">
             <p className="text-muted-foreground">
-              By using Wenyasha International School's portal and services, you agree to the 
+              By using Able God College's portal and services, you agree to the
               collection and use of information in accordance with this policy.
             </p>
           </div>

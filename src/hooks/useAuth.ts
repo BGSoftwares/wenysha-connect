@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, login as apiLogin, clearAuth, getStoredUser, getToken } from '@/lib/api';
+import { api, login as apiLogin, clearAuth, getStoredUser, getToken, getErrorMessage } from '@/lib/api';
 
 interface User {
   id: number;
@@ -58,8 +58,8 @@ export function useAuth() {
       setIsOffline(false);
       setLoading(false);
       return true;
-    } catch (err: any) {
-      setError(err?.detail || 'Login failed. Please check your credentials.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
       setLoading(false);
       return false;
     }

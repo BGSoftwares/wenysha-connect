@@ -16,7 +16,7 @@ import { toast } from "@/hooks/use-toast";
 
 const ProfileSection = () => {
   const [fullName, setFullName] = useState("Admin User");
-  const [email, setEmail] = useState("admin@wenyasha.edu.zw");
+  const [email, setEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

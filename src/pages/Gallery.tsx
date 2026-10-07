@@ -36,7 +36,7 @@ const Gallery = () => {
             Photo Gallery
           </h1>
           <p className="text-xl text-primary-foreground/80 max-w-2xl mx-auto">
-            Capturing memories and celebrating moments at Wenyasha International School.
+            Capturing memories and celebrating moments at Able God College.
           </p>
         </div>
       </section>

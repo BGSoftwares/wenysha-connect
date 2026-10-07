@@ -95,7 +95,7 @@ const StudentSettingsSection = () => {
                   <Label htmlFor="email">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" type="email" defaultValue="tatenda.moyo@student.wenyasha.edu.zw" className="pl-10" />
+                    <Input id="email" type="email" defaultValue="tatenda.moyo@student.ablegodcollege.edu.zw" className="pl-10" />
                   </div>
                 </div>
                 <div className="space-y-2">

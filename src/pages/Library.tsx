@@ -4,6 +4,7 @@ import { Book as BookIcon, Search, Library as LibraryIcon, ExternalLink, ArrowRi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBooks, useBorrowBook } from "@/lib/hooks";
+import type { Book } from "@/lib/hooks";
 import { toast } from "sonner";
 import {
     Dialog,
@@ -26,7 +27,7 @@ const categories = [
 const Library = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
-    const [selectedBook, setSelectedBook] = useState<any>(null);
+    const [selectedBook, setSelectedBook] = useState<Book | null>(null);
     const [isBorrowModalOpen, setIsBorrowModalOpen] = useState(false);
 
     const { data: books, isLoading } = useBooks({ search: searchTerm, category: selectedCategory });
@@ -56,7 +57,7 @@ const Library = () => {
                 <div className="container mx-auto px-4 relative z-10">
                     <div className="max-w-3xl">
                         <Badge variant="outline" className="text-accent border-accent/30 mb-6 bg-accent/10 px-4 py-1">
-                            WENYASHA DIGITAL REPOSITORY
+                            ABLE GOD COLLEGE DIGITAL REPOSITORY
                         </Badge>
                         <h1 className="text-4xl md:text-6xl font-heading font-black text-white mb-6 leading-tight">
                             Your Gateway to <span className="text-accent underline decoration-accent/30">Infinite Knowledge.</span>
