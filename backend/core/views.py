@@ -31,6 +31,23 @@ def get_tokens_for_user(user):
     }
 
 
+def get_portal_profile(user):
+    """Return the authoritative portal role and display name for an account."""
+    full_name = user.get_full_name() or user.username
+    role = None
+    try:
+        profile = user.profile
+        role = profile.role.name if profile.role else None
+        full_name = profile.full_name or full_name
+    except UserProfile.DoesNotExist:
+        pass
+    # Django staff and superuser accounts always belong to the admin portal,
+    # including legacy accounts created before role profiles were introduced.
+    if user.is_superuser or user.is_staff:
+        role = 'Admin'
+    return role, full_name
+
+
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -46,15 +63,15 @@ class LoginView(APIView):
             return Response({'detail': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.is_active:
             return Response({'detail': 'User account is disabled.'}, status=status.HTTP_403_FORBIDDEN)
+        role, full_name = get_portal_profile(user)
+        if not role:
+            return Response(
+                {'detail': 'This account has no portal role assigned. Please contact the school administrator.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         tokens = get_tokens_for_user(user)
-        # Include role if profile exists
-        try:
-            profile = user.profile
-            tokens['user']['role'] = profile.role.name if profile.role else None
-            tokens['user']['full_name'] = profile.full_name or user.username
-        except UserProfile.DoesNotExist:
-            tokens['user']['role'] = None
-            tokens['user']['full_name'] = user.username
+        tokens['user']['role'] = role
+        tokens['user']['full_name'] = full_name
         return Response(tokens)
 
 
@@ -64,14 +81,7 @@ class CurrentUserView(APIView):
 
     def get(self, request):
         user = request.user
-        role = None
-        full_name = user.get_full_name() or user.username
-        try:
-            profile = user.profile
-            role = profile.role.name if profile.role else None
-            full_name = profile.full_name or full_name
-        except UserProfile.DoesNotExist:
-            pass
+        role, full_name = get_portal_profile(user)
         return Response({
             'id': user.id,
             'username': user.username,

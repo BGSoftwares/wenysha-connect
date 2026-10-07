@@ -6,6 +6,7 @@ import logo from "/able-god-college-logo.png";
 import { getStoredUser, clearAuth } from "@/lib/api";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { dashboardPathForRole, normalizePortalRole } from "@/lib/portalRoles";
 
 const navLinks = [
   { name: "Home", path: "/" },
@@ -36,6 +37,8 @@ export const Header = () => {
   }, []);
 
   const isActive = (path: string) => location.pathname === path;
+  const dashboardPath = dashboardPathForRole(user?.role);
+  const useSolidHeader = scrolled || ["/portal", "/auth", "/signup"].includes(location.pathname);
 
   const handleLogout = () => {
     clearAuth();
@@ -45,18 +48,18 @@ export const Header = () => {
   };
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ${scrolled ? "bg-primary/95 backdrop-blur-md border-b border-white/10 shadow-lg" : "bg-transparent"}`}>
+    <header className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ${useSolidHeader ? "bg-gradient-to-r from-[#10264f] via-[#283d72] to-[#b51e63] backdrop-blur-md border-b border-white/15 shadow-lg" : "bg-transparent"}`}>
       <div className="container mx-auto px-4">
         <div className="flex h-20 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to="/" className="flex shrink-0 items-center gap-3 group">
             <img
               src={logo}
               alt="Able God College"
               className="h-14 w-14 object-contain rounded-lg border-2 border-accent/30 transition-transform group-hover:scale-105"
             />
             <div className="hidden sm:block">
-              <h1 className="font-heading text-xl font-bold text-white leading-tight drop-shadow-md">
+              <h1 className="font-heading text-xl font-bold text-white leading-tight drop-shadow-md whitespace-nowrap">
                 Able God College
               </h1>
               <p className="text-xs text-accent font-medium">College</p>
@@ -86,7 +89,7 @@ export const Header = () => {
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
                   <UserIcon className="h-4 w-4 text-accent" />
                   <span className="text-white text-sm font-medium">{user.full_name || user.username}</span>
-                  {user.role === 'admin' && <Shield className="h-3 w-3 text-red-400" />}
+                  {normalizePortalRole(user.role) === 'admin' && <Shield className="h-3 w-3 text-red-400" />}
                 </div>
                 <Button
                   variant="ghost"
@@ -103,7 +106,7 @@ export const Header = () => {
                   asChild
                   className="rounded-full px-6 shadow-lg shadow-accent/20"
                 >
-                  <Link to={`/${user.role === 'admin' ? 'admin' : user.role === 'parent' ? 'parent-portal' : 'portal'}`}>
+                  <Link to={dashboardPath || "/auth"}>
                     Dashboard
                   </Link>
                 </Button>
@@ -152,7 +155,7 @@ export const Header = () => {
                       className="w-full"
                       asChild
                     >
-                      <Link to={`/${user.role === 'admin' ? 'admin' : user.role === 'parent' ? 'parent-portal' : 'portal'}`} onClick={() => setIsOpen(false)}>
+                      <Link to={dashboardPath || "/auth"} onClick={() => setIsOpen(false)}>
                         Go to Dashboard
                       </Link>
                     </Button>

@@ -101,7 +101,8 @@ const ParentPortal = () => {
 
     return (
         <Layout>
-            <section className="py-12 bg-forest relative overflow-hidden">
+            <div className="portal-dashboard portal-parent-dashboard">
+            <section className="portal-parent-hero py-12 bg-forest relative overflow-hidden">
                 <div className="absolute inset-0 bg-noise opacity-10" />
                 <div className="container mx-auto px-4 relative z-10">
                     <div className="max-w-3xl">
@@ -118,7 +119,7 @@ const ParentPortal = () => {
                 </div>
             </section>
 
-            <section className="py-8 bg-secondary/10 min-h-screen">
+            <section className="portal-parent-content py-8 bg-secondary/10 min-h-screen">
                 <div className="container mx-auto px-4">
                     {isLoadingParent ? (
                         <div className="space-y-4">
@@ -170,17 +171,17 @@ const ParentPortal = () => {
                                 <div className="animate-in fade-in slide-in-from-bottom duration-500">
                                     {/* Quick Stats Grid */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                                        <Card className="bg-gradient-to-br from-blue-500/5 to-transparent border-blue-500/20">
+                                        <Card className="bg-gradient-to-br from-accent/10 to-transparent border-accent/20">
                                             <CardContent className="pt-6">
                                                 <div className="flex justify-between items-start mb-4">
-                                                    <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                                                        <TrendingUp className="h-6 w-6 text-blue-600" />
+                                                    <div className="h-12 w-12 rounded-xl bg-accent/15 flex items-center justify-center">
+                                                        <TrendingUp className="h-6 w-6 text-accent" />
                                                     </div>
-                                                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Top 15%</Badge>
+                                                    <Badge className="bg-accent/10 text-accent hover:bg-accent/10">Top 15%</Badge>
                                                 </div>
                                                 <h3 className="text-muted-foreground text-sm font-medium">Academic Average</h3>
                                                 <p className="text-3xl font-black text-foreground mt-1">{averageScore.toFixed(1)}%</p>
-                                                <Progress value={averageScore} className="h-2 mt-4 bg-blue-100" />
+                                                <Progress value={averageScore} className="h-2 mt-4 bg-accent/10" />
                                             </CardContent>
                                         </Card>
 
@@ -396,6 +397,7 @@ const ParentPortal = () => {
                     )}
                 </div>
             </section>
+            </div>
         </Layout>
     );
 };

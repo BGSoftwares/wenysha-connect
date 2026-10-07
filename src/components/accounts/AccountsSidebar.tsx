@@ -99,7 +99,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mob
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileOpen?.(false)} />
       )}
       <aside className={cn(
-        "bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-all duration-300 border-r border-white/5",
+        "portal-sidebar bg-[hsl(var(--forest-dark))] text-white/90 flex flex-col transition-all duration-300 border-r border-white/5",
         "fixed lg:static inset-y-0 left-0 z-50 lg:translate-x-0",
         mobileOpen ? "translate-x-0" : "-translate-x-full",
         collapsed ? "w-16" : "w-64"

@@ -61,7 +61,7 @@ const AccountsDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen flex w-full bg-background dashboard-3d">
+    <div className="min-h-screen flex w-full bg-background dashboard-3d portal-dashboard">
       <AccountsSidebar
         activeNav={activeNav}
         setActiveNav={setActiveNav}

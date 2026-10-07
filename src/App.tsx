@@ -5,6 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ErrorBoundary from "./components/ErrorBoundary";
 import React, { Suspense, lazy } from "react";
+import { PortalRoute } from "./components/auth/PortalRoute";
 
 // Lazy loaded components for optimized performance
 const Index = lazy(() => import("./pages/Index"));
@@ -60,11 +61,11 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/portal" element={<Portal />} />
-              <Route path="/admin/*" element={<AdminDashboard />} />
-              <Route path="/student/*" element={<StudentDashboard />} />
-              <Route path="/teacher/*" element={<TeacherDashboard />} />
-              <Route path="/accounts/*" element={<AccountsDashboard />} />
-              <Route path="/parent/*" element={<ParentPortal />} />
+              <Route path="/admin/*" element={<PortalRoute role="admin"><AdminDashboard /></PortalRoute>} />
+              <Route path="/student/*" element={<PortalRoute role="student"><StudentDashboard /></PortalRoute>} />
+              <Route path="/teacher/*" element={<PortalRoute role="teacher"><TeacherDashboard /></PortalRoute>} />
+              <Route path="/accounts/*" element={<PortalRoute role="accounts"><AccountsDashboard /></PortalRoute>} />
+              <Route path="/parent/*" element={<PortalRoute role="parent"><ParentPortal /></PortalRoute>} />
               <Route path="/about" element={<About />} />
               <Route path="/academics" element={<Academics />} />
               <Route path="/gallery" element={<Gallery />} />

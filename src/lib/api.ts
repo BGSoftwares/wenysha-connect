@@ -106,9 +106,20 @@ async function request<T>(
   } catch {
     throw { detail: "Unable to reach the server. Please check your internet connection or try again later." } as ApiError;
   }
+  // Renew an expired access token once, then retry the protected request.
+  if (res.status === 401 && token && !/\/auth\/(login|token\/refresh)\//.test(path)) {
+    try {
+      const refreshedToken = await refreshAccessToken();
+      (headers as Record<string, string>)["Authorization"] = `Bearer ${refreshedToken}`;
+      res = await fetch(url, { ...init, headers });
+    } catch {
+      clearAuth();
+    }
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err: ApiError = typeof data === "object" ? data : { detail: res.statusText };
+    const err: ApiError = typeof data === "object" && data !== null ? data : {};
+    if (!err.detail) err.detail = res.statusText || `Request failed (${res.status})`;
     throw err;
   }
   return data as T;

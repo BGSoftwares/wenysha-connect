@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "/able-god-college-logo.png";
-import { login, signup, getErrorMessage } from "@/lib/api";
+import { login, signup, getErrorMessage, clearAuth } from "@/lib/api";
 import { toast } from "sonner";
+import { dashboardPathForRole } from "@/lib/portalRoles";
 
 const Auth = () => {
     const [isLogin, setIsLogin] = useState(true);
@@ -40,14 +41,13 @@ const Auth = () => {
                 const data = await login(email, password);
                 toast.success(`Welcome back, ${data.user.full_name || data.user.username}`);
 
-                // Redirect based on role
-                const role = (data.user.role || '').toLowerCase();
-                if (role === 'admin') navigate('/admin');
-                else if (role === 'parent') navigate('/parent');
-                else if (role === 'student') navigate('/student');
-                else if (role === 'teacher') navigate('/teacher');
-                else if (role === 'accounts') navigate('/accounts');
-                else navigate('/portal');
+                const dashboard = dashboardPathForRole(data.user.role);
+                if (!dashboard) {
+                    clearAuth();
+                    toast.error("Your account does not have a portal role yet. Please contact the school administrator.");
+                    return;
+                }
+                navigate(dashboard, { replace: true });
             } else {
                 if (password !== confirmPassword) {
                     toast.error("Passwords do not match");

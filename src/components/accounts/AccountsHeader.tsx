@@ -8,7 +8,7 @@ interface AccountsHeaderProps {
 
 const AccountsHeader = ({ title, breadcrumb, onMenuClick }: AccountsHeaderProps) => {
   return (
-    <header className="sticky top-0 z-30 bg-card border-b border-border px-6 py-4">
+    <header className="portal-header sticky top-0 z-30 bg-card border-b border-border px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {onMenuClick && (
