@@ -40,13 +40,7 @@ const Library = () => {
         }
 
         try {
-            await borrowMutation.mutateAsync({
-                book: selectedBook.id,
-                student: user.id, // Assuming student ID matches user ID for simplicity if profile exists
-                borrow_date: new Date().toISOString().split('T')[0],
-                due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 14 days
-                status: "Borrowed"
-            });
+            await borrowMutation.mutateAsync(selectedBook.id);
             toast.success("Borrowing request submitted successfully!");
             setIsBorrowModalOpen(false);
         } catch (error) {

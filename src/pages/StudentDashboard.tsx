@@ -23,6 +23,7 @@ import ReportCardSection from "@/components/student/ReportCardSection";
 import StudentFeesSection from "@/components/student/StudentFeesSection";
 import ResultsSection from "@/components/student/ResultsSection";
 import ELearningSection from "@/components/student/ELearningSection";
+import StudentLibrarySection from "@/components/student/StudentLibrarySection";
 import StudentSettingsSection from "@/components/student/StudentSettingsSection";
 import { calculateGrade } from "@/lib/grading";
 import {
@@ -39,6 +40,7 @@ const navigation = [
   { name: "My Results", icon: FileText, id: "results" },
   { name: "Report Card", icon: Award, id: "report-card" },
   { name: "E-Learning", icon: BookOpen, id: "elearning" },
+  { name: "Library", icon: BookOpen, id: "library" },
   { name: "Fees", icon: DollarSign, id: "fees" },
   { name: "Timetable", icon: Calendar, id: "timetable" },
   { name: "Settings", icon: Settings, id: "settings" },
@@ -397,6 +399,7 @@ const StudentDashboard = () => {
       case "fees": return <StudentFeesSection studentId={profile.id} />;
       case "results": return <ResultsSection studentId={profile.id} />;
       case "elearning": return <ELearningSection />;
+      case "library": return <StudentLibrarySection />;
       case "settings": return <StudentSettingsSection />;
       case "dashboard":
       default: return renderDashboard();

@@ -6,6 +6,7 @@ class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = ['id', 'title', 'author', 'isbn', 'category', 'copies', 'available']
+        read_only_fields = ['available']
 
 
 class BorrowingSerializer(serializers.ModelSerializer):

@@ -283,16 +283,67 @@ export const useBooks = (params?: { category?: string; search?: string }) => {
     });
 };
 
+const invalidateLibrary = (qc: ReturnType<typeof useQueryClient>) => {
+    qc.invalidateQueries({ queryKey: ["borrowings"] });
+    qc.invalidateQueries({ queryKey: ["books"] });
+};
+
 export const useBorrowBook = () => {
-    const queryClient = useQueryClient();
+    const qc = useQueryClient();
     return useMutation({
-        mutationFn: async (newBorrowing: Partial<Borrowing>) => {
-            return await api.post<Borrowing>("/library/borrowing/", newBorrowing);
+        mutationFn: async (bookId: number) => api.post<Borrowing>(`/library/books/${bookId}/borrow/`),
+        onSuccess: () => invalidateLibrary(qc),
+    });
+};
+
+export const useSaveBook = () => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (book: Partial<Book>) =>
+            book.id ? api.patch<Book>(`/library/books/${book.id}/`, book) : api.post<Book>("/library/books/", book),
+        onSuccess: () => invalidateLibrary(qc),
+    });
+};
+
+export const useDeleteBook = () => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => api.delete(`/library/books/${id}/`),
+        onSuccess: () => invalidateLibrary(qc),
+    });
+};
+
+export const useBorrowings = (params?: { status?: string }) => {
+    return useQuery({
+        queryKey: ["borrowings", "all", params],
+        queryFn: async () => {
+            const p: Record<string, string> = {};
+            if (params?.status) p.status = params.status;
+            return extractArray<Borrowing>(await api.get<any>("/library/borrowings/", p));
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["borrowings"] });
-            queryClient.invalidateQueries({ queryKey: ["books"] });
-        },
+    });
+};
+
+export const useMyBorrowings = () => {
+    return useQuery({
+        queryKey: ["borrowings", "mine"],
+        queryFn: async () => extractArray<Borrowing>(await api.get<any>("/library/borrowings/mine/")),
+    });
+};
+
+export const useReturnBook = () => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => api.post<Borrowing>(`/library/borrowings/${id}/return_book/`),
+        onSuccess: () => invalidateLibrary(qc),
+    });
+};
+
+export const useRenewBook = () => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => api.post<Borrowing>(`/library/borrowings/${id}/renew/`),
+        onSuccess: () => invalidateLibrary(qc),
     });
 };
 
