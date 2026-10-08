@@ -54,3 +54,19 @@ class StaffMember(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.role}"
+
+
+class LearningMaterial(models.Model):
+    title = models.CharField(max_length=255)
+    subject_name = models.CharField(max_length=128)
+    class_name = models.CharField(max_length=64, blank=True)
+    file_url = models.URLField(max_length=512)
+    file_type = models.CharField(max_length=32, default="PDF")
+    uploaded_by = models.CharField(max_length=128, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title

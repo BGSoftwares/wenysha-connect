@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import GalleryItem, Announcement, ContactMessage, StaffMember
+from .models import GalleryItem, Announcement, ContactMessage, StaffMember, LearningMaterial
 
 
 class GalleryItemSerializer(serializers.ModelSerializer):
@@ -24,3 +24,10 @@ class StaffMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = StaffMember
         fields = ['id', 'name', 'role', 'department', 'bio', 'image_url', 'email']
+
+
+class LearningMaterialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LearningMaterial
+        fields = ['id', 'title', 'subject_name', 'class_name', 'file_url', 'file_type', 'uploaded_by', 'created_at']
+        read_only_fields = ['created_at']

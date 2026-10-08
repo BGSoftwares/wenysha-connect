@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import GalleryItem, Announcement, ContactMessage, StaffMember
+from .models import GalleryItem, Announcement, ContactMessage, StaffMember, LearningMaterial
 
 
 @admin.register(GalleryItem)
@@ -20,3 +20,8 @@ class ContactMessageAdmin(admin.ModelAdmin):
 @admin.register(StaffMember)
 class StaffMemberAdmin(admin.ModelAdmin):
     list_display = ('name', 'role', 'department')
+
+
+@admin.register(LearningMaterial)
+class LearningMaterialAdmin(admin.ModelAdmin):
+    list_display = ('title', 'subject_name', 'class_name', 'uploaded_by', 'created_at')

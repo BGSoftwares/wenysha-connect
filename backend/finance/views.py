@@ -29,7 +29,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.select_related('invoice', 'invoice__student').all()
     serializer_class = PaymentSerializer
-    filterset_fields = ['invoice', 'method']
+    filterset_fields = ['invoice', 'method', 'invoice__student']
 
 
 class DiscountViewSet(viewsets.ModelViewSet):

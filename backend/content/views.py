@@ -1,10 +1,11 @@
 from rest_framework import viewsets, permissions
-from .models import GalleryItem, Announcement, ContactMessage, StaffMember
+from .models import GalleryItem, Announcement, ContactMessage, StaffMember, LearningMaterial
 from .serializers import (
     GalleryItemSerializer,
     AnnouncementSerializer,
     ContactMessageSerializer,
     StaffMemberSerializer,
+    LearningMaterialSerializer,
 )
 
 
@@ -35,3 +36,9 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
 class StaffMemberViewSet(viewsets.ModelViewSet):
     queryset = StaffMember.objects.all()
     serializer_class = StaffMemberSerializer
+
+
+class LearningMaterialViewSet(viewsets.ModelViewSet):
+    queryset = LearningMaterial.objects.all()
+    serializer_class = LearningMaterialSerializer
+    filterset_fields = ['subject_name', 'class_name']

@@ -66,6 +66,20 @@ function extractArray<T>(response: unknown): T[] {
     return [];
 }
 
+export interface TimetableEntry {
+    id: number;
+    school_class: number;
+    class_name: string;
+    day_of_week: string;
+    period_start: string;
+    period_end: string;
+    subject?: number;
+    subject_name: string;
+    room: string;
+    teacher?: number | null;
+    teacher_name: string;
+}
+
 function toQueryParams(params?: Record<string, string | number | undefined>): Record<string, string> | undefined {
     if (!params) return undefined;
     return Object.fromEntries(
@@ -132,6 +146,15 @@ export const useClasses = () => {
         },
     });
 };
+
+export const useTimetable = (schoolClass?: number, extra?: { teacher?: number }) => useQuery({
+    queryKey: ["timetable", schoolClass, extra],
+    queryFn: async () => extractArray<TimetableEntry>(await api.get<unknown>("/school/timetable/", toQueryParams({
+        school_class: schoolClass,
+        teacher: extra?.teacher,
+    }))),
+    enabled: schoolClass !== undefined || extra?.teacher !== undefined,
+});
 
 export const useCreateClass = () => {
     const queryClient = useQueryClient();
@@ -534,7 +557,7 @@ export const useExamSchedules = (params?: { exam?: number; subject?: number; sch
     return useQuery({
         queryKey: ["exam-schedules", params],
         queryFn: async () => {
-            const response = await api.get<unknown>("/exams/schedules/", toQueryParams(params));
+            const response = await api.get<unknown>("/exams/exam-schedules/", toQueryParams(params));
             return extractArray<ExamSchedule>(response);
         },
     });
@@ -544,10 +567,27 @@ export const useExamMarks = (params?: { exam?: number; student?: number; subject
     return useQuery({
         queryKey: ["exam-marks", params],
         queryFn: async () => {
-            const response = await api.get<unknown>("/exams/marks/", toQueryParams(params));
+            const response = await api.get<unknown>("/exams/exam-marks/", toQueryParams(params));
             return extractArray<ExamMark>(response);
         },
         enabled: !!params?.student || !!params?.exam,
+    });
+};
+
+export const useSaveExamMark = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (data: { exam: number; student: number; subject: number; total_marks: number; scored: number }) => {
+            const existing = await api.get<unknown>("/exams/exam-marks/", {
+                exam: data.exam,
+                student: data.student,
+                subject: data.subject,
+            });
+            const marks = extractArray<ExamMark>(existing);
+            if (marks[0]) return api.patch<ExamMark>(`/exams/exam-marks/${marks[0].id}/`, data);
+            return api.post<ExamMark>("/exams/exam-marks/", data);
+        },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["exam-marks"] }),
     });
 };
 
@@ -555,7 +595,7 @@ export const useUpdateExamMark = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ id, data }: { id: number; data: Partial<ExamMark> }) => {
-            return await api.patch<ExamMark>(`/exams/marks/${id}/`, data);
+            return await api.patch<ExamMark>(`/exams/exam-marks/${id}/`, data);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["exam-marks"] });
@@ -579,7 +619,11 @@ export const useUpdateAttendance = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (data: Partial<AttendanceRecord> & { student: number; date: string }) => {
-            // Check if record exists or create new
+            const existing = await api.get<unknown>("/attendance/attendance/", { student: data.student, date: data.date });
+            const records = extractArray<AttendanceRecord>(existing);
+            if (records[0]) {
+                return await api.patch<AttendanceRecord>(`/attendance/attendance/${records[0].id}/`, { status: data.status });
+            }
             return await api.post<AttendanceRecord>("/attendance/attendance/", data);
         },
         onSuccess: () => {
@@ -593,7 +637,7 @@ export const useAdmissions = () => {
     return useQuery({
         queryKey: ["admissions"],
         queryFn: async () => {
-            const response = await api.get<unknown>("/admissions/applications/");
+            const response = await api.get<unknown>("/admissions/admissions/");
             return extractArray<AdmissionApplication>(response);
         },
     });
@@ -732,12 +776,13 @@ export const useInvoices = (params?: { student?: number; status?: string }) => {
     });
 };
 
-export const usePayments = (params?: { invoice?: number }) => {
+export const usePayments = (params?: { invoice?: number; student?: number }) => {
     return useQuery({
         queryKey: ["payments", params],
         queryFn: async () => {
             const cleanParams: Record<string, string> = {};
             if (params?.invoice) cleanParams.invoice = String(params.invoice);
+            if (params?.student) cleanParams.invoice__student = String(params.student);
             const response = await api.get<unknown>("/finance/payments/", cleanParams);
             return extractArray<Payment>(response);
         },
@@ -801,5 +846,52 @@ export const useCreateInvoice = () => {
             queryClient.invalidateQueries({ queryKey: ["invoices"] });
             queryClient.invalidateQueries({ queryKey: ["student-balances"] });
         },
+    });
+};
+
+export interface Notice {
+    id: number;
+    title: string;
+    content: string;
+    date: string;
+    audience: string;
+    priority: string;
+    pinned: boolean;
+}
+
+export const useNotices = () => useQuery({
+    queryKey: ["notices"],
+    queryFn: async () => extractArray<Notice>(await api.get<unknown>("/notices/notices/")),
+});
+
+export interface LearningMaterial {
+    id: number;
+    title: string;
+    subject_name: string;
+    class_name: string;
+    file_url: string;
+    file_type: string;
+    uploaded_by: string;
+    created_at: string;
+}
+
+export const useLearningMaterials = (params?: { subject_name?: string; class_name?: string }) => useQuery({
+    queryKey: ["learning-materials", params],
+    queryFn: async () => extractArray<LearningMaterial>(await api.get<unknown>("/content/materials/", toQueryParams(params))),
+});
+
+export const useCreateLearningMaterial = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (data: Partial<LearningMaterial>) => api.post<LearningMaterial>("/content/materials/", data),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learning-materials"] }),
+    });
+};
+
+export const useDeleteLearningMaterial = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => { await api.delete(`/content/materials/${id}/`); },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learning-materials"] }),
     });
 };
