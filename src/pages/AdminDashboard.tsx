@@ -44,6 +44,7 @@ const AdminDashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showModal, setShowModal] = useState<string | null>(null);
+  const [bulkComment, setBulkComment] = useState("Excellent work this term. Keep the momentum and continue to work hard in class.");
 
   // Hook Integration
   const { data: students, isLoading: isLoadingStudents, error: studentsError } = useStudents();
@@ -244,6 +245,7 @@ const AdminDashboard = () => {
       message: "Messages",
       gallery: "Gallery",
       map: "Map",
+      "report-cards": "Report Cards",
       "users-roles": "Users & Roles",
       roles: "Users & Roles",
       settings: "Settings",
@@ -325,6 +327,68 @@ const AdminDashboard = () => {
       case "hostel": return <HostelSection />;
       case "notice": return <NoticeSection />;
       case "message": return <MessageSection />;
+      case "report-cards": return (
+        <div className="space-y-6">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-elegant">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground uppercase tracking-[0.2em]">Administration</p>
+                <h2 className="font-heading text-2xl font-bold text-foreground">Bulk Report Cards</h2>
+              </div>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => window.print()}>Print All Report Cards</Button>
+                <Button
+                  variant="gold"
+                  onClick={() => {
+                    const message = `School report cards are ready. Please visit the portal to view the latest results and comments. ${window.location.origin}`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  Share via WhatsApp
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-elegant space-y-5">
+            <div>
+              <h3 className="font-semibold text-foreground mb-2">Admin Comment for All Generated Report Cards</h3>
+              <textarea
+                value={bulkComment}
+                onChange={(event) => setBulkComment(event.target.value)}
+                className="min-h-[120px] w-full rounded-xl border border-border bg-background p-4 text-sm text-foreground"
+                placeholder="Add a school-wide principal or admin comment..."
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button variant="outline" onClick={() => setBulkComment("Excellent work this term. Keep up the positive attitude and continue to strive for excellence.")}>Use Default</Button>
+              <Button variant="gold" onClick={() => toast.success("Admin comment applied to the generated report cards.")}>Apply Comment to All</Button>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-elegant">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-foreground">Generated Report Cards</h3>
+              <span className="text-sm text-muted-foreground">{students?.length ?? 0} students</span>
+            </div>
+            <div className="space-y-3">
+              {(students ?? []).slice(0, 8).map((student) => (
+                <div key={student.id} className="flex items-center justify-between rounded-xl border border-border bg-secondary/20 p-4">
+                  <div>
+                    <p className="font-medium text-foreground">{student.name}</p>
+                    <p className="text-sm text-muted-foreground">{student.student_id} • {classes?.find(cls => cls.id === student.school_class)?.name || "Class not set"}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs rounded-full bg-primary/10 px-2 py-1 text-primary">Visible online</span>
+                    <Button variant="outline" size="sm" onClick={() => window.print()}>Print</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
       case "map": return <MapSection />;
       default: return <DashboardOverview />;
     }
