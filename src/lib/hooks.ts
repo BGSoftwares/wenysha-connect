@@ -579,9 +579,9 @@ export const useSaveExamMark = () => {
     return useMutation({
         mutationFn: async (data: { exam: number; student: number; subject: number; total_marks: number; scored: number }) => {
             const existing = await api.get<unknown>("/exams/exam-marks/", {
-                exam: data.exam,
-                student: data.student,
-                subject: data.subject,
+                exam: String(data.exam),
+                student: String(data.student),
+                subject: String(data.subject),
             });
             const marks = extractArray<ExamMark>(existing);
             if (marks[0]) return api.patch<ExamMark>(`/exams/exam-marks/${marks[0].id}/`, data);
@@ -619,7 +619,7 @@ export const useUpdateAttendance = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (data: Partial<AttendanceRecord> & { student: number; date: string }) => {
-            const existing = await api.get<unknown>("/attendance/attendance/", { student: data.student, date: data.date });
+            const existing = await api.get<unknown>("/attendance/attendance/", { student: String(data.student), date: data.date });
             const records = extractArray<AttendanceRecord>(existing);
             if (records[0]) {
                 return await api.patch<AttendanceRecord>(`/attendance/attendance/${records[0].id}/`, { status: data.status });
