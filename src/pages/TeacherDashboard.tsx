@@ -83,7 +83,8 @@ const TeacherDashboard = () => {
   const { data: classes = [] } = useClasses();
 
   const { data: exams = [] } = useExams();
-  const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
+  const { data: allExamMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId } : undefined);
+  const examMarks = selectedSubjectId ? allExamMarks.filter(mark => mark.subject === selectedSubjectId) : allExamMarks;
   const { data: attendanceRecords = [] } = useAttendanceRecords({
     date: attendanceDate
   });
@@ -182,9 +183,14 @@ const TeacherDashboard = () => {
   };
 
   const currentStudent = subjectStudents.find(student => student.id === selectedStudentId) ?? subjectStudents[0] ?? null;
-  const selectedStudentScore = currentStudent ? gradeInputs[currentStudent.id] ?? examMarks.find(mark => mark.student === currentStudent.id && mark.subject === selectedSubjectId)?.scored ?? "" : "";
+  const selectedSubjectMarks = selectedSubjectId ? allExamMarks.filter(mark => mark.subject === selectedSubjectId) : [];
+  const selectedStudentScore = currentStudent ? gradeInputs[currentStudent.id] ?? selectedSubjectMarks.find(mark => mark.student === currentStudent.id)?.scored ?? "" : "";
   const selectedStudentGrade = currentStudent && selectedStudentScore !== "" ? calculateGrade(Number(selectedStudentScore)).grade : "—";
   const selectedClass = classes.find(classItem => classItem.id === selectedClassId) ?? null;
+  const classSubjectAllocations = selectedClassId ? allocations.filter(allocation => allocation.school_class === selectedClassId) : [];
+  const currentStudentGradedSubjects = currentStudent
+    ? classSubjectAllocations.filter((allocation) => allExamMarks.some(mark => mark.student === currentStudent.id && mark.subject === allocation.subject)).map((allocation) => allocation.subject_name)
+    : [];
   const isClassTeacherForSelectedClass = Boolean(teacher && selectedClass && selectedClass.class_teacher === teacher.id);
   const currentStudentTeacherComment = currentStudent ? classTeacherComments[currentStudent.id] || getTeacherComment(Number(selectedStudentScore) || 0) : getTeacherComment(0);
 
@@ -207,8 +213,8 @@ const TeacherDashboard = () => {
   };
 
   const generateReportCardPreview = () => {
-    if (!selectedClassId || !selectedSubjectId || !selectedExamId) {
-      toast.error("Select a class, subject, and exam to generate a report card.");
+    if (!selectedClassId || !selectedExamId) {
+      toast.error("Select a class and exam to generate a report card.");
       return;
     }
 
@@ -216,28 +222,40 @@ const TeacherDashboard = () => {
       return;
     }
 
-    const rows = subjectStudents.map(student => {
-      const mark = examMarks.find(item => item.student === student.id && item.subject === selectedSubjectId);
-      const score = mark ? Number(mark.scored) : 0;
-      const total = mark ? Number(mark.total_marks) : 100;
-      const percentage = total > 0 ? (score / total) * 100 : 0;
-      return {
-        studentId: student.id,
-        studentName: student.name,
-        score,
-        percentage,
-        grade: calculateGrade(percentage).grade,
-      };
-    });
-
-    setReportCardRows(rows);
-
-    if (rows.every(row => row.score === 0)) {
-      toast.error("No student marks have been entered yet for this class and subject.");
+    const previewStudent = currentStudent ?? classStudents[0] ?? null;
+    if (!previewStudent) {
+      toast.error("No student is available for this class yet.");
       return;
     }
 
-    toast.success("Report card preview generated.");
+    const studentRows = classSubjectAllocations
+      .map((allocation) => {
+        const mark = allExamMarks.find(item => item.student === previewStudent.id && item.subject === allocation.subject);
+        if (!mark) return null;
+
+        const score = Number(mark.scored);
+        const total = Number(mark.total_marks) || 100;
+        const percentage = total > 0 ? (score / total) * 100 : 0;
+
+        return {
+          studentId: previewStudent.id,
+          studentName: previewStudent.name,
+          subjectName: allocation.subject_name,
+          score,
+          percentage,
+          grade: calculateGrade(percentage).grade,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+
+    setReportCardRows(studentRows);
+
+    if (studentRows.length === 0) {
+      toast.error("No graded marks have been entered for this student yet across the assigned subjects.");
+      return;
+    }
+
+    toast.success("Report card preview generated for all graded subjects.");
   };
 
   const teacherName = teacher?.name || "Teacher";
@@ -342,17 +360,25 @@ const TeacherDashboard = () => {
         <div className="bg-card rounded-xl border border-border p-6">
             <h2 className="font-heading font-bold text-lg text-foreground mb-4">Teaching Allocations</h2>
           <div className="space-y-3">
-            {allocations.map((alloc) => (
-              <div key={alloc.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-primary" />
+            {allocations.map((alloc) => {
+              const classRoster = students.filter(student => student.school_class === alloc.school_class).slice(0, 5);
+              return (
+                <div key={alloc.id} className="flex items-start gap-4 p-4 rounded-lg bg-secondary/30">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-foreground">{alloc.class_name} - {alloc.subject_name}</h4>
+                    <p className="text-xs text-muted-foreground mb-2">{alloc.periods} periods/week</p>
+                    <div className="flex flex-wrap gap-2">
+                      {classRoster.length > 0 ? classRoster.map(student => (
+                        <span key={student.id} className="rounded-full bg-background px-2 py-1 text-[10px] text-foreground border border-border">{student.name}</span>
+                      )) : <span className="text-[10px] text-muted-foreground">No learners assigned</span>}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-foreground">{alloc.class_name} - {alloc.subject_name}</h4>
-                  <p className="text-xs text-muted-foreground">{alloc.periods} periods/week</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {allocations.length === 0 && <p className="text-sm text-muted-foreground italic">No allocations found.</p>}
           </div>
         </div>
@@ -388,21 +414,29 @@ const TeacherDashboard = () => {
       <h2 className="font-heading text-xl font-bold text-foreground">My Classes</h2>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {uniqueClasses.map((cls) => (
-          <div key={cls.id} className="bg-card rounded-xl border border-border p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-primary" />
+        {uniqueClasses.map((cls) => {
+          const roster = students.filter(student => student.school_class === cls.id);
+          return (
+            <div key={cls.id} className="bg-card rounded-xl border border-border p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Users className="h-6 w-6 text-primary" />
+                </div>
+                <Button variant="outline" size="sm" onClick={() => { setSelectedClassId(cls.id); setActiveNav("attendance"); }}>
+                  <Eye className="h-4 w-4 mr-1" />
+                  Manage
+                </Button>
               </div>
-              <Button variant="outline" size="sm" onClick={() => { setSelectedClassId(cls.id); setActiveNav("attendance"); }}>
-                <Eye className="h-4 w-4 mr-1" />
-                Manage
-              </Button>
+              <h3 className="font-bold text-lg text-foreground">{cls.name}</h3>
+              <p className="text-sm text-muted-foreground mb-3">Teaching {allocations.filter(a => a.school_class === cls.id).length} subjects</p>
+              <div className="flex flex-wrap gap-2">
+                {roster.length > 0 ? roster.map(student => (
+                  <span key={student.id} className="rounded-full bg-secondary px-2 py-1 text-[10px] text-foreground">{student.name}</span>
+                )) : <span className="text-[10px] text-muted-foreground">No students assigned</span>}
+              </div>
             </div>
-            <h3 className="font-bold text-lg text-foreground">{cls.name}</h3>
-            <p className="text-sm text-muted-foreground mb-3">Teaching {allocations.filter(a => a.school_class === cls.id).length} subjects</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -500,6 +534,17 @@ const TeacherDashboard = () => {
               <div className="text-right">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Percentage</p>
                 <p className="text-lg font-bold text-foreground">{((Number(selectedStudentScore) / 100) * 100).toFixed(1)}%</p>
+              </div>
+            </div>
+          )}
+
+          {currentStudent && currentStudentGradedSubjects.length > 0 && (
+            <div className="rounded-xl border border-border bg-secondary/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Graded Subject List</p>
+              <div className="flex flex-wrap gap-2">
+                {currentStudentGradedSubjects.map((subjectName) => (
+                  <span key={subjectName} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">{subjectName}</span>
+                ))}
               </div>
             </div>
           )}

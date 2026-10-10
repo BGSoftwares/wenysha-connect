@@ -7,19 +7,24 @@ import {
   ArrowDownRight,
   Receipt,
   CreditCard,
-  Loader2
+  Loader2,
+  BookOpen,
+  GraduationCap
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
-import { useStudentBalances, usePayments, useInvoices } from "@/lib/hooks";
+import { useClasses, useStudentBalances, usePayments, useInvoices, useStudents, useSubjects } from "@/lib/hooks";
 import { format } from "date-fns";
 
 const AccountsOverview = ({ onNavigate }: { onNavigate?: (section: string) => void }) => {
   const { data: balances, isLoading: loadingBalances } = useStudentBalances();
   const { data: recentPayments, isLoading: loadingPayments } = usePayments();
   const { data: allInvoices, isLoading: loadingInvoices } = useInvoices();
+  const { data: classes = [], isLoading: loadingClasses } = useClasses();
+  const { data: students = [], isLoading: loadingStudents } = useStudents();
+  const { data: subjects = [], isLoading: loadingSubjects } = useSubjects();
 
-  if (loadingBalances || loadingPayments || loadingInvoices) {
+  if (loadingBalances || loadingPayments || loadingInvoices || loadingClasses || loadingStudents || loadingSubjects) {
     return (
       <div className="h-96 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -198,6 +203,47 @@ const AccountsOverview = ({ onNavigate }: { onNavigate?: (section: string) => vo
                   <span className="text-xs text-muted-foreground">{item.name}: {item.value}%</span>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="border-none shadow-elegant">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary" />School subjects</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {subjects.length > 0 ? subjects.map((subject) => (
+                <span key={subject.id} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">{subject.name}</span>
+              )) : <span className="text-sm text-muted-foreground">No subjects linked yet.</span>}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-elegant">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2"><GraduationCap className="h-5 w-5 text-primary" />Class and student list</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {classes.length > 0 ? classes.map((schoolClass) => {
+                const roster = students.filter((student) => student.school_class === schoolClass.id).slice(0, 5);
+                return (
+                  <div key={schoolClass.id} className="rounded-xl border border-border bg-secondary/20 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="font-medium text-foreground">{schoolClass.name}</span>
+                      <span className="text-xs text-muted-foreground">{roster.length} students</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {roster.length > 0 ? roster.map((student) => (
+                        <span key={student.id} className="rounded-full bg-background px-2 py-1 text-[10px] text-foreground border border-border">{student.name}</span>
+                      )) : <span className="text-xs text-muted-foreground">No students assigned</span>}
+                    </div>
+                  </div>
+                );
+              }) : <p className="text-sm text-muted-foreground">No classes available.</p>}
             </div>
           </CardContent>
         </Card>
