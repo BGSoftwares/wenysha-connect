@@ -44,7 +44,6 @@ import {
 } from "@/lib/hooks";
 import { toast } from "sonner";
 import { calculateGrade } from "@/lib/grading";
-import { schoolContact } from "@/lib/schoolContact";
 import { getPrincipalComment, getTeacherComment, TEACHER_COMMENT_LIBRARY } from "@/lib/reportComments";
 
 const navigation = [
@@ -69,6 +68,7 @@ const TeacherDashboard = () => {
   const [classTeacherComments, setClassTeacherComments] = useState<Record<number, string>>({});
   const [reportCardRows, setReportCardRows] = useState<Array<{ studentId: number; studentName: string; score: number; percentage: number; grade: string }>>([]);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
   const [materialDraft, setMaterialDraft] = useState({
     title: "",
     subject_name: "",
@@ -217,6 +217,38 @@ const TeacherDashboard = () => {
     for (const studentId of enteredStudentIds) await saveGrade(studentId);
   };
 
+  const sendAttendanceToWhatsAppGroup = () => {
+    if (!selectedClass) {
+      toast.error("Select a class before sending the attendance summary.");
+      return;
+    }
+
+    const summaryLines = classAttendance.map((entry) => `• ${entry.student.name}: ${entry.status}`).join("\n");
+    const summary = [
+      `*Attendance Report*`,
+      `Class: ${selectedClass.name}`,
+      `Date: ${new Date(attendanceDate).toLocaleDateString()}`,
+      `Present: ${classAttendance.filter((item) => item.status === "present").length}`,
+      `Absent: ${classAttendance.filter((item) => item.status === "absent").length}`,
+      `Late: ${classAttendance.filter((item) => item.status === "late").length}`,
+      "",
+      summaryLines,
+      "",
+      `Sent by ${teacher?.name ?? "Class Teacher"}`,
+    ].join("\n");
+
+    const groupTarget = whatsappGroupLink.trim();
+    const encodedMessage = encodeURIComponent(summary);
+    const url = groupTarget
+      ? groupTarget.startsWith("http")
+        ? `${groupTarget}${groupTarget.includes("?") ? "&" : "?"}text=${encodedMessage}`
+        : `https://wa.me/${groupTarget.replace(/\D/g, "")}?text=${encodedMessage}`
+      : `https://wa.me/?text=${encodedMessage}`;
+
+    window.open(url, "_blank", "noopener,noreferrer");
+    toast.success("Attendance summary opened in WhatsApp.");
+  };
+
   const currentStudent = subjectStudents.find(student => student.id === selectedStudentId) ?? subjectStudents[0] ?? null;
   const selectedSubjectMarks = selectedSubjectId ? allExamMarks.filter(mark => mark.subject === selectedSubjectId) : [];
   const selectedStudentScore = currentStudent ? gradeInputs[currentStudent.id] ?? selectedSubjectMarks.find(mark => mark.student === currentStudent.id)?.scored ?? "" : "";
@@ -234,7 +266,16 @@ const TeacherDashboard = () => {
         .filter((allocation) => allExamMarks.some(mark => mark.student === currentStudent.id && mark.subject === allocation.subject))
         .map((allocation) => allocation.subject_name)
     : [];
-  const isClassTeacherForSelectedClass = Boolean(teacher && selectedClass && selectedClass.class_teacher === teacher.id);
+  const isClassTeacherForSelectedClass = Boolean(
+    teacher &&
+    selectedClass &&
+    Number(selectedClass.class_teacher) === Number(teacher.id)
+  );
+  const canMarkAttendanceForSelectedClass = Boolean(
+    teacher &&
+    selectedClass &&
+    Number(selectedClass.class_teacher) === Number(teacher.id)
+  );
   const currentStudentTeacherComment = currentStudent ? classTeacherComments[currentStudent.id] || getTeacherComment(Number(selectedStudentScore) || 0) : getTeacherComment(0);
 
   const applyClassCommentTemplate = (studentId: number, percentage: number) => {
@@ -833,6 +874,29 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
+      {!canMarkAttendanceForSelectedClass && selectedClass && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          You are not assigned as the class teacher for {selectedClass.name}. Only the class teacher can mark attendance for this class.
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex-1">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Parent WhatsApp group link or number
+          </label>
+          <input
+            value={whatsappGroupLink}
+            onChange={(e) => setWhatsappGroupLink(e.target.value)}
+            placeholder="e.g. 263773000000 or https://chat.whatsapp.com/..."
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+          />
+        </div>
+        <Button variant="gold" onClick={sendAttendanceToWhatsAppGroup} disabled={!selectedClass || classAttendance.length === 0}>
+          Share Attendance on WhatsApp
+        </Button>
+      </div>
+
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-4 border-b border-border bg-secondary/30 flex items-center justify-between">
           <div>
@@ -871,34 +935,49 @@ const TeacherDashboard = () => {
                     <div className="flex justify-center gap-2">
                       <button
                         onClick={async () => {
+                          if (!canMarkAttendanceForSelectedClass) {
+                            toast.error("Only the class teacher can mark attendance for this class.");
+                            return;
+                          }
                           try {
                             await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "present" });
                             toast.success(`Marked ${student.name} as present`);
                           } catch (e) { toast.error("Failed to update attendance"); }
                         }}
-                        className={`p-1.5 rounded-lg transition-colors ${status === "present" ? "bg-green-500 text-white" : "bg-secondary text-muted-foreground hover:bg-green-100"}`}
+                        disabled={!canMarkAttendanceForSelectedClass}
+                        className={`p-1.5 rounded-lg transition-colors ${status === "present" ? "bg-green-500 text-white" : "bg-secondary text-muted-foreground hover:bg-green-100"} ${!canMarkAttendanceForSelectedClass ? "cursor-not-allowed opacity-50" : ""}`}
                       >
                         <Check className="h-4 w-4" />
                       </button>
                       <button
                         onClick={async () => {
+                          if (!canMarkAttendanceForSelectedClass) {
+                            toast.error("Only the class teacher can mark attendance for this class.");
+                            return;
+                          }
                           try {
                             await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "absent" });
                             toast.success(`Marked ${student.name} as absent`);
                           } catch (e) { toast.error("Failed to update attendance"); }
                         }}
-                        className={`p-1.5 rounded-lg transition-colors ${status === "absent" ? "bg-destructive text-white" : "bg-secondary text-muted-foreground hover:bg-red-100"}`}
+                        disabled={!canMarkAttendanceForSelectedClass}
+                        className={`p-1.5 rounded-lg transition-colors ${status === "absent" ? "bg-destructive text-white" : "bg-secondary text-muted-foreground hover:bg-red-100"} ${!canMarkAttendanceForSelectedClass ? "cursor-not-allowed opacity-50" : ""}`}
                       >
                         <X className="h-4 w-4" />
                       </button>
                       <button
                         onClick={async () => {
+                          if (!canMarkAttendanceForSelectedClass) {
+                            toast.error("Only the class teacher can mark attendance for this class.");
+                            return;
+                          }
                           try {
                             await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "late" });
                             toast.success(`Marked ${student.name} as late`);
                           } catch (e) { toast.error("Failed to update attendance"); }
                         }}
-                        className={`p-1.5 rounded-lg transition-colors ${status === "late" ? "bg-amber-500 text-white" : "bg-secondary text-muted-foreground hover:bg-amber-100"}`}
+                        disabled={!canMarkAttendanceForSelectedClass}
+                        className={`p-1.5 rounded-lg transition-colors ${status === "late" ? "bg-amber-500 text-white" : "bg-secondary text-muted-foreground hover:bg-amber-100"} ${!canMarkAttendanceForSelectedClass ? "cursor-not-allowed opacity-50" : ""}`}
                       >
                         <Clock className="h-4 w-4" />
                       </button>
