@@ -1,3 +1,4 @@
+import DashboardExtras from "@/components/dashboard/DashboardExtras";
 import { useState } from "react";
 import AccountsSidebar from "@/components/accounts/AccountsSidebar";
 import AccountsHeader from "@/components/accounts/AccountsHeader";
@@ -36,7 +37,7 @@ const AccountsDashboard = () => {
   const renderContent = () => {
     switch (activeNav) {
       case "dashboard":
-        return <AccountsOverview onNavigate={setActiveNav} />;
+        return <><DashboardExtras role="Accounts" actions={[{ label: "Record payment", onClick: () => setActiveNav("record-payment") }, { label: "Invoices", onClick: () => setActiveNav("invoices") }]} /><AccountsOverview onNavigate={setActiveNav} /></>;
       case "fee-structures":
       case "add-fee":
         return <FeeStructuresSection activeSubNav={activeNav} />;

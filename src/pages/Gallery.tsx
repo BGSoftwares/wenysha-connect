@@ -1,4 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import g1 from "@/assets/IMG_6134.jpg";
+import g2 from "@/assets/IMG_6135.jpg";
+import g3 from "@/assets/IMG_6136.jpg";
+import g4 from "@/assets/IMG_6137.jpg";
+import g5 from "@/assets/IMG_6138.jpg";
+import g6 from "@/assets/IMG_6139.jpg";
+import g7 from "@/assets/IMG_6140.jpg";
+import g8 from "@/assets/IMG_6141.jpg";
+import g9 from "@/assets/IMG_6142.jpg";
+import g10 from "@/assets/IMG_6143.jpg";
+import g11 from "@/assets/IMG_6144.jpg";
+import g12 from "@/assets/IMG_6145.jpg";
+const photos = [g1,g2,g3,g4,g5,g6,g7,g8,g9,g10,g11,g12];
 import { Layout } from "@/components/layout/Layout";
 import { Image, Play, X } from "lucide-react";
 
@@ -26,6 +40,21 @@ const Gallery = () => {
   const filteredItems = activeCategory === "All" 
     ? galleryItems 
     : galleryItems.filter(item => item.category === activeCategory);
+  const pos = filteredItems.findIndex(i => i.id === selectedImage);
+  const step = (d: number) => {
+    if (pos < 0) return;
+    setSelectedImage(filteredItems[(pos + d + filteredItems.length) % filteredItems.length].id);
+  };
+  useEffect(() => {
+    if (selectedImage === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedImage(null);
+      if (e.key === "ArrowRight") step(1);
+      if (e.key === "ArrowLeft") step(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   return (
     <Layout>
@@ -73,10 +102,7 @@ const Gallery = () => {
                 className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-secondary"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                {/* Placeholder for image */}
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
-                  <Image className="h-12 w-12 text-primary/30" />
-                </div>
+                <img src={photos[item.id - 1]} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 
                 {/* Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-forest-dark/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -119,14 +145,19 @@ const Gallery = () => {
             <X className="h-6 w-6 text-primary-foreground" />
           </button>
           
-          <div className="max-w-4xl w-full aspect-video bg-secondary rounded-xl flex items-center justify-center">
-            <div className="text-center">
-              <Image className="h-24 w-24 text-muted-foreground/30 mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                {galleryItems.find(i => i.id === selectedImage)?.title}
-              </p>
-            </div>
-          </div>
+          <button aria-label="Previous" onClick={(e) => { e.stopPropagation(); step(-1); }} className="absolute left-4 md:left-8 h-12 w-12 rounded-full bg-card/10 flex items-center justify-center hover:bg-card/20">
+            <ChevronLeft className="h-7 w-7 text-primary-foreground" />
+          </button>
+          <figure className="max-w-5xl w-full animate-scale-in" onClick={(e) => e.stopPropagation()}>
+            <img src={photos[selectedImage - 1]} alt="" className="max-h-[80vh] w-full object-contain rounded-xl" />
+            <figcaption className="mt-4 text-center text-primary-foreground">
+              {galleryItems.find(i => i.id === selectedImage)?.title}
+              <span className="ml-3 text-sm text-primary-foreground/60">{pos + 1} / {filteredItems.length}</span>
+            </figcaption>
+          </figure>
+          <button aria-label="Next" onClick={(e) => { e.stopPropagation(); step(1); }} className="absolute right-4 md:right-8 h-12 w-12 rounded-full bg-card/10 flex items-center justify-center hover:bg-card/20">
+            <ChevronRight className="h-7 w-7 text-primary-foreground" />
+          </button>
         </div>
       )}
 
