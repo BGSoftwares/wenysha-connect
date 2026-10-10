@@ -98,6 +98,7 @@ const navigation: NavItem[] = [
   { name: "Hostel", icon: Building, id: "hostel" },
   { name: "Notice", icon: MessageSquare, id: "notice" },
   { name: "Message", icon: MessageSquare, id: "message" },
+  { name: "Report Cards", icon: FileText, id: "report-cards" },
   { name: "Gallery", icon: Image, id: "gallery" },
   { name: "Map", icon: MapPin, id: "map" },
   {

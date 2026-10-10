@@ -5,7 +5,7 @@ import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
 import { calculateGrade, getGradeColorClasses, GRADING_SCALE } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
-import { useExamMarks, useStudentProfile } from "@/lib/hooks";
+import { useExamMarks, useStudentFees, useStudentProfile } from "@/lib/hooks";
 import { getPrincipalComment, getTeacherComment } from "@/lib/reportComments";
 
 interface SubjectResult {
@@ -45,6 +45,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const reportCardRef = useRef<HTMLDivElement>(null);
 
   const { data: profile } = useStudentProfile();
+  const { data: fees = [] } = useStudentFees({ student: studentId });
   const { data: marks = [], isLoading } = useExamMarks({ student: studentId });
 
   const results: SubjectResult[] = marks.map(m => ({
@@ -66,6 +67,12 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     window.print();
   };
 
+  const handleShareWhatsApp = () => {
+    const message = `Hello, your report card for ${profile?.name || "student"} is ready. Please log in to the school portal to download the PDF report card.`;
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const calculateAverage = () => {
     if (results.length === 0) return "0.00";
     const total = results.reduce((sum, r) => sum + r.scored, 0);
@@ -79,6 +86,9 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     }).length;
   };
 
+  const outstandingBalance = fees.reduce((sum, fee) => sum + (Number(fee.amount_due) - Number(fee.amount_paid)), 0);
+  const resultsBlocked = outstandingBalance > 0;
+
   const averagePercentage = results.length
     ? results.reduce((sum, r) => sum + ((r.scored / r.marks) * 100), 0) / results.length
     : 0;
@@ -91,6 +101,23 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     absent: 3,
     behavior: "Good",
   };
+
+  if (resultsBlocked) {
+    return (
+      <div className="flex items-center justify-center min-h-[280px]">
+        <div className="max-w-xl w-full bg-card border border-amber-200 rounded-2xl p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+            <Calendar className="h-8 w-8" />
+          </div>
+          <h3 className="font-heading text-2xl font-bold text-foreground mb-2">Results Locked</h3>
+          <p className="text-muted-foreground mb-4">
+            This student portal is currently restricted because the account has an outstanding balance of ${outstandingBalance.toFixed(2)}. Results and report cards are hidden until the balance is cleared.
+          </p>
+          <p className="text-sm text-muted-foreground">Please contact the school accounts office to clear the balance.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -119,6 +146,9 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
             <option>Term 3 2023</option>
             <option>Term 2 2023</option>
           </select>
+          <Button variant="outline" size="sm" onClick={handleShareWhatsApp}>
+            Share on WhatsApp
+          </Button>
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Print

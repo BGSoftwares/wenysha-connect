@@ -78,6 +78,8 @@ const StudentDashboard = () => {
     return fees.reduce((acc, f) => acc + Number(f.amount_due), 0);
   }, [fees]);
 
+  const resultsLocked = totalFeesDue > 0;
+
   // Require authentication
   if (!user) {
     return (
@@ -281,11 +283,26 @@ const StudentDashboard = () => {
   );
 
   const renderContent = () => {
+    const lockedResultsMessage = (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <div className="max-w-xl w-full bg-card border border-amber-200 rounded-2xl p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+            <DollarSign className="h-8 w-8" />
+          </div>
+          <h3 className="font-heading text-2xl font-bold text-foreground mb-2">Results Are Locked</h3>
+          <p className="text-muted-foreground mb-4">
+            Academic results and the report card are currently hidden because the account has an outstanding balance of ${totalFeesDue.toFixed(2)}.
+          </p>
+          <p className="text-sm text-muted-foreground">Please clear your account balance in the fees section before viewing results.</p>
+        </div>
+      </div>
+    );
+
     switch (activeNav) {
       case "timetable": return renderTimetable();
-      case "report-card": return <ReportCardSection studentId={profile.id} />;
+      case "report-card": return resultsLocked ? lockedResultsMessage : <ReportCardSection studentId={profile.id} />;
       case "fees": return <StudentFeesSection studentId={profile.id} />;
-      case "results": return <ResultsSection studentId={profile.id} />;
+      case "results": return resultsLocked ? lockedResultsMessage : <ResultsSection studentId={profile.id} />;
       case "elearning": return <ELearningSection />;
       case "library": return <StudentLibrarySection />;
       case "settings": return <StudentSettingsSection />;
