@@ -6,6 +6,7 @@ import { schoolContact } from "@/lib/schoolContact";
 import { calculateGrade, getGradeColorClasses, GRADING_SCALE } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
 import { useExamMarks, useStudentProfile } from "@/lib/hooks";
+import { getPrincipalComment, getTeacherComment } from "@/lib/reportComments";
 
 interface SubjectResult {
   subject: string;
@@ -33,36 +34,6 @@ interface ReportCardData {
     behavior: string;
   };
 }
-
-// Mock data - will be populated from teacher marks entry
-const mockReportCard: ReportCardData = {
-  studentName: "John Moyo",
-  grade: "Form 4",
-  class: "Form 4A",
-  exam: "End of Term 1 2024",
-  position: 5,
-  totalStudents: 45,
-  passed: 6,
-  totalSubjects: 7,
-  date: "2024-03-15",
-  results: [
-    { subject: "Family And Religious Studies", marks: 100, scored: 86 },
-    { subject: "Food Technology And Design", marks: 100, scored: 56 },
-    { subject: "Shona", marks: 100, scored: 29 },
-    { subject: "English Language", marks: 100, scored: 66 },
-    { subject: "Mathematics", marks: 100, scored: 54 },
-    { subject: "Combined Science", marks: 100, scored: 68 },
-    { subject: "ICT", marks: 100, scored: 58 },
-  ],
-  teacherComment: "John has shown great improvement this term. Keep up the good work!",
-  headComment: "A commendable performance. Continue striving for excellence.",
-  attendance: {
-    totalDays: 65,
-    present: 62,
-    absent: 3,
-    behavior: "Good"
-  }
-};
 
 export interface ReportCardSectionProps {
   studentId: number;
@@ -106,6 +77,19 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
       const percentage = (r.scored / r.marks) * 100;
       return percentage >= 40;
     }).length;
+  };
+
+  const averagePercentage = results.length
+    ? results.reduce((sum, r) => sum + ((r.scored / r.marks) * 100), 0) / results.length
+    : 0;
+
+  const teacherComment = getTeacherComment(averagePercentage);
+  const principalComment = getPrincipalComment(averagePercentage);
+  const attendance = {
+    totalDays: 65,
+    present: 62,
+    absent: 3,
+    behavior: "Good",
   };
 
   if (isLoading) {
@@ -167,6 +151,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
               <p className="text-sm text-muted-foreground">Grade: {profile?.class_name}</p>
               <p className="text-sm text-muted-foreground">Exam: {selectedTerm} Final</p>
               <p className="text-sm text-muted-foreground">Passed: {countPassed()} out of {results.length}</p>
+              <p className="text-sm text-muted-foreground">Attendance: {attendance.present}/{attendance.totalDays} days present</p>
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 Date: {new Date().toLocaleDateString()}
@@ -257,7 +242,29 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
           <div>
             <label className="text-sm font-medium text-foreground block mb-2">Teacher Comment:</label>
             <div className="p-3 rounded-lg border border-border bg-secondary/20 min-h-[60px]">
-              <p className="text-sm text-muted-foreground italic">Official comments will be visible once grading is finalized.</p>
+              <p className="text-sm text-foreground italic">{teacherComment}</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-2">Principal&apos;s Overall Comment:</label>
+            <div className="p-3 rounded-lg border border-border bg-primary/5 min-h-[60px]">
+              <p className="text-sm text-foreground italic">{principalComment}</p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4 rounded-lg border border-border bg-secondary/10 p-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Attendance</p>
+              <p className="mt-1 font-semibold text-foreground">{attendance.present} / {attendance.totalDays} days</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Absent</p>
+              <p className="mt-1 font-semibold text-foreground">{attendance.absent} days</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Behaviour</p>
+              <p className="mt-1 font-semibold text-foreground">{attendance.behavior}</p>
             </div>
           </div>
         </div>

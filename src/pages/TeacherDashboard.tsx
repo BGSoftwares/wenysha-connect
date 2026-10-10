@@ -29,6 +29,7 @@ import {
   useTeacherProfile,
   useAllocations,
   useStudents,
+  useClasses,
   useExams,
   useExamMarks,
   useSaveExamMark,
@@ -37,6 +38,7 @@ import {
 } from "@/lib/hooks";
 import { toast } from "sonner";
 import { calculateGrade } from "@/lib/grading";
+import { getPrincipalComment, getTeacherComment, TEACHER_COMMENT_LIBRARY } from "@/lib/reportComments";
 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
@@ -63,6 +65,7 @@ const TeacherDashboard = () => {
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const [gradeInputs, setGradeInputs] = useState<Record<number, string>>({});
+  const [classTeacherComments, setClassTeacherComments] = useState<Record<number, string>>({});
   const [reportCardRows, setReportCardRows] = useState<Array<{ studentId: number; studentName: string; score: number; percentage: number; grade: string }>>([]);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -73,6 +76,7 @@ const TeacherDashboard = () => {
   });
 
   const { data: students = [] } = useStudents();
+  const { data: classes = [] } = useClasses();
 
   const { data: exams = [] } = useExams();
   const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
@@ -167,10 +171,35 @@ const TeacherDashboard = () => {
   const currentStudent = subjectStudents.find(student => student.id === selectedStudentId) ?? subjectStudents[0] ?? null;
   const selectedStudentScore = currentStudent ? gradeInputs[currentStudent.id] ?? examMarks.find(mark => mark.student === currentStudent.id && mark.subject === selectedSubjectId)?.scored ?? "" : "";
   const selectedStudentGrade = currentStudent && selectedStudentScore !== "" ? calculateGrade(Number(selectedStudentScore)).grade : "—";
+  const selectedClass = classes.find(classItem => classItem.id === selectedClassId) ?? null;
+  const isClassTeacherForSelectedClass = Boolean(teacher && selectedClass && selectedClass.class_teacher === teacher.id);
+  const currentStudentTeacherComment = currentStudent ? classTeacherComments[currentStudent.id] || getTeacherComment(Number(selectedStudentScore) || 0) : getTeacherComment(0);
+
+  const applyClassCommentTemplate = (studentId: number, percentage: number) => {
+    setClassTeacherComments((current) => ({
+      ...current,
+      [studentId]: getTeacherComment(percentage),
+    }));
+  };
+
+  const validateSelectedClassComments = () => {
+    if (!selectedClassId || !isClassTeacherForSelectedClass) return true;
+
+    const missingStudents = classStudents.filter((student) => !classTeacherComments[student.id]?.trim());
+    if (missingStudents.length > 0) {
+      toast.error(`Every student in ${selectedClass?.name ?? "this class"} must have a class-teacher comment before the report card can be generated.`);
+      return false;
+    }
+    return true;
+  };
 
   const generateReportCardPreview = () => {
     if (!selectedClassId || !selectedSubjectId || !selectedExamId) {
       toast.error("Select a class, subject, and exam to generate a report card.");
+      return;
+    }
+
+    if (!validateSelectedClassComments()) {
       return;
     }
 
@@ -438,6 +467,70 @@ const TeacherDashboard = () => {
               </div>
             </div>
           )}
+
+          {isClassTeacherForSelectedClass && classStudents.length > 0 && (
+            <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/30 p-4 space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Class Teacher Comments</p>
+                  <p className="text-xs text-muted-foreground">Required for every learner in {selectedClass?.name ?? "this class"}.</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    classStudents.forEach((student) => {
+                      const score = Number(gradeInputs[student.id] ?? examMarks.find(mark => mark.student === student.id && mark.subject === selectedSubjectId)?.scored ?? 0);
+                      applyClassCommentTemplate(student.id, Number.isFinite(score) ? score : 0);
+                    });
+                  }}
+                >
+                  Apply Built-in Comments
+                </Button>
+              </div>
+
+              <div className="grid gap-3">
+                {classStudents.map((student) => {
+                  const percentage = Number(gradeInputs[student.id] ?? examMarks.find(mark => mark.student === student.id && mark.subject === selectedSubjectId)?.scored ?? 0);
+                  return (
+                    <div key={student.id} className="grid md:grid-cols-[1fr_2fr] gap-3 items-start rounded-lg border border-border bg-background/80 p-3">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{student.name}</p>
+                        <select
+                          className="mt-2 w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                          defaultValue=""
+                          onChange={(event) => {
+                            const selectedTemplate = TEACHER_COMMENT_LIBRARY.find((template) => template.label === event.target.value);
+                            if (selectedTemplate) {
+                              setClassTeacherComments((current) => ({
+                                ...current,
+                                [student.id]: selectedTemplate.text,
+                              }));
+                            }
+                          }}
+                        >
+                          <option value="">Choose built-in comment</option>
+                          {TEACHER_COMMENT_LIBRARY.map((template) => (
+                            <option key={template.label} value={template.label}>{template.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <textarea
+                        value={classTeacherComments[student.id] ?? ""}
+                        onChange={(event) => setClassTeacherComments((current) => ({
+                          ...current,
+                          [student.id]: event.target.value,
+                        }))}
+                        placeholder={`Comment for ${student.name}...`}
+                        className="w-full min-h-[80px] px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -506,7 +599,22 @@ const TeacherDashboard = () => {
             </table>
           </div>
 
-          <div className="p-6 border-t border-border bg-secondary/10">
+          <div className="p-6 border-t border-border bg-secondary/10 space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="rounded-lg border border-border bg-white p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Teacher comment</p>
+                <p className="mt-1 text-sm text-foreground italic">{currentStudentTeacherComment}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-white p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Principal comment</p>
+                <p className="mt-1 text-sm text-foreground italic">{getPrincipalComment(reportCardRows.reduce((sum, row) => sum + row.percentage, 0) / Math.max(reportCardRows.length, 1))}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-white p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Attendance</p>
+                <p className="mt-1 text-sm text-foreground">{classStudents.filter(student => attendanceRecords.some(record => record.student === student.id && record.status === "present")).length} / {classStudents.length} present this term</p>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">This report is electronically generated, follow the link to verify the report.</p>
               <div className="flex items-center gap-2 text-muted-foreground">
