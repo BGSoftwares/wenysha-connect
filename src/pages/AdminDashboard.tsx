@@ -1,3 +1,4 @@
+import DashboardExtras from "@/components/dashboard/DashboardExtras";
 import { useState } from "react";
 import { useStudents, useTeachers, useClasses, useSubjects, useCreateStudent, useCreateTeacher, useCreateClass, useCreateSubject, useAllocations, useUpdateStudent, useDeleteStudent, type Student, type Teacher, type SchoolClass, type Subject } from "@/lib/hooks";
 import { Toaster } from "@/components/ui/sonner";
@@ -273,7 +274,7 @@ const AdminDashboard = () => {
 
   const renderContent = () => {
     switch (activeNav) {
-      case "dashboard": return <DashboardOverview />;
+      case "dashboard": return (<><DashboardExtras role="Admin" actions={[{ label: "Students", onClick: () => setActiveNav("students") }, { label: "Notices", onClick: () => setActiveNav("notice") }]} /><DashboardOverview /></>);
       case "students": return (
         <StudentsSection
           students={students}

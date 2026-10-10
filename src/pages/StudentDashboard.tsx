@@ -1,3 +1,4 @@
+import DashboardExtras from "@/components/dashboard/DashboardExtras";
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Menu } from "lucide-react";
@@ -168,6 +169,7 @@ const StudentDashboard = () => {
 
   const renderDashboard = () => (
     <>
+      <DashboardExtras role="Student" />
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {/* Average Grade */}

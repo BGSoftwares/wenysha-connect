@@ -10,6 +10,7 @@ import AdmissionsSection from "@/components/home/AdmissionsSection";
 import HighlightsSection from "@/components/home/HighlightsSection";
 import DepartmentsSection from "@/components/home/DepartmentsSection";
 import ClubsSection from "@/components/home/ClubsSection";
+import { StatsCounters, TestimonialsSlider } from "@/components/home/StatsAndTestimonials";
 
 const quickLinks = [
   { icon: BookOpen, title: "Academics", description: "Explore our curriculum", path: "/academics" },
@@ -55,6 +56,8 @@ const Index = () => {
       {/* Highlights Section - Green cards */}
       <HighlightsSection />
 
+      <StatsCounters />
+
       {/* Departments Section */}
       <DepartmentsSection />
 
@@ -63,6 +66,8 @@ const Index = () => {
 
       {/* Remarks Section */}
       <RemarksSection />
+
+      <TestimonialsSlider />
 
       {/* Features Section */}
       <FeaturesSection />
