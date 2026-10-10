@@ -34,7 +34,10 @@ import {
   useExamMarks,
   useSaveExamMark,
   useAttendanceRecords,
-  useUpdateAttendance
+  useUpdateAttendance,
+  useLearningMaterials,
+  useCreateLearningMaterial,
+  useDeleteLearningMaterial
 } from "@/lib/hooks";
 import { toast } from "sonner";
 import { calculateGrade } from "@/lib/grading";
@@ -51,12 +54,6 @@ const navigation = [
   { name: "Settings", icon: Settings, id: "settings" },
 ];
 
-const contentMaterials = [
-  { id: 1, title: "Quadratic Equations Notes", subject: "Mathematics", type: "PDF", uploadDate: "Dec 10, 2024", downloads: 38 },
-  { id: 2, title: "Statistics Formulas", subject: "Statistics", type: "PDF", uploadDate: "Dec 8, 2024", downloads: 25 },
-  { id: 3, title: "Practice Problems Set 5", subject: "Mathematics", type: "PDF", uploadDate: "Dec 5, 2024", downloads: 42 },
-];
-
 const TeacherDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -68,6 +65,13 @@ const TeacherDashboard = () => {
   const [classTeacherComments, setClassTeacherComments] = useState<Record<number, string>>({});
   const [reportCardRows, setReportCardRows] = useState<Array<{ studentId: number; studentName: string; score: number; percentage: number; grade: string }>>([]);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [materialDraft, setMaterialDraft] = useState({
+    title: "",
+    subject_name: "",
+    class_name: "",
+    file_url: "",
+    file_type: "PDF",
+  });
 
   // Data Hooks
   const { data: teacher, isLoading: isLoadingProfile } = useTeacherProfile();
@@ -86,12 +90,21 @@ const TeacherDashboard = () => {
 
   const updateAttendanceMutation = useUpdateAttendance();
   const saveExamMarkMutation = useSaveExamMark();
+  const { data: learningMaterials = [] } = useLearningMaterials();
+  const createLearningMaterialMutation = useCreateLearningMaterial();
+  const deleteLearningMaterialMutation = useDeleteLearningMaterial();
 
   const uniqueClasses = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.school_class, name: a.class_name }))))
     .map(s => JSON.parse(s));
 
   const uniqueSubjects = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.subject, name: a.subject_name }))))
     .map(s => JSON.parse(s));
+
+  const assignedMaterials = (learningMaterials ?? []).filter((material) => {
+    const matchesClass = uniqueClasses.some((schoolClass) => schoolClass.name === material.class_name);
+    const matchesSubject = uniqueSubjects.some((subject) => subject.name === material.subject_name);
+    return matchesClass && matchesSubject;
+  });
 
   const classStudents = students.filter(student => student.school_class === selectedClassId);
 
@@ -242,6 +255,29 @@ const TeacherDashboard = () => {
     link.download = `class-attendance-${attendanceDate}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleUploadMaterial = async () => {
+    if (!materialDraft.title.trim() || !materialDraft.subject_name || !materialDraft.class_name || !materialDraft.file_url.trim()) {
+      toast.error("Add a title, subject, class, and file link before uploading.");
+      return;
+    }
+
+    try {
+      await createLearningMaterialMutation.mutateAsync({
+        title: materialDraft.title.trim(),
+        subject_name: materialDraft.subject_name,
+        class_name: materialDraft.class_name,
+        file_url: materialDraft.file_url.trim(),
+        file_type: materialDraft.file_type,
+        uploaded_by: teacher?.name || "Teacher",
+      });
+
+      setMaterialDraft({ title: "", subject_name: "", class_name: "", file_url: "", file_type: "PDF" });
+      toast.success("Learning material uploaded successfully.");
+    } catch (error) {
+      toast.error("Could not upload this learning material.");
+    }
   };
 
   const renderDashboard = () => (
@@ -798,41 +834,112 @@ const TeacherDashboard = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-xl font-bold text-foreground">Learning Materials</h2>
-        <Button variant="gold">
-          <Plus className="h-4 w-4 mr-2" />
-          Upload Material
-        </Button>
+        <span className="text-sm text-muted-foreground">Assigned subjects: {uniqueSubjects.length}</span>
       </div>
 
       <div className="grid gap-4">
-        {contentMaterials.map((material) => (
-          <div key={material.id} className="bg-card rounded-xl border border-border p-5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <FileText className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-medium text-foreground">{material.title}</h3>
-                <p className="text-sm text-muted-foreground">{material.subject} • {material.type} • {material.uploadDate}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">{material.downloads} downloads</span>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm"><Eye className="h-4 w-4" /></Button>
-                <Button variant="outline" size="sm"><Edit className="h-4 w-4" /></Button>
-              </div>
-            </div>
+        {assignedMaterials.length === 0 ? (
+          <div className="bg-card rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
+            No learning materials have been added for your assigned classes and subjects yet.
           </div>
-        ))}
+        ) : (
+          assignedMaterials.map((material) => (
+            <div key={material.id} className="bg-card rounded-xl border border-border p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-foreground">{material.title}</h3>
+                  <p className="text-sm text-muted-foreground">{material.subject_name} • {material.class_name || "Class"} • {material.file_type} • {new Date(material.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">Uploaded by {material.uploaded_by || "teacher"}</span>
+                <div className="flex gap-2">
+                  <a href={material.file_url} target="_blank" rel="noreferrer">
+                    <Button variant="outline" size="sm"><Eye className="h-4 w-4" /></Button>
+                  </a>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await deleteLearningMaterialMutation.mutateAsync(material.id);
+                        toast.success("Material deleted.");
+                      } catch {
+                        toast.error("Unable to delete this material.");
+                      }
+                    }}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
-      {/* Upload Area */}
-      <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
-        <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="font-medium text-foreground mb-2">Upload Learning Materials</h3>
-        <p className="text-sm text-muted-foreground mb-4">Drag and drop files here, or click to browse</p>
-        <Button variant="outline">Browse Files</Button>
+      <div className="border-2 border-dashed border-border rounded-xl p-6 space-y-4">
+        <div className="flex items-center gap-3 text-foreground">
+          <Upload className="h-6 w-6 text-muted-foreground" />
+          <h3 className="font-medium">Upload Learning Materials</h3>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <input
+            type="text"
+            value={materialDraft.title}
+            onChange={(event) => setMaterialDraft((current) => ({ ...current, title: event.target.value }))}
+            placeholder="Material title"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+          />
+          <select
+            value={materialDraft.class_name}
+            onChange={(event) => setMaterialDraft((current) => ({ ...current, class_name: event.target.value }))}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+          >
+            <option value="">Select class</option>
+            {uniqueClasses.map((schoolClass) => (
+              <option key={schoolClass.id} value={schoolClass.name}>{schoolClass.name}</option>
+            ))}
+          </select>
+          <select
+            value={materialDraft.subject_name}
+            onChange={(event) => setMaterialDraft((current) => ({ ...current, subject_name: event.target.value }))}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+          >
+            <option value="">Select subject</option>
+            {uniqueSubjects.map((subject) => (
+              <option key={subject.id} value={subject.name}>{subject.name}</option>
+            ))}
+          </select>
+          <select
+            value={materialDraft.file_type}
+            onChange={(event) => setMaterialDraft((current) => ({ ...current, file_type: event.target.value }))}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+          >
+            <option value="PDF">PDF</option>
+            <option value="DOC">DOC</option>
+            <option value="VIDEO">VIDEO</option>
+            <option value="LINK">LINK</option>
+          </select>
+        </div>
+
+        <input
+          type="url"
+          value={materialDraft.file_url}
+          onChange={(event) => setMaterialDraft((current) => ({ ...current, file_url: event.target.value }))}
+          placeholder="https://example.com/notes.pdf"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+        />
+
+        <div className="flex justify-end">
+          <Button variant="gold" onClick={() => void handleUploadMaterial()} disabled={createLearningMaterialMutation.isPending}>
+            {createLearningMaterialMutation.isPending ? "Uploading..." : "Upload Material"}
+          </Button>
+        </div>
       </div>
     </div>
   );
