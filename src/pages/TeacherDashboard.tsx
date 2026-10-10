@@ -1,3 +1,4 @@
+import DashboardExtras from "@/components/dashboard/DashboardExtras";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -282,6 +283,7 @@ const TeacherDashboard = () => {
 
   const renderDashboard = () => (
     <div className="space-y-6">
+      <DashboardExtras role="Teacher" />
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-card rounded-xl border border-border p-5">
