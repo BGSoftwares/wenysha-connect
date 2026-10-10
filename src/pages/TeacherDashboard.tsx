@@ -1,3 +1,4 @@
+import { schoolContact } from "@/lib/schoolContact";
 import DashboardExtras from "@/components/dashboard/DashboardExtras";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
