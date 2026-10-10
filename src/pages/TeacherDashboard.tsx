@@ -30,6 +30,7 @@ import {
   useAllocations,
   useStudents,
   useClasses,
+  useSubjects,
   useExams,
   useExamMarks,
   useSaveExamMark,
@@ -41,6 +42,7 @@ import {
 } from "@/lib/hooks";
 import { toast } from "sonner";
 import { calculateGrade } from "@/lib/grading";
+import { schoolContact } from "@/lib/schoolContact";
 import { getPrincipalComment, getTeacherComment, TEACHER_COMMENT_LIBRARY } from "@/lib/reportComments";
 
 const navigation = [
@@ -81,6 +83,7 @@ const TeacherDashboard = () => {
 
   const { data: students = [] } = useStudents();
   const { data: classes = [] } = useClasses();
+  const { data: subjects = [] } = useSubjects();
 
   const { data: exams = [] } = useExams();
   const { data: allExamMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId } : undefined);
@@ -95,11 +98,27 @@ const TeacherDashboard = () => {
   const createLearningMaterialMutation = useCreateLearningMaterial();
   const deleteLearningMaterialMutation = useDeleteLearningMaterial();
 
-  const uniqueClasses = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.school_class, name: a.class_name }))))
-    .map(s => JSON.parse(s));
+  const uniqueClasses = allocations.length
+    ? Array.from(new Map(
+        allocations.map((allocation) => [String(allocation.school_class), { id: Number(allocation.school_class), name: allocation.class_name }])
+      ).values())
+    : classes.map((schoolClass) => ({ id: Number(schoolClass.id), name: schoolClass.name }));
 
-  const uniqueSubjects = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.subject, name: a.subject_name }))))
-    .map(s => JSON.parse(s));
+  const uniqueSubjects = allocations.length
+    ? Array.from(new Map(
+        allocations.map((allocation) => [String(allocation.subject), { id: Number(allocation.subject), name: allocation.subject_name }])
+      ).values())
+    : subjects.map((subject) => ({ id: Number(subject.id), name: subject.name }));
+
+  const classSubjectOptions = selectedClassId
+    ? allocations.length
+      ? Array.from(new Map(
+          allocations
+            .filter((allocation) => String(allocation.school_class) === String(selectedClassId))
+            .map((allocation) => [String(allocation.subject), { id: Number(allocation.subject), name: allocation.subject_name }])
+        ).values())
+      : subjects.map((subject) => ({ id: Number(subject.id), name: subject.name }))
+    : [];
 
   const assignedMaterials = (learningMaterials ?? []).filter((material) => {
     const matchesClass = uniqueClasses.some((schoolClass) => schoolClass.name === material.class_name);
@@ -108,10 +127,17 @@ const TeacherDashboard = () => {
   });
 
   const classStudents = students.filter(student => student.school_class === selectedClassId);
+  const subjectStudents = selectedClassId ? classStudents : [];
 
   useEffect(() => {
-    if (uniqueClasses.length > 0 && selectedClassId === null) {
-      setSelectedClassId(uniqueClasses[0].id);
+    if (!uniqueClasses.length) {
+      if (selectedClassId !== null) setSelectedClassId(null);
+      return;
+    }
+
+    const classExists = uniqueClasses.some((schoolClass) => Number(schoolClass.id) === Number(selectedClassId));
+    if (selectedClassId === null || !classExists) {
+      setSelectedClassId(Number(uniqueClasses[0].id));
     }
   }, [uniqueClasses, selectedClassId]);
 
@@ -120,15 +146,22 @@ const TeacherDashboard = () => {
   }, [exams, selectedExamId]);
 
   useEffect(() => {
-    const allocatedSubject = allocations.find(allocation => allocation.school_class === selectedClassId)?.subject;
-    if (allocatedSubject && !allocations.some(allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId)) {
-      setSelectedSubjectId(allocatedSubject);
+    if (!selectedClassId) {
+      setSelectedSubjectId(null);
+      return;
     }
-  }, [allocations, selectedClassId, selectedSubjectId]);
 
-  const subjectStudents = selectedClassId && selectedSubjectId
-    ? classStudents.filter(student => allocations.some(allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId))
-    : classStudents;
+    const validOptions = classSubjectOptions;
+    if (!validOptions.length) {
+      setSelectedSubjectId(null);
+      return;
+    }
+
+    const subjectExists = validOptions.some((subject) => Number(subject.id) === Number(selectedSubjectId));
+    if (!subjectExists) {
+      setSelectedSubjectId(Number(validOptions[0].id));
+    }
+  }, [classSubjectOptions, selectedClassId, selectedSubjectId]);
 
   useEffect(() => {
     if (!selectedClassId || !selectedSubjectId) {
@@ -187,9 +220,17 @@ const TeacherDashboard = () => {
   const selectedStudentScore = currentStudent ? gradeInputs[currentStudent.id] ?? selectedSubjectMarks.find(mark => mark.student === currentStudent.id)?.scored ?? "" : "";
   const selectedStudentGrade = currentStudent && selectedStudentScore !== "" ? calculateGrade(Number(selectedStudentScore)).grade : "—";
   const selectedClass = classes.find(classItem => classItem.id === selectedClassId) ?? null;
-  const classSubjectAllocations = selectedClassId ? allocations.filter(allocation => allocation.school_class === selectedClassId) : [];
+  const classSubjectAllocations = selectedClassId
+    ? Array.from(new Map(
+        allocations
+          .filter((allocation) => String(allocation.school_class) === String(selectedClassId))
+          .map((allocation) => [String(allocation.subject), allocation])
+      ).values())
+    : [];
   const currentStudentGradedSubjects = currentStudent
-    ? classSubjectAllocations.filter((allocation) => allExamMarks.some(mark => mark.student === currentStudent.id && mark.subject === allocation.subject)).map((allocation) => allocation.subject_name)
+    ? classSubjectAllocations
+        .filter((allocation) => allExamMarks.some(mark => mark.student === currentStudent.id && mark.subject === allocation.subject))
+        .map((allocation) => allocation.subject_name)
     : [];
   const isClassTeacherForSelectedClass = Boolean(teacher && selectedClass && selectedClass.class_teacher === teacher.id);
   const currentStudentTeacherComment = currentStudent ? classTeacherComments[currentStudent.id] || getTeacherComment(Number(selectedStudentScore) || 0) : getTeacherComment(0);
@@ -222,15 +263,15 @@ const TeacherDashboard = () => {
       return;
     }
 
-    const previewStudent = currentStudent ?? classStudents[0] ?? null;
+    const previewStudent = currentStudent ?? subjectStudents[0] ?? null;
     if (!previewStudent) {
-      toast.error("No student is available for this class yet.");
+      toast.error("No student is available for this class and subject yet.");
       return;
     }
 
-    const studentRows = classSubjectAllocations
-      .map((allocation) => {
-        const mark = allExamMarks.find(item => item.student === previewStudent.id && item.subject === allocation.subject);
+    const studentRows = subjectStudents
+      .map((student) => {
+        const mark = allExamMarks.find(item => item.student === student.id && item.subject === selectedSubjectId);
         if (!mark) return null;
 
         const score = Number(mark.scored);
@@ -238,9 +279,9 @@ const TeacherDashboard = () => {
         const percentage = total > 0 ? (score / total) * 100 : 0;
 
         return {
-          studentId: previewStudent.id,
-          studentName: previewStudent.name,
-          subjectName: allocation.subject_name,
+          studentId: student.id,
+          studentName: student.name,
+          subjectName: classSubjectOptions.find(subject => Number(subject.id) === Number(selectedSubjectId))?.name || "Selected Subject",
           score,
           percentage,
           grade: calculateGrade(percentage).grade,
@@ -251,11 +292,11 @@ const TeacherDashboard = () => {
     setReportCardRows(studentRows);
 
     if (studentRows.length === 0) {
-      toast.error("No graded marks have been entered for this student yet across the assigned subjects.");
+      toast.error("No graded marks have been entered for this class and selected subject yet.");
       return;
     }
 
-    toast.success("Report card preview generated for all graded subjects.");
+    toast.success("Report card preview generated for the selected class and subject.");
   };
 
   const teacherName = teacher?.name || "Teacher";
@@ -487,7 +528,7 @@ const TeacherDashboard = () => {
           </select>
           <select value={selectedSubjectId || ""} onChange={e => setSelectedSubjectId(Number(e.target.value))} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">Select Subject</option>
-            {allocations.filter(allocation => allocation.school_class === selectedClassId).map(allocation => <option key={allocation.subject} value={allocation.subject}>{allocation.subject_name}</option>)}
+            {classSubjectOptions.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
           </select>
           <select value={selectedExamId || ""} onChange={e => setSelectedExamId(Number(e.target.value))} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">Select Exam</option>
@@ -662,8 +703,8 @@ const TeacherDashboard = () => {
                   const percentage = row.percentage;
                   const gradeInfo = calculateGrade(percentage);
                   return (
-                    <tr key={row.studentId} className="hover:bg-secondary/30 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium text-foreground">{uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Subject"}</td>
+                    <tr key={`${row.studentId}-${row.subjectName}`} className="hover:bg-secondary/30 transition-colors">
+                      <td className="px-4 py-3 text-sm font-medium text-foreground">{row.subjectName}</td>
                       <td className="px-4 py-3 text-sm text-center text-muted-foreground">100</td>
                       <td className="px-4 py-3 text-sm text-center font-medium text-foreground">{row.score.toFixed(2)}</td>
                       <td className="px-4 py-3 text-sm text-center text-muted-foreground">{percentage.toFixed(2)}%</td>
@@ -1221,12 +1262,22 @@ const TeacherDashboard = () => {
               <p className="text-white/50 text-sm">{department} Department</p>
             </div>
           </div>
-          <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
-            <Bell className="h-6 w-6 text-white/60" />
-            <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-              2
-            </span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors" aria-label="Notifications">
+              <Bell className="h-6 w-6 text-white/60" />
+              <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
+                2
+              </span>
+            </button>
+            <Link
+              to="/portal"
+              onClick={clearAuth}
+              aria-label="Sign out"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <LogOut className="h-4 w-4" />
+            </Link>
+          </div>
         </header>
 
         <div className="p-6">

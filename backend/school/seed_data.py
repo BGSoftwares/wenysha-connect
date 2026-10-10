@@ -21,6 +21,7 @@ REQUIRED_SUBJECTS = [
     {"name": "Heritage", "code": "HER", "department": "Humanities"},
     {"name": "BES", "code": "BES", "department": "Business"},
     {"name": "Economics", "code": "ECO", "department": "Business"},
+    {"name": "Accounts", "code": "ACC", "department": "Business"},
 ]
 
 
@@ -40,9 +41,37 @@ DEFAULT_MARKS = {
     "Economics": 81,
 }
 
+STANDARD_TEACHERS = [
+    "Mr Mhangami",
+    "Mr Gurumani",
+    "Mr Pasi",
+    "Mr Mutingwende",
+    "Mr Ndabuda",
+    "Miss Mhlanga",
+    "Miss Chihwiza",
+    "Miss Marija K",
+    "Miss Mariga R",
+    "Mr Zuze",
+    "Mr Majaraunga",
+]
+
+
+def ensure_required_teachers():
+    created = []
+    for teacher_name in STANDARD_TEACHERS:
+        teacher, was_created = Teacher.objects.get_or_create(
+            name=teacher_name,
+            defaults={"department": "Academic", "phone": ""},
+        )
+        if was_created:
+            created.append(teacher.name)
+    return created
+
 
 @transaction.atomic
 def ensure_academic_seed_data():
+    ensure_required_teachers()
+
     school_class, _ = SchoolClass.objects.get_or_create(
         name="3B2",
         defaults={"capacity": 45, "enrolled": 0},

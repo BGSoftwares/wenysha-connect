@@ -1,4 +1,6 @@
-import { Bell, Search, MessageSquare, Settings, ChevronDown, Globe, Menu } from "lucide-react";
+import { Bell, Search, MessageSquare, Settings, ChevronDown, Globe, Menu, LogOut } from "lucide-react";
+import { Link } from "react-router-dom";
+import { clearAuth } from "@/lib/api";
 
 interface AdminHeaderProps {
   title: string;
@@ -35,15 +37,24 @@ const AdminHeader = ({ title, breadcrumb, onMenuClick }: AdminHeaderProps) => {
 
         <div className="flex items-center gap-2">
           {/* Notifications */}
-          <button className="relative p-2.5 rounded-xl hover:bg-white/5 transition-colors group">
+          <button className="relative p-2.5 rounded-xl hover:bg-white/5 transition-colors group" aria-label="Messages">
             <MessageSquare className="h-5 w-5 text-white/50 group-hover:text-white transition-colors" />
             <span className="absolute top-2 right-2 h-2 w-2 bg-accent rounded-full animate-pulse shadow-[0_0_8px_rgba(var(--accent),0.8)]" />
           </button>
 
-          <button className="relative p-2.5 rounded-xl hover:bg-white/5 transition-colors group">
+          <button className="relative p-2.5 rounded-xl hover:bg-white/5 transition-colors group" aria-label="Notifications">
             <Bell className="h-5 w-5 text-white/50 group-hover:text-white transition-colors" />
             <span className="absolute top-2 right-2 h-2 w-2 bg-destructive rounded-full animate-pulse" />
           </button>
+
+          <Link
+            to="/portal"
+            onClick={clearAuth}
+            aria-label="Sign out"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <LogOut className="h-4 w-4" />
+          </Link>
         </div>
 
         {/* User Profile */}
