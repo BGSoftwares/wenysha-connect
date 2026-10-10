@@ -47,7 +47,7 @@ const Index = () => {
   return (
     <Layout>
       {/* Hero Section with Cinematic Carousel */}
-      <section className="relative h-screen w-full">
+      <section className="relative mt-20 h-[calc(100svh-5rem)] min-h-[28rem] w-full overflow-hidden">
         <HeroCarousel />
 
       </section>

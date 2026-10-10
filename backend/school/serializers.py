@@ -7,10 +7,14 @@ from .models import (
 
 class SchoolClassSerializer(serializers.ModelSerializer):
     class_teacher_name = serializers.CharField(source='class_teacher.name', read_only=True)
+    enrolled = serializers.SerializerMethodField()
 
     class Meta:
         model = SchoolClass
         fields = ['id', 'name', 'capacity', 'enrolled', 'class_teacher', 'class_teacher_name']
+
+    def get_enrolled(self, obj):
+        return obj.students.count()
 
 
 class TeacherSerializer(serializers.ModelSerializer):

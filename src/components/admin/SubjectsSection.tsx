@@ -12,9 +12,11 @@ interface Subject {
 interface SubjectsSectionProps {
     subjects: Subject[] | undefined;
     onAddSubject: () => void;
+    onEditSubject: (subject: Subject) => void;
+    onDeleteSubject: (subject: Subject) => void;
 }
 
-const SubjectsSection = ({ subjects, onAddSubject }: SubjectsSectionProps) => {
+const SubjectsSection = ({ subjects, onAddSubject, onEditSubject, onDeleteSubject }: SubjectsSectionProps) => {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
@@ -44,10 +46,10 @@ const SubjectsSection = ({ subjects, onAddSubject }: SubjectsSectionProps) => {
                                     <td className="px-6 py-4 text-sm text-muted-foreground">{subject.department}</td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
-                                            <button className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
+                                            <button aria-label={`Edit ${subject.name}`} onClick={() => onEditSubject(subject)} className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
                                                 <Edit className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                             </button>
-                                            <button className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
+                                            <button aria-label={`Delete ${subject.name}`} onClick={() => onDeleteSubject(subject)} className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
                                                 <Trash2 className="h-4 w-4 text-muted-foreground group-hover:text-destructive transition-colors" />
                                             </button>
                                         </div>

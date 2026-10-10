@@ -12,9 +12,11 @@ interface TeachersSectionProps {
     teachers: Teacher[] | undefined;
     isLoading: boolean;
     onAddTeacher: () => void;
+    onEditTeacher: (teacher: Teacher) => void;
+    onDeleteTeacher: (teacher: Teacher) => void;
 }
 
-const TeachersSection = ({ teachers, isLoading, onAddTeacher }: TeachersSectionProps) => {
+const TeachersSection = ({ teachers, isLoading, onAddTeacher, onEditTeacher, onDeleteTeacher }: TeachersSectionProps) => {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
@@ -50,11 +52,11 @@ const TeachersSection = ({ teachers, isLoading, onAddTeacher }: TeachersSectionP
                             </div>
 
                             <div className="flex gap-2 mt-6">
-                                <Button variant="outline" size="sm" className="flex-1 rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors">
+                                <Button variant="outline" size="sm" onClick={() => onEditTeacher(teacher)} className="flex-1 rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors">
                                     <Edit className="h-4 w-4 mr-2" />
                                     Edit
                                 </Button>
-                                <Button variant="outline" size="sm" className="rounded-lg hover:border-destructive/50 hover:bg-destructive/5 transition-colors group/del">
+                                <Button variant="outline" size="sm" aria-label={`Delete ${teacher.name}`} onClick={() => onDeleteTeacher(teacher)} className="rounded-lg hover:border-destructive/50 hover:bg-destructive/5 transition-colors group/del">
                                     <Trash2 className="h-4 w-4 text-muted-foreground group-hover/del:text-destructive" />
                                 </Button>
                             </div>

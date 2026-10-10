@@ -6,7 +6,7 @@
 const getApiBaseUrl = (): string => {
   const url = import.meta.env.VITE_API_BASE_URL;
   if (!url) {
-    return "https://katia-serpentiform-humiliatingly.ngrok-free.dev/api";
+    return "/api";
   }
   return url.replace(/\/$/, "");
 };
@@ -163,7 +163,8 @@ export async function refreshAccessToken(): Promise<string> {
   const refresh = getRefreshToken();
   if (!refresh) throw new Error("No refresh token");
   const base = getApiBaseUrl();
-  const res = await fetch(`${base.replace("/api", "")}/api/auth/token/refresh/`, {
+  const refreshUrl = `${base.replace(/\/$/, "")}/auth/token/refresh/`;
+  const res = await fetch(refreshUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh }),

@@ -3,7 +3,9 @@ import { Plus, Edit, Trash2, Search, Calendar, BookOpen, Users, CheckCircle, Clo
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { calculateGrade, GRADING_SCALE } from "@/lib/grading";
-import { useExams, useExamSchedules, useExamMarks, useCreateExam, useUpdateExamMark, useClasses, useSubjects, Exam } from "@/lib/hooks";
+import { useExams, useExamSchedules, useExamMarks, useSaveExamMark, useCreateExam, useClasses, useSubjects, useStudents, Exam } from "@/lib/hooks";
+import { api, getErrorMessage } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 const ExamManagementSection = () => {
   const [activeTab, setActiveTab] = useState<"exams" | "schedules" | "marks">("exams");
@@ -11,16 +13,24 @@ const ExamManagementSection = () => {
   const [showMarksModal, setShowMarksModal] = useState(false);
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [marksClassId, setMarksClassId] = useState("");
+  const [marksSubjectId, setMarksSubjectId] = useState("");
+  const [marksDraft, setMarksDraft] = useState<Record<number, string>>({});
+  const queryClient = useQueryClient();
 
   // Logic Hooks
   const { data: exams = [], isLoading: isLoadingExams } = useExams();
   const { data: schedules = [] } = useExamSchedules({ exam: selectedExamId || undefined });
   const { data: classes = [] } = useClasses();
   const { data: subjects = [] } = useSubjects();
+  const { data: students = [] } = useStudents();
+  const { data: existingMarks = [] } = useExamMarks({ exam: selectedExamId ?? undefined });
 
   const createExamMutation = useCreateExam();
+  const saveExamMark = useSaveExamMark();
 
   const selectedExam = exams.find(e => e.id === selectedExamId);
+  const openMarks = (examId: number) => { setSelectedExamId(examId); setMarksClassId(""); setMarksSubjectId(""); setMarksDraft({}); setShowMarksModal(true); };
 
   // Form states
   const [newExam, setNewExam] = useState({
@@ -70,6 +80,31 @@ const ExamManagementSection = () => {
     } catch (error) {
       toast.error("Failed to create exam");
     }
+  };
+
+  const handleEditExam = async (exam: Exam) => {
+    const name = window.prompt("Exam name", exam.name)?.trim();
+    if (!name || name === exam.name) return;
+    try { await api.patch(`/exams/exams/${exam.id}/`, { name }); await queryClient.invalidateQueries({ queryKey: ["exams"] }); toast.success("Exam updated"); }
+    catch (error) { toast.error(getErrorMessage(error)); }
+  };
+  const handleDeleteExam = async (exam: Exam) => {
+    if (!window.confirm(`Delete “${exam.name}” and its schedules and marks?`)) return;
+    try { await api.delete(`/exams/exams/${exam.id}/`); await queryClient.invalidateQueries({ queryKey: ["exams"] }); toast.success("Exam deleted"); }
+    catch (error) { toast.error(getErrorMessage(error)); }
+  };
+  const handleSaveMarks = async () => {
+    if (!selectedExam || !marksClassId || !marksSubjectId) { toast.error("Select a class and subject first"); return; }
+    const classStudents = students.filter(s => s.school_class === Number(marksClassId) && s.status === "Active");
+    const pending = classStudents.filter(s => (marksDraft[s.id] ?? existingMarks.find(m => m.student === s.id && m.subject === Number(marksSubjectId))?.scored?.toString() ?? "") !== "");
+    if (!pending.length) { toast.error("Enter at least one student score"); return; }
+    const total = 100;
+    const invalid = pending.find(s => { const score = Number(marksDraft[s.id] ?? existingMarks.find(m => m.student === s.id && m.subject === Number(marksSubjectId))?.scored); return !Number.isFinite(score) || score < 0 || score > total; });
+    if (invalid) { toast.error(`Enter a score from 0 to ${total} for ${invalid.name}`); return; }
+    try {
+      await Promise.all(pending.map(s => saveExamMark.mutateAsync({ exam: selectedExam.id, student: s.id, subject: Number(marksSubjectId), total_marks: total, scored: Number(marksDraft[s.id] ?? existingMarks.find(m => m.student === s.id && m.subject === Number(marksSubjectId))?.scored) })));
+      toast.success(`Saved marks for ${pending.length} student(s)`); setShowMarksModal(false); setMarksDraft({});
+    } catch (error) { toast.error(getErrorMessage(error)); }
   };
 
   const toggleClass = (cls: string) => {
@@ -234,16 +269,13 @@ const ExamManagementSection = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setSelectedExamId(exam.id);
-                        setShowMarksModal(true);
-                      }}
+                      onClick={() => openMarks(exam.id)}
                     >
                       <FileText className="h-4 w-4 mr-1" />
                       Marks
                     </Button>
-                    <Button variant="outline" size="sm"><Edit className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="sm"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <Button variant="outline" size="sm" aria-label={`Edit ${exam.name}`} onClick={() => void handleEditExam(exam)}><Edit className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="sm" aria-label={`Delete ${exam.name}`} onClick={() => void handleDeleteExam(exam)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 </div>
               </div>
@@ -292,10 +324,7 @@ const ExamManagementSection = () => {
             {exams.filter(e => e.status === "completed" || e.status === "grading").map((exam) => (
               <button
                 key={exam.id}
-                onClick={() => {
-                  setSelectedExamId(exam.id);
-                  setShowMarksModal(true);
-                }}
+                onClick={() => openMarks(exam.id)}
                 className="p-4 rounded-lg border border-border hover:border-primary bg-background text-left transition-colors"
               >
                 <h4 className="font-medium text-foreground mb-1">{exam.name}</h4>
@@ -430,13 +459,13 @@ const ExamManagementSection = () => {
             <p className="text-sm text-muted-foreground mb-6">{selectedExam.name}</p>
 
             <div className="flex gap-4 mb-6">
-              <select className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
-                <option>Select Class</option>
-                {classes.filter(c => selectedExam?.classes.includes(c.id)).map(cls => <option key={cls.id}>{cls.name}</option>)}
+              <select value={marksClassId} onChange={e => setMarksClassId(e.target.value)} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
+                <option value="">Select Class</option>
+                {classes.filter(c => selectedExam?.classes.includes(c.id)).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
               </select>
-              <select className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
-                <option>Select Subject</option>
-                {subjects.filter(s => selectedExam?.subjects.includes(s.id)).map(subj => <option key={subj.id}>{subj.name}</option>)}
+              <select value={marksSubjectId} onChange={e => setMarksSubjectId(e.target.value)} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
+                <option value="">Select Subject</option>
+                {subjects.filter(s => selectedExam?.subjects.includes(s.id)).map(subj => <option key={subj.id} value={subj.id}>{subj.name}</option>)}
               </select>
             </div>
 
@@ -457,21 +486,13 @@ const ExamManagementSection = () => {
               </div>
             </div>
 
-            <div className="bg-secondary/30 rounded-xl p-4 mb-6">
-              <p className="text-sm text-muted-foreground text-center">
-                Select a class and subject to load students and enter marks.
-              </p>
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                Grades are automatically calculated: A (75-100), B (60-74), C (50-59), D (45-49), E (40-44), U (0-39)
-              </p>
+            <div className="mb-6 overflow-x-auto rounded-xl border">
+              {!marksClassId || !marksSubjectId ? <p className="p-6 text-center text-sm text-muted-foreground">Select a class and subject to load its students and saved scores.</p> : <table className="w-full"><thead className="bg-secondary/50"><tr><th className="p-3 text-left text-sm">Student</th><th className="p-3 text-left text-sm">Student ID</th><th className="p-3 text-left text-sm">Score (out of 100)</th></tr></thead><tbody>{students.filter(s => s.school_class === Number(marksClassId) && s.status === "Active").map(student => { const saved = existingMarks.find(m => m.student === student.id && m.subject === Number(marksSubjectId)); const value = marksDraft[student.id] ?? (saved ? String(saved.scored) : ""); const grade = value === "" ? null : calculateGrade(Number(value)); return <tr key={student.id} className="border-t"><td className="p-3 font-medium">{student.name}</td><td className="p-3 text-sm text-muted-foreground">{student.student_id}</td><td className="p-3"><div className="flex items-center gap-2"><input type="number" min="0" max="100" className="w-28 rounded-md border bg-background px-3 py-2" value={value} onChange={e => setMarksDraft({ ...marksDraft, [student.id]: e.target.value })}/>{grade&&<span className={`text-sm font-semibold ${grade.color}`}>{grade.grade}</span>}</div></td></tr>; })}</tbody></table>}
             </div>
 
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setShowMarksModal(false)} className="flex-1">Cancel</Button>
-              <Button variant="gold" onClick={() => {
-                toast.success("Marks saved successfully");
-                setShowMarksModal(false);
-              }} className="flex-1">Save Marks</Button>
+              <Button variant="gold" disabled={!marksClassId || !marksSubjectId || saveExamMark.isPending} onClick={() => void handleSaveMarks()} className="flex-1">{saveExamMark.isPending ? "Saving…" : "Save Marks"}</Button>
             </div>
           </div>
         </div>

@@ -22,6 +22,7 @@ const AttendanceSection = () => {
   const { data: attendanceRecords = [], isLoading: isLoadingAttendance } = useAttendanceRecords({
     date: selectedDate
   });
+  const { data: absenceHistory = [] } = useAttendanceRecords({ status: "absent" });
 
   const updateAttendanceMutation = useUpdateAttendance();
 
@@ -60,11 +61,17 @@ const AttendanceSection = () => {
   const totalCount = attendanceData.length;
   const avgAttendance = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(0) : "0";
 
-  const mockRecentAbsences = [
-    { id: 1, student: "John Mutasa", class: "Form 1A", date: "2024-01-15", reason: "Illness", days: 2 },
-    { id: 2, student: "Sarah Moyo", class: "Form 2B", date: "2024-01-14", reason: "Family", days: 1 },
-    { id: 3, student: "Peter Ncube", class: "Form 3A", date: "2024-01-13", reason: "Unknown", days: 3 },
-  ];
+  const exportAttendance = () => {
+    const rows = [["Student", "Class", "Date", "Status"], ...attendanceData.map(record => [record.name, selectedClass?.name || "", selectedDate, record.status])];
+    const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `attendance-${selectedDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Attendance report downloaded");
+  };
 
   return (
     <div className="space-y-6">
@@ -73,7 +80,7 @@ const AttendanceSection = () => {
           <h2 className="font-heading text-xl font-bold text-foreground">Attendance Management</h2>
           <p className="text-sm text-muted-foreground">Track and manage student attendance</p>
         </div>
-        <Button variant="gold">
+        <Button variant="gold" onClick={exportAttendance} disabled={isLoadingAttendance}>
           <Calendar className="h-4 w-4 mr-2" />
           Generate Report
         </Button>
@@ -257,7 +264,7 @@ const AttendanceSection = () => {
           </div>
 
           <div className="flex justify-end">
-            <Button variant="gold">Save Attendance</Button>
+            <span className="text-sm text-muted-foreground">Changes save immediately when you select a status.</span>
           </div>
         </TabsContent>
 
@@ -281,19 +288,20 @@ const AttendanceSection = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {mockRecentAbsences.map((absence) => (
+                  {absenceHistory.map((absence) => (
                     <tr key={absence.id} className="border-t border-border hover:bg-secondary/30">
-                      <td className="px-4 py-3 font-medium text-foreground">{absence.student}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{absence.class}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">{absence.student_name}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{absence.class_name}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{absence.date}</td>
                       <td className="px-4 py-3">
                         <span className="text-xs px-2 py-1 rounded bg-secondary text-foreground">
-                          {absence.reason}
+                          Absent
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center text-sm text-foreground">{absence.days}</td>
+                      <td className="px-4 py-3 text-center text-sm text-foreground">—</td>
                     </tr>
                   ))}
+                  {absenceHistory.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No absence records found.</td></tr>}
                 </tbody>
               </table>
             </CardContent>

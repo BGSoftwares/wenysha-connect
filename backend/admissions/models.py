@@ -2,6 +2,7 @@ from django.db import models
 
 
 class AdmissionApplication(models.Model):
+    STATUS_CHOICES = [('pending', 'Pending'), ('approved', 'Approved'), ('rejected', 'Rejected')]
     full_name = models.CharField(max_length=255)
     email = models.EmailField()
     phone = models.CharField(max_length=32, blank=True)
@@ -12,6 +13,8 @@ class AdmissionApplication(models.Model):
     result_slip = models.CharField(max_length=255, blank=True)
     guardian_name = models.CharField(max_length=255, blank=True)
     guardian_phone = models.CharField(max_length=32, blank=True)
+    applying_for = models.CharField(max_length=32, blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

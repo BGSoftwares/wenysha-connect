@@ -23,6 +23,47 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'email', 'role', 'role_name', 'full_name']
 
 
+class AdminAccountSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source='profile.full_name', max_length=255, required=False, allow_blank=True)
+    role = serializers.PrimaryKeyRelatedField(source='profile.role', queryset=Role.objects.all(), required=False, allow_null=True)
+    role_name = serializers.CharField(source='profile.role.name', read_only=True)
+    password = serializers.CharField(write_only=True, min_length=8, required=False)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'is_active', 'date_joined', 'full_name', 'role', 'role_name', 'password']
+        read_only_fields = ['date_joined', 'role_name']
+
+    def validate(self, attrs):
+        if self.instance is None and not attrs.get('password'):
+            raise serializers.ValidationError({'password': 'A password is required when creating an account.'})
+        if self.instance is None and not attrs.get('profile', {}).get('role'):
+            raise serializers.ValidationError({'role': 'Select a role when creating an account.'})
+        return attrs
+
+    def create(self, validated_data):
+        profile_data = validated_data.pop('profile')
+        password = validated_data.pop('password')
+        user = User.objects.create_user(password=password, **validated_data)
+        UserProfile.objects.create(user=user, **profile_data)
+        return user
+
+    def update(self, instance, validated_data):
+        profile_data = validated_data.pop('profile', {})
+        password = validated_data.pop('password', None)
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        if profile_data:
+            profile, _ = UserProfile.objects.get_or_create(user=instance)
+            for key, value in profile_data.items():
+                setattr(profile, key, value)
+            profile.save()
+        return instance
+
+
 class PendingApprovalSerializer(serializers.ModelSerializer):
     class Meta:
         model = PendingApproval

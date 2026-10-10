@@ -1,5 +1,8 @@
 import { Edit, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { api, getErrorMessage } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Allocation {
     id: number;
@@ -18,6 +21,26 @@ interface AllocationsSectionProps {
 }
 
 const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSectionProps) => {
+    const queryClient = useQueryClient();
+    const removeAllocation = async (allocation: Allocation) => {
+        if (!window.confirm(`Remove ${allocation.teacher_name}'s ${allocation.subject_name} allocation for ${allocation.class_name}?`)) return;
+        try {
+            await api.delete(`/school/allocations/${allocation.id}/`);
+            await queryClient.invalidateQueries({ queryKey: ["allocations"] });
+            toast.success("Allocation removed");
+        } catch (error) { toast.error(getErrorMessage(error)); }
+    };
+    const editAllocation = async (allocation: Allocation) => {
+        const entered = window.prompt("Periods per week", String(allocation.periods));
+        if (entered === null) return;
+        const periods = Number(entered);
+        if (!Number.isInteger(periods) || periods < 1 || periods > 40) { toast.error("Enter a whole number between 1 and 40"); return; }
+        try {
+            await api.patch(`/school/allocations/${allocation.id}/`, { periods });
+            await queryClient.invalidateQueries({ queryKey: ["allocations"] });
+            toast.success("Allocation updated");
+        } catch (error) { toast.error(getErrorMessage(error)); }
+    };
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
@@ -51,10 +74,10 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
                                     <td className="px-6 py-4 text-sm font-bold text-foreground text-center">{alloc.periods}</td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
-                                            <button className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
+                                            <button aria-label={`Edit allocation for ${alloc.teacher_name}`} onClick={() => void editAllocation(alloc)} className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
                                                 <Edit className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                             </button>
-                                            <button className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
+                                            <button aria-label={`Delete allocation for ${alloc.teacher_name}`} onClick={() => void removeAllocation(alloc)} className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
                                                 <Trash2 className="h-4 w-4 text-muted-foreground group-hover:text-destructive transition-colors" />
                                             </button>
                                         </div>

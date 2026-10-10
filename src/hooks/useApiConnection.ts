@@ -29,6 +29,6 @@ export function useApiConnection() {
     isChecking,
     lastChecked,
     checkConnection,
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'https://katia-serpentiform-humiliatingly.ngrok-free.dev/api',
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/api',
   };
 }

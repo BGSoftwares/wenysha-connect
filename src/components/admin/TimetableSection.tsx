@@ -1,110 +1,40 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { SchoolClass } from "@/lib/hooks";
+import { useEffect, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { api, getErrorMessage } from "@/lib/api";
+import { useTeachers, useSubjects, useTimetable, type SchoolClass } from "@/lib/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
-interface TimetableSectionProps {
-    classes: SchoolClass[];
-}
-
-const TimetableSection = ({ classes }: TimetableSectionProps) => {
-    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-    const periods = [
-        { time: "08:00-08:40", label: "Period 1" },
-        { time: "08:40-09:20", label: "Period 2" },
-        { time: "09:20-10:00", label: "Period 3" },
-        { time: "10:00-10:30", label: "Break", isBreak: true },
-        { time: "10:30-11:10", label: "Period 4" },
-        { time: "11:10-11:50", label: "Period 5" },
-        { time: "11:50-12:30", label: "Period 6" },
-        { time: "12:30-14:00", label: "Lunch", isBreak: true },
-        { time: "14:00-14:40", label: "Period 7" },
-        { time: "14:40-15:20", label: "Period 8" },
-    ];
-
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
-                <h2 className="font-heading text-xl font-bold text-foreground">School Timetable</h2>
-                <div className="flex items-center gap-3">
-                    <select className="px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all">
-                        <option>Select Class</option>
-                        {classes.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
-                    <div className="flex border border-border rounded-lg overflow-hidden">
-                        <button className="p-2 hover:bg-secondary transition-colors"><ChevronLeft className="h-4 w-4" /></button>
-                        <button className="p-2 hover:bg-secondary transition-colors border-l border-border"><ChevronRight className="h-4 w-4" /></button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-card rounded-2xl border border-border shadow-elegant overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[900px] border-collapse">
-                        <thead>
-                            <tr className="bg-secondary/30">
-                                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-r border-border/50 sticky left-0 bg-background z-10 w-32">
-                                    Time Slot
-                                </th>
-                                {days.map(day => (
-                                    <th key={day} className="px-4 py-4 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                        {day}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {periods.map((period, idx) => (
-                                <tr key={period.time} className={period.isBreak ? "bg-secondary/10" : "hover:bg-secondary/5 transition-colors"}>
-                                    <td className="px-6 py-5 text-xs font-bold text-foreground border-r border-border/50 sticky left-0 bg-background/80 backdrop-blur-sm z-10 flex flex-col">
-                                        <span>{period.time}</span>
-                                        <span className="text-[10px] text-muted-foreground font-normal mt-0.5">{period.label}</span>
-                                    </td>
-                                    {days.map(day => (
-                                        <td key={day} className="px-3 py-3 text-center border-r border-border last:border-0 group">
-                                            {period.isBreak ? (
-                                                <div className="text-[10px] font-bold text-muted-foreground uppercase py-2 tracking-widest opacity-40 group-hover:opacity-100 transition-opacity">
-                                                    {period.label}
-                                                </div>
-                                            ) : (
-                                                <div className="mx-auto max-w-[140px] p-2.5 rounded-xl bg-white dark:bg-background border border-border shadow-sm group-hover:shadow-md group-hover:border-primary/30 transition-all hover:-translate-y-0.5 pointer-events-none">
-                                                    <p className="text-xs font-bold text-foreground truncate">Mathematics</p>
-                                                    <p className="text-[10px] text-primary font-medium mt-1">Form 4A</p>
-                                                    <p className="text-[9px] text-muted-foreground mt-0.5">Room 203</p>
-                                                </div>
-                                            )}
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div className="grid sm:grid-cols-3 gap-4 mt-8">
-                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-4">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <div>
-                        <p className="text-xs font-bold text-foreground">Core Subjects</p>
-                        <p className="text-[10px] text-muted-foreground">Mandatory curriculum</p>
-                    </div>
-                </div>
-                <div className="p-4 rounded-xl bg-accent/5 border border-accent/10 flex items-center gap-4">
-                    <div className="h-2 w-2 rounded-full bg-accent" />
-                    <div>
-                        <p className="text-xs font-bold text-foreground">Electives</p>
-                        <p className="text-[10px] text-muted-foreground">Student choice modules</p>
-                    </div>
-                </div>
-                <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/10 flex items-center gap-4">
-                    <div className="h-2 w-2 rounded-full bg-destructive" />
-                    <div>
-                        <p className="text-xs font-bold text-foreground">Exams/Tests</p>
-                        <p className="text-[10px] text-muted-foreground">Assessment slots</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+interface Props { classes: SchoolClass[] }
+const TimetableSection = ({ classes }: Props) => {
+  const queryClient = useQueryClient();
+  const [classId, setClassId] = useState<number | undefined>(classes[0]?.id);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ day_of_week: "Monday", period_start: "08:00", period_end: "08:40", subject: "", teacher: "", room: "" });
+  useEffect(() => { if (classId === undefined && classes.length) setClassId(classes[0].id); }, [classId, classes]);
+  const { data: entries = [], isLoading, error } = useTimetable(classId);
+  const { data: subjects = [] } = useSubjects();
+  const { data: teachers = [] } = useTeachers();
+  const save = async () => {
+    if (!classId || !draft.subject || !draft.period_start || !draft.period_end) { toast.error("Choose a class, subject, and period times"); return; }
+    if (draft.period_end <= draft.period_start) { toast.error("End time must be after start time"); return; }
+    try {
+      await api.post("/school/timetable/", { ...draft, school_class: classId, subject: Number(draft.subject), teacher: draft.teacher ? Number(draft.teacher) : null });
+      await queryClient.invalidateQueries({ queryKey: ["timetable", classId] });
+      setAdding(false); setDraft({ day_of_week: "Monday", period_start: "08:00", period_end: "08:40", subject: "", teacher: "", room: "" });
+      toast.success("Timetable period saved");
+    } catch (e) { toast.error(getErrorMessage(e)); }
+  };
+  const remove = async (id: number) => {
+    if (!window.confirm("Delete this timetable period?")) return;
+    try { await api.delete(`/school/timetable/${id}/`); await queryClient.invalidateQueries({ queryKey: ["timetable", classId] }); toast.success("Period deleted"); }
+    catch (e) { toast.error(getErrorMessage(e)); }
+  };
+  return <div className="space-y-5">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-heading text-xl font-bold">School Timetable</h2><p className="text-sm text-muted-foreground">Schedule and manage lessons by class</p></div><div className="flex gap-2"><select aria-label="Select class" className="rounded-lg border border-border bg-background px-3 py-2" value={classId ?? ""} onChange={e => setClassId(Number(e.target.value) || undefined)}><option value="">Select class</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select><Button variant="gold" disabled={!classId} onClick={() => setAdding(true)}><Plus className="mr-2 h-4 w-4"/>Add Period</Button></div></div>
+    {isLoading ? <p className="py-10 text-center text-muted-foreground">Loading timetable…</p> : error ? <p className="rounded-xl border border-destructive/30 p-5 text-destructive">Could not load timetable: {getErrorMessage(error)}</p> : !classId ? <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">Create or select a class to view its timetable.</p> : entries.length === 0 ? <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">No timetable periods have been entered for this class yet.</p> : <div className="overflow-x-auto rounded-xl border bg-card"><table className="w-full min-w-[700px]"><thead className="bg-secondary/50"><tr>{["Day", "Start", "End", "Subject", "Teacher", "Room", ""].map((h, i) => <th key={`${h}${i}`} className="px-4 py-3 text-left text-sm font-semibold">{h}</th>)}</tr></thead><tbody>{entries.map(entry => <tr key={entry.id} className="border-t"><td className="px-4 py-3">{entry.day_of_week}</td><td className="px-4 py-3">{entry.period_start}</td><td className="px-4 py-3">{entry.period_end}</td><td className="px-4 py-3 font-medium">{entry.subject_name}</td><td className="px-4 py-3">{entry.teacher_name || "—"}</td><td className="px-4 py-3">{entry.room || "—"}</td><td className="px-4 py-3 text-right"><Button variant="outline" size="icon" aria-label="Delete timetable period" onClick={() => void remove(entry.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button></td></tr>)}</tbody></table></div>}
+    {adding && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setAdding(false)}><div className="w-full max-w-md space-y-4 rounded-xl bg-card p-6" onClick={e => e.stopPropagation()}><h3 className="text-xl font-bold">Add timetable period</h3><label className="block text-sm">Day<select className="mt-1 w-full rounded-lg border bg-background p-2" value={draft.day_of_week} onChange={e => setDraft({ ...draft, day_of_week: e.target.value })}>{["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map(day => <option key={day}>{day}</option>)}</select></label><label className="block text-sm">Subject<select className="mt-1 w-full rounded-lg border bg-background p-2" value={draft.subject} onChange={e => setDraft({ ...draft, subject: e.target.value })}><option value="">Select subject</option>{subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label className="block text-sm">Teacher<select className="mt-1 w-full rounded-lg border bg-background p-2" value={draft.teacher} onChange={e => setDraft({ ...draft, teacher: e.target.value })}><option value="">Unassigned</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label><div className="grid grid-cols-2 gap-3">{(["period_start", "period_end"] as const).map(key => <label key={key} className="block text-sm">{key === "period_start" ? "Start time" : "End time"}<input type="time" className="mt-1 w-full rounded-lg border bg-background p-2" value={draft[key]} onChange={e => setDraft({ ...draft, [key]: e.target.value })}/></label>)}</div><label className="block text-sm">Room<input className="mt-1 w-full rounded-lg border bg-background p-2" value={draft.room} onChange={e => setDraft({ ...draft, room: e.target.value })}/></label><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setAdding(false)}>Cancel</Button><Button variant="gold" onClick={() => void save()}>Save period</Button></div></div></div>}
+  </div>;
 };
-
 export default TimetableSection;

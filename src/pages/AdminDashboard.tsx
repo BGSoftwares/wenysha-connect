@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useStudents, useTeachers, useClasses, useSubjects, useCreateStudent, useCreateTeacher, useCreateClass, useCreateSubject, useAllocations } from "@/lib/hooks";
+import { useStudents, useTeachers, useClasses, useSubjects, useCreateStudent, useCreateTeacher, useCreateClass, useCreateSubject, useAllocations, useUpdateStudent, useDeleteStudent, type Student, type Teacher, type SchoolClass, type Subject } from "@/lib/hooks";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
@@ -35,22 +35,11 @@ import AdmissionSection from "@/components/admin/AdmissionSection";
 import PromotionSection from "@/components/admin/PromotionSection";
 
 import { Button } from "@/components/ui/button";
-
-// Mock data for allocations and gallery (not yet in hooks)
-const mockAllocations = [
-  { id: 1, teacher: "Mrs. Grace Moyo", subject: "Mathematics", class: "Form 4A", periods: 6 },
-  { id: 2, teacher: "Mr. David Ncube", subject: "Physics", class: "Form 4A", periods: 5 },
-  { id: 3, teacher: "Ms. Linda Phiri", subject: "English", class: "Form 3B", periods: 6 },
-  { id: 4, teacher: "Mr. David Ncube", subject: "Chemistry", class: "Form 4B", periods: 5 },
-];
-
-const mockGalleryImages = [
-  { id: 1, title: "Sports Day 2024", category: "Events", date: "Dec 5, 2024" },
-  { id: 2, title: "Science Fair", category: "Academic", date: "Nov 28, 2024" },
-  { id: 3, title: "Prize Giving", category: "Events", date: "Nov 15, 2024" },
-];
+import { useQueryClient } from "@tanstack/react-query";
+import { api, getErrorMessage } from "@/lib/api";
 
 const AdminDashboard = () => {
+  const queryClient = useQueryClient();
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -67,11 +56,63 @@ const AdminDashboard = () => {
   const createTeacherMutation = useCreateTeacher();
   const createClassMutation = useCreateClass();
   const createSubjectMutation = useCreateSubject();
+  const updateStudentMutation = useUpdateStudent();
+  const deleteStudentMutation = useDeleteStudent();
+
+  const handleEditStudent = async (student: Student) => {
+    const name = window.prompt("Student full name", student.name)?.trim();
+    if (!name || name === student.name) return;
+    try {
+      await updateStudentMutation.mutateAsync({ id: student.id, data: { name } });
+      toast.success("Student record updated");
+    } catch (error) {
+      toast.error("Could not update the student record");
+    }
+  };
+
+  const handleDeleteStudent = async (student: Student) => {
+    if (!window.confirm(`Delete ${student.name}'s student record? This cannot be undone.`)) return;
+    try {
+      await deleteStudentMutation.mutateAsync(student.id);
+      toast.success("Student record deleted");
+    } catch (error) {
+      toast.error("Could not delete the student record");
+    }
+  };
+
+  const updateRecord = async (path: string, id: number, data: Record<string, unknown>, label: string, queryKey: string) => {
+    try { await api.patch(`${path}${id}/`, data); await queryClient.invalidateQueries({ queryKey: [queryKey] }); toast.success(`${label} updated`); }
+    catch (error) { toast.error(getErrorMessage(error)); }
+  };
+  const deleteRecord = async (path: string, id: number, label: string, queryKey: string) => {
+    if (!window.confirm(`Delete this ${label.toLowerCase()}? This may be blocked if it is in use.`)) return;
+    try { await api.delete(`${path}${id}/`); await queryClient.invalidateQueries({ queryKey: [queryKey] }); toast.success(`${label} deleted`); }
+    catch (error) { toast.error(getErrorMessage(error)); }
+  };
+  const handleEditTeacher = (teacher: Teacher) => {
+    const name = window.prompt("Teacher name", teacher.name)?.trim(); if (!name) return;
+    const department = window.prompt("Department", teacher.department)?.trim(); if (!department) return;
+    const phone = window.prompt("Phone number", teacher.phone ?? ""); if (phone === null) return;
+    void updateRecord("/school/teachers/", teacher.id, { name, department, phone }, "Teacher", "teachers");
+  };
+  const handleEditClass = (schoolClass: SchoolClass) => {
+    const name = window.prompt("Class name", schoolClass.name)?.trim(); if (!name) return;
+    const capacityText = window.prompt("Class capacity", String(schoolClass.capacity)); if (capacityText === null) return;
+    const capacity = Number(capacityText); if (!Number.isInteger(capacity) || capacity < 1) { toast.error("Capacity must be a positive whole number"); return; }
+    void updateRecord("/school/classes/", schoolClass.id, { name, capacity }, "Class", "classes");
+  };
+  const handleEditSubject = (subject: Subject) => {
+    const name = window.prompt("Subject name", subject.name)?.trim(); if (!name) return;
+    const code = window.prompt("Subject code", subject.code)?.trim(); if (!code) return;
+    const department = window.prompt("Department", subject.department)?.trim() ?? subject.department;
+    void updateRecord("/school/subjects/", subject.id, { name, code, department }, "Subject", "subjects");
+  };
 
   const [newStudent, setNewStudent] = useState({ name: "", student_id: "", school_class: "", gender: "" });
   const [newTeacher, setNewTeacher] = useState({ name: "", department: "", phone: "" });
   const [newClass, setNewClass] = useState({ name: "", capacity: 40 });
   const [newSubject, setNewSubject] = useState({ name: "", code: "", department: "" });
+  const [newAllocation, setNewAllocation] = useState({ teacher: "", subject: "", school_class: "", periods: 5 });
 
   const handleCreateStudent = async () => {
     try {
@@ -156,6 +197,27 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleCreateAllocation = async () => {
+    if (!newAllocation.teacher || !newAllocation.subject || !newAllocation.school_class || newAllocation.periods < 1) {
+      toast.error("Select a teacher, subject, class, and valid weekly periods");
+      return;
+    }
+    try {
+      await api.post("/school/allocations/", {
+        teacher: Number(newAllocation.teacher),
+        subject: Number(newAllocation.subject),
+        school_class: Number(newAllocation.school_class),
+        periods: newAllocation.periods,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["allocations"] });
+      setNewAllocation({ teacher: "", subject: "", school_class: "", periods: 5 });
+      setShowModal(null);
+      toast.success("Teacher allocation saved");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
   const getPageTitle = () => {
     const titles: Record<string, string> = {
       dashboard: "Admin Dashboard",
@@ -202,6 +264,8 @@ const AdminDashboard = () => {
           error={studentsError}
           classes={classes}
           onAddStudent={() => setShowModal("addStudent")}
+          onEditStudent={handleEditStudent}
+          onDeleteStudent={handleDeleteStudent}
         />
       );
       case "admission": return <AdmissionSection />;
@@ -212,6 +276,8 @@ const AdminDashboard = () => {
           teachers={teachers}
           isLoading={isLoadingTeachers}
           onAddTeacher={() => setShowModal("addTeacher")}
+          onEditTeacher={handleEditTeacher}
+          onDeleteTeacher={teacher => void deleteRecord("/school/teachers/", Number(teacher.id), "Teacher", "teachers")}
         />
       );
       case "classes":
@@ -219,6 +285,8 @@ const AdminDashboard = () => {
         <ClassesSection
           classes={classes}
           onAddClass={() => setShowModal("addClass")}
+          onEditClass={handleEditClass}
+          onDeleteClass={schoolClass => void deleteRecord("/school/classes/", Number(schoolClass.id), "Class", "classes")}
         />
       );
       case "subjects":
@@ -226,6 +294,8 @@ const AdminDashboard = () => {
         <SubjectsSection
           subjects={subjects}
           onAddSubject={() => setShowModal("addSubject")}
+          onEditSubject={handleEditSubject}
+          onDeleteSubject={subject => void deleteRecord("/school/subjects/", Number(subject.id), "Subject", "subjects")}
         />
       );
       case "allocations": return (
@@ -235,10 +305,7 @@ const AdminDashboard = () => {
         />
       );
       case "gallery": return (
-        <GallerySection
-          images={mockGalleryImages}
-          onAddImage={() => setShowModal("addGalleryImage")}
-        />
+        <GallerySection />
       );
       case "timetable": return <TimetableSection classes={classes || []} />;
       case "users-roles":
@@ -300,7 +367,6 @@ const AdminDashboard = () => {
                 {showModal === "addTeacher" && "Add New Teacher"}
                 {showModal === "addClass" && "Create New Class"}
                 {showModal === "addSubject" && "Add New Subject"}
-                {showModal === "addGalleryImage" && "Add Gallery Image"}
                 {showModal === "addAllocation" && "New Allocation"}
               </h3>
             </div>
@@ -385,6 +451,29 @@ const AdminDashboard = () => {
                 </>
               )}
 
+              {showModal === "addAllocation" && (
+                <>
+                  <label className="block space-y-1.5 text-xs font-bold uppercase text-muted-foreground">Teacher
+                    <select className="w-full rounded-xl border border-border bg-background p-2.5 text-sm font-normal normal-case text-foreground" value={newAllocation.teacher} onChange={e => setNewAllocation({ ...newAllocation, teacher: e.target.value })}>
+                      <option value="">Select teacher</option>{teachers?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold uppercase text-muted-foreground">Subject
+                    <select className="w-full rounded-xl border border-border bg-background p-2.5 text-sm font-normal normal-case text-foreground" value={newAllocation.subject} onChange={e => setNewAllocation({ ...newAllocation, subject: e.target.value })}>
+                      <option value="">Select subject</option>{subjects?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold uppercase text-muted-foreground">Class
+                    <select className="w-full rounded-xl border border-border bg-background p-2.5 text-sm font-normal normal-case text-foreground" value={newAllocation.school_class} onChange={e => setNewAllocation({ ...newAllocation, school_class: e.target.value })}>
+                      <option value="">Select class</option>{classes?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold uppercase text-muted-foreground">Periods per week
+                    <input type="number" min={1} max={40} className="w-full rounded-xl border border-border bg-background p-2.5 text-sm font-normal normal-case text-foreground" value={newAllocation.periods} onChange={e => setNewAllocation({ ...newAllocation, periods: Number(e.target.value) })}/>
+                  </label>
+                </>
+              )}
+
               {/* Action Buttons */}
               <div className="flex gap-4 pt-6">
                 <Button variant="outline" onClick={() => setShowModal(null)} className="flex-1 rounded-xl h-11">Cancel</Button>
@@ -396,7 +485,7 @@ const AdminDashboard = () => {
                     if (showModal === "addTeacher") handleCreateTeacher();
                     if (showModal === "addClass") handleCreateClass();
                     if (showModal === "addSubject") handleCreateSubject();
-                    if (showModal === "addGalleryImage" || showModal === "addAllocation") setShowModal(null);
+                    if (showModal === "addAllocation") void handleCreateAllocation();
                   }}
                   disabled={createStudentMutation.isPending || createTeacherMutation.isPending || createClassMutation.isPending || createSubjectMutation.isPending}
                 >

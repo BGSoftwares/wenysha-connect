@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Search, Edit, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SchoolClass, Student as StudentRecord } from "@/lib/hooks";
@@ -18,9 +19,17 @@ interface StudentsSectionProps {
     error: Error | null;
     classes: SchoolClass[] | undefined;
     onAddStudent: () => void;
+    onEditStudent: (student: StudentRecord) => void;
+    onDeleteStudent: (student: StudentRecord) => void;
 }
 
-const StudentsSection = ({ students, isLoading, error, classes, onAddStudent }: StudentsSectionProps) => {
+const StudentsSection = ({ students, isLoading, error, classes, onAddStudent, onEditStudent, onDeleteStudent }: StudentsSectionProps) => {
+    const [search, setSearch] = useState("");
+    const [classFilter, setClassFilter] = useState("");
+    const filteredStudents = useMemo(() => (students || []).filter(student => {
+        const matchesSearch = `${student.name} ${student.student_id}`.toLowerCase().includes(search.toLowerCase());
+        return matchesSearch && (!classFilter || String(student.school_class) === classFilter);
+    }), [students, search, classFilter]);
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
@@ -38,11 +47,13 @@ const StudentsSection = ({ students, isLoading, error, classes, onAddStudent }: 
                         <input
                             type="text"
                             placeholder="Search students..."
+                            value={search}
+                            onChange={event => setSearch(event.target.value)}
                             className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                         />
                     </div>
-                    <select className="px-4 py-2 rounded-lg border border-border bg-background text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all">
-                        <option>All Classes</option>
+                    <select value={classFilter} onChange={event => setClassFilter(event.target.value)} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all">
+                        <option value="">All Classes</option>
                         {classes?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                 </div>
@@ -70,7 +81,7 @@ const StudentsSection = ({ students, isLoading, error, classes, onAddStudent }: 
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
-                                {(students || []).map((student) => (
+                                {filteredStudents.map((student) => (
                                     <tr key={student.id} className="hover:bg-secondary/30 transition-colors">
                                         <td className="px-6 py-4 text-sm font-medium text-foreground">{student.name}</td>
                                         <td className="px-6 py-4 text-sm text-muted-foreground">{student.student_id}</td>
@@ -86,20 +97,20 @@ const StudentsSection = ({ students, isLoading, error, classes, onAddStudent }: 
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
+                                                <button type="button" aria-label={`Edit ${student.name}`} onClick={() => onEditStudent(student)} className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
                                                     <Edit className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                                 </button>
-                                                <button className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
+                                                <button type="button" aria-label={`Delete ${student.name}`} onClick={() => onDeleteStudent(student)} className="p-2 hover:bg-white dark:hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border group">
                                                     <Trash2 className="h-4 w-4 text-muted-foreground group-hover:text-destructive transition-colors" />
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
                                 ))}
-                                {students?.length === 0 && (
+                                {filteredStudents.length === 0 && (
                                     <tr>
                                         <td colSpan={6} className="p-8 text-center text-muted-foreground italic">
-                                            No students found in the database.
+                                            {search || classFilter ? "No students match these filters." : "No students found in the database."}
                                         </td>
                                     </tr>
                                 )}

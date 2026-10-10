@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Smartphone, CreditCard, Building, Loader2, CheckCircle } from "lucide-react";
+import { X, Smartphone, CreditCard, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface PaymentModalProps {
@@ -10,13 +10,10 @@ interface PaymentModalProps {
 }
 
 type PaymentMethod = "ecocash" | "onemoney" | "telecash" | "card" | null;
-type PaymentStatus = "idle" | "processing" | "success" | "error";
-
 const PaymentModal = ({ isOpen, onClose, balance, studentName }: PaymentModalProps) => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
   const [amount, setAmount] = useState<string>(balance.toString());
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [status, setStatus] = useState<PaymentStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
   if (!isOpen) return null;
@@ -35,21 +32,15 @@ const PaymentModal = ({ isOpen, onClose, balance, studentName }: PaymentModalPro
       return;
     }
 
-    setStatus("processing");
     setErrorMessage("");
 
-    // Mock payment processing - In production, this would call Paynow API via backend
-    setTimeout(() => {
-      // Simulate successful payment
-      setStatus("success");
-    }, 2000);
+    setErrorMessage("Online payments are not configured yet. No payment has been made. Please contact the accounts office.");
   };
 
   const resetModal = () => {
     setPaymentMethod(null);
     setAmount(balance.toString());
     setPhoneNumber("");
-    setStatus("idle");
     setErrorMessage("");
     onClose();
   };
@@ -72,26 +63,7 @@ const PaymentModal = ({ isOpen, onClose, balance, studentName }: PaymentModalPro
           </button>
         </div>
 
-        {status === "success" ? (
-          <div className="p-6 text-center">
-            <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Payment Initiated!</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              {paymentMethod === "card" 
-                ? "Your card payment is being processed. You will receive a confirmation shortly."
-                : `Please check your ${paymentMethod?.toUpperCase()} phone for a payment prompt and enter your PIN to complete the transaction.`
-              }
-            </p>
-            <p className="text-xs text-muted-foreground mb-6">
-              Reference: PAY-{Date.now().toString().slice(-8)}
-            </p>
-            <Button onClick={resetModal} className="w-full">
-              Done
-            </Button>
-          </div>
-        ) : (
+        {
           <div className="p-4 space-y-4">
             {/* Payment Info */}
             <div className="bg-secondary/30 rounded-lg p-4">
@@ -170,26 +142,17 @@ const PaymentModal = ({ isOpen, onClose, balance, studentName }: PaymentModalPro
             <Button 
               onClick={handlePayment} 
               className="w-full" 
-              disabled={!paymentMethod || status === "processing"}
+              disabled={!paymentMethod}
             >
-              {status === "processing" ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  Pay ${parseFloat(amount || "0").toFixed(2)}
-                </>
-              )}
+              Pay ${parseFloat(amount || "0").toFixed(2)}
             </Button>
 
             {/* Security Note */}
             <p className="text-xs text-muted-foreground text-center">
-              🔒 Payments are processed securely via Paynow Zimbabwe
+              Online payment processing is not currently configured.
             </p>
           </div>
-        )}
+        }
       </div>
     </div>
   );

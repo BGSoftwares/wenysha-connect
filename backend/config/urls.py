@@ -1,15 +1,26 @@
 from django.contrib import admin
 from django.http import JsonResponse
+from django.db import DatabaseError, connection
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 
 
 def health_check(request):
-    return JsonResponse({'status': 'ok', 'backend': 'running'})
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+            cursor.fetchone()
+    except DatabaseError:
+        return JsonResponse(
+            {'status': 'degraded', 'backend': 'running', 'database': 'unavailable'},
+            status=503,
+        )
+    return JsonResponse({'status': 'ok', 'backend': 'running', 'database': 'ok'})
 
 
 urlpatterns = [
     path('', health_check, name='health_check'),
+    path('api/health/', health_check, name='api_health_check'),
     path('admin/', admin.site.urls),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/', include('core.urls')),

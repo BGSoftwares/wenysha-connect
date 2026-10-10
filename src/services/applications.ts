@@ -2,42 +2,37 @@ import { api } from '@/lib/api';
 
 export interface Application {
   id: number;
-  application_reference: string;
-  applicant_first_name: string;
-  applicant_last_name: string;
-  grade_applied?: string;
-  submitted_at: string;
-  status: string;
-  documents?: Record<string, unknown>;
-  notes?: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  gender: string;
+  date_of_birth: string;
+  address: string;
+  previous_school: string;
+  result_slip?: string | null;
+  guardian_name: string;
+  guardian_phone: string;
+  created_at: string;
 }
 
 export const applicationsService = {
   async getAll() {
-    return api.get<Application[]>('/api/applications/');
+    return api.get<Application[]>('/admissions/admissions/');
   },
 
   async getById(id: number) {
-    return api.get<Application>(`/api/applications/${id}/`);
+    return api.get<Application>(`/admissions/admissions/${id}/`);
   },
 
   async create(data: Partial<Application>) {
-    return api.post<Application>('/api/applications/', data);
+    return api.post<Application>('/admissions/admissions/', data);
   },
 
   async update(id: number, data: Partial<Application>) {
-    return api.patch<Application>(`/api/applications/${id}/`, data);
+    return api.patch<Application>(`/admissions/admissions/${id}/`, data);
   },
 
   async delete(id: number) {
-    return api.delete(`/api/applications/${id}/`);
-  },
-
-  async approve(id: number) {
-    return api.post(`/api/applications/${id}/approve/`, {});
-  },
-
-  async reject(id: number, reason?: string) {
-    return api.post(`/api/applications/${id}/reject/`, { reason });
+    return api.delete(`/admissions/admissions/${id}/`);
   },
 };

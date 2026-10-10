@@ -1,243 +1,43 @@
-import { useState } from "react";
-import { Plus, Edit, Trash2, Search, Bus, MapPin, User, Phone, Clock } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bus as BusIcon, Clock, MapPin, Plus, Search, Trash2, Edit } from "lucide-react";
+import { toast } from "sonner";
+import { api, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const mockBuses = [
-  { id: 1, number: "AGC-001", route: "Borrowdale - School", driver: "James Sithole", phone: "+263 77 111 2222", capacity: 45, students: 38, status: "Active" },
-  { id: 2, number: "AGC-002", route: "Avondale - School", driver: "Peter Moyo", phone: "+263 77 222 3333", capacity: 45, students: 42, status: "Active" },
-  { id: 3, number: "AGC-003", route: "Mount Pleasant - School", driver: "David Ncube", phone: "+263 77 333 4444", capacity: 40, students: 35, status: "Active" },
-  { id: 4, number: "AGC-004", route: "Eastlea - School", driver: "Thomas Banda", phone: "+263 77 444 5555", capacity: 40, students: 28, status: "Maintenance" },
-];
-
-const mockRoutes = [
-  { id: 1, name: "Borrowdale Route", stops: ["Borrowdale Brooke", "Sam Levy Village", "Groombridge", "School"], bus: "AGC-001", departureAM: "06:30", departureAM_School: "07:15", departurePM: "15:30" },
-  { id: 2, name: "Avondale Route", stops: ["Avondale Shops", "King George", "Montagu", "School"], bus: "AGC-002", departureAM: "06:45", departureAM_School: "07:20", departurePM: "15:30" },
-  { id: 3, name: "Mount Pleasant Route", stops: ["Mt Pleasant Shops", "UZ", "Highlands", "School"], bus: "AGC-003", departureAM: "06:30", departureAM_School: "07:10", departurePM: "15:30" },
-  { id: 4, name: "Eastlea Route", stops: ["Eastlea Shops", "Greendale", "Msasa", "School"], bus: "AGC-004", departureAM: "06:40", departureAM_School: "07:15", departurePM: "15:30" },
-];
+type SchoolBus = { id: number; number: string; route_name: string; driver: string; phone: string; capacity: number; students: number; status: string };
+type Route = { id: number; name: string; bus: number; bus_number: string; stops: string[]; departure_am: string | null; departure_pm: string | null };
+type BusForm = Omit<SchoolBus, "id"> & { id?: number };
+type RouteForm = Omit<Route, "id" | "bus_number"> & { id?: number };
+const list = <T,>(x: T[] | { results?: T[] }) => Array.isArray(x) ? x : x.results ?? [];
+const defaultsBus: BusForm = { number: "", route_name: "", driver: "", phone: "", capacity: 40, students: 0, status: "Active" };
+const defaultsRoute: RouteForm = { name: "", bus: 0, stops: [], departure_am: "06:30", departure_pm: "15:30" };
+const emptyBuses: SchoolBus[] = [];
 
 const TransportSection = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredBuses = mockBuses.filter(bus => 
-    bus.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bus.route.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bus.driver.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="font-heading text-xl font-bold text-foreground">Transport Management</h2>
-          <p className="text-sm text-muted-foreground">Manage school buses, routes, and drivers</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Route
-          </Button>
-          <Button variant="gold">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Bus
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Bus className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{mockBuses.length}</p>
-                <p className="text-xs text-muted-foreground">Total Buses</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <Bus className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{mockBuses.filter(b => b.status === "Active").length}</p>
-                <p className="text-xs text-muted-foreground">Active</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-accent/10">
-                <MapPin className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{mockRoutes.length}</p>
-                <p className="text-xs text-muted-foreground">Routes</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <User className="h-5 w-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{mockBuses.reduce((acc, b) => acc + b.students, 0)}</p>
-                <p className="text-xs text-muted-foreground">Students</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="buses" className="w-full">
-        <TabsList>
-          <TabsTrigger value="buses">Buses</TabsTrigger>
-          <TabsTrigger value="routes">Routes</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="buses" className="space-y-4 mt-4">
-          {/* Search */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search buses..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          {/* Buses Grid */}
-          <div className="grid md:grid-cols-2 gap-4">
-            {filteredBuses.map((bus) => (
-              <Card key={bus.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-lg bg-primary/10">
-                        <Bus className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg text-foreground">{bus.number}</h3>
-                        <p className="text-sm text-muted-foreground">{bus.route}</p>
-                      </div>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      bus.status === "Active" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-                    }`}>
-                      {bus.status}
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-foreground">{bus.driver}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">{bus.phone}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-4 border-t border-border">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Capacity</p>
-                      <p className="font-semibold text-foreground">{bus.students}/{bus.capacity}</p>
-                    </div>
-                    <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full ${bus.students / bus.capacity > 0.9 ? 'bg-amber-500' : 'bg-primary'}`}
-                        style={{ width: `${(bus.students / bus.capacity) * 100}%` }}
-                      />
-                    </div>
-                    <div className="flex gap-1">
-                      <Button variant="outline" size="sm"><Edit className="h-4 w-4" /></Button>
-                      <Button variant="outline" size="sm"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="routes" className="space-y-4 mt-4">
-          {/* Routes Table */}
-          <div className="bg-card rounded-xl border border-border overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-secondary/50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Route</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Stops</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Bus</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">AM Pickup</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">PM Drop</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockRoutes.map((route) => (
-                  <tr key={route.id} className="border-t border-border hover:bg-secondary/30">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        <span className="font-medium text-foreground">{route.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {route.stops.slice(0, 3).map((stop, idx) => (
-                          <span key={idx} className="text-xs px-2 py-0.5 rounded bg-secondary text-muted-foreground">
-                            {stop}
-                          </span>
-                        ))}
-                        {route.stops.length > 3 && (
-                          <span className="text-xs text-muted-foreground">+{route.stops.length - 3}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-foreground">{route.bus}</td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1 text-sm">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-foreground">{route.departureAM}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1 text-sm">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-foreground">{route.departurePM}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button className="p-1 hover:bg-secondary rounded"><Edit className="h-4 w-4 text-muted-foreground" /></button>
-                      <button className="p-1 hover:bg-secondary rounded ml-2"><Trash2 className="h-4 w-4 text-destructive" /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+  const client = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [form, setForm] = useState<BusForm | RouteForm | null>(null);
+  const [kind, setKind] = useState<"bus" | "route">("bus");
+  const [stopsText, setStopsText] = useState("");
+  const busesQuery = useQuery({ queryKey: ["transport-buses"], queryFn: async () => list(await api.get<SchoolBus[] | { results?: SchoolBus[] }>("/transport/buses/")) });
+  const routesQuery = useQuery({ queryKey: ["transport-routes"], queryFn: async () => list(await api.get<Route[] | { results?: Route[] }>("/transport/routes/")) });
+  const buses = busesQuery.data ?? emptyBuses; const routes = routesQuery.data ?? [];
+  const refresh = () => { void client.invalidateQueries({ queryKey: ["transport-buses"] }); void client.invalidateQueries({ queryKey: ["transport-routes"] }); };
+  const saveBus = useMutation({ mutationFn: (b: BusForm) => b.id ? api.patch(`/transport/buses/${b.id}/`, b) : api.post("/transport/buses/", b), onSuccess: () => { refresh(); setForm(null); toast.success("Bus saved"); }, onError: e => toast.error(getErrorMessage(e)) });
+  const saveRoute = useMutation({ mutationFn: (r: RouteForm) => r.id ? api.patch(`/transport/routes/${r.id}/`, r) : api.post("/transport/routes/", r), onSuccess: () => { refresh(); setForm(null); toast.success("Route saved"); }, onError: e => toast.error(getErrorMessage(e)) });
+  const remove = async (type: "bus" | "route", id: number) => { if (!window.confirm(`Delete this ${type}?`)) return; try { await api.delete(`/transport/${type === "bus" ? "buses" : "routes"}/${id}/`); refresh(); toast.success(`${type === "bus" ? "Bus" : "Route"} deleted`); } catch (e) { toast.error(getErrorMessage(e)); } };
+  const filtered = useMemo(() => buses.filter(b => `${b.number} ${b.route_name} ${b.driver}`.toLowerCase().includes(search.toLowerCase())), [buses, search]);
+  const openRoute = (route?: Route) => { setKind("route"); setStopsText(route?.stops.join(", ") ?? ""); setForm(route ? { id: route.id, name: route.name, bus: route.bus, stops: route.stops, departure_am: route.departure_am ?? "06:30", departure_pm: route.departure_pm ?? "15:30" } : { ...defaultsRoute, bus: buses[0]?.id ?? 0 }); };
+  const save = () => { if (!form) return; if (kind === "bus") { const b = form as BusForm; if (!b.number.trim() || !b.route_name.trim() || !b.driver.trim()) { toast.error("Bus number, route, and driver are required"); return; } saveBus.mutate(b); } else { const r = form as RouteForm; const stops = stopsText.split(",").map(s => s.trim()).filter(Boolean); if (!r.name.trim() || !r.bus || !stops.length) { toast.error("Route name, bus, and at least one stop are required"); return; } saveRoute.mutate({ ...r, stops }); } };
+  return <div className="space-y-6">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-heading text-xl font-bold">Transport Management</h2><p className="text-sm text-muted-foreground">Manage Able God College buses and routes</p></div><div className="flex gap-2"><Button variant="outline" onClick={() => openRoute()}><Plus className="mr-2 h-4 w-4"/>Add Route</Button><Button variant="gold" onClick={() => { setKind("bus"); setForm({ ...defaultsBus }); }}><Plus className="mr-2 h-4 w-4"/>Add Bus</Button></div></div>
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4"><Card><CardContent className="p-4"><p className="text-2xl font-bold">{buses.length}</p><p className="text-xs text-muted-foreground">Registered buses</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-2xl font-bold">{buses.filter(b => b.status === "Active").length}</p><p className="text-xs text-muted-foreground">Active buses</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-2xl font-bold">{routes.length}</p><p className="text-xs text-muted-foreground">Routes</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-2xl font-bold">{buses.reduce((s, b) => s + b.students, 0)}</p><p className="text-xs text-muted-foreground">Assigned students</p></CardContent></Card></div>
+    <Tabs defaultValue="buses"><TabsList><TabsTrigger value="buses">Buses</TabsTrigger><TabsTrigger value="routes">Routes</TabsTrigger></TabsList><TabsContent value="buses" className="space-y-4"><div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input className="pl-10" placeholder="Search buses, routes, drivers" value={search} onChange={e => setSearch(e.target.value)}/></div>{busesQuery.isLoading ? <p className="py-8 text-center text-muted-foreground">Loading buses…</p> : busesQuery.error ? <p className="text-destructive">{getErrorMessage(busesQuery.error)}</p> : <div className="overflow-x-auto rounded-xl border bg-card"><table className="w-full min-w-[700px]"><thead className="bg-secondary/50"><tr>{["Bus", "Route", "Driver", "Phone", "Capacity", "Status", "Actions"].map(h => <th key={h} className="px-4 py-3 text-left text-sm">{h}</th>)}</tr></thead><tbody>{filtered.map(bus => <tr key={bus.id} className="border-t"><td className="px-4 py-3 font-semibold">{bus.number}</td><td className="px-4 py-3">{bus.route_name}</td><td className="px-4 py-3">{bus.driver}</td><td className="px-4 py-3">{bus.phone || "—"}</td><td className="px-4 py-3">{bus.students}/{bus.capacity}</td><td className="px-4 py-3">{bus.status}</td><td className="px-4 py-3"><Button variant="outline" size="icon" aria-label="Edit bus" onClick={() => { setKind("bus"); setForm({ ...bus }); }}><Edit className="h-4 w-4"/></Button><Button className="ml-2" variant="outline" size="icon" aria-label="Delete bus" onClick={() => void remove("bus", bus.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button></td></tr>)}</tbody></table>{filtered.length === 0 && <p className="p-6 text-center text-muted-foreground">No buses match your search.</p>}</div>}</TabsContent><TabsContent value="routes">{routesQuery.isLoading ? <p className="py-8 text-center text-muted-foreground">Loading routes…</p> : routesQuery.error ? <p className="text-destructive">{getErrorMessage(routesQuery.error)}</p> : routes.length === 0 ? <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">No routes have been entered yet.</p> : <div className="grid gap-4 md:grid-cols-2">{routes.map(route => <Card key={route.id}><CardContent className="space-y-3 p-5"><div className="flex items-center justify-between"><h3 className="font-semibold"><MapPin className="mr-2 inline h-4 w-4 text-primary"/>{route.name}</h3><div><Button variant="outline" size="icon" aria-label="Edit route" onClick={() => openRoute(route)}><Edit className="h-4 w-4"/></Button><Button className="ml-2" variant="outline" size="icon" aria-label="Delete route" onClick={() => void remove("route", route.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button></div></div><p className="text-sm text-muted-foreground">Bus {route.bus_number}</p><p>{route.stops.join(" → ")}</p><p className="text-sm text-muted-foreground"><Clock className="mr-1 inline h-4 w-4"/>AM {route.departure_am ?? "—"} · PM {route.departure_pm ?? "—"}</p></CardContent></Card>)}</div>}</TabsContent></Tabs>
+    {form && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setForm(null)}><div className="max-h-[90vh] w-full max-w-md space-y-4 overflow-auto rounded-xl bg-card p-6" onClick={e => e.stopPropagation()}><h3 className="text-xl font-bold">{form.id ? "Edit" : "Add"} {kind === "bus" ? "Bus" : "Route"}</h3>{kind === "bus" ? <>{(["number", "route_name", "driver", "phone"] as const).map(key => <label key={key} className="block text-sm capitalize">{key.replace("_", " ")}<Input value={(form as BusForm)[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}/></label>)}<div className="grid grid-cols-2 gap-3"><label className="text-sm">Capacity<Input type="number" min={1} value={(form as BusForm).capacity} onChange={e => setForm({ ...form, capacity: Number(e.target.value) })}/></label><label className="text-sm">Status<select className="mt-1 w-full rounded-lg border bg-background p-2" value={(form as BusForm).status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Active</option><option>Maintenance</option><option>Inactive</option></select></label></div></> : <><label className="block text-sm">Route name<Input value={(form as RouteForm).name} onChange={e => setForm({ ...form, name: e.target.value })}/></label><label className="block text-sm">Bus<select className="mt-1 w-full rounded-lg border bg-background p-2" value={(form as RouteForm).bus} onChange={e => setForm({ ...form, bus: Number(e.target.value) })}>{buses.map(b => <option key={b.id} value={b.id}>{b.number} — {b.route_name}</option>)}</select></label><label className="block text-sm">Stops (comma-separated)<Input value={stopsText} onChange={e => setStopsText(e.target.value)} placeholder="Zexcom, Masvingo CBD, College"/></label><div className="grid grid-cols-2 gap-3"><label className="text-sm">AM departure<Input type="time" value={(form as RouteForm).departure_am ?? ""} onChange={e => setForm({ ...form, departure_am: e.target.value })}/></label><label className="text-sm">PM departure<Input type="time" value={(form as RouteForm).departure_pm ?? ""} onChange={e => setForm({ ...form, departure_pm: e.target.value })}/></label></div></>}<div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setForm(null)}>Cancel</Button><Button variant="gold" onClick={save}>Save</Button></div></div></div>}
+  </div>;
 };
-
 export default TransportSection;

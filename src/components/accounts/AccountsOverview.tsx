@@ -14,7 +14,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useStudentBalances, usePayments, useInvoices } from "@/lib/hooks";
 import { format } from "date-fns";
 
-const AccountsOverview = () => {
+const AccountsOverview = ({ onNavigate }: { onNavigate?: (section: string) => void }) => {
   const { data: balances, isLoading: loadingBalances } = useStudentBalances();
   const { data: recentPayments, isLoading: loadingPayments } = usePayments();
   const { data: allInvoices, isLoading: loadingInvoices } = useInvoices();
@@ -209,7 +209,7 @@ const AccountsOverview = () => {
         <Card className="border-none shadow-elegant">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Recent Transactions</CardTitle>
-            <button className="text-sm text-primary hover:underline">View All</button>
+            <button onClick={() => onNavigate?.("payments")} className="text-sm text-primary hover:underline">View All</button>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -245,7 +245,7 @@ const AccountsOverview = () => {
               <AlertTriangle className="h-5 w-5 text-destructive" />
               Top Defaulters
             </CardTitle>
-            <button className="text-sm text-primary hover:underline">View All</button>
+            <button onClick={() => onNavigate?.("balances")} className="text-sm text-primary hover:underline">View All</button>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

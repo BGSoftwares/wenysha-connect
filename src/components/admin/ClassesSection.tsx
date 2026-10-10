@@ -12,9 +12,11 @@ interface Class {
 interface ClassesSectionProps {
     classes: Class[] | undefined;
     onAddClass: () => void;
+    onEditClass: (schoolClass: Class) => void;
+    onDeleteClass: (schoolClass: Class) => void;
 }
 
-const ClassesSection = ({ classes, onAddClass }: ClassesSectionProps) => {
+const ClassesSection = ({ classes, onAddClass, onEditClass, onDeleteClass }: ClassesSectionProps) => {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
@@ -35,8 +37,8 @@ const ClassesSection = ({ classes, onAddClass }: ClassesSectionProps) => {
                     return (
                         <div key={cls.id} className="bg-card rounded-xl border border-border p-6 shadow-elegant hover:shadow-lg transition-all group overflow-hidden relative">
                             <div className="absolute top-0 right-0 p-3 flex gap-1 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
-                                <button className="p-2 hover:bg-background rounded-lg border border-border transition-colors"><Edit className="h-4 w-4 text-muted-foreground" /></button>
-                                <button className="p-2 hover:bg-background rounded-lg border border-border transition-colors"><Trash2 className="h-4 w-4 text-destructive" /></button>
+                                <button aria-label={`Edit ${cls.name}`} onClick={() => onEditClass(cls)} className="p-2 hover:bg-background rounded-lg border border-border transition-colors"><Edit className="h-4 w-4 text-muted-foreground" /></button>
+                                <button aria-label={`Delete ${cls.name}`} onClick={() => onDeleteClass(cls)} className="p-2 hover:bg-background rounded-lg border border-border transition-colors"><Trash2 className="h-4 w-4 text-destructive" /></button>
                             </div>
 
                             <div className="mb-4">

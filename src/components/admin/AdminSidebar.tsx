@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { clearAuth } from "@/lib/api";
 import {
   Home,
   Users,
@@ -259,6 +260,7 @@ const AdminSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mobile
             </div>
             <Link
               to="/portal"
+              onClick={clearAuth}
               className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-destructive/10 text-destructive font-bold hover:bg-destructive/20 transition-all border border-destructive/20 text-sm group"
             >
               <LogOut className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
@@ -270,7 +272,7 @@ const AdminSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mobile
             <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
               <User className="h-5 w-5 text-accent-foreground" />
             </div>
-            <Link to="/portal" className="p-3 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all border border-destructive/20">
+            <Link to="/portal" onClick={clearAuth} aria-label="Sign out" className="p-3 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all border border-destructive/20">
               <LogOut className="h-5 w-5" />
             </Link>
           </div>

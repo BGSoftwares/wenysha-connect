@@ -25,6 +25,8 @@ import {
 } from "@/lib/hooks";
 import { calculateGrade } from "@/lib/grading";
 import { getStoredUser } from "@/lib/api";
+import { api, getErrorMessage } from "@/lib/api";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,6 +42,31 @@ const ParentPortal = () => {
 
     const studentIds = useMemo(() => parentLinks?.map(link => link.student) || [], [parentLinks]);
     const [selectedChildId, setSelectedChildId] = useState<number | null>(null);
+    const [message, setMessage] = useState("");
+    const [sendingMessage, setSendingMessage] = useState(false);
+    const user = getStoredUser();
+
+    const sendMessage = async () => {
+        if (!message.trim() || !user?.email) {
+            toast.error(user?.email ? "Please enter a message first." : "Your account needs an email address to send a message.");
+            return;
+        }
+        setSendingMessage(true);
+        try {
+            await api.post("/content/contact-messages/", {
+                name: parentProfile?.name || user.full_name || user.username,
+                email: user.email,
+                subject: `Parent enquiry${selectedChild?.student_name ? `: ${selectedChild.student_name}` : ""}`,
+                message: message.trim(),
+            });
+            setMessage("");
+            toast.success("Your message has been sent to the school.");
+        } catch (error) {
+            toast.error(getErrorMessage(error));
+        } finally {
+            setSendingMessage(false);
+        }
+    };
 
     // Initial set of selected child
     useEffect(() => {
@@ -321,10 +348,12 @@ const ParentPortal = () => {
                                                     </CardHeader>
                                                     <CardContent className="space-y-4">
                                                         <textarea
+                                                            value={message}
+                                                            onChange={event => setMessage(event.target.value)}
                                                             placeholder="Type your message here..."
                                                             className="w-full h-32 p-4 rounded-2xl border border-border bg-background outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none"
                                                         />
-                                                        <Button variant="gold" className="w-full rounded-xl">Send Message</Button>
+                                                        <Button variant="gold" className="w-full rounded-xl" onClick={sendMessage} disabled={sendingMessage || !message.trim()}>{sendingMessage ? "Sending…" : "Send Message"}</Button>
                                                     </CardContent>
                                                 </Card>
                                             </div>
@@ -366,9 +395,7 @@ const ParentPortal = () => {
                                                                             </div>
                                                                         </div>
                                                                         {f.status !== 'Paid' && (
-                                                                            <Button variant="gold" className="w-full md:w-auto h-12 px-8 rounded-xl">
-                                                                                Pay Outstanding (${(f.amount_due - f.amount_paid).toFixed(2)})
-                                                                            </Button>
+                                                                            <p className="text-sm text-muted-foreground">Please contact the accounts office to arrange payment.</p>
                                                                         )}
                                                                     </div>
                                                                 </div>

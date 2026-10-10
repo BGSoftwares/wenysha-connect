@@ -36,7 +36,7 @@ const AccountsDashboard = () => {
   const renderContent = () => {
     switch (activeNav) {
       case "dashboard":
-        return <AccountsOverview />;
+        return <AccountsOverview onNavigate={setActiveNav} />;
       case "fee-structures":
       case "add-fee":
         return <FeeStructuresSection activeSubNav={activeNav} />;
@@ -56,7 +56,7 @@ const AccountsDashboard = () => {
       case "profile":
         return <AccountsProfileSection />;
       default:
-        return <AccountsOverview />;
+        return <AccountsOverview onNavigate={setActiveNav} />;
     }
   };
 

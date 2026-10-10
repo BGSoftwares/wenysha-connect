@@ -23,6 +23,7 @@ import {
   X
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
+import { clearAuth } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   useTeacherProfile,
@@ -30,10 +31,12 @@ import {
   useStudents,
   useExams,
   useExamMarks,
+  useSaveExamMark,
   useAttendanceRecords,
   useUpdateAttendance
 } from "@/lib/hooks";
 import { toast } from "sonner";
+import { calculateGrade } from "@/lib/grading";
 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
@@ -46,31 +49,6 @@ const navigation = [
   { name: "Settings", icon: Settings, id: "settings" },
 ];
 
-const myClasses = [
-  { id: 1, name: "Form 4A", subject: "Mathematics", students: 42, nextClass: "Today, 08:00" },
-  { id: 2, name: "Form 3B", subject: "Mathematics", students: 38, nextClass: "Today, 10:30" },
-  { id: 3, name: "Form 4B", subject: "Statistics", students: 40, nextClass: "Tomorrow, 08:40" },
-];
-
-const mySubjects = [
-  { id: 1, name: "Mathematics", code: "MATH", classes: ["Form 4A", "Form 3B"], curriculum: "ZIMSEC & Cambridge" },
-  { id: 2, name: "Statistics", code: "STAT", classes: ["Form 4B"], curriculum: "Cambridge" },
-];
-
-const pendingGrades = [
-  { id: 1, class: "Form 4A", subject: "Mathematics", assessment: "Mid-Term Exam", dueDate: "Dec 18, 2024", submitted: 38, total: 42 },
-  { id: 2, class: "Form 3B", subject: "Mathematics", assessment: "Assignment 5", dueDate: "Dec 20, 2024", submitted: 32, total: 38 },
-  { id: 3, class: "Form 4B", subject: "Statistics", assessment: "Quiz 3", dueDate: "Dec 22, 2024", submitted: 40, total: 40 },
-];
-
-const students = [
-  { id: 1, name: "John Moyo", class: "Form 4A", attendance: 95, avgGrade: 78 },
-  { id: 2, name: "Sarah Ndlovu", class: "Form 4A", attendance: 98, avgGrade: 85 },
-  { id: 3, name: "Peter Chikwanda", class: "Form 4A", attendance: 88, avgGrade: 72 },
-  { id: 4, name: "Mary Sibanda", class: "Form 4A", attendance: 92, avgGrade: 80 },
-  { id: 5, name: "James Dube", class: "Form 4A", attendance: 85, avgGrade: 68 },
-];
-
 const contentMaterials = [
   { id: 1, title: "Quadratic Equations Notes", subject: "Mathematics", type: "PDF", uploadDate: "Dec 10, 2024", downloads: 38 },
   { id: 2, title: "Statistics Formulas", subject: "Statistics", type: "PDF", uploadDate: "Dec 8, 2024", downloads: 25 },
@@ -81,6 +59,11 @@ const TeacherDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const [gradeInputs, setGradeInputs] = useState<Record<number, string>>({});
+  const [reportCardRows, setReportCardRows] = useState<Array<{ studentId: number; studentName: string; score: number; percentage: number; grade: string }>>([]);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Data Hooks
@@ -91,12 +74,14 @@ const TeacherDashboard = () => {
 
   const { data: students = [] } = useStudents();
 
-  const { data: exams = [] } = useExams({ status: "ongoing" });
+  const { data: exams = [] } = useExams();
+  const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
   const { data: attendanceRecords = [] } = useAttendanceRecords({
     date: attendanceDate
   });
 
   const updateAttendanceMutation = useUpdateAttendance();
+  const saveExamMarkMutation = useSaveExamMark();
 
   const uniqueClasses = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.school_class, name: a.class_name }))))
     .map(s => JSON.parse(s));
@@ -104,15 +89,131 @@ const TeacherDashboard = () => {
   const uniqueSubjects = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.subject, name: a.subject_name }))))
     .map(s => JSON.parse(s));
 
-  // Initialize selected class
-  useState(() => {
-    if (uniqueClasses.length > 0 && !selectedClassId) {
+  const classStudents = students.filter(student => student.school_class === selectedClassId);
+
+  useEffect(() => {
+    if (uniqueClasses.length > 0 && selectedClassId === null) {
       setSelectedClassId(uniqueClasses[0].id);
     }
-  });
+  }, [uniqueClasses, selectedClassId]);
+
+  useEffect(() => {
+    if (selectedExamId === null && exams.length > 0) setSelectedExamId(exams[0].id);
+  }, [exams, selectedExamId]);
+
+  useEffect(() => {
+    const allocatedSubject = allocations.find(allocation => allocation.school_class === selectedClassId)?.subject;
+    if (allocatedSubject && !allocations.some(allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId)) {
+      setSelectedSubjectId(allocatedSubject);
+    }
+  }, [allocations, selectedClassId, selectedSubjectId]);
+
+  const subjectStudents = selectedClassId && selectedSubjectId
+    ? classStudents.filter(student => allocations.some(allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId))
+    : classStudents;
+
+  useEffect(() => {
+    if (!selectedClassId || !selectedSubjectId) {
+      setSelectedStudentId(null);
+      return;
+    }
+
+    if (subjectStudents.length === 0) {
+      setSelectedStudentId(null);
+      return;
+    }
+
+    const currentStudentIsValid = subjectStudents.some(student => student.id === selectedStudentId);
+    if (!currentStudentIsValid) {
+      setSelectedStudentId(subjectStudents[0].id);
+    }
+  }, [selectedClassId, selectedSubjectId, selectedStudentId, subjectStudents]);
+
+  useEffect(() => {
+    setGradeInputs(Object.fromEntries(examMarks.map(mark => [mark.student, String(mark.scored)])));
+  }, [examMarks]);
+
+  const saveGrade = async (studentId: number) => {
+    if (gradeInputs[studentId]?.trim() === "") {
+      toast.error("Enter a score before saving.");
+      return;
+    }
+    const score = Number(gradeInputs[studentId]);
+    if (!selectedExamId || !selectedSubjectId) {
+      toast.error("Select an exam and an allocated subject first.");
+      return;
+    }
+    if (!Number.isFinite(score) || score < 0 || score > 100) {
+      toast.error("Enter a score between 0 and 100.");
+      return;
+    }
+    try {
+      await saveExamMarkMutation.mutateAsync({ exam: selectedExamId, student: studentId, subject: selectedSubjectId, total_marks: 100, scored: score });
+      toast.success("Grade saved");
+    } catch {
+      toast.error("Could not save this grade");
+    }
+  };
+
+  const saveAllGrades = async () => {
+    const enteredStudentIds = classStudents.filter(student => gradeInputs[student.id] !== undefined && gradeInputs[student.id] !== "").map(student => student.id);
+    if (enteredStudentIds.length === 0) {
+      toast.error("Enter at least one grade to save.");
+      return;
+    }
+    for (const studentId of enteredStudentIds) await saveGrade(studentId);
+  };
+
+  const currentStudent = subjectStudents.find(student => student.id === selectedStudentId) ?? subjectStudents[0] ?? null;
+  const selectedStudentScore = currentStudent ? gradeInputs[currentStudent.id] ?? examMarks.find(mark => mark.student === currentStudent.id && mark.subject === selectedSubjectId)?.scored ?? "" : "";
+  const selectedStudentGrade = currentStudent && selectedStudentScore !== "" ? calculateGrade(Number(selectedStudentScore)).grade : "—";
+
+  const generateReportCardPreview = () => {
+    if (!selectedClassId || !selectedSubjectId || !selectedExamId) {
+      toast.error("Select a class, subject, and exam to generate a report card.");
+      return;
+    }
+
+    const rows = subjectStudents.map(student => {
+      const mark = examMarks.find(item => item.student === student.id && item.subject === selectedSubjectId);
+      const score = mark ? Number(mark.scored) : 0;
+      const total = mark ? Number(mark.total_marks) : 100;
+      const percentage = total > 0 ? (score / total) * 100 : 0;
+      return {
+        studentId: student.id,
+        studentName: student.name,
+        score,
+        percentage,
+        grade: calculateGrade(percentage).grade,
+      };
+    });
+
+    setReportCardRows(rows);
+
+    if (rows.every(row => row.score === 0)) {
+      toast.error("No student marks have been entered yet for this class and subject.");
+      return;
+    }
+
+    toast.success("Report card preview generated.");
+  };
 
   const teacherName = teacher?.name || "Teacher";
   const department = teacher?.department || "General";
+  const classAttendance = classStudents.map(student => ({
+    student,
+    status: attendanceRecords.find(record => record.student === student.id)?.status || "present",
+  }));
+  const exportClassAttendance = () => {
+    const rows = [["Student", "Class", "Date", "Status"], ...classAttendance.map(({ student, status }) => [student.name, student.class_name || "", attendanceDate, status])];
+    const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `class-attendance-${attendanceDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const renderDashboard = () => (
     <div className="space-y-6">
@@ -122,59 +223,59 @@ const TeacherDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">My Classes</p>
-              <p className="text-3xl font-bold text-foreground mt-1">3</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{uniqueClasses.length}</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Users className="h-6 w-6 text-primary" />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">120 students total</p>
+          <p className="text-xs text-muted-foreground mt-2">{students.filter(student => uniqueClasses.some(cls => cls.id === student.school_class)).length} students across assigned classes</p>
         </div>
 
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Subjects Teaching</p>
-              <p className="text-3xl font-bold text-foreground mt-1">2</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{uniqueSubjects.length}</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-accent/20 flex items-center justify-center">
               <BookOpen className="h-6 w-6 text-accent-foreground" />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Mathematics & Statistics</p>
+          <p className="text-xs text-muted-foreground mt-2">Assigned subjects</p>
         </div>
 
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Pending Grades</p>
-              <p className="text-3xl font-bold text-foreground mt-1">3</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{exams.filter(exam => exam.status === "grading").length}</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
               <FileText className="h-6 w-6 text-amber-600" />
             </div>
           </div>
-          <p className="text-xs text-amber-600 mt-2">Due this week</p>
+          <p className="text-xs text-amber-600 mt-2">Exams awaiting grading</p>
         </div>
 
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Avg. Class Performance</p>
-              <p className="text-3xl font-bold text-foreground mt-1">76%</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{examMarks.length ? `${Math.round(examMarks.reduce((sum, mark) => sum + mark.scored / Math.max(mark.total_marks, 1) * 100, 0) / examMarks.length)}%` : "—"}</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
               <TrendingUp className="h-6 w-6 text-green-600" />
             </div>
           </div>
-          <p className="text-xs text-green-600 mt-2">+3% from last term</p>
+          <p className="text-xs text-green-600 mt-2">Current exam records</p>
         </div>
       </div>
 
       {/* Today's Schedule & Pending Tasks */}
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="font-heading font-bold text-lg text-foreground mb-4">Today's Schedule</h2>
+            <h2 className="font-heading font-bold text-lg text-foreground mb-4">Teaching Allocations</h2>
           <div className="space-y-3">
             {allocations.map((alloc) => (
               <div key={alloc.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30">
@@ -194,22 +295,23 @@ const TeacherDashboard = () => {
         <div className="bg-card rounded-xl border border-border p-6">
           <h2 className="font-heading font-bold text-lg text-foreground mb-4">Pending Assessments</h2>
           <div className="space-y-3">
-            {pendingGrades.map((grade) => (
-              <div key={grade.id} className="p-4 rounded-lg bg-secondary/30">
+            {exams.map((exam) => (
+              <div key={exam.id} className="p-4 rounded-lg bg-secondary/30">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-foreground">{grade.assessment}</h4>
-                  <span className="text-xs text-amber-600">{grade.dueDate}</span>
+                  <h4 className="font-medium text-foreground">{exam.name}</h4>
+                  <span className="text-xs text-amber-600">{exam.status}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mb-2">{grade.class} • {grade.subject}</p>
+                <p className="text-xs text-muted-foreground mb-2">{exam.term} {exam.year}</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{grade.submitted}/{grade.total} graded</span>
-                  <Button size="sm" variant="outline" className="h-7">
+                  <span className="text-xs text-muted-foreground">{exam.status === "grading" ? "Grades required" : "Open exam"}</span>
+                  <Button size="sm" variant="outline" className="h-7" onClick={() => { setSelectedExamId(exam.id); setActiveNav("grading"); }}>
                     <Edit className="h-3 w-3 mr-1" />
                     Grade
                   </Button>
                 </div>
               </div>
             ))}
+            {exams.length === 0 && <p className="text-sm text-muted-foreground">No exams have been created yet.</p>}
           </div>
         </div>
       </div>
@@ -273,9 +375,9 @@ const TeacherDashboard = () => {
 
   const renderGrading = () => (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="font-heading text-xl font-bold text-foreground">Grading</h2>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <select
             value={selectedClassId || ""}
             onChange={(e) => setSelectedClassId(Number(e.target.value))}
@@ -284,17 +386,141 @@ const TeacherDashboard = () => {
             <option value="">Select Class</option>
             {uniqueClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <select className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
+          <select value={selectedSubjectId || ""} onChange={e => setSelectedSubjectId(Number(e.target.value))} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
+            <option value="">Select Subject</option>
+            {allocations.filter(allocation => allocation.school_class === selectedClassId).map(allocation => <option key={allocation.subject} value={allocation.subject}>{allocation.subject_name}</option>)}
+          </select>
+          <select value={selectedExamId || ""} onChange={e => setSelectedExamId(Number(e.target.value))} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">Select Exam</option>
             {exams.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>
+          <Button variant="outline" onClick={generateReportCardPreview}>Generate Report Card</Button>
         </div>
       </div>
 
+      {selectedClassId && selectedSubjectId && (
+        <div className="bg-card rounded-xl border border-border p-5 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Student in {uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "subject"}</p>
+              <h3 className="font-semibold text-foreground">Mark Entry</h3>
+            </div>
+            <div className="flex items-center gap-3">
+              <select
+                value={currentStudent?.id ?? ""}
+                onChange={(e) => setSelectedStudentId(Number(e.target.value))}
+                className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+              >
+                <option value="">Select student</option>
+                {subjectStudents.map(student => <option key={student.id} value={student.id}>{student.name}</option>)}
+              </select>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="Score"
+                value={selectedStudentScore}
+                onChange={event => currentStudent && setGradeInputs(current => ({ ...current, [currentStudent.id]: event.target.value }))}
+                className="w-24 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-center"
+              />
+            </div>
+          </div>
+
+          {currentStudent && selectedStudentScore !== "" && (
+            <div className="rounded-xl border border-border bg-secondary/20 p-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Auto grade</p>
+                <p className="text-lg font-bold text-foreground">{selectedStudentGrade}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Percentage</p>
+                <p className="text-lg font-bold text-foreground">{((Number(selectedStudentScore) / 100) * 100).toFixed(1)}%</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {reportCardRows.length > 0 && (
+        <div className="bg-card rounded-xl border border-border overflow-hidden print:border-none">
+          <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-6 border-b border-border">
+            <div className="text-center mb-6">
+              <h1 className="font-heading text-2xl font-bold text-foreground tracking-wide">
+                STUDENT ONLINE REPORT CARD
+              </h1>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <p className="text-sm"><span className="font-semibold text-foreground">{currentStudent?.name || "Student"}</span></p>
+                <p className="text-sm text-muted-foreground">Grade: {uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"}</p>
+                <p className="text-sm text-muted-foreground">Exam: {exams.find(exam => exam.id === selectedExamId)?.name || "Selected exam"}</p>
+                <p className="text-sm text-muted-foreground">Passed: {reportCardRows.filter(row => row.percentage >= 40).length} out of {reportCardRows.length}</p>
+                <p className="text-sm text-muted-foreground">Date: {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="flex justify-center">
+                <img src={logo} alt="School Logo" className="h-24 w-24 mx-auto rounded-lg object-contain border border-border bg-white p-2" />
+              </div>
+
+              <div className="text-right space-y-1">
+                <p className="font-semibold text-foreground">Able God College</p>
+                <p className="text-sm text-muted-foreground">Phone: {teacher?.phone || schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
+                <p className="text-sm text-muted-foreground">{schoolContact.address}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-[hsl(220,25%,18%)] text-white">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">SUBJECT</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold">MARKS</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold">SCORED</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold">PERC(%)</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold">GRADE</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">COMMENT</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {reportCardRows.map((row) => {
+                  const percentage = row.percentage;
+                  const gradeInfo = calculateGrade(percentage);
+                  return (
+                    <tr key={row.studentId} className="hover:bg-secondary/30 transition-colors">
+                      <td className="px-4 py-3 text-sm font-medium text-foreground">{uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Subject"}</td>
+                      <td className="px-4 py-3 text-sm text-center text-muted-foreground">100</td>
+                      <td className="px-4 py-3 text-sm text-center font-medium text-foreground">{row.score.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-sm text-center text-muted-foreground">{percentage.toFixed(2)}%</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${gradeInfo.bgColor} ${gradeInfo.color}`}>
+                          {gradeInfo.grade}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{gradeInfo.meaning}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="p-6 border-t border-border bg-secondary/10">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">This report is electronically generated, follow the link to verify the report.</p>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <FileText className="h-16 w-16" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-4 border-b border-border bg-secondary/30">
-          <h3 className="font-medium text-foreground">{uniqueClasses.find(c => c.id === selectedClassId)?.name || "Select Class"} - Mathematics</h3>
-          <p className="text-sm text-muted-foreground">Mid-Term Examination</p>
+          <h3 className="font-medium text-foreground">{uniqueClasses.find(c => c.id === selectedClassId)?.name || "Select Class"} - {uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Select Subject"}</h3>
+          <p className="text-sm text-muted-foreground">{exams.find(exam => exam.id === selectedExamId)?.name || "Select an exam"}</p>
         </div>
         <table className="w-full">
           <thead className="bg-secondary/50">
@@ -306,7 +532,7 @@ const TeacherDashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {students.map((student) => (
+            {subjectStudents.map((student) => (
               <tr key={student.id} className="border-t border-border">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -323,27 +549,31 @@ const TeacherDashboard = () => {
                     min="0"
                     max="100"
                     placeholder="-"
+                    value={gradeInputs[student.id] ?? examMarks.find(mark => mark.student === student.id && mark.subject === selectedSubjectId)?.scored ?? ""}
+                    onChange={event => setGradeInputs(current => ({ ...current, [student.id]: event.target.value }))}
                   />
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <span className="text-xs px-2 py-1 rounded font-medium bg-secondary text-muted-foreground">-</span>
+                  <span className="text-xs px-2 py-1 rounded font-medium bg-secondary text-muted-foreground">
+                    {gradeInputs[student.id] !== undefined && gradeInputs[student.id] !== "" ? calculateGrade(Number(gradeInputs[student.id])).grade : "-"}
+                  </span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <Button variant="outline" size="sm">Save</Button>
+                  <Button variant="outline" size="sm" onClick={() => saveGrade(student.id)} disabled={saveExamMarkMutation.isPending || !selectedExamId || !selectedSubjectId}>Save</Button>
                 </td>
               </tr>
             ))}
-            {students.length === 0 && (
+            {subjectStudents.length === 0 && (
               <tr>
                 <td colSpan={4} className="p-8 text-center text-muted-foreground italic">
-                  No students found for the selected class.
+                  No students found for the selected class and subject combination.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
         <div className="p-4 border-t border-border flex justify-end">
-          <Button variant="gold" onClick={() => toast.info("Bulk submission coming soon")}>Submit All Grades</Button>
+          <Button variant="gold" onClick={saveAllGrades} disabled={saveExamMarkMutation.isPending || !selectedExamId || !selectedSubjectId}>{saveExamMarkMutation.isPending ? "Saving…" : "Save All Grades"}</Button>
         </div>
       </div>
     </div>
@@ -377,8 +607,8 @@ const TeacherDashboard = () => {
             <p className="text-sm text-muted-foreground">{new Date(attendanceDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
           <div className="flex gap-4 text-sm">
-            <span className="text-green-600">Present: 40</span>
-            <span className="text-red-500">Absent: 2</span>
+            <span className="text-green-600">Present: {classAttendance.filter(item => item.status === "present").length}</span>
+            <span className="text-red-500">Absent: {classAttendance.filter(item => item.status === "absent").length}</span>
           </div>
         </div>
         <table className="w-full">
@@ -390,7 +620,7 @@ const TeacherDashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {students.map((student) => {
+            {classStudents.map((student) => {
               const record = attendanceRecords.find(r => r.student === student.id);
               const status = record?.status || "present";
 
@@ -450,7 +680,7 @@ const TeacherDashboard = () => {
           </tbody>
         </table>
         <div className="p-4 border-t border-border flex justify-end">
-          <Button variant="gold" onClick={() => toast.success("Attendance verified for this class")}>Verify Attendance</Button>
+          <Button variant="gold" onClick={exportClassAttendance} disabled={classAttendance.length === 0}>Download Attendance</Button>
         </div>
       </div>
     </div>
@@ -708,6 +938,7 @@ const TeacherDashboard = () => {
           </div>
           <Link
             to="/portal"
+            onClick={clearAuth}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-destructive/10 text-destructive font-bold hover:bg-destructive/20 transition-all border border-destructive/20 text-sm"
           >
             <LogOut className="h-4 w-4" />

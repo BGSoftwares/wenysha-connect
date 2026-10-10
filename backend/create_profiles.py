@@ -10,6 +10,7 @@ django.setup()
 from django.contrib.auth.models import User
 from core.models import UserProfile, Role
 from school.models import SchoolClass, Teacher, Student, Subject
+from school.seed_data import ensure_academic_seed_data
 from parents.models import Parent, StudentParent
 from finance.models import FeeStructure
 
@@ -215,6 +216,10 @@ for fee_data in fee_structures:
     )
     if created:
         print(f"[OK] Fee structure created: {fee.name} - ZWL {fee.amount}")
+
+print("\n[10] Seeding academic subjects, class linkages, and report-card data...")
+class_record = ensure_academic_seed_data()
+print(f"[OK] Academic seed ready for class: {class_record.name}")
 
 print("\n" + "="*60)
 print("[OK] All profiles created successfully!")

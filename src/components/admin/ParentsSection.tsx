@@ -1,209 +1,40 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Edit, Trash2, Search, Phone, Mail, User, Users } from "lucide-react";
+import { toast } from "sonner";
+import { api, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { useStudents } from "@/lib/hooks";
 
-const mockParents = [
-  { 
-    id: 1, 
-    name: "Mr. & Mrs. Moyo", 
-    phone: "+263 77 123 4567", 
-    email: "moyo.family@gmail.com",
-    children: ["John Moyo (Form 4A)", "Grace Moyo (Form 2B)"],
-    address: "123 Borrowdale Road, Harare",
-    status: "Active"
-  },
-  { 
-    id: 2, 
-    name: "Mrs. Ndlovu", 
-    phone: "+263 71 234 5678", 
-    email: "ndlovu.p@yahoo.com",
-    children: ["Sarah Ndlovu (Form 3B)"],
-    address: "45 Avondale, Harare",
-    status: "Active"
-  },
-  { 
-    id: 3, 
-    name: "Mr. Chikwanda", 
-    phone: "+263 78 345 6789", 
-    email: "chikwanda.t@gmail.com",
-    children: ["Peter Chikwanda (Form 4A)", "Tendai Chikwanda (Form 1A)"],
-    address: "78 Mount Pleasant, Harare",
-    status: "Active"
-  },
-  { 
-    id: 4, 
-    name: "Mrs. Sibanda", 
-    phone: "+263 73 456 7890", 
-    email: "sibanda.m@outlook.com",
-    children: ["Mary Sibanda (Form 2A)"],
-    address: "32 Eastlea, Harare",
-    status: "Inactive"
-  },
-];
+type Parent = { id: number; name: string; phone: string; email: string; children: string[]; address: string; status: string };
+type Draft = Omit<Parent, "id" | "children">;
+const path = "/parents/parents/";
+const empty: Draft = { name: "", phone: "", email: "", address: "", status: "Active" };
+const getRows = (value: Parent[] | { results?: Parent[] }) => Array.isArray(value) ? value : value.results ?? [];
 
 const ParentsSection = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-
-  const filteredParents = mockParents.filter(parent => {
-    const matchesSearch = parent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      parent.children.some(child => child.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesStatus = statusFilter === "all" || parent.status.toLowerCase() === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="font-heading text-xl font-bold text-foreground">Parents & Guardians</h2>
-          <p className="text-sm text-muted-foreground">Manage parent/guardian information and communications</p>
-        </div>
-        <Button variant="gold">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Parent/Guardian
-        </Button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{mockParents.length}</p>
-                <p className="text-xs text-muted-foreground">Total Parents</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <User className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{mockParents.filter(p => p.status === "Active").length}</p>
-                <p className="text-xs text-muted-foreground">Active</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-accent/10">
-                <Mail className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">24</p>
-                <p className="text-xs text-muted-foreground">Emails Sent</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Phone className="h-5 w-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">12</p>
-                <p className="text-xs text-muted-foreground">SMS Sent</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by parent name or child..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <select 
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
-        >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-
-      {/* Parents List */}
-      <div className="grid gap-4">
-        {filteredParents.map((parent) => (
-          <Card key={parent.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-5">
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <User className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground">{parent.name}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded ${
-                        parent.status === "Active" 
-                          ? "bg-green-100 text-green-700" 
-                          : "bg-gray-100 text-gray-600"
-                      }`}>
-                        {parent.status}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" /> {parent.phone}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" /> {parent.email}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{parent.address}</p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {parent.children.map((child, idx) => (
-                        <span key={idx} className="text-xs px-2 py-1 rounded bg-secondary text-foreground">
-                          {child}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2 md:flex-col">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Mail className="h-4 w-4 mr-1" /> Email
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Phone className="h-4 w-4 mr-1" /> SMS
-                  </Button>
-                  <div className="flex gap-1">
-                    <Button variant="outline" size="sm"><Edit className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="sm"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
+  const client = useQueryClient();
+  const { data = [], isLoading, error } = useQuery({ queryKey: ["admin-parents"], queryFn: async () => getRows(await api.get<Parent[] | { results?: Parent[] }>(path)) });
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [draft, setDraft] = useState<(Draft & { id?: number }) | null>(null);
+  const [linkParent, setLinkParent] = useState<number | null>(null);
+  const [linkStudent, setLinkStudent] = useState("");
+  const studentsQuery = useStudents();
+  const refresh = () => client.invalidateQueries({ queryKey: ["admin-parents"] });
+  const save = useMutation({ mutationFn: (value: Draft & { id?: number }) => value.id ? api.patch(`${path}${value.id}/`, value) : api.post(path, value), onSuccess: () => { void refresh(); setDraft(null); toast.success("Parent record saved"); }, onError: e => toast.error(getErrorMessage(e)) });
+  const remove = useMutation({ mutationFn: (id: number) => api.delete(`${path}${id}/`), onSuccess: () => { void refresh(); toast.success("Parent record deleted"); }, onError: e => toast.error(getErrorMessage(e)) });
+  const link = useMutation({ mutationFn: () => api.post("/parents/student-parents/", { parent: linkParent, student: Number(linkStudent) }), onSuccess: () => { void refresh(); setLinkParent(null); setLinkStudent(""); toast.success("Student linked to parent"); }, onError: e => toast.error(getErrorMessage(e)) });
+  const filtered = useMemo(() => data.filter(p => (status === "all" || p.status.toLowerCase() === status) && `${p.name} ${p.email} ${p.phone} ${(p.children ?? []).join(" ")}`.toLowerCase().includes(search.toLowerCase())), [data, search, status]);
+  return <div className="space-y-6">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-heading text-xl font-bold">Parents & Guardians</h2><p className="text-sm text-muted-foreground">Manage saved parent records and contact details</p></div><Button variant="gold" onClick={() => setDraft({ ...empty })}><Plus className="mr-2 h-4 w-4"/>Add Parent/Guardian</Button></div>
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4"><Card><CardContent className="flex items-center gap-3 p-4"><Users className="h-5 w-5 text-primary"/><div><p className="text-2xl font-bold">{data.length}</p><p className="text-xs text-muted-foreground">Total parents</p></div></CardContent></Card><Card><CardContent className="flex items-center gap-3 p-4"><User className="h-5 w-5 text-green-600"/><div><p className="text-2xl font-bold">{data.filter(p => p.status === "Active").length}</p><p className="text-xs text-muted-foreground">Active</p></div></CardContent></Card></div>
+    <div className="flex flex-col gap-3 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input className="pl-10" placeholder="Search parents, email, phone, student" value={search} onChange={e => setSearch(e.target.value)}/></div><select className="rounded-lg border border-border bg-background px-4 py-2" value={status} onChange={e => setStatus(e.target.value)}><option value="all">All status</option><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+    {isLoading ? <p className="py-10 text-center text-muted-foreground">Loading parent records…</p> : error ? <p className="rounded-xl border border-destructive/30 p-5 text-destructive">Could not load parent records: {getErrorMessage(error)}</p> : filtered.length === 0 ? <Card><CardContent className="p-8 text-center text-muted-foreground">No parent records found.</CardContent></Card> : <div className="grid gap-4">{filtered.map(parent => <Card key={parent.id}><CardContent className="flex flex-col justify-between gap-4 p-5 md:flex-row"><div className="flex items-start gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10"><User className="h-6 w-6 text-primary"/></div><div className="space-y-1"><div className="flex items-center gap-2"><h3 className="font-semibold">{parent.name}</h3><span className="rounded bg-secondary px-2 py-0.5 text-xs">{parent.status}</span></div><div className="flex flex-wrap gap-4 text-sm text-muted-foreground"><span><Phone className="mr-1 inline h-3 w-3"/>{parent.phone || "No phone"}</span><span><Mail className="mr-1 inline h-3 w-3"/>{parent.email || "No email"}</span></div><p className="text-sm text-muted-foreground">{parent.address}</p><div className="flex flex-wrap gap-2">{(parent.children ?? []).map(child => <span key={child} className="rounded bg-secondary px-2 py-1 text-xs">{child}</span>)}</div></div></div><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={()=>{setLinkParent(parent.id);setLinkStudent("");}}><Users className="mr-1 h-4 w-4"/>Link Student</Button><Button variant="outline" size="sm" asChild disabled={!parent.email}><a href={`mailto:${parent.email}`}><Mail className="mr-1 h-4 w-4"/>Email</a></Button><Button variant="outline" size="sm" asChild disabled={!parent.phone}><a href={`sms:${parent.phone}`}><Phone className="mr-1 h-4 w-4"/>SMS</a></Button><Button variant="outline" size="icon" aria-label="Edit parent" onClick={() => setDraft({ id: parent.id, name: parent.name, email: parent.email, phone: parent.phone, address: parent.address, status: parent.status })}><Edit className="h-4 w-4"/></Button><Button variant="outline" size="icon" aria-label="Delete parent" onClick={() => window.confirm(`Delete ${parent.name}'s record?`) && remove.mutate(parent.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button></div></CardContent></Card>)}</div>}
+    {draft && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setDraft(null)}><div className="w-full max-w-md space-y-4 rounded-xl bg-card p-6" onClick={e => e.stopPropagation()}><h3 className="text-xl font-bold">{draft.id ? "Edit Parent" : "Add Parent"}</h3>{(["name", "phone", "email", "address"] as const).map(key => <label key={key} className="block text-sm capitalize">{key}<Input type={key === "email" ? "email" : "text"} value={draft[key]} onChange={e => setDraft({ ...draft, [key]: e.target.value })}/></label>)}<label className="block text-sm">Status<select className="mt-1 w-full rounded-lg border bg-background p-2" value={draft.status} onChange={e => setDraft({ ...draft, status: e.target.value })}><option>Active</option><option>Inactive</option></select></label><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setDraft(null)}>Cancel</Button><Button variant="gold" disabled={save.isPending || !draft.name.trim()} onClick={() => save.mutate(draft)}>{save.isPending ? "Saving…" : "Save Parent"}</Button></div></div></div>}
+    {linkParent !== null && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={()=>setLinkParent(null)}><div className="w-full max-w-md space-y-4 rounded-xl bg-card p-6" onClick={e=>e.stopPropagation()}><h3 className="text-xl font-bold">Link Student to Parent</h3><select className="w-full rounded-lg border bg-background p-2" value={linkStudent} onChange={e=>setLinkStudent(e.target.value)}><option value="">Select a student</option>{(studentsQuery.data??[]).map(student=><option key={student.id} value={student.id}>{student.name} · {student.student_id}</option>)}</select><div className="flex justify-end gap-2"><Button variant="outline" onClick={()=>setLinkParent(null)}>Cancel</Button><Button variant="gold" disabled={!linkStudent||link.isPending} onClick={()=>link.mutate()}>Link Student</Button></div></div></div>}
+  </div>;
 };
-
 export default ParentsSection;

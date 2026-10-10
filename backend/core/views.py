@@ -15,6 +15,7 @@ from .serializers import (
     SignUpSerializer,
     LoginSerializer,
     PendingApprovalActionSerializer,
+    AdminAccountSerializer,
 )
 
 
@@ -92,6 +93,36 @@ class CurrentUserView(APIView):
             'full_name': full_name,
         })
 
+    def patch(self, request):
+        user = request.user
+        email = request.data.get('email', user.email).strip()
+        full_name = request.data.get('full_name', '').strip()
+        if not email or not full_name:
+            return Response({'detail': 'Name and email are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
+            return Response({'email': ['This email is already in use.']}, status=status.HTTP_400_BAD_REQUEST)
+        user.email = email
+        user.save(update_fields=['email'])
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.full_name = full_name
+        profile.save(update_fields=['full_name'])
+        return Response({'detail': 'Profile updated.', 'email': user.email, 'full_name': full_name})
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        current = request.data.get('current_password', '')
+        new = request.data.get('new_password', '')
+        if not request.user.check_password(current):
+            return Response({'current_password': ['Current password is incorrect.']}, status=status.HTTP_400_BAD_REQUEST)
+        if len(new) < 8:
+            return Response({'new_password': ['Use at least 8 characters.']}, status=status.HTTP_400_BAD_REQUEST)
+        request.user.set_password(new)
+        request.user.save(update_fields=['password'])
+        return Response({'detail': 'Password changed. Please sign in again.'})
+
 
 class SignUpView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -109,13 +140,27 @@ class SignUpView(APIView):
 class RoleViewSet(ModelViewSet):
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
 
 
 class UserProfileViewSet(ModelViewSet):
     queryset = UserProfile.objects.select_related('user', 'role').all()
     serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
+
+
+class AdminAccountViewSet(ModelViewSet):
+    queryset = User.objects.select_related('profile__role').all().order_by('username')
+    serializer_class = AdminAccountSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def destroy(self, request, *args, **kwargs):
+        account = self.get_object()
+        if account.pk == request.user.pk:
+            return Response({'detail': 'You cannot deactivate the account currently in use.'}, status=status.HTTP_400_BAD_REQUEST)
+        account.is_active = False
+        account.save(update_fields=['is_active'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PendingApprovalViewSet(ModelViewSet):

@@ -9,14 +9,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def _as_list(value: str, default: str = "") -> list[str]:
+    items = value if value else default
+    return [item.strip() for item in items.split(',') if item.strip()]
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-secret-change-in-production')
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'development-secret-key-change-in-production-use-env-2026-abcdefghi123456'
+)
 
 # Support both DJANGO_DEBUG and DEBUG env var names.
 DEBUG = os.environ.get('DJANGO_DEBUG', os.environ.get('DEBUG', 'True')).lower() == 'true'
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,::1')).split(',')
+ALLOWED_HOSTS = _as_list(
+    os.environ.get('DJANGO_ALLOWED_HOSTS', os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,::1')),
+    'localhost,127.0.0.1,0.0.0.0,::1'
+)
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -25,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'whitenoise.runserver_nostatic',
     'rest_framework',
     'rest_framework_simplejwt',
     'django_filters',
@@ -45,6 +58,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -109,15 +123,46 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom user: use Django's User; link to Role and profiles via OneToOne
 AUTH_USER_MODEL = 'auth.User'
 
-# CORS: allow React dev server
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080')).split(',')
+# CORS: allow configured frontend origins, with localhost defaults for local development.
+CORS_ALLOWED_ORIGINS = _as_list(
+    os.environ.get(
+        'CORS_ALLOWED_ORIGINS',
+        os.environ.get(
+            'CORS_ORIGINS',
+            'http://localhost:5173,http://localhost:8080,http://localhost:8081,http://127.0.0.1:5173,http://127.0.0.1:8080,http://127.0.0.1:8081'
+        )
+    ),
+    'http://localhost:5173,http://localhost:8080,http://localhost:8081,http://127.0.0.1:5173,http://127.0.0.1:8080,http://127.0.0.1:8081'
+)
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = _as_list(
+    os.environ.get(
+        'CSRF_TRUSTED_ORIGINS',
+        'http://localhost:5173,http://localhost:8080,http://localhost:8081,http://127.0.0.1:5173,http://127.0.0.1:8080,http://127.0.0.1:8081'
+    ),
+    'http://localhost:5173,http://localhost:8080,http://localhost:8081,http://127.0.0.1:5173,http://127.0.0.1:8080,http://127.0.0.1:8081'
+)
+
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'True').lower() == 'true'
 
 # REST Framework
 REST_FRAMEWORK = {

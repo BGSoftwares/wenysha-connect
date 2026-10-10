@@ -11,10 +11,8 @@ import {
   Bell,
   LogOut,
   TrendingUp,
-  TrendingDown,
   Users,
   CheckCircle,
-  Clock,
   User,
   Award
 } from "lucide-react";
@@ -31,9 +29,9 @@ import {
   useGrades,
   useAttendanceRecords,
   useStudentFees,
-  useInvoices
+  useTimetable,
 } from "@/lib/hooks";
-import { getStoredUser } from "@/lib/api";
+import { clearAuth, getStoredUser } from "@/lib/api";
 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
@@ -46,83 +44,6 @@ const navigation = [
   { name: "Settings", icon: Settings, id: "settings" },
 ];
 
-const recentResults = [
-  { subject: "Mathematics", score: 85 },
-  { subject: "English", score: 78 },
-  { subject: "Physics", score: 72 },
-  { subject: "Chemistry", score: 48 },
-];
-
-const assignments = [
-  { subject: "Mathematics", title: "Quadratic Equations", due: "Dec 20, 2024", status: "pending" },
-  { subject: "English", title: "Essay Writing", due: "Dec 18, 2024", status: "submitted" },
-  { subject: "Physics", title: "Lab Report", due: "Dec 22, 2024", status: "pending" },
-];
-
-const announcements = [
-  { title: "Mid-Term Examinations", date: "Dec 15, 2024", priority: "high" },
-  { title: "Sports Day Preparations", date: "Dec 10, 2024", priority: "medium" },
-  { title: "Holiday Schedule Released", date: "Dec 8, 2024", priority: "low" },
-];
-
-const timetableData = [
-  {
-    day: "Monday", periods: [
-      { time: "08:00-08:40", subject: "Mathematics", teacher: "Mrs. Moyo", room: "Room 12" },
-      { time: "08:40-09:20", subject: "English", teacher: "Ms. Phiri", room: "Room 5" },
-      { time: "09:20-10:00", subject: "Physics", teacher: "Mr. Ncube", room: "Lab 1" },
-      { time: "10:00-10:30", subject: "Break", teacher: "", room: "" },
-      { time: "10:30-11:10", subject: "Chemistry", teacher: "Mr. Ncube", room: "Lab 2" },
-      { time: "11:10-11:50", subject: "History", teacher: "Mr. Dube", room: "Room 8" },
-      { time: "11:50-12:30", subject: "Shona", teacher: "Mrs. Banda", room: "Room 3" },
-    ]
-  },
-  {
-    day: "Tuesday", periods: [
-      { time: "08:00-08:40", subject: "English", teacher: "Ms. Phiri", room: "Room 5" },
-      { time: "08:40-09:20", subject: "Geography", teacher: "Mr. Moyo", room: "Room 10" },
-      { time: "09:20-10:00", subject: "Mathematics", teacher: "Mrs. Moyo", room: "Room 12" },
-      { time: "10:00-10:30", subject: "Break", teacher: "", room: "" },
-      { time: "10:30-11:10", subject: "Biology", teacher: "Mrs. Chikwanda", room: "Lab 3" },
-      { time: "11:10-11:50", subject: "Physics", teacher: "Mr. Ncube", room: "Lab 1" },
-      { time: "11:50-12:30", subject: "PE", teacher: "Mr. Sibanda", room: "Field" },
-    ]
-  },
-  {
-    day: "Wednesday", periods: [
-      { time: "08:00-08:40", subject: "Chemistry", teacher: "Mr. Ncube", room: "Lab 2" },
-      { time: "08:40-09:20", subject: "Mathematics", teacher: "Mrs. Moyo", room: "Room 12" },
-      { time: "09:20-10:00", subject: "English", teacher: "Ms. Phiri", room: "Room 5" },
-      { time: "10:00-10:30", subject: "Break", teacher: "", room: "" },
-      { time: "10:30-11:10", subject: "History", teacher: "Mr. Dube", room: "Room 8" },
-      { time: "11:10-11:50", subject: "Geography", teacher: "Mr. Moyo", room: "Room 10" },
-      { time: "11:50-12:30", subject: "Biology", teacher: "Mrs. Chikwanda", room: "Lab 3" },
-    ]
-  },
-  {
-    day: "Thursday", periods: [
-      { time: "08:00-08:40", subject: "Physics", teacher: "Mr. Ncube", room: "Lab 1" },
-      { time: "08:40-09:20", subject: "Shona", teacher: "Mrs. Banda", room: "Room 3" },
-      { time: "09:20-10:00", subject: "Mathematics", teacher: "Mrs. Moyo", room: "Room 12" },
-      { time: "10:00-10:30", subject: "Break", teacher: "", room: "" },
-      { time: "10:30-11:10", subject: "English", teacher: "Ms. Phiri", room: "Room 5" },
-      { time: "11:10-11:50", subject: "Chemistry", teacher: "Mr. Ncube", room: "Lab 2" },
-      { time: "11:50-12:30", subject: "Art", teacher: "Ms. Ndlovu", room: "Art Room" },
-    ]
-  },
-  {
-    day: "Friday", periods: [
-      { time: "08:00-08:40", subject: "Biology", teacher: "Mrs. Chikwanda", room: "Lab 3" },
-      { time: "08:40-09:20", subject: "Mathematics", teacher: "Mrs. Moyo", room: "Room 12" },
-      { time: "09:20-10:00", subject: "History", teacher: "Mr. Dube", room: "Room 8" },
-      { time: "10:00-10:30", subject: "Break", teacher: "", room: "" },
-      { time: "10:30-11:10", subject: "English", teacher: "Ms. Phiri", room: "Room 5" },
-      { time: "11:10-11:50", subject: "Physics", teacher: "Mr. Ncube", room: "Lab 1" },
-      { time: "11:50-12:30", subject: "Club Activities", teacher: "", room: "Various" },
-    ]
-  },
-];
-
 const StudentDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -132,7 +53,7 @@ const StudentDashboard = () => {
   const { data: grades = [] } = useGrades({ student: profile?.id });
   const { data: attendance = [] } = useAttendanceRecords({ student: profile?.id });
   const { data: fees = [] } = useStudentFees({ student: profile?.id });
-  const { data: invoices = [] } = useInvoices({ student: profile?.id });
+  const { data: timetable = [] } = useTimetable(profile?.school_class);
 
   const averageGrade = useMemo(() => {
     if (!grades.length) return 0;
@@ -206,31 +127,28 @@ const StudentDashboard = () => {
   const renderTimetable = () => (
     <div className="space-y-6">
       <h2 className="font-heading text-xl font-bold text-foreground">My Class Timetable</h2>
-      <p className="text-muted-foreground">{profile?.class_name || "Assigned Class"} - Term 1 2024</p>
+      <p className="text-muted-foreground">{profile?.class_name || "Assigned Class"}</p>
 
       <div className="grid gap-4">
-        {timetableData.map((daySchedule) => (
-          <div key={daySchedule.day} className="bg-card rounded-xl border border-border overflow-hidden">
+        {timetable.length > 0 ? [...new Set(timetable.map(entry => entry.day_of_week))].map(day => (
+          <div key={day} className="bg-card rounded-xl border border-border overflow-hidden">
             <div className="bg-primary/10 px-4 py-3 border-b border-border">
-              <h3 className="font-semibold text-foreground">{daySchedule.day}</h3>
+              <h3 className="font-semibold text-foreground">{day}</h3>
             </div>
             <div className="divide-y divide-border">
-              {daySchedule.periods.map((period, idx) => (
+              {timetable.filter(entry => entry.day_of_week === day).map((period) => (
                 <div
-                  key={idx}
-                  className={`flex items-center gap-4 px-4 py-3 ${period.subject === "Break" ? "bg-secondary/30" : ""
-                    }`}
+                  key={period.id}
+                  className="flex items-center gap-4 px-4 py-3"
                 >
                   <div className="w-24 text-sm font-medium text-muted-foreground">
-                    {period.time}
+                    {period.period_start.slice(0, 5)}–{period.period_end.slice(0, 5)}
                   </div>
                   <div className="flex-1">
-                    <p className={`font-medium ${period.subject === "Break" ? "text-muted-foreground italic" : "text-foreground"}`}>
-                      {period.subject}
+                    <p className="font-medium text-foreground">
+                      {period.subject_name}
                     </p>
-                    {period.teacher && (
-                      <p className="text-xs text-muted-foreground">{period.teacher}</p>
-                    )}
+                    {period.teacher_name && <p className="text-xs text-muted-foreground">{period.teacher_name}</p>}
                   </div>
                   {period.room && (
                     <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">
@@ -241,7 +159,7 @@ const StudentDashboard = () => {
               ))}
             </div>
           </div>
-        ))}
+        )) : <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">No timetable has been published for this class yet.</div>}
       </div>
     </div>
   );
@@ -269,12 +187,12 @@ const StudentDashboard = () => {
         <div className="bg-card rounded-xl border border-border p-5">
           <p className="text-sm text-muted-foreground mb-1">Class Rank</p>
           <div className="flex items-center justify-between">
-            <span className="text-3xl font-bold text-foreground">#5</span>
+            <span className="text-2xl font-bold text-muted-foreground">—</span>
             <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
               <Users className="h-5 w-5 text-amber-600" />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">out of 45 students</p>
+          <p className="text-xs text-muted-foreground mt-2">Rank is not available</p>
         </div>
 
         {/* Attendance */}
@@ -309,7 +227,7 @@ const StudentDashboard = () => {
         <div className="lg:col-span-2 bg-card rounded-xl border border-border p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-heading font-bold text-lg text-foreground">Recent Results</h2>
-            <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => setActiveNav("results")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               View All
             </button>
           </div>
@@ -344,18 +262,7 @@ const StudentDashboard = () => {
         <div className="bg-card rounded-xl border border-border p-6">
           <h2 className="font-heading font-bold text-lg text-foreground mb-6">Announcements</h2>
           <div className="space-y-4">
-            {announcements.map((item, index) => (
-              <div key={index} className="flex items-start gap-3">
-                <div className={`h-2 w-2 rounded-full mt-2 ${item.priority === "high" ? "bg-red-500" :
-                  item.priority === "medium" ? "bg-amber-500" :
-                    "bg-green-500"
-                  }`} />
-                <div>
-                  <p className="font-medium text-foreground text-sm">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">{item.date}</p>
-                </div>
-              </div>
-            ))}
+            <p className="text-sm text-muted-foreground">No announcements are currently available.</p>
           </div>
         </div>
       </div>
@@ -364,30 +271,11 @@ const StudentDashboard = () => {
       <div className="mt-6 bg-card rounded-xl border border-border p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-heading font-bold text-lg text-foreground">Upcoming Assignments</h2>
-          <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={() => setActiveNav("elearning")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             View All
           </button>
         </div>
-        <div className="grid md:grid-cols-3 gap-4">
-          {assignments.map((assignment, index) => (
-            <div key={index} className="p-4 rounded-xl border-l-4 border-primary bg-secondary/20">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium px-2 py-1 rounded bg-card border border-border text-foreground">
-                  {assignment.subject}
-                </span>
-                <span className={`text-xs font-medium ${assignment.status === "submitted" ? "text-green-600" : "text-amber-600"
-                  }`}>
-                  {assignment.status === "submitted" ? "Submitted" : "Pending"}
-                </span>
-              </div>
-              <h4 className="font-medium text-foreground mt-2">{assignment.title}</h4>
-              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                Due: {assignment.due}
-              </p>
-            </div>
-          ))}
-        </div>
+        <p className="text-sm text-muted-foreground">Assignments will appear here when teachers publish them.</p>
       </div>
     </>
   );
@@ -460,6 +348,7 @@ const StudentDashboard = () => {
           </div>
           <Link
             to="/portal"
+            onClick={clearAuth}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-destructive/10 text-destructive font-bold hover:bg-destructive/20 transition-all border border-destructive/20 text-sm"
           >
             <LogOut className="h-4 w-4" />

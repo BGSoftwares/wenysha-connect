@@ -38,7 +38,7 @@ export const Header = () => {
 
   const isActive = (path: string) => location.pathname === path;
   const dashboardPath = dashboardPathForRole(user?.role);
-  const useSolidHeader = scrolled || ["/portal", "/auth", "/signup"].includes(location.pathname);
+  const useSolidHeader = scrolled || ["/", "/portal", "/auth", "/signup"].includes(location.pathname);
 
   const handleLogout = () => {
     clearAuth();

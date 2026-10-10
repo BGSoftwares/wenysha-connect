@@ -1,287 +1,56 @@
-import { useState } from "react";
-import { Plus, Edit, Trash2, Search, Building, User, Bed, Users, AlertCircle } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, Bed, Building, Edit, Plus, Search, Trash2, User, Users } from "lucide-react";
+import { toast } from "sonner";
+import { api, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const mockHostels = [
-  { id: 1, name: "Boys Hostel A", type: "Boys", capacity: 120, occupied: 98, warden: "Mr. Tafadzwa Moyo", phone: "+263 77 555 1111" },
-  { id: 2, name: "Boys Hostel B", type: "Boys", capacity: 100, occupied: 85, warden: "Mr. David Banda", phone: "+263 77 555 2222" },
-  { id: 3, name: "Girls Hostel A", type: "Girls", capacity: 120, occupied: 110, warden: "Mrs. Grace Ncube", phone: "+263 77 555 3333" },
-  { id: 4, name: "Girls Hostel B", type: "Girls", capacity: 100, occupied: 78, warden: "Mrs. Faith Chikwanda", phone: "+263 77 555 4444" },
-];
-
-const mockRooms = [
-  { id: 1, room: "A101", hostel: "Boys Hostel A", beds: 4, occupied: 4, students: ["John Moyo", "Peter Ncube", "David Sithole", "James Banda"] },
-  { id: 2, room: "A102", hostel: "Boys Hostel A", beds: 4, occupied: 3, students: ["Thomas Chikwanda", "Paul Ndlovu", "Brian Moyo"] },
-  { id: 3, room: "A103", hostel: "Boys Hostel A", beds: 4, occupied: 4, students: ["Mike Dube", "Chris Sibanda", "Kevin Phiri", "Eric Tembo"] },
-  { id: 4, room: "G101", hostel: "Girls Hostel A", beds: 4, occupied: 4, students: ["Sarah Ndlovu", "Mary Sibanda", "Grace Moyo", "Faith Ncube"] },
-  { id: 5, room: "G102", hostel: "Girls Hostel A", beds: 4, occupied: 4, students: ["Linda Phiri", "Susan Banda", "Joyce Tembo", "Diana Dube"] },
-];
-
-const mockRequests = [
-  { id: 1, student: "John Moyo", type: "Maintenance", issue: "Broken bed frame", room: "A101", date: "2024-12-05", status: "Pending" },
-  { id: 2, student: "Sarah Ndlovu", type: "Transfer", issue: "Request to change room", room: "G101", date: "2024-12-04", status: "Under Review" },
-  { id: 3, student: "Peter Ncube", type: "Maintenance", issue: "Light not working", room: "A102", date: "2024-12-03", status: "Resolved" },
-];
+type Hostel = { id: number; name: string; hostel_type: string; capacity: number; occupied: number; warden: string; phone: string };
+type Room = { id: number; hostel: number; hostel_name: string; room_code: string; beds: number; occupied: number };
+type Request = { id: number; student: number; student_name: string; request_type: string; issue: string; room: number | null; room_code: string; date: string; status: string };
+type Student = { id: number; name: string; student_id: string };
+type Form = { kind: "hostel"; id?: number; name: string; hostel_type: string; capacity: number; occupied: number; warden: string; phone: string } | { kind: "room"; id?: number; hostel: number; room_code: string; beds: number; occupied: number };
+const list = <T,>(value: T[] | { results?: T[] }) => Array.isArray(value) ? value : value.results ?? [];
+const emptyHostels: Hostel[] = [];
+const emptyRooms: Room[] = [];
+const emptyRequests: Request[] = [];
+const emptyStudents: Student[] = [];
 
 const HostelSection = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const client = useQueryClient();
+  const [search, setSearch] = useState("");
   const [hostelFilter, setHostelFilter] = useState("all");
-
-  const filteredRooms = mockRooms.filter(room => {
-    const matchesSearch = room.room.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      room.students.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesHostel = hostelFilter === "all" || room.hostel === hostelFilter;
-    return matchesSearch && matchesHostel;
-  });
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="font-heading text-xl font-bold text-foreground">Hostel Management</h2>
-          <p className="text-sm text-muted-foreground">Manage hostels, rooms, and boarding students</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Room
-          </Button>
-          <Button variant="gold">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Hostel
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Building className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{mockHostels.length}</p>
-                <p className="text-xs text-muted-foreground">Hostels</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <Bed className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{mockHostels.reduce((acc, h) => acc + h.capacity, 0)}</p>
-                <p className="text-xs text-muted-foreground">Total Beds</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-accent/10">
-                <Users className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{mockHostels.reduce((acc, h) => acc + h.occupied, 0)}</p>
-                <p className="text-xs text-muted-foreground">Boarders</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10">
-                <AlertCircle className="h-5 w-5 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{mockRequests.filter(r => r.status === "Pending").length}</p>
-                <p className="text-xs text-muted-foreground">Pending Requests</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="hostels" className="w-full">
-        <TabsList>
-          <TabsTrigger value="hostels">Hostels</TabsTrigger>
-          <TabsTrigger value="rooms">Rooms</TabsTrigger>
-          <TabsTrigger value="requests">Requests</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="hostels" className="space-y-4 mt-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            {mockHostels.map((hostel) => (
-              <Card key={hostel.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-3 rounded-lg ${hostel.type === "Boys" ? "bg-blue-500/10" : "bg-pink-500/10"}`}>
-                        <Building className={`h-6 w-6 ${hostel.type === "Boys" ? "text-blue-500" : "text-pink-500"}`} />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg text-foreground">{hostel.name}</h3>
-                        <span className={`text-xs px-2 py-0.5 rounded ${hostel.type === "Boys" ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700"}`}>
-                          {hostel.type}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button variant="outline" size="sm"><Edit className="h-4 w-4" /></Button>
-                      <Button variant="outline" size="sm"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-foreground">Warden: {hostel.warden}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground pl-6">{hostel.phone}</p>
-                  </div>
-
-                  <div className="pt-4 border-t border-border">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Occupancy</span>
-                      <span className="font-semibold text-foreground">{hostel.occupied}/{hostel.capacity}</span>
-                    </div>
-                    <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full ${hostel.occupied / hostel.capacity > 0.9 ? 'bg-amber-500' : 'bg-primary'}`}
-                        style={{ width: `${(hostel.occupied / hostel.capacity) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {hostel.capacity - hostel.occupied} beds available
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="rooms" className="space-y-4 mt-4">
-          {/* Search and Filter */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by room or student..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <select 
-              value={hostelFilter}
-              onChange={(e) => setHostelFilter(e.target.value)}
-              className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
-            >
-              <option value="all">All Hostels</option>
-              {mockHostels.map(h => <option key={h.id} value={h.name}>{h.name}</option>)}
-            </select>
-          </div>
-
-          {/* Rooms Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredRooms.map((room) => (
-              <Card key={room.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Bed className="h-5 w-5 text-primary" />
-                      <h3 className="font-bold text-foreground">{room.room}</h3>
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded ${
-                      room.occupied === room.beds ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
-                    }`}>
-                      {room.occupied}/{room.beds} beds
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3">{room.hostel}</p>
-                  <div className="space-y-1">
-                    {room.students.map((student, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm">
-                        <User className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-foreground">{student}</span>
-                      </div>
-                    ))}
-                    {room.occupied < room.beds && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                        <Bed className="h-3 w-3" />
-                        <span>{room.beds - room.occupied} bed(s) available</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="requests" className="space-y-4 mt-4">
-          <div className="bg-card rounded-xl border border-border overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-secondary/50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Student</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Type</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Issue</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Room</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Date</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Status</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockRequests.map((request) => (
-                  <tr key={request.id} className="border-t border-border hover:bg-secondary/30">
-                    <td className="px-4 py-3 font-medium text-foreground">{request.student}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        request.type === "Maintenance" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
-                      }`}>
-                        {request.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-foreground">{request.issue}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{request.room}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{request.date}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        request.status === "Pending" ? "bg-amber-100 text-amber-700" :
-                        request.status === "Under Review" ? "bg-blue-100 text-blue-700" :
-                        "bg-green-100 text-green-700"
-                      }`}>
-                        {request.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {request.status !== "Resolved" && (
-                        <Button variant="outline" size="sm">Resolve</Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+  const [form, setForm] = useState<Form | null>(null);
+  const [assignRoom, setAssignRoom] = useState<number | null>(null);
+  const [studentId, setStudentId] = useState("");
+  const hostelsQuery = useQuery({ queryKey: ["hostels"], queryFn: async () => list(await api.get<Hostel[] | { results?: Hostel[] }>("/hostel/hostels/")) });
+  const roomsQuery = useQuery({ queryKey: ["hostel-rooms"], queryFn: async () => list(await api.get<Room[] | { results?: Room[] }>("/hostel/rooms/")) });
+  const requestsQuery = useQuery({ queryKey: ["hostel-requests"], queryFn: async () => list(await api.get<Request[] | { results?: Request[] }>("/hostel/hostel-requests/")) });
+  const studentsQuery = useQuery({ queryKey: ["students"], queryFn: async () => list(await api.get<Student[] | { results?: Student[] }>("/school/students/")) });
+  const hostels = hostelsQuery.data ?? emptyHostels; const rooms = roomsQuery.data ?? emptyRooms; const requests = requestsQuery.data ?? emptyRequests; const students = studentsQuery.data ?? emptyStudents;
+  const refresh = () => { void client.invalidateQueries({ queryKey: ["hostels"] }); void client.invalidateQueries({ queryKey: ["hostel-rooms"] }); void client.invalidateQueries({ queryKey: ["hostel-requests"] }); };
+  const saveHostel = useMutation({ mutationFn: (f: Extract<Form, { kind: "hostel" }>) => f.id ? api.patch(`/hostel/hostels/${f.id}/`, f) : api.post("/hostel/hostels/", f), onSuccess: () => { refresh(); setForm(null); toast.success("Hostel saved"); }, onError: e => toast.error(getErrorMessage(e)) });
+  const saveRoom = useMutation({ mutationFn: (f: Extract<Form, { kind: "room" }>) => f.id ? api.patch(`/hostel/rooms/${f.id}/`, f) : api.post("/hostel/rooms/", f), onSuccess: () => { refresh(); setForm(null); toast.success("Room saved"); }, onError: e => toast.error(getErrorMessage(e)) });
+  const deleteRecord = async (kind: "hostels" | "rooms", id: number) => { if (!window.confirm(`Delete this ${kind === "rooms" ? "room" : "hostel"}?`)) return; try { await api.delete(`/hostel/${kind}/${id}/`); refresh(); toast.success("Record deleted"); } catch (e) { toast.error(getErrorMessage(e)); } };
+  const resolve = async (request: Request) => { try { await api.patch(`/hostel/hostel-requests/${request.id}/`, { status: "Resolved" }); refresh(); toast.success("Request resolved"); } catch (e) { toast.error(getErrorMessage(e)); } };
+  const assign = async () => { if (!assignRoom || !studentId) return; try { await api.post("/hostel/room-students/", { room: assignRoom, student: Number(studentId) }); refresh(); setAssignRoom(null); setStudentId(""); toast.success("Student assigned to room"); } catch (e) { toast.error(getErrorMessage(e)); } };
+  const filteredRooms = useMemo(() => rooms.filter(r => (hostelFilter === "all" || String(r.hostel) === hostelFilter) && `${r.room_code} ${r.hostel_name}`.toLowerCase().includes(search.toLowerCase())), [rooms, hostelFilter, search]);
+  const loading = hostelsQuery.isLoading || roomsQuery.isLoading || requestsQuery.isLoading;
+  const error = hostelsQuery.error || roomsQuery.error || requestsQuery.error;
+  return <div className="space-y-6">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-heading text-xl font-bold">Hostel Management</h2><p className="text-sm text-muted-foreground">Manage boarding, rooms, student assignments and requests</p></div><div className="flex gap-2"><Button variant="outline" onClick={() => setForm({ kind: "room", hostel: hostels[0]?.id ?? 0, room_code: "", beds: 4, occupied: 0 })} disabled={!hostels.length}><Plus className="mr-2 h-4 w-4"/>Add Room</Button><Button variant="gold" onClick={() => setForm({ kind: "hostel", name: "", hostel_type: "Boys", capacity: 0, occupied: 0, warden: "", phone: "" })}><Plus className="mr-2 h-4 w-4"/>Add Hostel</Button></div></div>
+    {loading ? <p className="py-8 text-center text-muted-foreground">Loading hostel data…</p> : error ? <p className="rounded-xl border border-destructive/30 p-5 text-destructive">Unable to load hostel data: {getErrorMessage(error)}</p> : <>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">{[["Hostels", hostels.length, Building], ["Beds", hostels.reduce((s,h)=>s+h.capacity,0), Bed], ["Boarders", hostels.reduce((s,h)=>s+h.occupied,0), Users], ["Open Requests", requests.filter(r=>r.status!=="Resolved").length, AlertCircle]].map(([label,count,Icon]) => <Card key={String(label)}><CardContent className="flex items-center gap-3 p-4"><Icon className="h-5 w-5 text-primary"/><div><p className="text-2xl font-bold">{count}</p><p className="text-xs text-muted-foreground">{label}</p></div></CardContent></Card>)}</div>
+      <Tabs defaultValue="hostels"><TabsList><TabsTrigger value="hostels">Hostels</TabsTrigger><TabsTrigger value="rooms">Rooms</TabsTrigger><TabsTrigger value="requests">Requests</TabsTrigger></TabsList>
+        <TabsContent value="hostels" className="mt-4">{hostels.length === 0 ? <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">No hostels have been created yet.</p> : <div className="grid gap-4 md:grid-cols-2">{hostels.map(h => <Card key={h.id}><CardContent className="space-y-4 p-5"><div className="flex items-start justify-between"><div><h3 className="text-lg font-semibold">{h.name}</h3><p className="text-sm text-muted-foreground">{h.hostel_type} boarding</p></div><div className="flex gap-2"><Button variant="outline" size="icon" aria-label="Edit hostel" onClick={() => setForm({ kind: "hostel", ...h })}><Edit className="h-4 w-4"/></Button><Button variant="outline" size="icon" aria-label="Delete hostel" onClick={() => void deleteRecord("hostels", h.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button></div></div><p className="text-sm"><User className="mr-2 inline h-4 w-4 text-muted-foreground"/>{h.warden || "No warden assigned"} · {h.phone || "No phone"}</p><div><div className="mb-1 flex justify-between text-sm"><span>Occupancy</span><span>{h.occupied}/{h.capacity}</span></div><div className="h-2 overflow-hidden rounded bg-secondary"><div className="h-full bg-primary" style={{ width: `${h.capacity ? Math.min(100, h.occupied / h.capacity * 100) : 0}%` }}/></div></div></CardContent></Card>)}</div>}</TabsContent>
+        <TabsContent value="rooms" className="mt-4 space-y-4"><div className="flex flex-col gap-3 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input className="pl-10" placeholder="Search rooms" value={search} onChange={e=>setSearch(e.target.value)}/></div><select className="rounded-lg border bg-background px-3" value={hostelFilter} onChange={e=>setHostelFilter(e.target.value)}><option value="all">All hostels</option>{hostels.map(h=><option key={h.id} value={h.id}>{h.name}</option>)}</select></div>{filteredRooms.length===0?<p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">No rooms match the selected filters.</p>:<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{filteredRooms.map(r=><Card key={r.id}><CardContent className="space-y-3 p-4"><div className="flex items-center justify-between"><h3 className="font-semibold"><Bed className="mr-2 inline h-4 w-4 text-primary"/>{r.room_code}</h3><span className="text-sm">{r.occupied}/{r.beds} beds</span></div><p className="text-sm text-muted-foreground">{r.hostel_name}</p><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => { setForm({kind:"room", id:r.id, hostel:r.hostel, room_code:r.room_code, beds:r.beds, occupied:r.occupied}); }}><Edit className="mr-1 h-4 w-4"/>Edit</Button><Button size="sm" variant="outline" onClick={() => { setAssignRoom(r.id); setStudentId(""); }}><Plus className="mr-1 h-4 w-4"/>Assign student</Button><Button size="icon" variant="outline" aria-label="Delete room" onClick={() => void deleteRecord("rooms",r.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button></div></CardContent></Card>)}</div>}</TabsContent>
+        <TabsContent value="requests" className="mt-4"><div className="overflow-x-auto rounded-xl border bg-card"><table className="w-full min-w-[720px]"><thead className="bg-secondary/50"><tr>{["Student", "Type", "Issue", "Room", "Date", "Status", "Action"].map(t=><th key={t} className="px-4 py-3 text-left text-sm">{t}</th>)}</tr></thead><tbody>{requests.map(r=><tr key={r.id} className="border-t"><td className="px-4 py-3">{r.student_name}</td><td className="px-4 py-3">{r.request_type}</td><td className="px-4 py-3">{r.issue}</td><td className="px-4 py-3">{r.room_code || "—"}</td><td className="px-4 py-3">{r.date}</td><td className="px-4 py-3"><select className="rounded border bg-background p-1" value={r.status} onChange={async e=>{try{await api.patch(`/hostel/hostel-requests/${r.id}/`,{status:e.target.value});refresh();toast.success("Request updated");}catch(err){toast.error(getErrorMessage(err));}}}>{["Pending","Under Review","Resolved"].map(s=><option key={s}>{s}</option>)}</select></td><td className="px-4 py-3"><Button size="sm" variant="outline" disabled={r.status==="Resolved"} onClick={()=>void resolve(r)}>Resolve</Button></td></tr>)}{requests.length===0&&<tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No hostel requests recorded.</td></tr>}</tbody></table></div></TabsContent>
+      </Tabs></>}
+    {form&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={()=>setForm(null)}><div className="max-h-[90vh] w-full max-w-md space-y-4 overflow-auto rounded-xl bg-card p-6" onClick={e=>e.stopPropagation()}><h3 className="text-xl font-bold">{form.id?"Edit":"Add"} {form.kind}</h3>{form.kind==="hostel"?<>{(["name","warden","phone"] as const).map(k=><label key={k} className="block text-sm capitalize">{k}<Input value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/></label>)}<label className="block text-sm">Type<select className="mt-1 w-full rounded-lg border bg-background p-2" value={form.hostel_type} onChange={e=>setForm({...form,hostel_type:e.target.value})}><option>Boys</option><option>Girls</option><option>Mixed</option></select></label><label className="block text-sm">Capacity<Input type="number" min={0} value={form.capacity} onChange={e=>setForm({...form,capacity:Number(e.target.value)})}/></label></>:<><label className="block text-sm">Hostel<select className="mt-1 w-full rounded-lg border bg-background p-2" value={form.hostel} onChange={e=>setForm({...form,hostel:Number(e.target.value)})}>{hostels.map(h=><option key={h.id} value={h.id}>{h.name}</option>)}</select></label><label className="block text-sm">Room code<Input value={form.room_code} onChange={e=>setForm({...form,room_code:e.target.value})}/></label><label className="block text-sm">Beds<Input type="number" min={1} value={form.beds} onChange={e=>setForm({...form,beds:Number(e.target.value)})}/></label></>}<div className="flex justify-end gap-2"><Button variant="outline" onClick={()=>setForm(null)}>Cancel</Button><Button variant="gold" onClick={()=>form.kind==="hostel"?saveHostel.mutate(form):saveRoom.mutate(form)}>Save</Button></div></div></div>}
+    {assignRoom&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={()=>setAssignRoom(null)}><div className="w-full max-w-md space-y-4 rounded-xl bg-card p-6" onClick={e=>e.stopPropagation()}><h3 className="text-xl font-bold">Assign student to room</h3><select className="w-full rounded-lg border bg-background p-2" value={studentId} onChange={e=>setStudentId(e.target.value)}><option value="">Select student</option>{students.map(s=><option key={s.id} value={s.id}>{s.name} · {s.student_id}</option>)}</select><div className="flex justify-end gap-2"><Button variant="outline" onClick={()=>setAssignRoom(null)}>Cancel</Button><Button variant="gold" disabled={!studentId} onClick={()=>void assign()}>Assign</Button></div></div></div>}
+  </div>;
 };
-
 export default HostelSection;

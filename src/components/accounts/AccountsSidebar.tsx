@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { clearAuth } from "@/lib/api";
 import { 
   Home, 
   LogOut,
@@ -193,6 +194,7 @@ const AccountsSidebar = ({ activeNav, setActiveNav, collapsed, setCollapsed, mob
           </div>
           <Link
             to="/portal"
+            onClick={clearAuth}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-destructive/20 text-destructive font-medium hover:bg-destructive/30 transition-colors text-sm"
           >
             <LogOut className="h-4 w-4" />
