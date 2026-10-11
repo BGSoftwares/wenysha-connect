@@ -1,92 +1,28 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import ableGodSchoolFlyer from "@/assets/able-god-school-flyer.png";
-import ableGodClassOf2026 from "@/assets/able-god-class-2026.png";
-import communityWhiteShirts from "@/assets/IMG_6138.jpg";
-import groupCelebration from "@/assets/IMG_6137.jpg";
-import classOf2026Portrait from "@/assets/IMG_6140.jpg";
-import communityPortrait from "@/assets/IMG_6139.jpg";
-import schoolCommunity from "@/assets/IMG_6135.jpg";
-import studentInterview from "@/assets/IMG_6142.jpg";
-import schoolCelebration from "@/assets/IMG_6145.jpg";
-import teacherInterview from "@/assets/IMG_6141.jpg";
-import learnersGroup from "@/assets/IMG_6143.jpg";
-import learnersGroupTwo from "@/assets/IMG_6144.jpg";
-import learnersGroupThree from "@/assets/IMG_6134.jpg";
-import learnersActivities from "@/assets/IMG_6136.jpg";
+import s6252 from "@/assets/slides/slide-6252.jpeg.asset.json";
+import s6255 from "@/assets/slides/slide-6255.jpeg.asset.json";
+import s6256 from "@/assets/slides/slide-6256.jpeg.asset.json";
+import s6254 from "@/assets/slides/slide-6254.jpeg.asset.json";
+import s6258 from "@/assets/slides/slide-6258.jpeg.asset.json";
+import s6259 from "@/assets/slides/slide-6259.jpeg.asset.json";
+import s6260 from "@/assets/slides/slide-6260.jpeg.asset.json";
+import s6262 from "@/assets/slides/slide-6262.jpeg.asset.json";
+import s6263 from "@/assets/slides/slide-6263.jpeg.asset.json";
+import s6264 from "@/assets/slides/slide-6264.jpeg.asset.json";
 
 const slides = [
-  {
-    image: ableGodSchoolFlyer,
-    title: "Able God Group of Schools admissions flyer",
-    description: "Admissions information for Able God Junior and Able God College.",
-  },
-  {
-    image: ableGodClassOf2026,
-    title: "Able God College Class of 2026 billboard",
-    description: "Celebrating the Able God College Class of 2026.",
-  },
-  {
-    image: communityWhiteShirts,
-    title: "Able God College community in Class of 2026 shirts",
-    description: "Learners and staff gather outside the school in Class of 2026 shirts.",
-  },
-  {
-    image: groupCelebration,
-    title: "Able God College community celebration",
-    description: "Learners and staff celebrate together on the school grounds.",
-  },
-  {
-    image: classOf2026Portrait,
-    title: "Class of 2026 supporter",
-    description: "A member of the Able God College community wearing a Class of 2026 shirt.",
-  },
-  {
-    image: communityPortrait,
-    title: "Able God College Class of 2026 group photo",
-    description: "Learners and staff pose together in their Class of 2026 shirts.",
-  },
-  {
-    image: schoolCommunity,
-    title: "Able God College school community",
-    description: "A group of learners and staff gathers outside the college.",
-  },
-  {
-    image: studentInterview,
-    title: "Able God College community interview",
-    description: "A learner interviews a member of the school community.",
-  },
-  {
-    image: schoolCelebration,
-    title: "Able God College celebration",
-    description: "Learners and staff share a celebration at the college.",
-  },
-  {
-    image: teacherInterview,
-    title: "Able God College staff interview",
-    description: "A learner interviews a staff member at the college.",
-  },
-  {
-    image: learnersGroup,
-    title: "Able God College learners and staff",
-    description: "Learners and staff stand together at the college.",
-  },
-  {
-    image: learnersGroupTwo,
-    title: "Able God College community group",
-    description: "The school community gathers outside the college building.",
-  },
-  {
-    image: learnersGroupThree,
-    title: "Able God College community portrait",
-    description: "Learners and staff pose together at the school.",
-  },
-  {
-    image: learnersActivities,
-    title: "Able God College community activities",
-    description: "Learners and staff take part in activities outside the school.",
-  },
+  { image: s6252.url, title: "Learners gathered at assembly", description: "Able God College learners in uniform at morning assembly." },
+  { image: s6255.url, title: "Our learners", description: "Learners standing together on the school grounds." },
+  { image: s6256.url, title: "Proud in pink and navy", description: "Able God College learners in full uniform." },
+  { image: s6254.url, title: "School gathering", description: "Learners gathered around the Able God College banner." },
+  { image: s6258.url, title: "Prize giving", description: "A staff member speaks with a learner on stage." },
+  { image: s6259.url, title: "Celebrating achievement", description: "Staff and learners at an awards ceremony." },
+  { image: s6260.url, title: "Staff and community", description: "Staff and guests celebrating together." },
+  { image: s6262.url, title: "Celebration day", description: "The school community singing together." },
+  { image: s6263.url, title: "Joyful moments", description: "Staff and guests clapping during celebrations." },
+  { image: s6264.url, title: "Together as one", description: "Staff, learners and guests standing together." },
 ];
 
 const HeroCarousel = () => {
