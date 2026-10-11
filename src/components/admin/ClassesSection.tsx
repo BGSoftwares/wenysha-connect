@@ -6,7 +6,6 @@ interface Class {
     name: string;
     capacity: number;
     enrolled: number;
-    class_teacher?: number | null;
     class_teacher_name?: string;
 }
 

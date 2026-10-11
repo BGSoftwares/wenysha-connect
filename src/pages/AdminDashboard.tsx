@@ -101,21 +101,7 @@ const AdminDashboard = () => {
     const name = window.prompt("Class name", schoolClass.name)?.trim(); if (!name) return;
     const capacityText = window.prompt("Class capacity", String(schoolClass.capacity)); if (capacityText === null) return;
     const capacity = Number(capacityText); if (!Number.isInteger(capacity) || capacity < 1) { toast.error("Capacity must be a positive whole number"); return; }
-
-    const teacherOptions = teachers?.map((teacher) => `${teacher.id}: ${teacher.name}`).join("\n") ?? "No teachers available";
-    const teacherInput = window.prompt(
-      `Assign class teacher by teacher ID (leave blank to unassign)\n\n${teacherOptions}`,
-      schoolClass.class_teacher ? String(schoolClass.class_teacher) : "",
-    );
-    if (teacherInput === null) return;
-
-    const classTeacherId = teacherInput.trim() === "" ? null : Number(teacherInput.trim());
-    if (classTeacherId !== null && (!Number.isInteger(classTeacherId) || classTeacherId < 1)) {
-      toast.error("Class teacher ID must be a valid positive number");
-      return;
-    }
-
-    void updateRecord("/school/classes/", schoolClass.id, { name, capacity, class_teacher: classTeacherId }, "Class", "classes");
+    void updateRecord("/school/classes/", schoolClass.id, { name, capacity }, "Class", "classes");
   };
   const handleEditSubject = (subject: Subject) => {
     const name = window.prompt("Subject name", subject.name)?.trim(); if (!name) return;
@@ -126,7 +112,7 @@ const AdminDashboard = () => {
 
   const [newStudent, setNewStudent] = useState({ name: "", student_id: "", school_class: "", gender: "" });
   const [newTeacher, setNewTeacher] = useState({ name: "", department: "", phone: "" });
-  const [newClass, setNewClass] = useState({ name: "", capacity: 40, class_teacher: "" });
+  const [newClass, setNewClass] = useState({ name: "", capacity: 40 });
   const [newSubject, setNewSubject] = useState({ name: "", code: "", department: "" });
   const [newAllocation, setNewAllocation] = useState({ teacher: "", subject: "", school_class: "", periods: 5 });
 
@@ -184,12 +170,11 @@ const AdminDashboard = () => {
       await createClassMutation.mutateAsync({
         name: newClass.name,
         capacity: newClass.capacity,
-        enrolled: 0,
-        class_teacher: newClass.class_teacher ? Number(newClass.class_teacher) : null,
+        enrolled: 0
       });
       toast.success("Class created successfully");
       setShowModal(null);
-      setNewClass({ name: "", capacity: 40, class_teacher: "" });
+      setNewClass({ name: "", capacity: 40 });
     } catch (error) {
       toast.error("Failed to create class");
     }
@@ -508,19 +493,6 @@ const AdminDashboard = () => {
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Max Capacity</label>
                     <input type="number" className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={newClass.capacity} onChange={e => setNewClass({ ...newClass, capacity: parseInt(e.target.value) })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Class Teacher</label>
-                    <select
-                      className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                      value={newClass.class_teacher}
-                      onChange={e => setNewClass({ ...newClass, class_teacher: e.target.value })}
-                    >
-                      <option value="">Unassigned</option>
-                      {teachers?.map((teacher) => (
-                        <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
-                      ))}
-                    </select>
                   </div>
                 </>
               )}

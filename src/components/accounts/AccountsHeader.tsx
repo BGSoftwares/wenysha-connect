@@ -1,6 +1,4 @@
-import { Search, Bell, Mail, Globe, User, Menu, LogOut } from "lucide-react";
-import { Link } from "react-router-dom";
-import { clearAuth } from "@/lib/api";
+import { Search, Bell, Mail, Globe, User, Menu } from "lucide-react";
 
 interface AccountsHeaderProps {
   title: string;
@@ -50,21 +48,12 @@ const AccountsHeader = ({ title, breadcrumb, onMenuClick }: AccountsHeaderProps)
           </button>
 
           {/* Notifications */}
-          <button className="relative p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Notifications">
+          <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">
             <Bell className="h-5 w-5 text-muted-foreground" />
             <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-accent text-[10px] font-bold text-accent-foreground flex items-center justify-center">
               5
             </span>
           </button>
-
-          <Link
-            to="/portal"
-            onClick={clearAuth}
-            aria-label="Sign out"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-          </Link>
 
           {/* User */}
           <div className="flex items-center gap-3 pl-4 border-l border-border">
