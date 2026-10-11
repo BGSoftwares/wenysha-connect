@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import AdmissionFormModal from "./AdmissionFormModal";
-import heroImage from "@/assets/slide-students-seated.jpeg";
+import heroA from "@/assets/sections/img-6270.jpg.asset.json";
+const heroImage = heroA.url;
 
 const AdmissionsSection = () => {
   const [showAdmissionForm, setShowAdmissionForm] = useState(false);

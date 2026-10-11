@@ -1,6 +1,9 @@
-import scienceImage from "@/assets/carousel-lab.jpg";
-import humanitiesImage from "@/assets/slide-outdoor-group.webp";
-import mathImage from "@/assets/students-computer.webp";
+import sciA from "@/assets/sections/img-6266.jpg.asset.json";
+const scienceImage = sciA.url;
+import humA from "@/assets/sections/img-6272.jpg.asset.json";
+const humanitiesImage = humA.url;
+import mathA from "@/assets/sections/img-6267.jpg.asset.json";
+const mathImage = mathA.url;
 import { Button } from "@/components/ui/button";
 
 const departments = [
