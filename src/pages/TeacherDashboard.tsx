@@ -574,38 +574,42 @@ const TeacherDashboard = () => {
       )}
 
       {reportCardRows.length > 0 && (
-        <div className="bg-card rounded-xl border border-border overflow-hidden print:border-none">
-          <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-6 border-b border-border">
-            <div className="text-center mb-6">
-              <h1 className="font-heading text-2xl font-bold text-foreground tracking-wide">
-                STUDENT ONLINE REPORT CARD
-              </h1>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <p className="text-sm"><span className="font-semibold text-foreground">{currentStudent?.name || "Student"}</span></p>
-                <p className="text-sm text-muted-foreground">Grade: {uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"}</p>
-                <p className="text-sm text-muted-foreground">Exam: {exams.find(exam => exam.id === selectedExamId)?.name || "Selected exam"}</p>
-                <p className="text-sm text-muted-foreground">Passed: {reportCardRows.filter(row => row.percentage >= 40).length} out of {reportCardRows.length}</p>
-                <p className="text-sm text-muted-foreground">Date: {new Date().toLocaleDateString()}</p>
+        <div className="report-card bg-card rounded-2xl border border-border overflow-hidden shadow-lg print:border-none print:shadow-none">
+          <div className="relative bg-gradient-hero text-primary-foreground px-6 py-8">
+            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary-foreground/10 blur-2xl" />
+            <div className="relative flex flex-col md:flex-row items-center gap-6">
+              <img src={logo} alt="School Logo" className="h-24 w-24 rounded-2xl object-contain bg-card p-2 shadow-lg" />
+              <div className="flex-1 text-center md:text-left">
+                <p className="text-xs uppercase tracking-[0.3em] text-primary-foreground/70">Able God College</p>
+                <h1 className="mt-1 font-heading text-2xl md:text-3xl font-bold tracking-wide">Student Report Card</h1>
+                <p className="mt-1 text-sm text-primary-foreground/80">{schoolContact.address} · {teacher?.phone || schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
               </div>
-
-              <div className="flex justify-center">
-                <img src={logo} alt="School Logo" className="h-24 w-24 mx-auto rounded-lg object-contain border border-border bg-white p-2" />
-              </div>
-
-              <div className="text-right space-y-1">
-                <p className="font-semibold text-foreground">Able God College</p>
-                <p className="text-sm text-muted-foreground">Phone: {teacher?.phone || schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
-                <p className="text-sm text-muted-foreground">{schoolContact.address}</p>
+              <div className="text-center rounded-2xl bg-primary-foreground/10 border border-primary-foreground/20 px-6 py-4 backdrop-blur">
+                <p className="text-xs uppercase tracking-widest text-primary-foreground/70">Overall</p>
+                <p className="text-4xl font-bold">{calculateGrade((reportCardRows.reduce((sum, row) => sum + row.percentage, 0) / Math.max(reportCardRows.length, 1))).grade}</p>
+                <p className="text-sm text-primary-foreground/80">{(reportCardRows.reduce((sum, row) => sum + row.percentage, 0) / Math.max(reportCardRows.length, 1)).toFixed(1)}%</p>
               </div>
             </div>
           </div>
 
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border">
+            {[
+              ["Student", currentStudent?.name || "Student"],
+              ["Class", uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"],
+              ["Exam", exams.find(exam => exam.id === selectedExamId)?.name || "Selected exam"],
+              ["Passed", `${reportCardRows.filter(row => row.percentage >= 40).length} of ${reportCardRows.length}`],
+              ["Date", new Date().toLocaleDateString()],
+            ].map(([k, v]) => (
+              <div key={k} className="bg-card px-4 py-3">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground">{k}</p>
+                <p className="mt-0.5 text-sm font-semibold text-foreground truncate">{v}</p>
+              </div>
+            ))}
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-[hsl(220,25%,18%)] text-white">
+              <thead className="bg-primary text-primary-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-semibold">SUBJECT</th>
                   <th className="px-4 py-3 text-center text-sm font-semibold">MARKS</th>
@@ -620,11 +624,16 @@ const TeacherDashboard = () => {
                   const percentage = row.percentage;
                   const gradeInfo = calculateGrade(percentage);
                   return (
-                    <tr key={row.studentId} className="hover:bg-secondary/30 transition-colors">
+                    <tr key={row.studentId} className="odd:bg-card even:bg-secondary/40 hover:bg-secondary transition-colors">
                       <td className="px-4 py-3 text-sm font-medium text-foreground">{uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Subject"}</td>
                       <td className="px-4 py-3 text-sm text-center text-muted-foreground">100</td>
                       <td className="px-4 py-3 text-sm text-center font-medium text-foreground">{row.score.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-sm text-center text-muted-foreground">{percentage.toFixed(2)}%</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 justify-center">
+                          <div className="h-2 w-20 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-gradient-hero" style={{ width: `${Math.min(percentage, 100)}%` }} /></div>
+                          <span>{percentage.toFixed(1)}%</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${gradeInfo.bgColor} ${gradeInfo.color}`}>
                           {gradeInfo.grade}
@@ -640,15 +649,15 @@ const TeacherDashboard = () => {
 
           <div className="p-6 border-t border-border bg-secondary/10 space-y-4">
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="rounded-lg border border-border bg-white p-3">
+              <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Teacher comment</p>
                 <p className="mt-1 text-sm text-foreground italic">{currentStudentTeacherComment}</p>
               </div>
-              <div className="rounded-lg border border-border bg-white p-3">
+              <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Principal comment</p>
                 <p className="mt-1 text-sm text-foreground italic">{getPrincipalComment(reportCardRows.reduce((sum, row) => sum + row.percentage, 0) / Math.max(reportCardRows.length, 1))}</p>
               </div>
-              <div className="rounded-lg border border-border bg-white p-3">
+              <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Attendance</p>
                 <p className="mt-1 text-sm text-foreground">{classStudents.filter(student => attendanceRecords.some(record => record.student === student.id && record.status === "present")).length} / {classStudents.length} present this term</p>
               </div>
@@ -656,8 +665,9 @@ const TeacherDashboard = () => {
 
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">This report is electronically generated, follow the link to verify the report.</p>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <FileText className="h-16 w-16" />
+              <div className="text-center">
+                <div className="h-px w-40 bg-foreground/40 mb-1" />
+                <p className="text-xs text-muted-foreground">Head's signature</p>
               </div>
             </div>
           </div>
