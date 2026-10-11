@@ -5,7 +5,7 @@ import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
 import { calculateGrade } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
-import { useExamMarks, useStudentFees, useStudentProfile } from "@/lib/hooks";
+import { useExamMarks, useExamRanking, useExams, useStudentFees, useStudentProfile } from "@/lib/hooks";
 import { getPrincipalComment, getTeacherComment } from "@/lib/reportComments";
 
 interface SubjectResult {
@@ -21,14 +21,33 @@ export interface ReportCardSectionProps {
 const getPercentage = ({ marks, scored }: SubjectResult) =>
   marks > 0 ? (scored / marks) * 100 : 0;
 
+const formatPosition = (position: number | null | undefined, total: number | null | undefined) => {
+  if (position == null || total == null) return "Not available";
+  const suffix = position % 100 >= 11 && position % 100 <= 13
+    ? "th"
+    : ({ 1: "st", 2: "nd", 3: "rd" }[position % 10] || "th");
+  return `${position}${suffix} of ${total}`;
+};
+
 const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
-  const [selectedTerm, setSelectedTerm] = useState("Term 1 2024");
+  const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const reportCardRef = useRef<HTMLDivElement>(null);
 
   const { data: profile } = useStudentProfile();
   const { data: fees = [] } = useStudentFees({ student: studentId });
-  const { data: marks = [], isLoading } = useExamMarks({ student: studentId });
+  const { data: allMarks = [], isLoading: isLoadingMarks } = useExamMarks({ student: studentId });
+  const { data: exams = [], isLoading: isLoadingExams } = useExams();
+  const availableExams = exams
+    .filter(exam => allMarks.some(mark => mark.exam === exam.id))
+    .sort((first, second) => second.start_date.localeCompare(first.start_date));
+  const selectedExam = availableExams.find(exam => exam.id === selectedExamId) || availableExams[0];
+  const selectedTerm = selectedExam
+    ? `${selectedExam.name} · ${selectedExam.term} ${selectedExam.year}`
+    : "No examination selected";
+  const marks = allMarks.filter(mark => mark.exam === selectedExam?.id);
+  const { data: ranking, isLoading: isLoadingRanking, isError: isRankingError } =
+    useExamRanking(selectedExam?.id, studentId);
 
   const results: SubjectResult[] = marks.map(m => ({
     subject: m.subject_name,
@@ -57,12 +76,6 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     const message = `Hello, your report card for ${profile?.name || "student"} is ready. Please log in to the school portal to download the PDF report card.`;
     const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank", "noopener,noreferrer");
-  };
-
-  const calculateAverage = () => {
-    if (results.length === 0) return "0.00";
-    const total = results.reduce((sum, result) => sum + getPercentage(result), 0);
-    return (total / results.length).toFixed(2);
   };
 
   const countPassed = () => {
@@ -102,7 +115,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     );
   }
 
-  if (isLoading) {
+  if (isLoadingMarks || isLoadingExams) {
     return (
       <div className="p-12 text-center flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -121,13 +134,17 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
         </div>
         <div className="flex items-center gap-3">
           <select
-            value={selectedTerm}
-            onChange={(e) => setSelectedTerm(e.target.value)}
+            value={selectedExam?.id ?? ""}
+            onChange={(e) => setSelectedExamId(Number(e.target.value))}
             className="px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+            disabled={availableExams.length === 0}
           >
-            <option>Term 1 2024</option>
-            <option>Term 3 2023</option>
-            <option>Term 2 2023</option>
+            {availableExams.length === 0 && <option value="">No exam results</option>}
+            {availableExams.map(exam => (
+              <option key={exam.id} value={exam.id}>
+                {exam.name} · {exam.term} {exam.year}
+              </option>
+            ))}
           </select>
           <Button variant="outline" size="sm" onClick={handleShareWhatsApp}>
             Share on WhatsApp
@@ -194,7 +211,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
               </div>
               <div className="min-w-0">
                 <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#8d8490]">Examination</p>
-                <p className="truncate text-xs font-semibold text-[#17244c]">{selectedTerm} Final</p>
+                <p className="truncate text-xs font-semibold text-[#17244c]">{selectedTerm}</p>
               </div>
             </div>
 
@@ -210,6 +227,30 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
               <p className="text-[9px] text-[#777484]">subjects</p>
             </div>
           </div>
+
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-[#eadde5] bg-white px-3 py-2">
+              <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">Class position</p>
+              <p className="mt-0.5 font-serif text-lg font-bold leading-tight text-[#17244c]">
+                {isLoadingRanking ? "Calculating…" : formatPosition(ranking?.class_position, ranking?.class_total)}
+              </p>
+              <p className="text-[9px] text-[#777484]">Based on this examination</p>
+            </div>
+            <div className="rounded-xl border border-[#edcfdf] bg-[#fff3f8] px-3 py-2">
+              <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">
+                {ranking?.level_name ? `${ranking.level_name} level position` : "Overall level position"}
+              </p>
+              <p className="mt-0.5 font-serif text-lg font-bold leading-tight text-[#17244c]">
+                {isLoadingRanking ? "Calculating…" : formatPosition(ranking?.level_position, ranking?.level_total)}
+              </p>
+              <p className="text-[9px] text-[#777484]">Across sections at the same level</p>
+            </div>
+          </div>
+          {isRankingError && (
+            <p role="alert" className="mb-3 text-xs text-red-700">
+              Positions could not be calculated. Please try again later.
+            </p>
+          )}
 
           <div className="overflow-x-auto rounded-lg border border-[#eadde5]">
             <table className="w-full min-w-[620px] table-fixed border-collapse text-[10px]">
@@ -273,7 +314,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
                   <tr>
                     <td className="px-2 py-2 font-bold text-[#17244c]">Average</td>
                     <td className="px-2 py-2 text-center text-[#777484]">—</td>
-                    <td className="px-2 py-2 text-center font-bold text-[#17244c]">{calculateAverage()}</td>
+                    <td className="px-2 py-2 text-center font-bold text-[#17244c]">{averagePercentage.toFixed(2)}</td>
                     <td className="px-2 py-2">
                       <div className="flex items-center gap-1.5">
                         <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-white">

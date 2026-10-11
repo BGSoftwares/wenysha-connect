@@ -1,22 +1,21 @@
-import { User, Edit, Trash2, Plus } from "lucide-react";
+import { useState } from "react";
+import { User, Edit, Trash2, Plus, School } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface Teacher {
-    id: number | string;
-    name: string;
-    department: string;
-    phone: string;
-}
+import type { SchoolClass, Teacher } from "@/lib/hooks";
 
 interface TeachersSectionProps {
     teachers: Teacher[] | undefined;
+    classes: SchoolClass[] | undefined;
     isLoading: boolean;
     onAddTeacher: () => void;
     onEditTeacher: (teacher: Teacher) => void;
     onDeleteTeacher: (teacher: Teacher) => void;
+    onAssignClassTeacher: (schoolClassId: number, teacherId: number | null) => void;
 }
 
-const TeachersSection = ({ teachers, isLoading, onAddTeacher, onEditTeacher, onDeleteTeacher }: TeachersSectionProps) => {
+const TeachersSection = ({ teachers, classes, isLoading, onAddTeacher, onEditTeacher, onDeleteTeacher, onAssignClassTeacher }: TeachersSectionProps) => {
+    const [selectedClasses, setSelectedClasses] = useState<Record<number, string>>({});
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
@@ -59,6 +58,61 @@ const TeachersSection = ({ teachers, isLoading, onAddTeacher, onEditTeacher, onD
                                 <Button variant="outline" size="sm" aria-label={`Delete ${teacher.name}`} onClick={() => onDeleteTeacher(teacher)} className="rounded-lg hover:border-destructive/50 hover:bg-destructive/5 transition-colors group/del">
                                     <Trash2 className="h-4 w-4 text-muted-foreground group-hover/del:text-destructive" />
                                 </Button>
+                            </div>
+
+                            <div className="mt-5 rounded-xl border border-border bg-secondary/20 p-4">
+                                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                                    <School className="h-4 w-4 text-primary" />
+                                    Class teacher assignment
+                                </div>
+                                <p className="mb-3 text-xs text-muted-foreground">
+                                    Assigned class{classes?.filter(cls => cls.class_teacher === Number(teacher.id)).length === 1 ? "" : "es"}:{" "}
+                                    {classes?.some(cls => cls.class_teacher === Number(teacher.id))
+                                        ? classes.filter(cls => cls.class_teacher === Number(teacher.id)).map(cls => (
+                                            <span key={cls.id} className="mr-1 inline-flex items-center gap-1">
+                                                {cls.name}
+                                                <button
+                                                    type="button"
+                                                    className="text-destructive underline"
+                                                    onClick={() => onAssignClassTeacher(cls.id, null)}
+                                                    aria-label={`Remove ${teacher.name} as class teacher of ${cls.name}`}
+                                                >
+                                                    remove
+                                                </button>
+                                            </span>
+                                        ))
+                                        : "None"}
+                                </p>
+                                <div className="flex gap-2">
+                                    <select
+                                        aria-label={`Choose a class for ${teacher.name}`}
+                                        className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-2 text-sm text-foreground"
+                                        value={selectedClasses[Number(teacher.id)] ?? ""}
+                                        onChange={event => setSelectedClasses(previous => ({
+                                            ...previous,
+                                            [Number(teacher.id)]: event.target.value,
+                                        }))}
+                                    >
+                                        <option value="">Select class</option>
+                                        {classes?.map(schoolClass => (
+                                            <option key={schoolClass.id} value={schoolClass.id}>
+                                                {schoolClass.name}{schoolClass.class_teacher && schoolClass.class_teacher !== Number(teacher.id) ? ` · ${schoolClass.class_teacher_name || "Assigned"}` : ""}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={!selectedClasses[Number(teacher.id)]}
+                                        onClick={() => {
+                                            const classId = Number(selectedClasses[Number(teacher.id)]);
+                                            if (classId) onAssignClassTeacher(classId, Number(teacher.id));
+                                        }}
+                                    >
+                                        Assign
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     ))}

@@ -66,19 +66,21 @@ export const exportReportCardPdf = async (elementId: string, studentName: string
       height: element.scrollHeight,
     });
 
-    const pageWidth = 198;
-    const pageHeight = 285;
-    const rawImgHeight = (canvas.height * pageWidth) / canvas.width;
-    const scale = Math.min(1, pageHeight / rawImgHeight);
-    const imgWidth = pageWidth * scale;
-    const imgHeight = rawImgHeight * scale;
-
     const pdf = new jsPDF("p", "mm", "a4");
+    const margin = 8;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const availableWidth = pageWidth - margin * 2;
+    const availableHeight = pageHeight - margin * 2;
+    const scale = Math.min(availableWidth / canvas.width, availableHeight / canvas.height);
+    const imgWidth = canvas.width * scale;
+    const imgHeight = canvas.height * scale;
+
     pdf.addImage(
       canvas.toDataURL("image/png"),
       "PNG",
-      (210 - imgWidth) / 2,
-      (297 - imgHeight) / 2,
+      (pageWidth - imgWidth) / 2,
+      (pageHeight - imgHeight) / 2,
       imgWidth,
       imgHeight,
       undefined,

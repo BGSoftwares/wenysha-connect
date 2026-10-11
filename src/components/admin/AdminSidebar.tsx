@@ -55,6 +55,7 @@ const navigation: NavItem[] = [
     children: [
       { name: "All Teachers", id: "teachers" },
       { name: "Add Teacher", id: "add-teacher" },
+      { name: "Subject & Class Assignments", id: "allocations" },
     ]
   },
   { name: "Parents", icon: UserCog, id: "parents" },

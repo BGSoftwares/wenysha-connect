@@ -66,6 +66,24 @@ function extractArray<T>(response: unknown): T[] {
     return [];
 }
 
+async function fetchAllPages<T>(path: string, params?: Record<string, string>): Promise<T[]> {
+    const results: T[] = [];
+    let page = 1;
+
+    while (true) {
+        const response = await api.get<unknown>(path, { ...params, page: String(page) });
+        if (Array.isArray(response)) return [...results, ...response as T[]];
+        if (typeof response !== "object" || response === null || !("results" in response)) {
+            return results;
+        }
+
+        const pageResults = response.results;
+        if (Array.isArray(pageResults)) results.push(...pageResults as T[]);
+        if (!("next" in response) || !response.next) return results;
+        page += 1;
+    }
+}
+
 export interface TimetableEntry {
     id: number;
     school_class: number;
@@ -93,10 +111,7 @@ function toQueryParams(params?: Record<string, string | number | undefined>): Re
 export const useStudents = () => {
     return useQuery({
         queryKey: ["students"],
-        queryFn: async () => {
-            const response = await api.get<unknown>("/school/students/");
-            return extractArray<Student>(response);
-        },
+        queryFn: () => fetchAllPages<Student>("/school/students/"),
     });
 };
 
@@ -108,6 +123,9 @@ export const useCreateStudent = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["students"] });
+            queryClient.invalidateQueries({ queryKey: ["classes"] });
+            queryClient.invalidateQueries({ queryKey: ["exam-ranking"] });
+            queryClient.invalidateQueries({ queryKey: ["student-profile"] });
         },
     });
 };
@@ -120,6 +138,10 @@ export const useUpdateStudent = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["students"] });
+            queryClient.invalidateQueries({ queryKey: ["classes"] });
+            queryClient.invalidateQueries({ queryKey: ["exam-ranking"] });
+            queryClient.invalidateQueries({ queryKey: ["exam-marks"] });
+            queryClient.invalidateQueries({ queryKey: ["student-profile"] });
         },
     });
 };
@@ -132,6 +154,10 @@ export const useDeleteStudent = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["students"] });
+            queryClient.invalidateQueries({ queryKey: ["classes"] });
+            queryClient.invalidateQueries({ queryKey: ["exam-ranking"] });
+            queryClient.invalidateQueries({ queryKey: ["exam-marks"] });
+            queryClient.invalidateQueries({ queryKey: ["student-profile"] });
         },
     });
 };
@@ -495,6 +521,14 @@ export interface ExamMark {
     scored: number;
 }
 
+export interface ExamRanking {
+    class_position: number | null;
+    class_total: number;
+    level_position: number | null;
+    level_total: number | null;
+    level_name: string | null;
+}
+
 // --- Attendance (New App) ---
 
 export interface AttendanceRecord {
@@ -534,10 +568,7 @@ export const useGrades = (params?: { student?: number; assessment?: number }) =>
 export const useExams = (params?: { term?: string; year?: string; status?: string }) => {
     return useQuery({
         queryKey: ["exams", params],
-        queryFn: async () => {
-            const response = await api.get<unknown>("/exams/exams/", toQueryParams(params));
-            return extractArray<Exam>(response);
-        },
+        queryFn: () => fetchAllPages<Exam>("/exams/exams/", toQueryParams(params)),
     });
 };
 
@@ -566,11 +597,19 @@ export const useExamSchedules = (params?: { exam?: number; subject?: number; sch
 export const useExamMarks = (params?: { exam?: number; student?: number; subject?: number }) => {
     return useQuery({
         queryKey: ["exam-marks", params],
-        queryFn: async () => {
-            const response = await api.get<unknown>("/exams/exam-marks/", toQueryParams(params));
-            return extractArray<ExamMark>(response);
-        },
+        queryFn: () => fetchAllPages<ExamMark>("/exams/exam-marks/", toQueryParams(params)),
         enabled: !!params?.student || !!params?.exam,
+    });
+};
+
+export const useExamRanking = (exam?: number, student?: number) => {
+    return useQuery({
+        queryKey: ["exam-ranking", exam, student],
+        queryFn: async () => api.get<ExamRanking>("/exams/exam-rankings/", {
+            exam: String(exam),
+            student: String(student),
+        }),
+        enabled: !!exam && !!student,
     });
 };
 

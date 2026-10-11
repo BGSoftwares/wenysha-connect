@@ -1,10 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ExamViewSet, ExamScheduleViewSet, ExamMarkViewSet
+from .views import ExamViewSet, ExamScheduleViewSet, ExamMarkViewSet, ExamRankingView
 
 router = DefaultRouter()
 router.register(r'exams', ExamViewSet)
 router.register(r'exam-schedules', ExamScheduleViewSet)
 router.register(r'exam-marks', ExamMarkViewSet)
 
-urlpatterns = [path('', include(router.urls))]
+urlpatterns = [
+    path('exam-rankings/', ExamRankingView.as_view(), name='exam-rankings'),
+    path('', include(router.urls)),
+]

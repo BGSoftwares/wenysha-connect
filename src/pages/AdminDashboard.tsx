@@ -228,6 +228,7 @@ const AdminDashboard = () => {
       promotion: "Students",
       teachers: "Teachers",
       "add-teacher": "Teachers",
+      allocations: "Subject & Class Assignments",
       parents: "Parents",
       library: "Library",
       account: "Account",
@@ -277,10 +278,18 @@ const AdminDashboard = () => {
       case "add-teacher": return (
         <TeachersSection
           teachers={teachers}
+          classes={classes}
           isLoading={isLoadingTeachers}
           onAddTeacher={() => setShowModal("addTeacher")}
           onEditTeacher={handleEditTeacher}
           onDeleteTeacher={teacher => void deleteRecord("/school/teachers/", Number(teacher.id), "Teacher", "teachers")}
+          onAssignClassTeacher={(classId, teacherId) => void updateRecord(
+            "/school/classes/",
+            classId,
+            { class_teacher: teacherId },
+            "Class teacher assignment",
+            "classes",
+          )}
         />
       );
       case "classes":

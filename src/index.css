@@ -288,6 +288,8 @@ html {
     overflow: visible;
     border: 0;
     box-shadow: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
 
