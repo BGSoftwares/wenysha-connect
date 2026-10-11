@@ -1,9 +1,6 @@
-import sciA from "@/assets/sections/img-6266.jpg.asset.json";
-const scienceImage = sciA.url;
-import humA from "@/assets/sections/img-6272.jpg.asset.json";
-const humanitiesImage = humA.url;
-import mathA from "@/assets/sections/img-6267.jpg.asset.json";
-const mathImage = mathA.url;
+import scienceImage from "@/assets/sections/img-6266.jpg";
+import humanitiesImage from "@/assets/sections/img-6272.jpg";
+import mathImage from "@/assets/sections/img-6267.jpg";
 import { Button } from "@/components/ui/button";
 
 const departments = [

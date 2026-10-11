@@ -1,11 +1,7 @@
-import debateA from "@/assets/sections/img-6257.jpg.asset.json";
-const debateImage = debateA.url;
-import netballA from "@/assets/sections/img-6273.jpg.asset.json";
-const netballImage = netballA.url;
-import choirA from "@/assets/sections/img-6274.jpg.asset.json";
-const choirImage = choirA.url;
-import scienceA from "@/assets/sections/img-6271.jpg.asset.json";
-const scienceImage = scienceA.url;
+import debateImage from "@/assets/sections/img-6257.jpg";
+import netballImage from "@/assets/sections/img-6273.jpg";
+import choirImage from "@/assets/sections/img-6274.jpg";
+import scienceImage from "@/assets/sections/img-6271.jpg";
 
 const clubs = [
   {

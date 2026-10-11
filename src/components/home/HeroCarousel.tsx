@@ -1,28 +1,28 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import s6252 from "@/assets/slides/slide-6252.jpeg.asset.json";
-import s6255 from "@/assets/slides/slide-6255.jpeg.asset.json";
-import s6256 from "@/assets/slides/slide-6256.jpeg.asset.json";
-import s6254 from "@/assets/slides/slide-6254.jpeg.asset.json";
-import s6258 from "@/assets/slides/slide-6258.jpeg.asset.json";
-import s6259 from "@/assets/slides/slide-6259.jpeg.asset.json";
-import s6260 from "@/assets/slides/slide-6260.jpeg.asset.json";
-import s6262 from "@/assets/slides/slide-6262.jpeg.asset.json";
-import s6263 from "@/assets/slides/slide-6263.jpeg.asset.json";
-import s6264 from "@/assets/slides/slide-6264.jpeg.asset.json";
+import s6252 from "@/assets/slides/slide-6252.jpeg";
+import s6255 from "@/assets/slides/slide-6255.jpeg";
+import s6256 from "@/assets/slides/slide-6256.jpeg";
+import s6254 from "@/assets/slides/slide-6254.jpeg";
+import s6258 from "@/assets/slides/slide-6258.jpeg";
+import s6259 from "@/assets/slides/slide-6259.jpeg";
+import s6260 from "@/assets/slides/slide-6260.jpeg";
+import s6262 from "@/assets/slides/slide-6262.jpeg";
+import s6263 from "@/assets/slides/slide-6263.jpeg";
+import s6264 from "@/assets/slides/slide-6264.jpeg";
 
 const slides = [
-  { image: s6252.url, title: "Learners gathered at assembly", description: "Able God College learners in uniform at morning assembly." },
-  { image: s6255.url, title: "Our learners", description: "Learners standing together on the school grounds." },
-  { image: s6256.url, title: "Proud in pink and navy", description: "Able God College learners in full uniform." },
-  { image: s6254.url, title: "School gathering", description: "Learners gathered around the Able God College banner." },
-  { image: s6258.url, title: "Prize giving", description: "A staff member speaks with a learner on stage." },
-  { image: s6259.url, title: "Celebrating achievement", description: "Staff and learners at an awards ceremony." },
-  { image: s6260.url, title: "Staff and community", description: "Staff and guests celebrating together." },
-  { image: s6262.url, title: "Celebration day", description: "The school community singing together." },
-  { image: s6263.url, title: "Joyful moments", description: "Staff and guests clapping during celebrations." },
-  { image: s6264.url, title: "Together as one", description: "Staff, learners and guests standing together." },
+  { image: s6252, title: "Learners gathered at assembly", description: "Able God College learners in uniform at morning assembly." },
+  { image: s6255, title: "Our learners", description: "Learners standing together on the school grounds." },
+  { image: s6256, title: "Proud in pink and navy", description: "Able God College learners in full uniform." },
+  { image: s6254, title: "School gathering", description: "Learners gathered around the Able God College banner." },
+  { image: s6258, title: "Prize giving", description: "A staff member speaks with a learner on stage." },
+  { image: s6259, title: "Celebrating achievement", description: "Staff and learners at an awards ceremony." },
+  { image: s6260, title: "Staff and community", description: "Staff and guests celebrating together." },
+  { image: s6262, title: "Celebration day", description: "The school community singing together." },
+  { image: s6263, title: "Joyful moments", description: "Staff and guests clapping during celebrations." },
+  { image: s6264, title: "Together as one", description: "Staff, learners and guests standing together." },
 ];
 
 const HeroCarousel = () => {
