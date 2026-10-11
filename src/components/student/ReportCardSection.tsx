@@ -1,9 +1,9 @@
 import { useState, useRef } from "react";
-import { Download, Printer, QrCode, Calendar, Award, Loader2 } from "lucide-react";
+import { Download, Printer, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
-import { calculateGrade, getGradeColorClasses, GRADING_SCALE } from "@/lib/grading";
+import { calculateGrade } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
 import { useExamMarks, useStudentFees, useStudentProfile } from "@/lib/hooks";
 import { getPrincipalComment, getTeacherComment } from "@/lib/reportComments";
@@ -14,30 +14,12 @@ interface SubjectResult {
   scored: number;
 }
 
-interface ReportCardData {
-  studentName: string;
-  grade: string;
-  class: string;
-  exam: string;
-  position: number;
-  totalStudents: number;
-  passed: number;
-  totalSubjects: number;
-  date: string;
-  results: SubjectResult[];
-  teacherComment: string;
-  headComment: string;
-  attendance: {
-    totalDays: number;
-    present: number;
-    absent: number;
-    behavior: string;
-  };
-}
-
 export interface ReportCardSectionProps {
   studentId: number;
 }
+
+const getPercentage = ({ marks, scored }: SubjectResult) =>
+  marks > 0 ? (scored / marks) * 100 : 0;
 
 const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const [selectedTerm, setSelectedTerm] = useState("Term 1 2024");
@@ -64,6 +46,10 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   };
 
   const handlePrint = () => {
+    document.body.classList.add("printing-report-card");
+    window.addEventListener("afterprint", () => {
+      document.body.classList.remove("printing-report-card");
+    }, { once: true });
     window.print();
   };
 
@@ -75,22 +61,19 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
 
   const calculateAverage = () => {
     if (results.length === 0) return "0.00";
-    const total = results.reduce((sum, r) => sum + r.scored, 0);
+    const total = results.reduce((sum, result) => sum + getPercentage(result), 0);
     return (total / results.length).toFixed(2);
   };
 
   const countPassed = () => {
-    return results.filter(r => {
-      const percentage = (r.scored / r.marks) * 100;
-      return percentage >= 40;
-    }).length;
+    return results.filter(result => getPercentage(result) >= 40).length;
   };
 
   const outstandingBalance = fees.reduce((sum, fee) => sum + (Number(fee.amount_due) - Number(fee.amount_paid)), 0);
   const resultsBlocked = outstandingBalance > 0;
 
   const averagePercentage = results.length
-    ? results.reduce((sum, r) => sum + ((r.scored / r.marks) * 100), 0) / results.length
+    ? results.reduce((sum, result) => sum + getPercentage(result), 0) / results.length
     : 0;
 
   const teacherComment = getTeacherComment(averagePercentage);
@@ -131,7 +114,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   return (
     <div className="space-y-6">
       {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="report-card-controls flex flex-col justify-between gap-4 sm:flex-row sm:items-center print:hidden">
         <div>
           <h2 className="font-heading text-xl font-bold text-foreground">Report Card</h2>
           <p className="text-muted-foreground text-sm">View your academic performance</p>
@@ -164,151 +147,196 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
         </div>
       </div>
 
-      {/* Report Card Document */}
-      <div id="report-card-content" ref={reportCardRef} className="bg-card rounded-xl border border-border overflow-hidden print:border-none">
-        {/* Report Card Header */}
-        <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-6 border-b border-border">
-          <div className="text-center mb-6">
-            <h1 className="font-heading text-2xl font-bold text-foreground tracking-wide">
+      <div
+        id="report-card-content"
+        ref={reportCardRef}
+        className="mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-[#ead9e3] bg-[#fffafd] text-[#172044] shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none"
+      >
+        <header className="text-white">
+          <div className="flex flex-col gap-4 bg-gradient-to-r from-[#10244f] via-[#34245f] to-[#b31669] px-5 py-4 sm:flex-row sm:items-center">
+            <img
+              src={logo}
+              alt="Able God College crest"
+              className="h-16 w-16 shrink-0 rounded-xl bg-white p-1.5 object-contain"
+            />
+            <div className="min-w-0 flex-1 text-center sm:text-left">
+              <p className="font-serif text-2xl font-bold tracking-wide">Able God College</p>
+              <p className="mt-0.5 text-[9px] uppercase tracking-[0.3em] text-white/75">B&apos;Ezrat Hashem</p>
+            </div>
+            <div className="text-center text-[10px] leading-relaxed text-white/90 sm:text-right">
+              <p className="mb-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-white/65">Contact</p>
+              <p>{schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
+              <p>{schoolContact.address}</p>
+            </div>
+          </div>
+          <div className="h-1 bg-gradient-to-r from-[#ed3c91] via-[#d82179] to-[#f0c86c]" />
+        </header>
+
+        <div className="px-4 pb-4 pt-3 sm:px-6">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h1 className="font-serif text-base font-bold tracking-wide text-[#14234f] sm:text-lg">
               STUDENT ONLINE REPORT CARD
             </h1>
+            <p className="text-[10px] text-[#747386]">
+              Issued {new Date().toLocaleDateString("en-GB")}
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Student Info */}
-            <div className="space-y-2">
-              <p className="text-sm"><span className="font-semibold text-foreground">{profile?.name}</span></p>
-              <p className="text-sm text-muted-foreground">Grade: {profile?.class_name}</p>
-              <p className="text-sm text-muted-foreground">Exam: {selectedTerm} Final</p>
-              <p className="text-sm text-muted-foreground">Passed: {countPassed()} out of {results.length}</p>
-              <p className="text-sm text-muted-foreground">Attendance: {attendance.present}/{attendance.totalDays} days present</p>
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                Date: {new Date().toLocaleDateString()}
-              </p>
-            </div>
-
-            {/* School Logo */}
-            <div className="flex justify-center">
-              <div className="text-center">
-                <img src={logo} alt="School Logo" className="h-24 w-24 mx-auto rounded-lg object-contain border border-border bg-white p-2" />
+          <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(105px,0.43fr)_minmax(82px,0.32fr)]">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-[#eadde5] bg-white p-3">
+              <div className="col-span-2 min-w-0">
+                <p className="text-[8px] font-semibold uppercase tracking-[0.18em] text-[#8d8490]">Learner</p>
+                <p className="truncate font-serif text-base font-bold text-[#17244c]">{profile?.name || "Student"}</p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#8d8490]">Class</p>
+                <p className="truncate text-xs font-semibold text-[#17244c]">{profile?.class_name || "—"}</p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#8d8490]">Examination</p>
+                <p className="truncate text-xs font-semibold text-[#17244c]">{selectedTerm} Final</p>
               </div>
             </div>
 
-            {/* School Info */}
-            <div className="text-right space-y-1">
-              <p className="font-semibold text-foreground">Able God College</p>
-              <p className="text-sm text-muted-foreground">Phone: {schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
-              <p className="text-sm text-muted-foreground">{schoolContact.address}</p>
+            <div className="flex flex-col justify-center rounded-xl bg-gradient-to-br from-[#10244f] to-[#a91667] p-3 text-white">
+              <p className="text-[8px] font-semibold uppercase tracking-[0.18em] text-white/75">Average</p>
+              <p className="mt-0.5 font-serif text-2xl font-bold leading-none">{averagePercentage.toFixed(2)}%</p>
+              <p className="mt-1 text-[9px] text-white/85">Overall grade {calculateGrade(averagePercentage).grade}</p>
+            </div>
+
+            <div className="flex flex-row items-center justify-between rounded-xl border border-[#eadde5] bg-white p-3 sm:flex-col sm:items-start sm:justify-center">
+              <p className="text-[8px] font-semibold uppercase tracking-[0.18em] text-[#8d8490]">Passed</p>
+              <p className="font-serif text-2xl font-bold leading-none text-[#17244c]">{countPassed()} / {results.length}</p>
+              <p className="text-[9px] text-[#777484]">subjects</p>
             </div>
           </div>
-        </div>
 
-        {/* Results Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-[hsl(220,25%,18%)] text-white">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold">SUBJECT</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold">MARKS</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold">SCORED</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold">PERC(%)</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold">GRADE</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">COMMENT</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {results.map((result, idx) => {
-                const percentage = (result.scored / result.marks) * 100;
-                const gradeInfo = calculateGrade(percentage);
-                return (
-                  <tr key={idx} className="hover:bg-secondary/30 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-foreground">{result.subject}</td>
-                    <td className="px-4 py-3 text-sm text-center text-muted-foreground">{result.marks}</td>
-                    <td className="px-4 py-3 text-sm text-center font-medium text-foreground">{result.scored.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm text-center text-muted-foreground">{percentage.toFixed(2)}%</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${gradeInfo.bgColor} ${gradeInfo.color}`}>
-                        {gradeInfo.grade}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{gradeInfo.meaning}</td>
-                  </tr>
-                );
-              })}
-              {results.length === 0 && (
+          <div className="overflow-x-auto rounded-lg border border-[#eadde5]">
+            <table className="w-full min-w-[620px] table-fixed border-collapse text-[10px]">
+              <colgroup>
+                <col className="w-[25%]" />
+                <col className="w-[10%]" />
+                <col className="w-[11%]" />
+                <col className="w-[22%]" />
+                <col className="w-[10%]" />
+                <col className="w-[22%]" />
+              </colgroup>
+              <thead className="bg-[#14234f] text-white">
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground">No records found for this term.</td>
+                  {["Subject", "Out of", "Score", "Percentage", "Grade", "Comment"].map((heading, index) => (
+                    <th
+                      key={heading}
+                      className={`px-2 py-2 text-[8px] font-semibold uppercase tracking-[0.12em] ${index === 0 || index === 5 ? "text-left" : "text-center"}`}
+                    >
+                      {heading}
+                    </th>
+                  ))}
                 </tr>
-              )}
-            </tbody>
-            <tfoot className="bg-secondary/50">
-              {(() => {
-                const avg = parseFloat(calculateAverage());
-                const avgGrade = calculateGrade(avg);
-                return (
+              </thead>
+              <tbody className="divide-y divide-[#eadde5]">
+                {results.map((result, index) => {
+                  const percentage = getPercentage(result);
+                  const gradeInfo = calculateGrade(percentage);
+                  return (
+                    <tr key={`${result.subject}-${index}`} className={index % 2 === 0 ? "bg-white" : "bg-[#fff3f8]"}>
+                      <td className="px-2 py-1.5 font-semibold text-[#202849]">{result.subject}</td>
+                      <td className="px-2 py-1.5 text-center text-[#777484]">{result.marks}</td>
+                      <td className="px-2 py-1.5 text-center font-semibold text-[#202849]">{result.scored.toFixed(2)}</td>
+                      <td className="px-2 py-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-[#eee8ed]">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-[#182858] to-[#e33388]"
+                              style={{ width: `${Math.min(Math.max(percentage, 0), 100)}%` }}
+                            />
+                          </div>
+                          <span className="w-10 shrink-0 text-right text-[9px] text-[#777484]">{percentage.toFixed(2)}%</span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-1.5 text-center">
+                        <span className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ${gradeInfo.bgColor} ${gradeInfo.color}`}>
+                          {gradeInfo.grade}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1.5 text-[#777484]">{gradeInfo.meaning}</td>
+                    </tr>
+                  );
+                })}
+                {results.length === 0 && (
                   <tr>
-                    <td className="px-4 py-3 text-sm font-bold text-foreground">Average</td>
-                    <td className="px-4 py-3 text-sm text-center text-muted-foreground">-</td>
-                    <td className="px-4 py-3 text-sm text-center font-bold text-foreground">{calculateAverage()}</td>
-                    <td className="px-4 py-3 text-sm text-center font-bold text-foreground">{calculateAverage()}%</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${avgGrade.bgColor} ${avgGrade.color}`}>
-                        {avgGrade.grade}
+                    <td colSpan={6} className="px-3 py-6 text-center text-[#777484]">No records found for this term.</td>
+                  </tr>
+                )}
+              </tbody>
+              {results.length > 0 && (
+                <tfoot className="border-t border-[#e9c9d9] bg-[#fdeaf3]">
+                  <tr>
+                    <td className="px-2 py-2 font-bold text-[#17244c]">Average</td>
+                    <td className="px-2 py-2 text-center text-[#777484]">—</td>
+                    <td className="px-2 py-2 text-center font-bold text-[#17244c]">{calculateAverage()}</td>
+                    <td className="px-2 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-white">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-[#182858] to-[#e33388]"
+                            style={{ width: `${Math.min(Math.max(averagePercentage, 0), 100)}%` }}
+                          />
+                        </div>
+                        <span className="w-10 shrink-0 text-right text-[9px] font-semibold text-[#17244c]">{averagePercentage.toFixed(2)}%</span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      <span className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ${calculateGrade(averagePercentage).bgColor} ${calculateGrade(averagePercentage).color}`}>
+                        {calculateGrade(averagePercentage).grade}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-foreground">
-                      {avgGrade.meaning}
-                    </td>
+                    <td className="px-2 py-2 font-medium text-[#777484]">{calculateGrade(averagePercentage).meaning}</td>
                   </tr>
-                );
-              })()}
-            </tfoot>
-          </table>
-        </div>
+                </tfoot>
+              )}
+            </table>
+          </div>
 
-        {/* Comments Section */}
-        <div className="p-6 border-t border-border space-y-4">
-          <div>
-            <label className="text-sm font-medium text-foreground block mb-2">Teacher Comment:</label>
-            <div className="p-3 rounded-lg border border-border bg-secondary/20 min-h-[60px]">
-              <p className="text-sm text-foreground italic">{teacherComment}</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="rounded-xl border border-[#eadde5] bg-white px-3 py-2.5">
+              <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">Teacher&apos;s comment</p>
+              <p className="mt-1 text-[10px] italic leading-relaxed text-[#454255]">{teacherComment}</p>
+            </div>
+            <div className="rounded-xl border border-[#edcfdf] bg-[#fff3f8] px-3 py-2.5">
+              <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">Principal&apos;s overall comment</p>
+              <p className="mt-1 text-[10px] italic leading-relaxed text-[#454255]">{principalComment}</p>
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground block mb-2">Principal&apos;s Overall Comment:</label>
-            <div className="p-3 rounded-lg border border-border bg-primary/5 min-h-[60px]">
-              <p className="text-sm text-foreground italic">{principalComment}</p>
+          <div className="mt-2 rounded-xl border border-[#eadde5] bg-white px-3 py-2">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-[8px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Attendance</p>
+                <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.present} / {attendance.totalDays} days</p>
+                <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#e6e9e8]">
+                  <div className="h-full rounded-full bg-[#17874f]" style={{ width: `${(attendance.present / attendance.totalDays) * 100}%` }} />
+                </div>
+              </div>
+              <div>
+                <p className="text-[8px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Absent</p>
+                <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.absent} days</p>
+              </div>
+              <div>
+                <p className="text-[8px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Behaviour</p>
+                <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.behavior}</p>
+              </div>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4 rounded-lg border border-border bg-secondary/10 p-4">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Attendance</p>
-              <p className="mt-1 font-semibold text-foreground">{attendance.present} / {attendance.totalDays} days</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Absent</p>
-              <p className="mt-1 font-semibold text-foreground">{attendance.absent} days</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Behaviour</p>
-              <p className="mt-1 font-semibold text-foreground">{attendance.behavior}</p>
-            </div>
+          <div className="mt-4 grid grid-cols-2 gap-8 px-3">
+            <div className="border-t border-[#a8a1ad] pt-1 text-[8px] uppercase tracking-[0.12em] text-[#777484]">Class teacher</div>
+            <div className="border-t border-[#a8a1ad] pt-1 text-[8px] uppercase tracking-[0.12em] text-[#777484]">Principal</div>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-border bg-secondary/10">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              This report is electronically generated, follow the link to verify the report.
-            </p>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <QrCode className="h-16 w-16" />
-            </div>
-          </div>
+          <footer className="mt-3 flex flex-wrap items-center justify-between gap-1 text-[8px] text-[#898391]">
+            <p>This report is electronically generated.</p>
+            <p><span className="font-semibold text-[#17244c]">Able God College</span> · {schoolContact.address}</p>
+          </footer>
         </div>
       </div>
     </div>

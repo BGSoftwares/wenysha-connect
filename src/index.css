@@ -262,6 +262,35 @@ html {
   mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
 }
 
+@page {
+  size: A4 portrait;
+  margin: 6mm;
+}
+
+@media print {
+  body.printing-report-card * {
+    visibility: hidden;
+  }
+
+  body.printing-report-card #report-card-content,
+  body.printing-report-card #report-card-content * {
+    visibility: visible;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.printing-report-card #report-card-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    overflow: visible;
+    border: 0;
+    box-shadow: none;
+  }
+}
+
 /* ===== 3D Effects (touch-friendly) ===== */
 @layer utilities {
   .perspective-1000 { perspective: 1000px; }

@@ -66,13 +66,24 @@ export const exportReportCardPdf = async (elementId: string, studentName: string
       height: element.scrollHeight,
     });
 
-    const imgWidth = 210; // A4 width in mm
-    const pageHeight = 290; // keep PDF to a single printed page
-    const rawImgHeight = (canvas.height * imgWidth) / canvas.width;
-    const imgHeight = Math.min(rawImgHeight, pageHeight);
+    const pageWidth = 198;
+    const pageHeight = 285;
+    const rawImgHeight = (canvas.height * pageWidth) / canvas.width;
+    const scale = Math.min(1, pageHeight / rawImgHeight);
+    const imgWidth = pageWidth * scale;
+    const imgHeight = rawImgHeight * scale;
 
     const pdf = new jsPDF("p", "mm", "a4");
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, imgWidth, imgHeight, undefined, "FAST");
+    pdf.addImage(
+      canvas.toDataURL("image/png"),
+      "PNG",
+      (210 - imgWidth) / 2,
+      (297 - imgHeight) / 2,
+      imgWidth,
+      imgHeight,
+      undefined,
+      "FAST",
+    );
     pdf.save(`Report_Card_${studentName.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`);
   } catch (error) {
     console.error("Error generating PDF:", error);
