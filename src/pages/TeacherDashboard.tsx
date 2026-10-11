@@ -32,7 +32,6 @@ import {
   useAllocations,
   useStudents,
   useClasses,
-  useSubjects,
   useExams,
   useExamMarks,
   useSaveExamMark,
@@ -68,7 +67,6 @@ const TeacherDashboard = () => {
   const [classTeacherComments, setClassTeacherComments] = useState<Record<number, string>>({});
   const [reportCardRows, setReportCardRows] = useState<Array<{ studentId: number; studentName: string; score: number; percentage: number; grade: string }>>([]);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
   const [materialDraft, setMaterialDraft] = useState({
     title: "",
     subject_name: "",
@@ -85,11 +83,9 @@ const TeacherDashboard = () => {
 
   const { data: students = [] } = useStudents();
   const { data: classes = [] } = useClasses();
-  const { data: subjects = [] } = useSubjects();
 
   const { data: exams = [] } = useExams();
-  const { data: allExamMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId } : undefined);
-  const examMarks = selectedSubjectId ? allExamMarks.filter(mark => mark.subject === selectedSubjectId) : allExamMarks;
+  const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
   const { data: attendanceRecords = [] } = useAttendanceRecords({
     date: attendanceDate
   });
@@ -100,27 +96,11 @@ const TeacherDashboard = () => {
   const createLearningMaterialMutation = useCreateLearningMaterial();
   const deleteLearningMaterialMutation = useDeleteLearningMaterial();
 
-  const uniqueClasses = allocations.length
-    ? Array.from(new Map(
-        allocations.map((allocation) => [String(allocation.school_class), { id: Number(allocation.school_class), name: allocation.class_name }])
-      ).values())
-    : classes.map((schoolClass) => ({ id: Number(schoolClass.id), name: schoolClass.name }));
+  const uniqueClasses = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.school_class, name: a.class_name }))))
+    .map(s => JSON.parse(s));
 
-  const uniqueSubjects = allocations.length
-    ? Array.from(new Map(
-        allocations.map((allocation) => [String(allocation.subject), { id: Number(allocation.subject), name: allocation.subject_name }])
-      ).values())
-    : subjects.map((subject) => ({ id: Number(subject.id), name: subject.name }));
-
-  const classSubjectOptions = selectedClassId
-    ? allocations.length
-      ? Array.from(new Map(
-          allocations
-            .filter((allocation) => String(allocation.school_class) === String(selectedClassId))
-            .map((allocation) => [String(allocation.subject), { id: Number(allocation.subject), name: allocation.subject_name }])
-        ).values())
-      : subjects.map((subject) => ({ id: Number(subject.id), name: subject.name }))
-    : [];
+  const uniqueSubjects = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.subject, name: a.subject_name }))))
+    .map(s => JSON.parse(s));
 
   const assignedMaterials = (learningMaterials ?? []).filter((material) => {
     const matchesClass = uniqueClasses.some((schoolClass) => schoolClass.name === material.class_name);
@@ -129,17 +109,10 @@ const TeacherDashboard = () => {
   });
 
   const classStudents = students.filter(student => student.school_class === selectedClassId);
-  const subjectStudents = selectedClassId ? classStudents : [];
 
   useEffect(() => {
-    if (!uniqueClasses.length) {
-      if (selectedClassId !== null) setSelectedClassId(null);
-      return;
-    }
-
-    const classExists = uniqueClasses.some((schoolClass) => Number(schoolClass.id) === Number(selectedClassId));
-    if (selectedClassId === null || !classExists) {
-      setSelectedClassId(Number(uniqueClasses[0].id));
+    if (uniqueClasses.length > 0 && selectedClassId === null) {
+      setSelectedClassId(uniqueClasses[0].id);
     }
   }, [uniqueClasses, selectedClassId]);
 
@@ -148,22 +121,15 @@ const TeacherDashboard = () => {
   }, [exams, selectedExamId]);
 
   useEffect(() => {
-    if (!selectedClassId) {
-      setSelectedSubjectId(null);
-      return;
+    const allocatedSubject = allocations.find(allocation => allocation.school_class === selectedClassId)?.subject;
+    if (allocatedSubject && !allocations.some(allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId)) {
+      setSelectedSubjectId(allocatedSubject);
     }
+  }, [allocations, selectedClassId, selectedSubjectId]);
 
-    const validOptions = classSubjectOptions;
-    if (!validOptions.length) {
-      setSelectedSubjectId(null);
-      return;
-    }
-
-    const subjectExists = validOptions.some((subject) => Number(subject.id) === Number(selectedSubjectId));
-    if (!subjectExists) {
-      setSelectedSubjectId(Number(validOptions[0].id));
-    }
-  }, [classSubjectOptions, selectedClassId, selectedSubjectId]);
+  const subjectStudents = selectedClassId && selectedSubjectId
+    ? classStudents.filter(student => allocations.some(allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId))
+    : classStudents;
 
   useEffect(() => {
     if (!selectedClassId || !selectedSubjectId) {
@@ -217,65 +183,11 @@ const TeacherDashboard = () => {
     for (const studentId of enteredStudentIds) await saveGrade(studentId);
   };
 
-  const sendAttendanceToWhatsAppGroup = () => {
-    if (!selectedClass) {
-      toast.error("Select a class before sending the attendance summary.");
-      return;
-    }
-
-    const summaryLines = classAttendance.map((entry) => `• ${entry.student.name}: ${entry.status}`).join("\n");
-    const summary = [
-      `*Attendance Report*`,
-      `Class: ${selectedClass.name}`,
-      `Date: ${new Date(attendanceDate).toLocaleDateString()}`,
-      `Present: ${classAttendance.filter((item) => item.status === "present").length}`,
-      `Absent: ${classAttendance.filter((item) => item.status === "absent").length}`,
-      `Late: ${classAttendance.filter((item) => item.status === "late").length}`,
-      "",
-      summaryLines,
-      "",
-      `Sent by ${teacher?.name ?? "Class Teacher"}`,
-    ].join("\n");
-
-    const groupTarget = whatsappGroupLink.trim();
-    const encodedMessage = encodeURIComponent(summary);
-    const url = groupTarget
-      ? groupTarget.startsWith("http")
-        ? `${groupTarget}${groupTarget.includes("?") ? "&" : "?"}text=${encodedMessage}`
-        : `https://wa.me/${groupTarget.replace(/\D/g, "")}?text=${encodedMessage}`
-      : `https://wa.me/?text=${encodedMessage}`;
-
-    window.open(url, "_blank", "noopener,noreferrer");
-    toast.success("Attendance summary opened in WhatsApp.");
-  };
-
   const currentStudent = subjectStudents.find(student => student.id === selectedStudentId) ?? subjectStudents[0] ?? null;
-  const selectedSubjectMarks = selectedSubjectId ? allExamMarks.filter(mark => mark.subject === selectedSubjectId) : [];
-  const selectedStudentScore = currentStudent ? gradeInputs[currentStudent.id] ?? selectedSubjectMarks.find(mark => mark.student === currentStudent.id)?.scored ?? "" : "";
+  const selectedStudentScore = currentStudent ? gradeInputs[currentStudent.id] ?? examMarks.find(mark => mark.student === currentStudent.id && mark.subject === selectedSubjectId)?.scored ?? "" : "";
   const selectedStudentGrade = currentStudent && selectedStudentScore !== "" ? calculateGrade(Number(selectedStudentScore)).grade : "—";
   const selectedClass = classes.find(classItem => classItem.id === selectedClassId) ?? null;
-  const classSubjectAllocations = selectedClassId
-    ? Array.from(new Map(
-        allocations
-          .filter((allocation) => String(allocation.school_class) === String(selectedClassId))
-          .map((allocation) => [String(allocation.subject), allocation])
-      ).values())
-    : [];
-  const currentStudentGradedSubjects = currentStudent
-    ? classSubjectAllocations
-        .filter((allocation) => allExamMarks.some(mark => mark.student === currentStudent.id && mark.subject === allocation.subject))
-        .map((allocation) => allocation.subject_name)
-    : [];
-  const isClassTeacherForSelectedClass = Boolean(
-    teacher &&
-    selectedClass &&
-    Number(selectedClass.class_teacher) === Number(teacher.id)
-  );
-  const canMarkAttendanceForSelectedClass = Boolean(
-    teacher &&
-    selectedClass &&
-    Number(selectedClass.class_teacher) === Number(teacher.id)
-  );
+  const isClassTeacherForSelectedClass = Boolean(teacher && selectedClass && selectedClass.class_teacher === teacher.id);
   const currentStudentTeacherComment = currentStudent ? classTeacherComments[currentStudent.id] || getTeacherComment(Number(selectedStudentScore) || 0) : getTeacherComment(0);
 
   const applyClassCommentTemplate = (studentId: number, percentage: number) => {
@@ -297,8 +209,8 @@ const TeacherDashboard = () => {
   };
 
   const generateReportCardPreview = () => {
-    if (!selectedClassId || !selectedExamId) {
-      toast.error("Select a class and exam to generate a report card.");
+    if (!selectedClassId || !selectedSubjectId || !selectedExamId) {
+      toast.error("Select a class, subject, and exam to generate a report card.");
       return;
     }
 
@@ -306,40 +218,28 @@ const TeacherDashboard = () => {
       return;
     }
 
-    const previewStudent = currentStudent ?? subjectStudents[0] ?? null;
-    if (!previewStudent) {
-      toast.error("No student is available for this class and subject yet.");
+    const rows = subjectStudents.map(student => {
+      const mark = examMarks.find(item => item.student === student.id && item.subject === selectedSubjectId);
+      const score = mark ? Number(mark.scored) : 0;
+      const total = mark ? Number(mark.total_marks) : 100;
+      const percentage = total > 0 ? (score / total) * 100 : 0;
+      return {
+        studentId: student.id,
+        studentName: student.name,
+        score,
+        percentage,
+        grade: calculateGrade(percentage).grade,
+      };
+    });
+
+    setReportCardRows(rows);
+
+    if (rows.every(row => row.score === 0)) {
+      toast.error("No student marks have been entered yet for this class and subject.");
       return;
     }
 
-    const studentRows = subjectStudents
-      .map((student) => {
-        const mark = allExamMarks.find(item => item.student === student.id && item.subject === selectedSubjectId);
-        if (!mark) return null;
-
-        const score = Number(mark.scored);
-        const total = Number(mark.total_marks) || 100;
-        const percentage = total > 0 ? (score / total) * 100 : 0;
-
-        return {
-          studentId: student.id,
-          studentName: student.name,
-          subjectName: classSubjectOptions.find(subject => Number(subject.id) === Number(selectedSubjectId))?.name || "Selected Subject",
-          score,
-          percentage,
-          grade: calculateGrade(percentage).grade,
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => row !== null);
-
-    setReportCardRows(studentRows);
-
-    if (studentRows.length === 0) {
-      toast.error("No graded marks have been entered for this class and selected subject yet.");
-      return;
-    }
-
-    toast.success("Report card preview generated for the selected class and subject.");
+    toast.success("Report card preview generated.");
   };
 
   const teacherName = teacher?.name || "Teacher";
@@ -445,25 +345,17 @@ const TeacherDashboard = () => {
         <div className="bg-card rounded-xl border border-border p-6">
             <h2 className="font-heading font-bold text-lg text-foreground mb-4">Teaching Allocations</h2>
           <div className="space-y-3">
-            {allocations.map((alloc) => {
-              const classRoster = students.filter(student => student.school_class === alloc.school_class).slice(0, 5);
-              return (
-                <div key={alloc.id} className="flex items-start gap-4 p-4 rounded-lg bg-secondary/30">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-foreground">{alloc.class_name} - {alloc.subject_name}</h4>
-                    <p className="text-xs text-muted-foreground mb-2">{alloc.periods} periods/week</p>
-                    <div className="flex flex-wrap gap-2">
-                      {classRoster.length > 0 ? classRoster.map(student => (
-                        <span key={student.id} className="rounded-full bg-background px-2 py-1 text-[10px] text-foreground border border-border">{student.name}</span>
-                      )) : <span className="text-[10px] text-muted-foreground">No learners assigned</span>}
-                    </div>
-                  </div>
+            {allocations.map((alloc) => (
+              <div key={alloc.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-primary" />
                 </div>
-              );
-            })}
+                <div className="flex-1">
+                  <h4 className="font-medium text-foreground">{alloc.class_name} - {alloc.subject_name}</h4>
+                  <p className="text-xs text-muted-foreground">{alloc.periods} periods/week</p>
+                </div>
+              </div>
+            ))}
             {allocations.length === 0 && <p className="text-sm text-muted-foreground italic">No allocations found.</p>}
           </div>
         </div>
@@ -499,29 +391,21 @@ const TeacherDashboard = () => {
       <h2 className="font-heading text-xl font-bold text-foreground">My Classes</h2>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {uniqueClasses.map((cls) => {
-          const roster = students.filter(student => student.school_class === cls.id);
-          return (
-            <div key={cls.id} className="bg-card rounded-xl border border-border p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Users className="h-6 w-6 text-primary" />
-                </div>
-                <Button variant="outline" size="sm" onClick={() => { setSelectedClassId(cls.id); setActiveNav("attendance"); }}>
-                  <Eye className="h-4 w-4 mr-1" />
-                  Manage
-                </Button>
+        {uniqueClasses.map((cls) => (
+          <div key={cls.id} className="bg-card rounded-xl border border-border p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Users className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-bold text-lg text-foreground">{cls.name}</h3>
-              <p className="text-sm text-muted-foreground mb-3">Teaching {allocations.filter(a => a.school_class === cls.id).length} subjects</p>
-              <div className="flex flex-wrap gap-2">
-                {roster.length > 0 ? roster.map(student => (
-                  <span key={student.id} className="rounded-full bg-secondary px-2 py-1 text-[10px] text-foreground">{student.name}</span>
-                )) : <span className="text-[10px] text-muted-foreground">No students assigned</span>}
-              </div>
+              <Button variant="outline" size="sm" onClick={() => { setSelectedClassId(cls.id); setActiveNav("attendance"); }}>
+                <Eye className="h-4 w-4 mr-1" />
+                Manage
+              </Button>
             </div>
-          );
-        })}
+            <h3 className="font-bold text-lg text-foreground">{cls.name}</h3>
+            <p className="text-sm text-muted-foreground mb-3">Teaching {allocations.filter(a => a.school_class === cls.id).length} subjects</p>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -572,7 +456,7 @@ const TeacherDashboard = () => {
           </select>
           <select value={selectedSubjectId || ""} onChange={e => setSelectedSubjectId(Number(e.target.value))} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">Select Subject</option>
-            {classSubjectOptions.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+            {allocations.filter(allocation => allocation.school_class === selectedClassId).map(allocation => <option key={allocation.subject} value={allocation.subject}>{allocation.subject_name}</option>)}
           </select>
           <select value={selectedExamId || ""} onChange={e => setSelectedExamId(Number(e.target.value))} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">Select Exam</option>
@@ -619,17 +503,6 @@ const TeacherDashboard = () => {
               <div className="text-right">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Percentage</p>
                 <p className="text-lg font-bold text-foreground">{((Number(selectedStudentScore) / 100) * 100).toFixed(1)}%</p>
-              </div>
-            </div>
-          )}
-
-          {currentStudent && currentStudentGradedSubjects.length > 0 && (
-            <div className="rounded-xl border border-border bg-secondary/20 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Graded Subject List</p>
-              <div className="flex flex-wrap gap-2">
-                {currentStudentGradedSubjects.map((subjectName) => (
-                  <span key={subjectName} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">{subjectName}</span>
-                ))}
               </div>
             </div>
           )}
@@ -701,38 +574,42 @@ const TeacherDashboard = () => {
       )}
 
       {reportCardRows.length > 0 && (
-        <div className="bg-card rounded-xl border border-border overflow-hidden print:border-none">
-          <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-6 border-b border-border">
-            <div className="text-center mb-6">
-              <h1 className="font-heading text-2xl font-bold text-foreground tracking-wide">
-                STUDENT ONLINE REPORT CARD
-              </h1>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <p className="text-sm"><span className="font-semibold text-foreground">{currentStudent?.name || "Student"}</span></p>
-                <p className="text-sm text-muted-foreground">Grade: {uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"}</p>
-                <p className="text-sm text-muted-foreground">Exam: {exams.find(exam => exam.id === selectedExamId)?.name || "Selected exam"}</p>
-                <p className="text-sm text-muted-foreground">Passed: {reportCardRows.filter(row => row.percentage >= 40).length} out of {reportCardRows.length}</p>
-                <p className="text-sm text-muted-foreground">Date: {new Date().toLocaleDateString()}</p>
+        <div className="report-card bg-card rounded-2xl border border-border overflow-hidden shadow-lg print:border-none print:shadow-none">
+          <div className="relative bg-gradient-hero text-primary-foreground px-6 py-8">
+            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary-foreground/10 blur-2xl" />
+            <div className="relative flex flex-col md:flex-row items-center gap-6">
+              <img src={logo} alt="School Logo" className="h-24 w-24 rounded-2xl object-contain bg-card p-2 shadow-lg" />
+              <div className="flex-1 text-center md:text-left">
+                <p className="text-xs uppercase tracking-[0.3em] text-primary-foreground/70">Able God College</p>
+                <h1 className="mt-1 font-heading text-2xl md:text-3xl font-bold tracking-wide">Student Report Card</h1>
+                <p className="mt-1 text-sm text-primary-foreground/80">{schoolContact.address} · {teacher?.phone || schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
               </div>
-
-              <div className="flex justify-center">
-                <img src={logo} alt="School Logo" className="h-24 w-24 mx-auto rounded-lg object-contain border border-border bg-white p-2" />
-              </div>
-
-              <div className="text-right space-y-1">
-                <p className="font-semibold text-foreground">Able God College</p>
-                <p className="text-sm text-muted-foreground">Phone: {teacher?.phone || schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
-                <p className="text-sm text-muted-foreground">{schoolContact.address}</p>
+              <div className="text-center rounded-2xl bg-primary-foreground/10 border border-primary-foreground/20 px-6 py-4 backdrop-blur">
+                <p className="text-xs uppercase tracking-widest text-primary-foreground/70">Overall</p>
+                <p className="text-4xl font-bold">{calculateGrade((reportCardRows.reduce((sum, row) => sum + row.percentage, 0) / Math.max(reportCardRows.length, 1))).grade}</p>
+                <p className="text-sm text-primary-foreground/80">{(reportCardRows.reduce((sum, row) => sum + row.percentage, 0) / Math.max(reportCardRows.length, 1)).toFixed(1)}%</p>
               </div>
             </div>
           </div>
 
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border">
+            {[
+              ["Student", currentStudent?.name || "Student"],
+              ["Class", uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"],
+              ["Exam", exams.find(exam => exam.id === selectedExamId)?.name || "Selected exam"],
+              ["Passed", `${reportCardRows.filter(row => row.percentage >= 40).length} of ${reportCardRows.length}`],
+              ["Date", new Date().toLocaleDateString()],
+            ].map(([k, v]) => (
+              <div key={k} className="bg-card px-4 py-3">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground">{k}</p>
+                <p className="mt-0.5 text-sm font-semibold text-foreground truncate">{v}</p>
+              </div>
+            ))}
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-[hsl(220,25%,18%)] text-white">
+              <thead className="bg-primary text-primary-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-semibold">SUBJECT</th>
                   <th className="px-4 py-3 text-center text-sm font-semibold">MARKS</th>
@@ -747,11 +624,16 @@ const TeacherDashboard = () => {
                   const percentage = row.percentage;
                   const gradeInfo = calculateGrade(percentage);
                   return (
-                    <tr key={`${row.studentId}-${row.subjectName}`} className="hover:bg-secondary/30 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium text-foreground">{row.subjectName}</td>
+                    <tr key={row.studentId} className="odd:bg-card even:bg-secondary/40 hover:bg-secondary transition-colors">
+                      <td className="px-4 py-3 text-sm font-medium text-foreground">{uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Subject"}</td>
                       <td className="px-4 py-3 text-sm text-center text-muted-foreground">100</td>
                       <td className="px-4 py-3 text-sm text-center font-medium text-foreground">{row.score.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-sm text-center text-muted-foreground">{percentage.toFixed(2)}%</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 justify-center">
+                          <div className="h-2 w-20 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-gradient-hero" style={{ width: `${Math.min(percentage, 100)}%` }} /></div>
+                          <span>{percentage.toFixed(1)}%</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${gradeInfo.bgColor} ${gradeInfo.color}`}>
                           {gradeInfo.grade}
@@ -767,15 +649,15 @@ const TeacherDashboard = () => {
 
           <div className="p-6 border-t border-border bg-secondary/10 space-y-4">
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="rounded-lg border border-border bg-white p-3">
+              <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Teacher comment</p>
                 <p className="mt-1 text-sm text-foreground italic">{currentStudentTeacherComment}</p>
               </div>
-              <div className="rounded-lg border border-border bg-white p-3">
+              <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Principal comment</p>
                 <p className="mt-1 text-sm text-foreground italic">{getPrincipalComment(reportCardRows.reduce((sum, row) => sum + row.percentage, 0) / Math.max(reportCardRows.length, 1))}</p>
               </div>
-              <div className="rounded-lg border border-border bg-white p-3">
+              <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Attendance</p>
                 <p className="mt-1 text-sm text-foreground">{classStudents.filter(student => attendanceRecords.some(record => record.student === student.id && record.status === "present")).length} / {classStudents.length} present this term</p>
               </div>
@@ -783,8 +665,9 @@ const TeacherDashboard = () => {
 
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">This report is electronically generated, follow the link to verify the report.</p>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <FileText className="h-16 w-16" />
+              <div className="text-center">
+                <div className="h-px w-40 bg-foreground/40 mb-1" />
+                <p className="text-xs text-muted-foreground">Head's signature</p>
               </div>
             </div>
           </div>
@@ -874,29 +757,6 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
-      {!canMarkAttendanceForSelectedClass && selectedClass && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-          You are not assigned as the class teacher for {selectedClass.name}. Only the class teacher can mark attendance for this class.
-        </div>
-      )}
-
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex-1">
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Parent WhatsApp group link or number
-          </label>
-          <input
-            value={whatsappGroupLink}
-            onChange={(e) => setWhatsappGroupLink(e.target.value)}
-            placeholder="e.g. 263773000000 or https://chat.whatsapp.com/..."
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          />
-        </div>
-        <Button variant="gold" onClick={sendAttendanceToWhatsAppGroup} disabled={!selectedClass || classAttendance.length === 0}>
-          Share Attendance on WhatsApp
-        </Button>
-      </div>
-
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-4 border-b border-border bg-secondary/30 flex items-center justify-between">
           <div>
@@ -935,49 +795,34 @@ const TeacherDashboard = () => {
                     <div className="flex justify-center gap-2">
                       <button
                         onClick={async () => {
-                          if (!canMarkAttendanceForSelectedClass) {
-                            toast.error("Only the class teacher can mark attendance for this class.");
-                            return;
-                          }
                           try {
                             await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "present" });
                             toast.success(`Marked ${student.name} as present`);
                           } catch (e) { toast.error("Failed to update attendance"); }
                         }}
-                        disabled={!canMarkAttendanceForSelectedClass}
-                        className={`p-1.5 rounded-lg transition-colors ${status === "present" ? "bg-green-500 text-white" : "bg-secondary text-muted-foreground hover:bg-green-100"} ${!canMarkAttendanceForSelectedClass ? "cursor-not-allowed opacity-50" : ""}`}
+                        className={`p-1.5 rounded-lg transition-colors ${status === "present" ? "bg-green-500 text-white" : "bg-secondary text-muted-foreground hover:bg-green-100"}`}
                       >
                         <Check className="h-4 w-4" />
                       </button>
                       <button
                         onClick={async () => {
-                          if (!canMarkAttendanceForSelectedClass) {
-                            toast.error("Only the class teacher can mark attendance for this class.");
-                            return;
-                          }
                           try {
                             await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "absent" });
                             toast.success(`Marked ${student.name} as absent`);
                           } catch (e) { toast.error("Failed to update attendance"); }
                         }}
-                        disabled={!canMarkAttendanceForSelectedClass}
-                        className={`p-1.5 rounded-lg transition-colors ${status === "absent" ? "bg-destructive text-white" : "bg-secondary text-muted-foreground hover:bg-red-100"} ${!canMarkAttendanceForSelectedClass ? "cursor-not-allowed opacity-50" : ""}`}
+                        className={`p-1.5 rounded-lg transition-colors ${status === "absent" ? "bg-destructive text-white" : "bg-secondary text-muted-foreground hover:bg-red-100"}`}
                       >
                         <X className="h-4 w-4" />
                       </button>
                       <button
                         onClick={async () => {
-                          if (!canMarkAttendanceForSelectedClass) {
-                            toast.error("Only the class teacher can mark attendance for this class.");
-                            return;
-                          }
                           try {
                             await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "late" });
                             toast.success(`Marked ${student.name} as late`);
                           } catch (e) { toast.error("Failed to update attendance"); }
                         }}
-                        disabled={!canMarkAttendanceForSelectedClass}
-                        className={`p-1.5 rounded-lg transition-colors ${status === "late" ? "bg-amber-500 text-white" : "bg-secondary text-muted-foreground hover:bg-amber-100"} ${!canMarkAttendanceForSelectedClass ? "cursor-not-allowed opacity-50" : ""}`}
+                        className={`p-1.5 rounded-lg transition-colors ${status === "late" ? "bg-amber-500 text-white" : "bg-secondary text-muted-foreground hover:bg-amber-100"}`}
                       >
                         <Clock className="h-4 w-4" />
                       </button>
@@ -1344,22 +1189,12 @@ const TeacherDashboard = () => {
               <p className="text-white/50 text-sm">{department} Department</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors" aria-label="Notifications">
-              <Bell className="h-6 w-6 text-white/60" />
-              <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-                2
-              </span>
-            </button>
-            <Link
-              to="/portal"
-              onClick={clearAuth}
-              aria-label="Sign out"
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <LogOut className="h-4 w-4" />
-            </Link>
-          </div>
+          <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
+            <Bell className="h-6 w-6 text-white/60" />
+            <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
+              2
+            </span>
+          </button>
         </header>
 
         <div className="p-6">

@@ -394,22 +394,12 @@ const StudentDashboard = () => {
               <p className="text-white/50 text-sm">{profile.class_name} • Term 1 2024</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors" aria-label="Notifications">
-              <Bell className="h-6 w-6 text-white/60" />
-              <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-                3
-              </span>
-            </button>
-            <Link
-              to="/portal"
-              onClick={clearAuth}
-              aria-label="Sign out"
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <LogOut className="h-4 w-4" />
-            </Link>
-          </div>
+          <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
+            <Bell className="h-6 w-6 text-white/60" />
+            <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
+              3
+            </span>
+          </button>
         </header>
 
         <div className="p-6">

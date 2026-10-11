@@ -524,30 +524,7 @@ export const useGrades = (params?: { student?: number; assessment?: number }) =>
         queryKey: ["grades", params],
         queryFn: async () => {
             const response = await api.get<unknown>("/school/grades/", toQueryParams(params));
-            const grades = extractArray<Grade>(response);
-
-            if (grades.length > 0) {
-                return grades;
-            }
-
-            if (!params?.student) {
-                return [];
-            }
-
-            const examMarksResponse = await api.get<unknown>("/exams/exam-marks/", { student: params.student });
-            const examMarks = extractArray<ExamMark>(examMarksResponse);
-
-            return examMarks.map((mark) => ({
-                id: mark.id,
-                student: mark.student,
-                student_name: mark.student_name,
-                assessment: mark.exam,
-                assessment_name: `Exam ${mark.exam}`,
-                subject_name: mark.subject_name,
-                score: Number(mark.scored),
-                remarks: "",
-                date_recorded: new Date().toISOString(),
-            } satisfies Grade));
+            return extractArray<Grade>(response);
         },
         enabled: !!params?.student,
     });
