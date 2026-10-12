@@ -1,0 +1,1 @@
+- AI features run in Lovable Cloud backend functions (supabase/functions), not the Django backend — keeps the AI key server-side without extra Django config.

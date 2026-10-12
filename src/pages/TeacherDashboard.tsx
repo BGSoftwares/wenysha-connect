@@ -1,5 +1,6 @@
 import { schoolContact } from "@/lib/schoolContact";
 import DashboardExtras from "@/components/dashboard/DashboardExtras";
+import AIFeedbackSection from "@/components/teacher/AIFeedbackSection";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -22,7 +23,8 @@ import {
   TrendingUp,
   Upload,
   Check,
-  X
+  X,
+  Sparkles
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { clearAuth } from "@/lib/api";
@@ -50,6 +52,7 @@ const navigation = [
   { name: "My Classes", icon: Users, id: "classes" },
   { name: "Subjects", icon: BookOpen, id: "subjects" },
   { name: "Grading", icon: FileText, id: "grading" },
+  { name: "AI Coach", icon: Sparkles, id: "ai-coach" },
   { name: "Attendance", icon: CheckSquare, id: "attendance" },
   { name: "Content", icon: Upload, id: "content" },
   { name: "Timetable", icon: Calendar, id: "timetable" },
@@ -1107,6 +1110,7 @@ const TeacherDashboard = () => {
       case "classes": return renderClasses();
       case "subjects": return renderSubjects();
       case "grading": return renderGrading();
+      case "ai-coach": return <AIFeedbackSection students={(students as any[]).map((s: any) => ({ id: s.id, name: s.name, class_name: s.class_name }))} />;
       case "attendance": return renderAttendance();
       case "content": return renderContent();
       case "timetable": return renderTimetable();
