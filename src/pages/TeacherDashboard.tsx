@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { clearAuth } from "@/lib/api";
+import MarkSheetSection from "@/components/teacher/MarkSheetSection";
 import { Button } from "@/components/ui/button";
 import {
   useTeacherProfile,
@@ -470,45 +471,18 @@ const TeacherDashboard = () => {
       </div>
 
       {selectedClassId && selectedSubjectId && (
-        <div className="bg-card rounded-xl border border-border p-5 space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Student in {uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "subject"}</p>
-              <h3 className="font-semibold text-foreground">Mark Entry</h3>
-            </div>
-            <div className="flex items-center gap-3">
-              <select
-                value={currentStudent?.id ?? ""}
-                onChange={(e) => setSelectedStudentId(Number(e.target.value))}
-                className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
-              >
-                <option value="">Select student</option>
-                {subjectStudents.map(student => <option key={student.id} value={student.id}>{student.name}</option>)}
-              </select>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                placeholder="Score"
-                value={selectedStudentScore}
-                onChange={event => currentStudent && setGradeInputs(current => ({ ...current, [currentStudent.id]: event.target.value }))}
-                className="w-24 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-center"
-              />
-            </div>
-          </div>
-
-          {currentStudent && selectedStudentScore !== "" && (
-            <div className="rounded-xl border border-border bg-secondary/20 p-4 flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Auto grade</p>
-                <p className="text-lg font-bold text-foreground">{selectedStudentGrade}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Percentage</p>
-                <p className="text-lg font-bold text-foreground">{((Number(selectedStudentScore) / 100) * 100).toFixed(1)}%</p>
-              </div>
-            </div>
-          )}
+        <div className="space-y-4">
+          <MarkSheetSection
+            students={classStudents}
+            marks={examMarks}
+            examId={selectedExamId}
+            examName={exams.find(e => e.id === selectedExamId)?.name || ""}
+            subjectId={selectedSubjectId}
+            subjectName={uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Subject"}
+            classId={selectedClassId}
+            className={uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"}
+            teacherName={teacher?.name || "Teacher"}
+          />
 
           {isClassTeacherForSelectedClass && classStudents.length > 0 && (
             <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/30 p-4 space-y-4">

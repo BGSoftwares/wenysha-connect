@@ -493,6 +493,7 @@ export interface ExamMark {
     subject_name: string;
     total_marks: number;
     scored: number;
+    comment?: string;
 }
 
 // --- Attendance (New App) ---
@@ -577,7 +578,7 @@ export const useExamMarks = (params?: { exam?: number; student?: number; subject
 export const useSaveExamMark = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (data: { exam: number; student: number; subject: number; total_marks: number; scored: number }) => {
+        mutationFn: async (data: { exam: number; student: number; subject: number; total_marks: number; scored: number; comment?: string }) => {
             const existing = await api.get<unknown>("/exams/exam-marks/", {
                 exam: String(data.exam),
                 student: String(data.student),

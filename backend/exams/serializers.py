@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Exam, ExamSchedule, ExamMark
+from .models import Exam, ExamSchedule, ExamMark, MarkSubmission
 
 
 class ExamSerializer(serializers.ModelSerializer):
@@ -30,4 +30,15 @@ class ExamMarkSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ExamMark
-        fields = ['id', 'exam', 'student', 'student_name', 'subject', 'subject_name', 'total_marks', 'scored']
+        fields = ['id', 'exam', 'student', 'student_name', 'subject', 'subject_name', 'total_marks', 'scored', 'comment']
+
+
+class MarkSubmissionSerializer(serializers.ModelSerializer):
+    exam_name = serializers.CharField(source='exam.name', read_only=True)
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    class_name = serializers.CharField(source='school_class.name', read_only=True)
+
+    class Meta:
+        model = MarkSubmission
+        fields = ['id', 'exam', 'exam_name', 'subject', 'subject_name', 'school_class', 'class_name',
+                  'teacher_name', 'note', 'submitted_at']
