@@ -50,6 +50,7 @@ class ExamMark(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='exam_marks')
     total_marks = models.PositiveIntegerField(default=100)
     scored = models.PositiveIntegerField(default=0)
+    comment = models.CharField(max_length=500, blank=True, default='')
 
     class Meta:
         unique_together = [['exam', 'student', 'subject']]
@@ -57,3 +58,16 @@ class ExamMark(models.Model):
 
     def __str__(self):
         return f"{self.student.name} - {self.subject.name} - {self.scored}/{self.total_marks}"
+
+
+class MarkSubmission(models.Model):
+    """A teacher's submitted mark sheet for one class, subject and exam."""
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name='submissions')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='mark_submissions')
+    school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='mark_submissions')
+    teacher_name = models.CharField(max_length=255, blank=True)
+    note = models.TextField(blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-submitted_at']

@@ -1,6 +1,6 @@
 from rest_framework import viewsets
-from .models import Exam, ExamSchedule, ExamMark
-from .serializers import ExamSerializer, ExamScheduleSerializer, ExamMarkSerializer
+from .models import Exam, ExamSchedule, ExamMark, MarkSubmission
+from .serializers import ExamSerializer, ExamScheduleSerializer, ExamMarkSerializer, MarkSubmissionSerializer
 
 
 class ExamViewSet(viewsets.ModelViewSet):
@@ -19,3 +19,9 @@ class ExamMarkViewSet(viewsets.ModelViewSet):
     queryset = ExamMark.objects.select_related('exam', 'student', 'subject').all()
     serializer_class = ExamMarkSerializer
     filterset_fields = ['exam', 'student', 'subject']
+
+
+class MarkSubmissionViewSet(viewsets.ModelViewSet):
+    queryset = MarkSubmission.objects.select_related('exam', 'subject', 'school_class').all()
+    serializer_class = MarkSubmissionSerializer
+    filterset_fields = ['exam', 'subject', 'school_class']
