@@ -23,6 +23,7 @@ import UsersRolesSection from "@/components/admin/UsersRolesSection";
 import SettingsSection from "@/components/admin/SettingsSection";
 import ProfileSection from "@/components/admin/ProfileSection";
 import ExamManagementSection from "@/components/admin/ExamManagementSection";
+import MarkSubmissionsSection from "@/components/admin/MarkSubmissionsSection";
 import PendingApprovalsSection from "@/components/admin/PendingApprovalsSection";
 import ParentsSection from "@/components/admin/ParentsSection";
 import LibrarySection from "@/components/admin/LibrarySection";
@@ -415,7 +416,7 @@ const AdminDashboard = () => {
       case "account": return <DashboardOverview />;
       case "attendance": return <AttendanceSection />;
       case "exam":
-      case "exam-management": return <ExamManagementSection />;
+      case "exam-management": return <div className="space-y-6"><MarkSubmissionsSection /><ExamManagementSection /></div>;
       case "pending-approvals": return <PendingApprovalsSection />;
       case "transport": return <TransportSection />;
       case "hostel": return <HostelSection />;

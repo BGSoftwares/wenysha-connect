@@ -1,11 +1,16 @@
 import { Edit, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { api, getErrorMessage } from "@/lib/api";
+import { useTeachers } from "@/lib/hooks";
 
 interface Class {
     id: number | string;
     name: string;
     capacity: number;
     enrolled: number;
+    class_teacher?: number | null;
     class_teacher_name?: string;
 }
 
@@ -17,6 +22,15 @@ interface ClassesSectionProps {
 }
 
 const ClassesSection = ({ classes, onAddClass, onEditClass, onDeleteClass }: ClassesSectionProps) => {
+    const { data: teachers = [] } = useTeachers();
+    const queryClient = useQueryClient();
+    const setClassTeacher = async (cls: Class, value: string) => {
+        try {
+            await api.patch(`/school/classes/${cls.id}/`, { class_teacher: value ? Number(value) : null });
+            await queryClient.invalidateQueries({ queryKey: ["classes"] });
+            toast.success(value ? "Class teacher assigned" : "Class teacher removed");
+        } catch (error) { toast.error(getErrorMessage(error)); }
+    };
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
@@ -46,10 +60,18 @@ const ClassesSection = ({ classes, onAddClass, onEditClass, onDeleteClass }: Cla
                                 <h3 className="font-bold text-2xl text-foreground mt-2">{cls.name}</h3>
                             </div>
 
-                            <p className="text-sm text-muted-foreground mb-6 flex items-center gap-2">
-                                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                                Teacher: <span className="font-medium text-foreground">{cls.class_teacher_name || "Unassigned"}</span>
-                            </p>
+                            <label className="block text-sm text-muted-foreground mb-6">
+                                <span className="flex items-center gap-2 mb-1"><span className="h-2 w-2 rounded-full bg-primary animate-pulse" />Class teacher</span>
+                                <select
+                                    aria-label={`Class teacher for ${cls.name}`}
+                                    value={cls.class_teacher ?? ""}
+                                    onChange={(e) => void setClassTeacher(cls, e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                                >
+                                    <option value="">Unassigned</option>
+                                    {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                            </label>
 
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between text-sm">

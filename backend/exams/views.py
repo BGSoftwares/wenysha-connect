@@ -5,8 +5,8 @@ from decimal import Decimal, ROUND_HALF_UP
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import Exam, ExamSchedule, ExamMark
-from .serializers import ExamSerializer, ExamScheduleSerializer, ExamMarkSerializer
+from .models import Exam, ExamSchedule, ExamMark, MarkSubmission
+from .serializers import ExamSerializer, ExamScheduleSerializer, ExamMarkSerializer, MarkSubmissionSerializer
 from school.models import SchoolClass, Student
 
 
@@ -106,3 +106,9 @@ class ExamRankingView(APIView):
             'level_total': level_total if level_name else None,
             'level_name': level_name,
         })
+
+
+class MarkSubmissionViewSet(viewsets.ModelViewSet):
+    queryset = MarkSubmission.objects.select_related('exam', 'subject', 'school_class').all()
+    serializer_class = MarkSubmissionSerializer
+    filterset_fields = ['exam', 'subject', 'school_class']
