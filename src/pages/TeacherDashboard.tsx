@@ -22,7 +22,8 @@ import {
   TrendingUp,
   Upload,
   Check,
-  X
+  X,
+  Trash2
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { clearAuth } from "@/lib/api";
@@ -39,7 +40,9 @@ import {
   useUpdateAttendance,
   useLearningMaterials,
   useCreateLearningMaterial,
-  useDeleteLearningMaterial
+  useDeleteLearningMaterial,
+  useUpdateLearningMaterial,
+  type LearningMaterial
 } from "@/lib/hooks";
 import { toast } from "sonner";
 import { calculateGrade } from "@/lib/grading";
@@ -95,6 +98,8 @@ const TeacherDashboard = () => {
   const { data: learningMaterials = [] } = useLearningMaterials();
   const createLearningMaterialMutation = useCreateLearningMaterial();
   const deleteLearningMaterialMutation = useDeleteLearningMaterial();
+  const updateLearningMaterialMutation = useUpdateLearningMaterial();
+  const [editingMaterial, setEditingMaterial] = useState<LearningMaterial | null>(null);
 
   const uniqueClasses = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.school_class, name: a.class_name }))))
     .map(s => JSON.parse(s));
@@ -871,12 +876,22 @@ const TeacherDashboard = () => {
                 <span className="text-sm text-muted-foreground">Uploaded by {material.uploaded_by || "teacher"}</span>
                 <div className="flex gap-2">
                   <a href={material.file_url} target="_blank" rel="noreferrer">
-                    <Button variant="outline" size="sm"><Eye className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="sm" aria-label={`View ${material.title}`}><Eye className="h-4 w-4" /></Button>
                   </a>
                   <Button
                     variant="outline"
                     size="sm"
+                    aria-label={`Edit ${material.title}`}
+                    onClick={() => setEditingMaterial({ ...material })}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label={`Delete ${material.title}`}
                     onClick={async () => {
+                      if (!window.confirm(`Delete "${material.title}"?`)) return;
                       try {
                         await deleteLearningMaterialMutation.mutateAsync(material.id);
                         toast.success("Material deleted.");
@@ -885,7 +900,7 @@ const TeacherDashboard = () => {
                       }
                     }}
                   >
-                    <Edit className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               </div>
@@ -954,6 +969,108 @@ const TeacherDashboard = () => {
           </Button>
         </div>
       </div>
+
+      {/* Edit Learning Material Modal */}
+      {editingMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setEditingMaterial(null)}>
+          <div className="w-full max-w-lg space-y-4 rounded-xl bg-card border border-border p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="border-b border-border pb-3">
+              <h3 className="text-xl font-bold">Edit Learning Material</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Update title, classroom, subject, or resource link</p>
+            </div>
+            <label className="block text-sm">
+              Title
+              <input
+                type="text"
+                value={editingMaterial.title}
+                onChange={(e) => setEditingMaterial({ ...editingMaterial, title: e.target.value })}
+                className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm">
+                Class
+                <select
+                  value={editingMaterial.class_name}
+                  onChange={(e) => setEditingMaterial({ ...editingMaterial, class_name: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="">Select class</option>
+                  {uniqueClasses.map((cls) => (
+                    <option key={cls.id} value={cls.name}>{cls.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm">
+                Subject
+                <select
+                  value={editingMaterial.subject_name}
+                  onChange={(e) => setEditingMaterial({ ...editingMaterial, subject_name: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="">Select subject</option>
+                  {uniqueSubjects.map((sub) => (
+                    <option key={sub.id} value={sub.name}>{sub.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm">
+                File Type
+                <select
+                  value={editingMaterial.file_type}
+                  onChange={(e) => setEditingMaterial({ ...editingMaterial, file_type: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="PDF">PDF</option>
+                  <option value="DOC">DOC</option>
+                  <option value="VIDEO">VIDEO</option>
+                  <option value="LINK">LINK</option>
+                </select>
+              </label>
+              <label className="block text-sm">
+                Resource URL
+                <input
+                  type="url"
+                  value={editingMaterial.file_url}
+                  onChange={(e) => setEditingMaterial({ ...editingMaterial, file_url: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                />
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button variant="outline" onClick={() => setEditingMaterial(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="gold"
+                disabled={updateLearningMaterialMutation.isPending || !editingMaterial.title.trim()}
+                onClick={async () => {
+                  try {
+                    await updateLearningMaterialMutation.mutateAsync({
+                      id: editingMaterial.id,
+                      data: {
+                        title: editingMaterial.title,
+                        class_name: editingMaterial.class_name,
+                        subject_name: editingMaterial.subject_name,
+                        file_type: editingMaterial.file_type,
+                        file_url: editingMaterial.file_url
+                      }
+                    });
+                    toast.success("Learning material updated");
+                    setEditingMaterial(null);
+                  } catch {
+                    toast.error("Failed to update learning material");
+                  }
+                }}
+              >
+                {updateLearningMaterialMutation.isPending ? "Saving changes…" : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

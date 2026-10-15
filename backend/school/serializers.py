@@ -17,10 +17,22 @@ class SchoolClassSerializer(serializers.ModelSerializer):
         return obj.students.count()
 
 
+class TeacherSubjectClassSerializer(serializers.ModelSerializer):
+    teacher_name = serializers.CharField(source='teacher.name', read_only=True)
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    class_name = serializers.CharField(source='school_class.name', read_only=True)
+
+    class Meta:
+        model = TeacherSubjectClass
+        fields = ['id', 'teacher', 'teacher_name', 'subject', 'subject_name', 'school_class', 'class_name', 'periods']
+
+
 class TeacherSerializer(serializers.ModelSerializer):
+    allocations = TeacherSubjectClassSerializer(many=True, read_only=True)
+
     class Meta:
         model = Teacher
-        fields = ['id', 'user', 'name', 'department', 'phone']
+        fields = ['id', 'user', 'name', 'department', 'phone', 'allocations']
 
 
 class SubjectSerializer(serializers.ModelSerializer):
@@ -38,16 +50,6 @@ class StudentSerializer(serializers.ModelSerializer):
             'id', 'user', 'student_id', 'name', 'school_class', 'class_name', 'gender', 'status',
             'date_of_birth', 'address'
         ]
-
-
-class TeacherSubjectClassSerializer(serializers.ModelSerializer):
-    teacher_name = serializers.CharField(source='teacher.name', read_only=True)
-    subject_name = serializers.CharField(source='subject.name', read_only=True)
-    class_name = serializers.CharField(source='school_class.name', read_only=True)
-
-    class Meta:
-        model = TeacherSubjectClass
-        fields = ['id', 'teacher', 'teacher_name', 'subject', 'subject_name', 'school_class', 'class_name', 'periods']
 
 
 class AcademicYearSerializer(serializers.ModelSerializer):

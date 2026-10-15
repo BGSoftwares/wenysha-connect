@@ -7,6 +7,8 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 load_dotenv()
 
 
@@ -14,8 +16,6 @@ def _as_list(value: str, default: str = "") -> list[str]:
     items = value if value else default
     return [item.strip() for item in items.split(',') if item.strip()]
 
-
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get(
     'DJANGO_SECRET_KEY',
@@ -26,9 +26,12 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get('DJANGO_DEBUG', os.environ.get('DEBUG', 'True')).lower() == 'true'
 
 ALLOWED_HOSTS = _as_list(
-    os.environ.get('DJANGO_ALLOWED_HOSTS', os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,::1')),
-    'localhost,127.0.0.1,0.0.0.0,::1'
+    os.environ.get('DJANGO_ALLOWED_HOSTS', os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,::1,testserver')),
+    'localhost,127.0.0.1,0.0.0.0,::1,testserver'
 )
+if 'testserver' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('testserver')
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -163,6 +166,9 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'True').lower() == 'true'
+    SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_SECURE_HSTS_SECONDS', '31536000'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True').lower() == 'true'
+    SECURE_HSTS_PRELOAD = os.environ.get('DJANGO_SECURE_HSTS_PRELOAD', 'True').lower() == 'true'
 
 # REST Framework
 REST_FRAMEWORK = {

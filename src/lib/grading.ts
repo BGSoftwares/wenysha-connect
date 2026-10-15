@@ -9,16 +9,16 @@ export interface GradeInfo {
 }
 
 /**
- * Calculate letter grade from percentage
- * A: 75-100 (Excellent)
- * B: 60-74 (Very Good)
- * C: 50-59 (Good)
- * D: 45-49 (Fair)
- * E: 40-44 (Pass)
- * U: 0-39 (Ungraded/Fail)
+ * Calculate letter grade from percentage:
+ * A: 70-100 (Excellent)
+ * B: 60-69  (Very Good)
+ * C: 50-59  (Good)
+ * D: 45-49  (Fair)
+ * E: 40-44  (Pass)
+ * U: 0-39   (Ungraded/Fail)
  */
 export const calculateGrade = (percentage: number): GradeInfo => {
-  if (percentage >= 75) {
+  if (percentage >= 70) {
     return { grade: "A", meaning: "Excellent", color: "text-green-700", bgColor: "bg-green-100" };
   } else if (percentage >= 60) {
     return { grade: "B", meaning: "Very Good", color: "text-blue-700", bgColor: "bg-blue-100" };
@@ -85,10 +85,16 @@ export const getGradeComment = (grade: string): string => {
 
 /**
  * Grading scale reference
+ * A: 70 - 100
+ * B: 60 - 69
+ * C: 50 - 59
+ * D: 45 - 49
+ * E: 40 - 44
+ * U: 0 - 39
  */
 export const GRADING_SCALE = [
-  { range: "75 – 100", grade: "A", meaning: "Excellent" },
-  { range: "60 – 74", grade: "B", meaning: "Very Good" },
+  { range: "70 – 100", grade: "A", meaning: "Excellent" },
+  { range: "60 – 69", grade: "B", meaning: "Very Good" },
   { range: "50 – 59", grade: "C", meaning: "Good" },
   { range: "45 – 49", grade: "D", meaning: "Fair" },
   { range: "40 – 44", grade: "E", meaning: "Pass" },

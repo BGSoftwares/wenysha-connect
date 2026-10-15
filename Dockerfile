@@ -1,8 +1,8 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-ARG VITE_API_BASE_URL=http://localhost:8000/api
-ARG VITE_WS_URL=ws://localhost:8000/ws/notifications/
+ARG VITE_API_BASE_URL=/api
+ARG VITE_WS_URL=/ws/notifications/
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_WS_URL=$VITE_WS_URL
 

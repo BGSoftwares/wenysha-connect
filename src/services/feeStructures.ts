@@ -12,8 +12,9 @@ export interface FeeStructure {
 }
 
 export const feeStructuresService = {
-  async getAll() {
-    return api.get<FeeStructure[]>('/finance/fee-structures/');
+  async getAll(): Promise<FeeStructure[]> {
+    const res = await api.get<FeeStructure[] | { results?: FeeStructure[] }>('/finance/fee-structures/');
+    return Array.isArray(res) ? res : (res?.results ?? []);
   },
   async getById(id: number) {
     return api.get<FeeStructure>(`/finance/fee-structures/${id}/`);

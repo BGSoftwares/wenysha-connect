@@ -14,8 +14,9 @@ export interface Student {
 }
 
 export const studentsService = {
-  async getAll() {
-    return api.get<Student[]>('/school/students/');
+  async getAll(): Promise<Student[]> {
+    const res = await api.get<Student[] | { results?: Student[] }>('/school/students/');
+    return Array.isArray(res) ? res : (res?.results ?? []);
   },
   async getById(id: number) {
     return api.get<Student>(`/school/students/${id}/`);

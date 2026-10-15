@@ -13,8 +13,9 @@ export interface Payment {
 }
 
 export const paymentsService = {
-  async getAll() {
-    return api.get<Payment[]>('/finance/payments/');
+  async getAll(): Promise<Payment[]> {
+    const res = await api.get<Payment[] | { results?: Payment[] }>('/finance/payments/');
+    return Array.isArray(res) ? res : (res?.results ?? []);
   },
   async getById(id: number) {
     return api.get<Payment>(`/finance/payments/${id}/`);

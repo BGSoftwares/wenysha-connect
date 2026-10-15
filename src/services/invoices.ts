@@ -14,8 +14,9 @@ export interface Invoice {
 }
 
 export const invoicesService = {
-  async getAll() {
-    return api.get<Invoice[]>('/finance/invoices/');
+  async getAll(): Promise<Invoice[]> {
+    const res = await api.get<Invoice[] | { results?: Invoice[] }>('/finance/invoices/');
+    return Array.isArray(res) ? res : (res?.results ?? []);
   },
   async getById(id: number) {
     return api.get<Invoice>(`/finance/invoices/${id}/`);

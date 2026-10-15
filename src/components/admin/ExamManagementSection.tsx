@@ -16,6 +16,8 @@ const ExamManagementSection = () => {
   const [marksClassId, setMarksClassId] = useState("");
   const [marksSubjectId, setMarksSubjectId] = useState("");
   const [marksDraft, setMarksDraft] = useState<Record<number, string>>({});
+  const [editingExam, setEditingExam] = useState<Exam | null>(null);
+  const [isSavingExam, setIsSavingExam] = useState(false);
   const queryClient = useQueryClient();
 
   // Logic Hooks
@@ -82,17 +84,42 @@ const ExamManagementSection = () => {
     }
   };
 
-  const handleEditExam = async (exam: Exam) => {
-    const name = window.prompt("Exam name", exam.name)?.trim();
-    if (!name || name === exam.name) return;
-    try { await api.patch(`/exams/exams/${exam.id}/`, { name }); await queryClient.invalidateQueries({ queryKey: ["exams"] }); toast.success("Exam updated"); }
-    catch (error) { toast.error(getErrorMessage(error)); }
+  const handleEditExam = (exam: Exam) => {
+    setEditingExam({ ...exam });
   };
+
+  const handleSaveExamEdit = async () => {
+    if (!editingExam) return;
+    if (!editingExam.name?.trim() || !editingExam.start_date || !editingExam.end_date) {
+      toast.error("Please fill in exam name, start date, and end date");
+      return;
+    }
+    setIsSavingExam(true);
+    try {
+      await api.patch(`/exams/exams/${editingExam.id}/`, {
+        name: editingExam.name.trim(),
+        term: editingExam.term,
+        year: editingExam.year,
+        start_date: editingExam.start_date,
+        end_date: editingExam.end_date,
+        status: editingExam.status,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["exams"] });
+      toast.success("Exam updated successfully");
+      setEditingExam(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsSavingExam(false);
+    }
+  };
+
   const handleDeleteExam = async (exam: Exam) => {
     if (!window.confirm(`Delete “${exam.name}” and its schedules and marks?`)) return;
     try { await api.delete(`/exams/exams/${exam.id}/`); await queryClient.invalidateQueries({ queryKey: ["exams"] }); toast.success("Exam deleted"); }
     catch (error) { toast.error(getErrorMessage(error)); }
   };
+
   const handleSaveMarks = async () => {
     if (!selectedExam || !marksClassId || !marksSubjectId) { toast.error("Select a class and subject first"); return; }
     const classStudents = students.filter(s => s.school_class === Number(marksClassId) && s.status === "Active");
@@ -152,7 +179,7 @@ const ExamManagementSection = () => {
               <Calendar className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">5</p>
+              <p className="text-2xl font-bold text-foreground">{exams.length}</p>
               <p className="text-xs text-muted-foreground">Total Exams</p>
             </div>
           </div>
@@ -163,7 +190,7 @@ const ExamManagementSection = () => {
               <Clock className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">1</p>
+              <p className="text-2xl font-bold text-foreground">{exams.filter(e => e.status === "scheduled").length}</p>
               <p className="text-xs text-muted-foreground">Scheduled</p>
             </div>
           </div>
@@ -174,7 +201,7 @@ const ExamManagementSection = () => {
               <CheckCircle className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">4</p>
+              <p className="text-2xl font-bold text-foreground">{exams.filter(e => e.status === "completed").length}</p>
               <p className="text-xs text-muted-foreground">Completed</p>
             </div>
           </div>
@@ -185,7 +212,7 @@ const ExamManagementSection = () => {
               <FileText className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">2</p>
+              <p className="text-2xl font-bold text-foreground">{exams.filter(e => e.status === "grading").length}</p>
               <p className="text-xs text-muted-foreground">Pending Marks</p>
             </div>
           </div>
@@ -274,13 +301,22 @@ const ExamManagementSection = () => {
                       <FileText className="h-4 w-4 mr-1" />
                       Marks
                     </Button>
-                    <Button variant="outline" size="sm" aria-label={`Edit ${exam.name}`} onClick={() => void handleEditExam(exam)}><Edit className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="sm" aria-label={`Delete ${exam.name}`} onClick={() => void handleDeleteExam(exam)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <Button variant="outline" size="sm" aria-label={`Edit ${exam.name}`} onClick={() => handleEditExam(exam)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" aria-label={`Delete ${exam.name}`} onClick={() => void handleDeleteExam(exam)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
                 </div>
               </div>
             </div>
           ))}
+          {filteredExams.length === 0 && (
+            <div className="bg-card rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
+              No exams found.
+            </div>
+          )}
         </div>
       )}
 
@@ -309,6 +345,13 @@ const ExamManagementSection = () => {
                   <td className="px-4 py-3 text-sm text-muted-foreground">{schedule.invigilator}</td>
                 </tr>
               ))}
+              {schedules.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-muted-foreground italic">
+                    No examination schedules configured yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -379,6 +422,7 @@ const ExamManagementSection = () => {
                   >
                     <option>2024</option>
                     <option>2025</option>
+                    <option>2026</option>
                   </select>
                 </div>
               </div>
@@ -493,6 +537,94 @@ const ExamManagementSection = () => {
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setShowMarksModal(false)} className="flex-1">Cancel</Button>
               <Button variant="gold" disabled={!marksClassId || !marksSubjectId || saveExamMark.isPending} onClick={() => void handleSaveMarks()} className="flex-1">{saveExamMark.isPending ? "Saving…" : "Save Marks"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Exam Modal */}
+      {editingExam && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300" onClick={() => setEditingExam(null)}>
+          <div className="bg-card rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-border animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-heading text-xl font-bold text-foreground">Edit Examination</h3>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1 block mb-1">Exam Name</label>
+                <input
+                  type="text"
+                  className="w-full p-2.5 bg-background border border-border rounded-xl text-foreground text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                  value={editingExam.name}
+                  onChange={e => setEditingExam({ ...editingExam, name: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground ml-1 block mb-1">Term</label>
+                  <select
+                    className="w-full p-2.5 bg-background border border-border rounded-xl text-foreground text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                    value={editingExam.term}
+                    onChange={e => setEditingExam({ ...editingExam, term: e.target.value })}
+                  >
+                    <option value="Term 1">Term 1</option>
+                    <option value="Term 2">Term 2</option>
+                    <option value="Term 3">Term 3</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground ml-1 block mb-1">Academic Year</label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 bg-background border border-border rounded-xl text-foreground text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                    value={editingExam.year}
+                    onChange={e => setEditingExam({ ...editingExam, year: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground ml-1 block mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    className="w-full p-2.5 bg-background border border-border rounded-xl text-foreground text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                    value={editingExam.start_date}
+                    onChange={e => setEditingExam({ ...editingExam, start_date: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase text-muted-foreground ml-1 block mb-1">End Date</label>
+                  <input
+                    type="date"
+                    className="w-full p-2.5 bg-background border border-border rounded-xl text-foreground text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                    value={editingExam.end_date}
+                    onChange={e => setEditingExam({ ...editingExam, end_date: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1 block mb-1">Status</label>
+                <select
+                  className="w-full p-2.5 bg-background border border-border rounded-xl text-foreground text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                  value={editingExam.status}
+                  onChange={e => setEditingExam({ ...editingExam, status: e.target.value as Exam["status"] })}
+                >
+                  <option value="scheduled">Scheduled</option>
+                  <option value="ongoing">Ongoing</option>
+                  <option value="grading">Grading in Progress</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <Button variant="outline" onClick={() => setEditingExam(null)} className="flex-1 rounded-xl">Cancel</Button>
+                <Button variant="gold" disabled={isSavingExam} onClick={handleSaveExamEdit} className="flex-1 rounded-xl font-bold">
+                  {isSavingExam ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

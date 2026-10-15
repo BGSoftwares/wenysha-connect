@@ -48,6 +48,7 @@ print(f"  Looking for student with user={stored_user['id']}")
 from school.models import Student
 student = Student.objects.filter(user_id=stored_user['id']).first()
 if student:
-    print(f"  ✓ Found student: {student.name}")
+    print(f"  [PASS] Found student: {student.name}")
 else:
-    print(f"  ✗ No student found with user_id={stored_user['id']}")
+    print(f"  [FAIL] No student found with user_id={stored_user['id']}")
+

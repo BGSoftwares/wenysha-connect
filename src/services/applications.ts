@@ -16,8 +16,9 @@ export interface Application {
 }
 
 export const applicationsService = {
-  async getAll() {
-    return api.get<Application[]>('/admissions/admissions/');
+  async getAll(): Promise<Application[]> {
+    const res = await api.get<Application[] | { results?: Application[] }>('/admissions/admissions/');
+    return Array.isArray(res) ? res : (res?.results ?? []);
   },
 
   async getById(id: number) {

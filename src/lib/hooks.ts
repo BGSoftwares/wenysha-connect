@@ -22,6 +22,7 @@ export interface Teacher {
     name: string;
     department: string;
     phone: string;
+    allocations?: Allocation[];
 }
 
 export interface Allocation {
@@ -221,8 +222,33 @@ export const useAllocations = (params?: { teacher?: number; subject?: number; sc
     return useQuery({
         queryKey: ["allocations", params],
         queryFn: async () => {
-            const response = await api.get<unknown>("/school/allocations/", toQueryParams(params));
-            return extractArray<Allocation>(response);
+            return await fetchAllPages<Allocation>("/school/allocations/", toQueryParams(params));
+        },
+    });
+};
+
+export const useCreateAllocation = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (payload: { teacher: number; subject: number; school_class: number; periods?: number }) => {
+            return await api.post<Allocation>("/school/allocations/", payload);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["allocations"] });
+            queryClient.invalidateQueries({ queryKey: ["teachers"] });
+        },
+    });
+};
+
+export const useDeleteAllocation = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (allocationId: number) => {
+            return await api.delete(`/school/allocations/${allocationId}/`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["allocations"] });
+            queryClient.invalidateQueries({ queryKey: ["teachers"] });
         },
     });
 };
@@ -934,3 +960,14 @@ export const useDeleteLearningMaterial = () => {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learning-materials"] }),
     });
 };
+
+export const useUpdateLearningMaterial = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ id, data }: { id: number; data: Partial<LearningMaterial> }) => {
+            return await api.patch<LearningMaterial>(`/content/materials/${id}/`, data);
+        },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learning-materials"] }),
+    });
+};
+

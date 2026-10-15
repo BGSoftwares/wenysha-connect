@@ -30,9 +30,9 @@ print(json.dumps(data, indent=2, default=str))
 
 # Check if user field is included
 if 'user' in data:
-    print(f"\n✓ 'user' field is present: {data['user']}")
+    print(f"\n[PASS] 'user' field is present: {data['user']}")
 else:
-    print(f"\n✗ 'user' field is MISSING!")
+    print(f"\n[FAIL] 'user' field is MISSING!")
 
 # Test list endpoint
 print("\n--- Testing List Endpoint ---")

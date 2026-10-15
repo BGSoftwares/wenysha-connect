@@ -12,11 +12,11 @@ const resources = [
 ];
 
 const gradingScale = [
-  { grade: "A", range: "80-100%", description: "Excellent" },
-  { grade: "B", range: "70-79%", description: "Very Good" },
-  { grade: "C", range: "60-69%", description: "Good" },
-  { grade: "D", range: "50-59%", description: "Satisfactory" },
-  { grade: "E", range: "40-49%", description: "Pass" },
+  { grade: "A", range: "70-100%", description: "Excellent" },
+  { grade: "B", range: "60-69%", description: "Very Good" },
+  { grade: "C", range: "50-59%", description: "Good" },
+  { grade: "D", range: "45-49%", description: "Fair" },
+  { grade: "E", range: "40-44%", description: "Pass" },
   { grade: "U", range: "0-39%", description: "Ungraded" },
 ];
 

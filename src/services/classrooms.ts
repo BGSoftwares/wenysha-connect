@@ -10,8 +10,9 @@ export interface ClassRoom {
 }
 
 export const classroomsService = {
-  async getAll() {
-    return api.get<ClassRoom[]>('/school/classes/');
+  async getAll(): Promise<ClassRoom[]> {
+    const res = await api.get<ClassRoom[] | { results?: ClassRoom[] }>('/school/classes/');
+    return Array.isArray(res) ? res : (res?.results ?? []);
   },
   async getById(id: number) {
     return api.get<ClassRoom>(`/school/classes/${id}/`);

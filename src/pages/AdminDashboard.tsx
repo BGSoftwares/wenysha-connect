@@ -61,14 +61,38 @@ const AdminDashboard = () => {
   const updateStudentMutation = useUpdateStudent();
   const deleteStudentMutation = useDeleteStudent();
 
-  const handleEditStudent = async (student: Student) => {
-    const name = window.prompt("Student full name", student.name)?.trim();
-    if (!name || name === student.name) return;
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [editingClass, setEditingClass] = useState<SchoolClass | null>(null);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+
+  const handleEditStudent = (student: Student) => {
+    setEditingStudent({ ...student });
+  };
+
+  const handleSaveStudentEdit = async () => {
+    if (!editingStudent) return;
+    if (!editingStudent.name?.trim() || !editingStudent.student_id?.trim()) {
+      toast.error("Student name and ID are required");
+      return;
+    }
     try {
-      await updateStudentMutation.mutateAsync({ id: student.id, data: { name } });
-      toast.success("Student record updated");
+      await updateStudentMutation.mutateAsync({
+        id: editingStudent.id,
+        data: {
+          name: editingStudent.name.trim(),
+          student_id: editingStudent.student_id.trim(),
+          school_class: Number(editingStudent.school_class),
+          gender: editingStudent.gender,
+          status: editingStudent.status,
+          date_of_birth: editingStudent.date_of_birth || undefined,
+          address: editingStudent.address || "",
+        }
+      });
+      toast.success("Student record updated successfully");
+      setEditingStudent(null);
     } catch (error) {
-      toast.error("Could not update the student record");
+      toast.error(getErrorMessage(error));
     }
   };
 
@@ -91,23 +115,81 @@ const AdminDashboard = () => {
     try { await api.delete(`${path}${id}/`); await queryClient.invalidateQueries({ queryKey: [queryKey] }); toast.success(`${label} deleted`); }
     catch (error) { toast.error(getErrorMessage(error)); }
   };
+
   const handleEditTeacher = (teacher: Teacher) => {
-    const name = window.prompt("Teacher name", teacher.name)?.trim(); if (!name) return;
-    const department = window.prompt("Department", teacher.department)?.trim(); if (!department) return;
-    const phone = window.prompt("Phone number", teacher.phone ?? ""); if (phone === null) return;
-    void updateRecord("/school/teachers/", teacher.id, { name, department, phone }, "Teacher", "teachers");
+    setEditingTeacher({ ...teacher });
   };
+
+  const handleSaveTeacherEdit = async () => {
+    if (!editingTeacher) return;
+    if (!editingTeacher.name?.trim() || !editingTeacher.department?.trim()) {
+      toast.error("Teacher name and department are required");
+      return;
+    }
+    try {
+      await api.patch(`/school/teachers/${editingTeacher.id}/`, {
+        name: editingTeacher.name.trim(),
+        department: editingTeacher.department.trim(),
+        phone: editingTeacher.phone?.trim() || "",
+      });
+      await queryClient.invalidateQueries({ queryKey: ["teachers"] });
+      toast.success("Teacher record updated successfully");
+      setEditingTeacher(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
   const handleEditClass = (schoolClass: SchoolClass) => {
-    const name = window.prompt("Class name", schoolClass.name)?.trim(); if (!name) return;
-    const capacityText = window.prompt("Class capacity", String(schoolClass.capacity)); if (capacityText === null) return;
-    const capacity = Number(capacityText); if (!Number.isInteger(capacity) || capacity < 1) { toast.error("Capacity must be a positive whole number"); return; }
-    void updateRecord("/school/classes/", schoolClass.id, { name, capacity }, "Class", "classes");
+    setEditingClass({ ...schoolClass });
   };
+
+  const handleSaveClassEdit = async () => {
+    if (!editingClass) return;
+    if (!editingClass.name?.trim()) {
+      toast.error("Class name is required");
+      return;
+    }
+    const cap = Number(editingClass.capacity);
+    if (!Number.isInteger(cap) || cap < 1) {
+      toast.error("Capacity must be a positive whole number");
+      return;
+    }
+    try {
+      await api.patch(`/school/classes/${editingClass.id}/`, {
+        name: editingClass.name.trim(),
+        capacity: cap,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["classes"] });
+      toast.success("Class record updated successfully");
+      setEditingClass(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
   const handleEditSubject = (subject: Subject) => {
-    const name = window.prompt("Subject name", subject.name)?.trim(); if (!name) return;
-    const code = window.prompt("Subject code", subject.code)?.trim(); if (!code) return;
-    const department = window.prompt("Department", subject.department)?.trim() ?? subject.department;
-    void updateRecord("/school/subjects/", subject.id, { name, code, department }, "Subject", "subjects");
+    setEditingSubject({ ...subject });
+  };
+
+  const handleSaveSubjectEdit = async () => {
+    if (!editingSubject) return;
+    if (!editingSubject.name?.trim() || !editingSubject.code?.trim()) {
+      toast.error("Subject name and code are required");
+      return;
+    }
+    try {
+      await api.patch(`/school/subjects/${editingSubject.id}/`, {
+        name: editingSubject.name.trim(),
+        code: editingSubject.code.trim(),
+        department: editingSubject.department?.trim() || "",
+      });
+      await queryClient.invalidateQueries({ queryKey: ["subjects"] });
+      toast.success("Subject record updated successfully");
+      setEditingSubject(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
   };
 
   const [newStudent, setNewStudent] = useState({ name: "", student_id: "", school_class: "", gender: "" });
@@ -279,6 +361,8 @@ const AdminDashboard = () => {
         <TeachersSection
           teachers={teachers}
           classes={classes}
+          subjects={subjects}
+          allocations={allocations}
           isLoading={isLoadingTeachers}
           onAddTeacher={() => setShowModal("addTeacher")}
           onEditTeacher={handleEditTeacher}
@@ -565,6 +649,223 @@ const AdminDashboard = () => {
                 >
                   Confirm & Save
                 </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Student Modal */}
+      {editingStudent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" onClick={() => setEditingStudent(null)}>
+          <div className="bg-card rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-heading text-2xl font-bold text-foreground">Edit Student Record</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Full Name</label>
+                <input
+                  type="text"
+                  className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                  value={editingStudent.name}
+                  onChange={e => setEditingStudent({ ...editingStudent, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Student ID</label>
+                <input
+                  type="text"
+                  className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                  value={editingStudent.student_id}
+                  onChange={e => setEditingStudent({ ...editingStudent, student_id: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Class</label>
+                  <select
+                    className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                    value={editingStudent.school_class}
+                    onChange={e => setEditingStudent({ ...editingStudent, school_class: Number(e.target.value) })}
+                  >
+                    {classes?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Gender</label>
+                  <select
+                    className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                    value={editingStudent.gender}
+                    onChange={e => setEditingStudent({ ...editingStudent, gender: e.target.value })}
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Status</label>
+                  <select
+                    className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                    value={editingStudent.status}
+                    onChange={e => setEditingStudent({ ...editingStudent, status: e.target.value as "Active" | "Inactive" })}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                    value={editingStudent.date_of_birth ?? ""}
+                    onChange={e => setEditingStudent({ ...editingStudent, date_of_birth: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Residential Address</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 124 Main Street, Harare"
+                  className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                  value={editingStudent.address ?? ""}
+                  onChange={e => setEditingStudent({ ...editingStudent, address: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <Button variant="outline" onClick={() => setEditingStudent(null)} className="flex-1 rounded-xl h-11">Cancel</Button>
+                <Button variant="gold" onClick={handleSaveStudentEdit} className="flex-1 rounded-xl h-11 font-bold shadow-lg shadow-accent/20">Save Changes</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Teacher Modal */}
+      {editingTeacher && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" onClick={() => setEditingTeacher(null)}>
+          <div className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-heading text-2xl font-bold text-foreground">Edit Teacher Profile</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Full Name</label>
+                <input
+                  type="text"
+                  className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                  value={editingTeacher.name}
+                  onChange={e => setEditingTeacher({ ...editingTeacher, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Department</label>
+                <input
+                  type="text"
+                  className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                  value={editingTeacher.department}
+                  onChange={e => setEditingTeacher({ ...editingTeacher, department: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Phone Number</label>
+                <input
+                  type="text"
+                  className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                  value={editingTeacher.phone ?? ""}
+                  onChange={e => setEditingTeacher({ ...editingTeacher, phone: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <Button variant="outline" onClick={() => setEditingTeacher(null)} className="flex-1 rounded-xl h-11">Cancel</Button>
+                <Button variant="gold" onClick={handleSaveTeacherEdit} className="flex-1 rounded-xl h-11 font-bold shadow-lg shadow-accent/20">Save Changes</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Class Modal */}
+      {editingClass && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" onClick={() => setEditingClass(null)}>
+          <div className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-heading text-2xl font-bold text-foreground">Edit Class</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Class Name</label>
+                <input
+                  type="text"
+                  className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                  value={editingClass.name}
+                  onChange={e => setEditingClass({ ...editingClass, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Max Capacity</label>
+                <input
+                  type="number"
+                  min={1}
+                  className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                  value={editingClass.capacity}
+                  onChange={e => setEditingClass({ ...editingClass, capacity: Number(e.target.value) })}
+                />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <Button variant="outline" onClick={() => setEditingClass(null)} className="flex-1 rounded-xl h-11">Cancel</Button>
+                <Button variant="gold" onClick={handleSaveClassEdit} className="flex-1 rounded-xl h-11 font-bold shadow-lg shadow-accent/20">Save Changes</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Subject Modal */}
+      {editingSubject && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" onClick={() => setEditingSubject(null)}>
+          <div className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-heading text-2xl font-bold text-foreground">Edit Subject</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Subject Name</label>
+                <input
+                  type="text"
+                  className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                  value={editingSubject.name}
+                  onChange={e => setEditingSubject({ ...editingSubject, name: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Code</label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                    value={editingSubject.code}
+                    onChange={e => setEditingSubject({ ...editingSubject, code: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Department</label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                    value={editingSubject.department}
+                    onChange={e => setEditingSubject({ ...editingSubject, department: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4 pt-4">
+                <Button variant="outline" onClick={() => setEditingSubject(null)} className="flex-1 rounded-xl h-11">Cancel</Button>
+                <Button variant="gold" onClick={handleSaveSubjectEdit} className="flex-1 rounded-xl h-11 font-bold shadow-lg shadow-accent/20">Save Changes</Button>
               </div>
             </div>
           </div>

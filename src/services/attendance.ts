@@ -10,8 +10,9 @@ export interface Attendance {
 }
 
 export const attendanceService = {
-  async getAll() {
-    return api.get<Attendance[]>('/attendance/attendance/');
+  async getAll(): Promise<Attendance[]> {
+    const res = await api.get<Attendance[] | { results?: Attendance[] }>('/attendance/attendance/');
+    return Array.isArray(res) ? res : (res?.results ?? []);
   },
 
   async getById(id: number) {

@@ -8,17 +8,24 @@ services:
       - ./backend/.env
     ports:
       - "8000:8000"
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    volumes:
+      - backend_data:/app
     restart: unless-stopped
 
   frontend:
     build:
       context: .
       args:
-        VITE_API_BASE_URL: http://localhost:8000/api
-        VITE_WS_URL: ws://localhost:8000/ws/notifications/
+        VITE_API_BASE_URL: /api
+        VITE_WS_URL: /ws/notifications/
     depends_on:
       - backend
     ports:
       - "80:80"
     restart: unless-stopped
+
+volumes:
+  backend_data:

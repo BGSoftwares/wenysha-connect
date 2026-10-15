@@ -284,7 +284,7 @@ const ParentPortal = () => {
                                                                         <td className="px-6 py-4 font-bold text-foreground">{g.subject_name}</td>
                                                                         <td className="px-6 py-4 text-sm text-muted-foreground">{g.assessment_name}</td>
                                                                         <td className="px-6 py-4">
-                                                                            <Badge className={Number(g.score) >= 75 ? "bg-green-100 text-green-700" : Number(g.score) >= 50 ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"}>
+                                                                            <Badge className={Number(g.score) >= 70 ? "bg-green-100 text-green-700" : Number(g.score) >= 50 ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"}>
                                                                                 {g.score}%
                                                                             </Badge>
                                                                         </td>

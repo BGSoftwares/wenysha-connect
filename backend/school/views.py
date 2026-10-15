@@ -22,7 +22,7 @@ class SchoolClassViewSet(viewsets.ModelViewSet):
 
 
 class TeacherViewSet(viewsets.ModelViewSet):
-    queryset = Teacher.objects.all().order_by('id')
+    queryset = Teacher.objects.prefetch_related('allocations__subject', 'allocations__school_class', 'teaching_classes').all().order_by('id')
     serializer_class = TeacherSerializer
 
     def destroy(self, request, *args, **kwargs):
