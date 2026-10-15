@@ -94,6 +94,9 @@ for user_data in test_users:
         print(f"[OK] Created user: {username} ({email})")
     else:
         print(f"[INFO] User already exists: {username}")
+        if user.email != email:
+            user.email = email
+            user.save()
         # Update password if needed
         if not user.check_password(password):
             user.set_password(password)
