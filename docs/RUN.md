@@ -5,7 +5,7 @@
 - **Node.js** (v18+) and **npm**
 - **Python** 3.10+
 - **MySQL** 5.7+ or 8.x
-- **MySQL database** created, e.g. `wenyasha_connect`
+- **MySQL database** created, e.g. `able_god_college`
 
 ---
 
@@ -14,9 +14,9 @@
 Create database and user:
 
 ```sql
-CREATE DATABASE wenyasha_connect CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'wenyasha'@'localhost' IDENTIFIED BY 'your_password';
-GRANT ALL ON wenyasha_connect.* TO 'wenyasha'@'localhost';
+CREATE DATABASE able_god_college CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'ablegodcollege'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL ON able_god_college.* TO 'ablegodcollege'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
@@ -52,8 +52,8 @@ pip install -r requirements.txt
 
 Create `.env` from `.env.example` and set:
 
-- `MYSQL_DATABASE=wenyasha_connect`
-- `MYSQL_USER=wenyasha`
+- `MYSQL_DATABASE=able_god_college`
+- `MYSQL_USER=ablegodcollege`
 - `MYSQL_PASSWORD=your_password`
 - `MYSQL_HOST=127.0.0.1`
 - `MYSQL_PORT=3306`
@@ -96,7 +96,7 @@ API base: **http://127.0.0.1:8000/api**
 ## 3. Frontend (React + Vite)
 
 ```bash
-# From project root (wenysha-connect-main)
+# From project root (Able God College)
 npm install
 ```
 

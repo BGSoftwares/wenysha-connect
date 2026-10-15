@@ -11,9 +11,9 @@ const getApiBaseUrl = (): string => {
   return url.replace(/\/$/, "");
 };
 
-const TOKEN_KEY = "wenyasha_access_token";
-const REFRESH_KEY = "wenyasha_refresh_token";
-const USER_KEY = "wenyasha_user";
+const TOKEN_KEY = "ablegodcollege_access_token";
+const REFRESH_KEY = "ablegodcollege_refresh_token";
+const USER_KEY = "ablegodcollege_user";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);

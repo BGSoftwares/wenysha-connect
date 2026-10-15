@@ -23,7 +23,7 @@ for role_name in ROLES:
 test_users = [
     {
         'username': 'admin',
-        'email': 'admin@wenysha.com',
+        'email': 'admin@ablegodcollege.edu',
         'password': 'adminpass',
         'role': 'Admin',
         'full_name': 'Administrator',
@@ -32,7 +32,7 @@ test_users = [
     },
     {
         'username': 'teacher01',
-        'email': 'teacher01@wenysha.com',
+        'email': 'teacher01@ablegodcollege.edu',
         'password': 'teacher123',
         'role': 'Teacher',
         'full_name': 'Mrs. Sarah Johnson',
@@ -41,7 +41,7 @@ test_users = [
     },
     {
         'username': 'student01',
-        'email': 'student01@wenysha.com',
+        'email': 'student01@ablegodcollege.edu',
         'password': 'student123',
         'role': 'Student',
         'full_name': 'John Smith',
@@ -50,7 +50,7 @@ test_users = [
     },
     {
         'username': 'parent01',
-        'email': 'parent01@wenysha.com',
+        'email': 'parent01@ablegodcollege.edu',
         'password': 'parent123',
         'role': 'Parent',
         'full_name': 'Mr. Michael Smith',
@@ -59,7 +59,7 @@ test_users = [
     },
     {
         'username': 'accounts01',
-        'email': 'accounts01@wenysha.com',
+        'email': 'accounts01@ablegodcollege.edu',
         'password': 'accounts123',
         'role': 'Accounts',
         'full_name': 'Finance Officer',

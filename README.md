@@ -59,7 +59,7 @@ If the Lovable ↔ GitHub link is disconnected or the default branch (`main`) ne
 
 Each script will:
 
-1. Point the `origin` remote to `https://github.com/BGSoftwares/wenyasha-connect.git`.
+1. Point the `origin` remote to `https://github.com/BGSoftwares/wenysha-connect.git`.
 2. Fetch the latest `main` from GitHub.
 3. Merge any remote changes into the local `main`.
 4. Push the local `main` to GitHub so both branches are in sync.

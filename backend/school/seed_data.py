@@ -63,7 +63,7 @@ def ensure_academic_seed_data():
     if user is None:
         user = User.objects.create_user(
             username="student01",
-            email="student01@wenysha.com",
+            email="student01@ablegodcollege.edu",
             password="student123",
         )
 
