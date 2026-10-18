@@ -1,3 +1,4 @@
+import { api } from "@/lib/api";
 import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Plus, Printer, Download, Search, CreditCard, Receipt, Loader2, Calendar, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
+import { Plus, Printer, Upload, CheckCircle2, Download, Search, CreditCard, Receipt, Loader2, Calendar, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
 import { usePayments, useCreatePayment, useInvoices, Payment as PaymentType } from "@/lib/hooks";
 import { paymentSchema, type PaymentFormData } from "@/lib/validations";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMethod, setFilterMethod] = useState("all");
   const [showRecordModal, setShowRecordModal] = useState(false);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -84,17 +86,34 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
       if (!confirmed) return;
     }
 
-    try {
+        try {
+      let finalRef = data.reference || "";
+      if (receiptFile) {
+        try {
+          const fd = new FormData();
+          fd.append("file", receiptFile);
+          fd.append("title", `Payment Receipt - ${selectedInvoice?.invoice_no || "Inv"} (${receiptFile.name})`);
+          fd.append("subject_name", "Payment Slips");
+          fd.append("class_name", "Accounts");
+          fd.append("uploaded_by", "Accounts Officer");
+          await api.postForm("/content/materials/", fd);
+          finalRef = finalRef ? `${finalRef} [Receipt: ${receiptFile.name}]` : `Receipt: ${receiptFile.name}`;
+        } catch {
+          // continue saving payment
+        }
+      }
+
       await createPaymentMutation.mutateAsync({
         invoice: parseInt(data.invoiceId),
         amount,
         method: data.method,
-        reference: data.reference || "",
+        reference: finalRef,
         date: new Date().toISOString().split("T")[0],
       });
       setShowRecordModal(false);
       form.reset();
-      toast.success("Payment recorded successfully — invoice updated");
+      setReceiptFile(null);
+      toast.success("Payment recorded successfully with invoice updated");
     } catch {
       toast.error("Failed to record payment. Please try again.");
     }
@@ -325,6 +344,26 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
                   </FormItem>
                 )}
               />
+                            <div className="rounded-xl border border-dashed border-border p-4 bg-muted/20 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Upload className="h-4 w-4 text-primary" />
+                  <label className="text-[10px] font-bold text-accent uppercase tracking-widest">
+                    Attach Receipt Slip / Bank Teller (from device)
+                  </label>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1 file:text-primary-foreground file:text-xs cursor-pointer"
+                />
+                {receiptFile && (
+                  <p className="text-xs text-emerald-600 flex items-center gap-1 font-medium">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Selected: {receiptFile.name} ({(receiptFile.size / 1024).toFixed(0)} KB)
+                  </p>
+                )}
+              </div>
+
               <DialogFooter className="gap-2">
                 <Button type="button" variant="outline" onClick={() => setShowRecordModal(false)} className="h-12 flex-1 rounded-xl">
                   Discard

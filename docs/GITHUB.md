@@ -1,6 +1,6 @@
 # Connect This Project to GitHub
 
-This repo is intended to connect to: **https://github.com/BGSoftwares/wenysha-connect.git**
+This repo is intended to connect to: **https://github.com/BGSoftwares/AbleGodCollegeELibrary.git**
 
 ## Prerequisites
 
@@ -17,19 +17,19 @@ git init
 ### 2. Add the GitHub remote
 
 ```bash
-git remote add origin https://github.com/BGSoftwares/wenysha-connect.git
+git remote add origin https://github.com/BGSoftwares/AbleGodCollegeELibrary.git
 ```
 
 If `origin` already exists and points elsewhere, either update it:
 
 ```bash
-git remote set-url origin https://github.com/BGSoftwares/wenysha-connect.git
+git remote set-url origin https://github.com/BGSoftwares/AbleGodCollegeELibrary.git
 ```
 
 or add a different name:
 
 ```bash
-git remote add github https://github.com/BGSoftwares/wenysha-connect.git
+git remote add github https://github.com/BGSoftwares/AbleGodCollegeELibrary.git
 ```
 
 ### 3. Ensure secrets are not committed
@@ -64,7 +64,7 @@ git push -u origin main
 ### 5. Authentication
 
 - **HTTPS:** Git will prompt for your GitHub username and a **Personal Access Token** (not your GitHub password). Create one at: GitHub → Settings → Developer settings → Personal access tokens.
-- **SSH:** If you use SSH keys, use the SSH URL: `git@github.com:BGSoftwares/wenysha-connect.git` and set `origin` to that instead.
+- **SSH:** If you use SSH keys, use the SSH URL: `git@github.com:BGSoftwares/AbleGodCollegeELibrary.git` and set `origin` to that instead.
 
 ---
 

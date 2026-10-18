@@ -60,6 +60,7 @@ const navigation: NavItem[] = [
   },
   { name: "Parents", icon: UserCog, id: "parents" },
   { name: "Library", icon: BookOpen, id: "library" },
+  { name: "Learning Materials", icon: FileText, id: "learning-materials" },
   { name: "Account", icon: CreditCard, id: "account" },
   {
     name: "Class",

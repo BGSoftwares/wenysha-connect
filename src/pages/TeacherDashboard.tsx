@@ -22,6 +22,7 @@ import {
   User,
   TrendingUp,
   Upload,
+  Share2,
   Check,
   X,
   Trash2,
@@ -30,6 +31,7 @@ import {
 import logo from "/able-god-college-logo.png";
 import { clearAuth } from "@/lib/api";
 import MarkSheetSection from "@/components/teacher/MarkSheetSection";
+import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
 import { Button } from "@/components/ui/button";
 import {
   useTeacherProfile,
@@ -41,13 +43,9 @@ import {
   useSaveExamMark,
   useAttendanceRecords,
   useUpdateAttendance,
-  useLearningMaterials,
-  useCreateLearningMaterial,
-  useDeleteLearningMaterial,
-  useUpdateLearningMaterial,
-  type LearningMaterial
 } from "@/lib/hooks";
 import { toast } from "sonner";
+import { buildAttendancePdf, sharePdfToWhatsApp } from "@/lib/pdfExport";
 import { calculateGrade } from "@/lib/grading";
 import { getPrincipalComment, getTeacherComment, TEACHER_COMMENT_LIBRARY } from "@/lib/reportComments";
 
@@ -74,13 +72,6 @@ const TeacherDashboard = () => {
   const [classTeacherComments, setClassTeacherComments] = useState<Record<number, string>>({});
   const [reportCardRows, setReportCardRows] = useState<Array<{ studentId: number; studentName: string; score: number; percentage: number; grade: string }>>([]);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [materialDraft, setMaterialDraft] = useState({
-    title: "",
-    subject_name: "",
-    class_name: "",
-    file_url: "",
-    file_type: "PDF",
-  });
 
   // Data Hooks
   const { data: teacher, isLoading: isLoadingProfile } = useTeacherProfile();
@@ -99,23 +90,12 @@ const TeacherDashboard = () => {
 
   const updateAttendanceMutation = useUpdateAttendance();
   const saveExamMarkMutation = useSaveExamMark();
-  const { data: learningMaterials = [] } = useLearningMaterials();
-  const createLearningMaterialMutation = useCreateLearningMaterial();
-  const deleteLearningMaterialMutation = useDeleteLearningMaterial();
-  const updateLearningMaterialMutation = useUpdateLearningMaterial();
-  const [editingMaterial, setEditingMaterial] = useState<LearningMaterial | null>(null);
 
   const uniqueClasses = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.school_class, name: a.class_name }))))
     .map(s => JSON.parse(s));
 
   const uniqueSubjects = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.subject, name: a.subject_name }))))
     .map(s => JSON.parse(s));
-
-  const assignedMaterials = (learningMaterials ?? []).filter((material) => {
-    const matchesClass = uniqueClasses.some((schoolClass) => schoolClass.name === material.class_name);
-    const matchesSubject = uniqueSubjects.some((subject) => subject.name === material.subject_name);
-    return matchesClass && matchesSubject;
-  });
 
   const classStudents = students.filter(student => student.school_class === selectedClassId);
 
@@ -268,27 +248,37 @@ const TeacherDashboard = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleUploadMaterial = async () => {
-    if (!materialDraft.title.trim() || !materialDraft.subject_name || !materialDraft.class_name || !materialDraft.file_url.trim()) {
-      toast.error("Add a title, subject, class, and file link before uploading.");
+  const shareAttendanceToParents = async () => {
+    if (!isClassTeacherForSelectedClass) {
+      toast.error("Only the class teacher can send attendance to the parents WhatsApp group.");
       return;
     }
-
-    try {
-      await createLearningMaterialMutation.mutateAsync({
-        title: materialDraft.title.trim(),
-        subject_name: materialDraft.subject_name,
-        class_name: materialDraft.class_name,
-        file_url: materialDraft.file_url.trim(),
-        file_type: materialDraft.file_type,
-        uploaded_by: teacher?.name || "Teacher",
-      });
-
-      setMaterialDraft({ title: "", subject_name: "", class_name: "", file_url: "", file_type: "PDF" });
-      toast.success("Learning material uploaded successfully.");
-    } catch (error) {
-      toast.error("Could not upload this learning material.");
+    if (classAttendance.length === 0) {
+      toast.error("Mark attendance for this class first.");
+      return;
     }
+    const className = selectedClass?.name || "Class";
+    const pdf = buildAttendancePdf({
+      className,
+      date: attendanceDate,
+      teacherName,
+      rows: classAttendance.map(({ student, status }) => ({ name: student.name, status })),
+    });
+    const result = await sharePdfToWhatsApp({
+      pdf,
+      fileName: `${className}-attendance-${attendanceDate}.pdf`.replace(/\s+/g, "_"),
+      text: `${className} marked attendance for ${attendanceDate} from ${teacherName}.`,
+      groupUrl: selectedClass?.parents_whatsapp_group,
+    });
+    if (result === "shared") {
+      toast.success("Attendance PDF sent.");
+      return;
+    }
+    toast.info(
+      selectedClass?.parents_whatsapp_group
+        ? "Attendance PDF downloaded. Attach it in the parents WhatsApp group that just opened."
+        : "Attendance PDF downloaded. Ask admin to save this class parents WhatsApp group link, then attach the PDF in the group."
+    );
   };
 
   const renderDashboard = () => (
@@ -826,229 +816,12 @@ const TeacherDashboard = () => {
   );
 
   const renderContent = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-heading text-xl font-bold text-foreground">Learning Materials</h2>
-        <span className="text-sm text-muted-foreground">Assigned subjects: {uniqueSubjects.length}</span>
-      </div>
-
-      <div className="grid gap-4">
-        {assignedMaterials.length === 0 ? (
-          <div className="bg-card rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
-            No learning materials have been added for your assigned classes and subjects yet.
-          </div>
-        ) : (
-          assignedMaterials.map((material) => (
-            <div key={material.id} className="bg-card rounded-xl border border-border p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-foreground">{material.title}</h3>
-                  <p className="text-sm text-muted-foreground">{material.subject_name} • {material.class_name || "Class"} • {material.file_type} • {new Date(material.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">Uploaded by {material.uploaded_by || "teacher"}</span>
-                <div className="flex gap-2">
-                  <a href={material.file_url} target="_blank" rel="noreferrer">
-                    <Button variant="outline" size="sm" aria-label={`View ${material.title}`}><Eye className="h-4 w-4" /></Button>
-                  </a>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    aria-label={`Edit ${material.title}`}
-                    onClick={() => setEditingMaterial({ ...material })}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    aria-label={`Delete ${material.title}`}
-                    onClick={async () => {
-                      if (!window.confirm(`Delete "${material.title}"?`)) return;
-                      try {
-                        await deleteLearningMaterialMutation.mutateAsync(material.id);
-                        toast.success("Material deleted.");
-                      } catch {
-                        toast.error("Unable to delete this material.");
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="border-2 border-dashed border-border rounded-xl p-6 space-y-4">
-        <div className="flex items-center gap-3 text-foreground">
-          <Upload className="h-6 w-6 text-muted-foreground" />
-          <h3 className="font-medium">Upload Learning Materials</h3>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            value={materialDraft.title}
-            onChange={(event) => setMaterialDraft((current) => ({ ...current, title: event.target.value }))}
-            placeholder="Material title"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          />
-          <select
-            value={materialDraft.class_name}
-            onChange={(event) => setMaterialDraft((current) => ({ ...current, class_name: event.target.value }))}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            <option value="">Select class</option>
-            {uniqueClasses.map((schoolClass) => (
-              <option key={schoolClass.id} value={schoolClass.name}>{schoolClass.name}</option>
-            ))}
-          </select>
-          <select
-            value={materialDraft.subject_name}
-            onChange={(event) => setMaterialDraft((current) => ({ ...current, subject_name: event.target.value }))}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            <option value="">Select subject</option>
-            {uniqueSubjects.map((subject) => (
-              <option key={subject.id} value={subject.name}>{subject.name}</option>
-            ))}
-          </select>
-          <select
-            value={materialDraft.file_type}
-            onChange={(event) => setMaterialDraft((current) => ({ ...current, file_type: event.target.value }))}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            <option value="PDF">PDF</option>
-            <option value="DOC">DOC</option>
-            <option value="VIDEO">VIDEO</option>
-            <option value="LINK">LINK</option>
-          </select>
-        </div>
-
-        <input
-          type="url"
-          value={materialDraft.file_url}
-          onChange={(event) => setMaterialDraft((current) => ({ ...current, file_url: event.target.value }))}
-          placeholder="https://example.com/notes.pdf"
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-        />
-
-        <div className="flex justify-end">
-          <Button variant="gold" onClick={() => void handleUploadMaterial()} disabled={createLearningMaterialMutation.isPending}>
-            {createLearningMaterialMutation.isPending ? "Uploading..." : "Upload Material"}
-          </Button>
-        </div>
-      </div>
-
-      {/* Edit Learning Material Modal */}
-      {editingMaterial && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setEditingMaterial(null)}>
-          <div className="w-full max-w-lg space-y-4 rounded-xl bg-card border border-border p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="border-b border-border pb-3">
-              <h3 className="text-xl font-bold">Edit Learning Material</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Update title, classroom, subject, or resource link</p>
-            </div>
-            <label className="block text-sm">
-              Title
-              <input
-                type="text"
-                value={editingMaterial.title}
-                onChange={(e) => setEditingMaterial({ ...editingMaterial, title: e.target.value })}
-                className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-sm">
-                Class
-                <select
-                  value={editingMaterial.class_name}
-                  onChange={(e) => setEditingMaterial({ ...editingMaterial, class_name: e.target.value })}
-                  className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                >
-                  <option value="">Select class</option>
-                  {uniqueClasses.map((cls) => (
-                    <option key={cls.id} value={cls.name}>{cls.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                Subject
-                <select
-                  value={editingMaterial.subject_name}
-                  onChange={(e) => setEditingMaterial({ ...editingMaterial, subject_name: e.target.value })}
-                  className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                >
-                  <option value="">Select subject</option>
-                  {uniqueSubjects.map((sub) => (
-                    <option key={sub.id} value={sub.name}>{sub.name}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-sm">
-                File Type
-                <select
-                  value={editingMaterial.file_type}
-                  onChange={(e) => setEditingMaterial({ ...editingMaterial, file_type: e.target.value })}
-                  className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                >
-                  <option value="PDF">PDF</option>
-                  <option value="DOC">DOC</option>
-                  <option value="VIDEO">VIDEO</option>
-                  <option value="LINK">LINK</option>
-                </select>
-              </label>
-              <label className="block text-sm">
-                Resource URL
-                <input
-                  type="url"
-                  value={editingMaterial.file_url}
-                  onChange={(e) => setEditingMaterial({ ...editingMaterial, file_url: e.target.value })}
-                  className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                />
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <Button variant="outline" onClick={() => setEditingMaterial(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="gold"
-                disabled={updateLearningMaterialMutation.isPending || !editingMaterial.title.trim()}
-                onClick={async () => {
-                  try {
-                    await updateLearningMaterialMutation.mutateAsync({
-                      id: editingMaterial.id,
-                      data: {
-                        title: editingMaterial.title,
-                        class_name: editingMaterial.class_name,
-                        subject_name: editingMaterial.subject_name,
-                        file_type: editingMaterial.file_type,
-                        file_url: editingMaterial.file_url
-                      }
-                    });
-                    toast.success("Learning material updated");
-                    setEditingMaterial(null);
-                  } catch {
-                    toast.error("Failed to update learning material");
-                  }
-                }}
-              >
-                {updateLearningMaterialMutation.isPending ? "Saving changes…" : "Save Changes"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <LearningMaterialsSection
+      classes={uniqueClasses}
+      subjects={uniqueSubjects}
+      uploadedBy={teacher ? `Teacher ${teacher.name}` : "Teacher"}
+      emptyHint="No notes or materials have been uploaded yet. Choose a file from this computer to share with the class."
+    />
   );
 
   const renderTimetable = () => {
@@ -1256,7 +1029,14 @@ const TeacherDashboard = () => {
             </div>
             <div>
               <p className="font-bold text-sm text-white">{teacherName}</p>
-              <p className="text-[10px] text-accent font-bold uppercase tracking-tight">{department}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] text-accent font-bold uppercase tracking-tight">{department}</p>
+                {teacher?.employee_id && (
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-white/10 text-white/90 border border-white/20">
+                    {teacher.employee_id}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <Link

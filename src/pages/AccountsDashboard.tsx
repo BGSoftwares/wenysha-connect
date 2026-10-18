@@ -10,6 +10,7 @@ import BalancesSection from "@/components/accounts/BalancesSection";
 import DiscountsSection from "@/components/accounts/DiscountsSection";
 import ReportsSection from "@/components/accounts/ReportsSection";
 import AccountsProfileSection from "@/components/accounts/AccountsProfileSection";
+import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
 
 const AccountsDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
@@ -30,6 +31,7 @@ const AccountsDashboard = () => {
       arrears: "Arrears & Compliance",
       reports: "Reports & Analytics",
       profile: "My Profile",
+      "financial-documents": "Financial Documents & Notes",
     };
     return titles[activeNav] || "Dashboard";
   };
@@ -56,6 +58,24 @@ const AccountsDashboard = () => {
         return <ReportsSection />;
       case "profile":
         return <AccountsProfileSection />;
+      case "financial-documents":
+        return (
+          <LearningMaterialsSection
+            classes={[
+              { id: 101, name: "Fee Schedules" },
+              { id: 102, name: "Financial Policies" },
+              { id: 103, name: "Audit Reports" },
+              { id: 104, name: "Budgets & Planning" },
+            ]}
+            subjects={[
+              { id: 201, name: "Accounts & Billing" },
+              { id: 202, name: "Bank & Receipts" },
+              { id: 203, name: "Compliance & Tax" },
+            ]}
+            uploadedBy="Accounts Officer"
+            emptyHint="No financial documents or notes uploaded yet. Choose a fee schedule, spreadsheet, receipt scan, or policy document from your device."
+          />
+        );
       default:
         return <AccountsOverview onNavigate={setActiveNav} />;
     }

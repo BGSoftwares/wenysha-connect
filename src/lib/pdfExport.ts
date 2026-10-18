@@ -197,3 +197,90 @@ export const exportFeeStatementPdf = async (data: FeeStatementPdfData) => {
 
   pdf.save(`Fee_Statement_${data.studentName.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`);
 };
+
+export interface AttendancePdfRow {
+  name: string;
+  status: string;
+}
+
+export const buildAttendancePdf = (opts: {
+  className: string;
+  date: string;
+  teacherName: string;
+  rows: AttendancePdfRow[];
+}) => {
+  const pdf = new jsPDF("p", "mm", "a4");
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  let y = 18;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(16);
+  pdf.text("ABLE GOD COLLEGE", pageWidth / 2, y, { align: "center" });
+  y += 8;
+  pdf.setFontSize(13);
+  pdf.text("Marked Class Attendance", pageWidth / 2, y, { align: "center" });
+  y += 10;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.text(`Class: ${opts.className}`, 14, y);
+  pdf.text(`Date: ${opts.date}`, pageWidth - 14, y, { align: "right" });
+  y += 6;
+  pdf.text(`Class teacher: ${opts.teacherName}`, 14, y);
+  y += 10;
+
+  const present = opts.rows.filter((row) => row.status === "present").length;
+  const absent = opts.rows.filter((row) => row.status === "absent").length;
+  const late = opts.rows.filter((row) => row.status === "late").length;
+  pdf.setFont("helvetica", "bold");
+  pdf.text(`Present: ${present}    Absent: ${absent}    Late: ${late}    Total: ${opts.rows.length}`, 14, y);
+  y += 8;
+
+  pdf.text("#", 14, y);
+  pdf.text("Learner", 24, y);
+  pdf.text("Status", 150, y);
+  pdf.setFont("helvetica", "normal");
+  pdf.line(14, y + 2, pageWidth - 14, y + 2);
+  y += 8;
+
+  opts.rows.forEach((row, index) => {
+    if (y > 280) {
+      pdf.addPage();
+      y = 20;
+    }
+    pdf.text(String(index + 1), 14, y);
+    pdf.text(pdf.splitTextToSize(row.name, 120)[0], 24, y);
+    pdf.text(row.status.toUpperCase(), 150, y);
+    y += 7;
+  });
+
+  y += 8;
+  pdf.setFontSize(8);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text("Generated from the Able God College teacher portal for the class parents WhatsApp group.", 14, y);
+  return pdf;
+};
+
+export async function sharePdfToWhatsApp(opts: {
+  pdf: jsPDF;
+  fileName: string;
+  text: string;
+  groupUrl?: string;
+}): Promise<"shared" | "opened"> {
+  const blob = opts.pdf.output("blob");
+  const file = new File([blob], opts.fileName, { type: "application/pdf" });
+  const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+  if (nav.canShare?.({ files: [file] })) {
+    try {
+      await nav.share({ files: [file], title: opts.fileName, text: opts.text });
+      return "shared";
+    } catch {
+      return "opened";
+    }
+  }
+  opts.pdf.save(opts.fileName);
+  const destination = opts.groupUrl?.trim()
+    ? opts.groupUrl.trim()
+    : `https://wa.me/?text=${encodeURIComponent(`${opts.text} Attach the downloaded attendance PDF.`)}`;
+  window.open(destination, "_blank", "noopener,noreferrer");
+  return "opened";
+}

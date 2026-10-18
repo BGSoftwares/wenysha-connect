@@ -34,7 +34,7 @@ else
 fi
 
 # Create directories
-mkdir -p backend core backend/wenysha_backend backend/core/management/commands backend/core/migrations sql
+mkdir -p backend core backend/ablegod_backend backend/core/management/commands backend/core/migrations sql
 
 # Now create each file. Use heredocs to avoid editing by hand.
 
@@ -57,8 +57,8 @@ DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost
 # MySQL connection used by Django
 MYSQL_HOST=127.0.0.1
 MYSQL_PORT=3306
-MYSQL_DATABASE=wenysha_connect
-MYSQL_USER=wenysha_user
+MYSQL_DATABASE=ablegod_connect
+MYSQL_USER=ablegod_user
 MYSQL_PASSWORD=secretpassword
 
 # CORS
@@ -84,8 +84,8 @@ set -euo pipefail
 
 MYSQL_ROOT_USER="${1:-root}"
 MYSQL_ROOT_PASSWORD="${2:-}"
-DB_NAME="${3:-wenysha_connect}"
-DB_USER="${4:-wenysha_user}"
+DB_NAME="${3:-ablegod_connect}"
+DB_USER="${4:-ablegod_user}"
 DB_PASSWORD="${5:-secretpassword}"
 MYSQL_HOST="${6:-127.0.0.1}"
 MYSQL_PORT="${7:-3306}"
@@ -150,9 +150,9 @@ chmod +x backend/setup_and_seed.sh
 
 cat > sql/db_create_and_user.sql <<'EOF'
 -- Replace placeholders: <DB>, <DB_USER>, <DB_PASSWORD>
-CREATE DATABASE IF NOT EXISTS `wenysha_connect` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'wenysha_user'@'%' IDENTIFIED BY 'secretpassword';
-GRANT ALL PRIVILEGES ON `wenysha_connect`.* TO 'wenysha_user'@'%';
+CREATE DATABASE IF NOT EXISTS `ablegod_connect` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'ablegod_user'@'%' IDENTIFIED BY 'secretpassword';
+GRANT ALL PRIVILEGES ON `ablegod_connect`.* TO 'ablegod_user'@'%';
 FLUSH PRIVILEGES;
 EOF
 
@@ -162,7 +162,7 @@ import os
 import sys
 
 def main():
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wenysha_backend.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ablegod_backend.settings")
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
@@ -173,27 +173,27 @@ if __name__ == "__main__":
     main()
 EOF
 
-cat > backend/wenysha_backend/__init__.py <<'EOF'
-# package initializer for wenysha_backend
+cat > backend/ablegod_backend/__init__.py <<'EOF'
+# package initializer for ablegod_backend
 EOF
 
-cat > backend/wenysha_backend/asgi.py <<'EOF'
+cat > backend/ablegod_backend/asgi.py <<'EOF'
 import os
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wenysha_backend.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ablegod_backend.settings")
 application = get_asgi_application()
 EOF
 
-cat > backend/wenysha_backend/wsgi.py <<'EOF'
+cat > backend/ablegod_backend/wsgi.py <<'EOF'
 import os
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wenysha_backend.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ablegod_backend.settings")
 application = get_wsgi_application()
 EOF
 
-cat > backend/wenysha_backend/settings.py <<'EOF'
+cat > backend/ablegod_backend/settings.py <<'EOF'
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -231,7 +231,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "wenysha_backend.urls"
+ROOT_URLCONF = "ablegod_backend.urls"
 
 TEMPLATES = [
     {
@@ -245,12 +245,12 @@ TEMPLATES = [
     }
 ]
 
-WSGI_APPLICATION = "wenysha_backend.wsgi.application"
+WSGI_APPLICATION = "ablegod_backend.wsgi.application"
 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("MYSQL_DATABASE", "wenysha_connect"),
+        "NAME": os.getenv("MYSQL_DATABASE", "ablegod_connect"),
         "USER": os.getenv("MYSQL_USER", "root"),
         "PASSWORD": os.getenv("MYSQL_PASSWORD", ""),
         "HOST": os.getenv("MYSQL_HOST", "127.0.0.1"),
@@ -297,7 +297,7 @@ SIMPLE_JWT = {
 }
 EOF
 
-cat > backend/wenysha_backend/urls.py <<'EOF'
+cat > backend/ablegod_backend/urls.py <<'EOF'
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import (
@@ -766,4 +766,4 @@ echo "Done. Files created and pushed to ${BRANCH}."
 echo "Next: run backend/setup_and_seed.sh with MySQL root credentials to create DB, run migrations and seed data."
 echo "Example:"
 echo "  chmod +x backend/setup_and_seed.sh"
-echo "  ./backend/setup_and_seed.sh root <mysql_root_password> wenysha_connect wenysha_user secretpassword 127.0.0.1 3306"
+echo "  ./backend/setup_and_seed.sh root <mysql_root_password> ablegod_connect ablegod_user secretpassword 127.0.0.1 3306"

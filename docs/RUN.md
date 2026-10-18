@@ -142,7 +142,7 @@ Install **Git** from https://git-scm.com/download/win. From the project root run
 .\push-to-github.ps1
 ```
 
-Or follow **docs/GITHUB.md** for manual steps. The script sets the remote to https://github.com/BGSoftwares/wenysha-connect.git and pushes to `main`. Ensure `backend/.env` is never committed (it is in `.gitignore`).
+Or follow **docs/GITHUB.md** for manual steps. The script sets the remote to https://github.com/BGSoftwares/AbleGodCollegeELibrary.git and pushes to `main`. Ensure `backend/.env` is never committed (it is in `.gitignore`).
 
 ---
 

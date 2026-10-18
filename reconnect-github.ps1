@@ -1,12 +1,12 @@
 # Reconnect and resync the Able God College project with GitHub
 # One-click script: run from project root
-# Repo: https://github.com/BGSoftwares/wenysha-connect.git
+# Repo: https://github.com/BGSoftwares/AbleGodCollegeELibrary.git
 # Branch: main
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-$githubRemote = "https://github.com/BGSoftwares/wenysha-connect.git"
+$githubRemote = "https://github.com/BGSoftwares/AbleGodCollegeELibrary.git"
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host "Git is not installed or not on PATH. Install from https://git-scm.com/download/win" -ForegroundColor Red

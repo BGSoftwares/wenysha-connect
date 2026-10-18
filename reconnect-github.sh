@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Reconnect and resync the Able God College project with GitHub
 # One-click script: run from project root
-# Repo: https://github.com/BGSoftwares/wenysha-connect.git
+# Repo: https://github.com/BGSoftwares/AbleGodCollegeELibrary.git
 # Branch: main
 
 set -e
 
 cd "$(dirname "$0")"
 
-GITHUB_REMOTE="https://github.com/BGSoftwares/wenysha-connect.git"
+GITHUB_REMOTE="https://github.com/BGSoftwares/AbleGodCollegeELibrary.git"
 
 if ! command -v git &> /dev/null; then
     echo "Git is not installed or not on PATH. Install from https://git-scm.com/download"

@@ -1,6 +1,6 @@
 # Push Able God College to GitHub
 # Requires: Git installed and on PATH
-# Repo: https://github.com/BGSoftwares/wenysha-connect.git
+# Repo: https://github.com/BGSoftwares/AbleGodCollegeELibrary.git
 # Run from project root: .\push-to-github.ps1
 
 $ErrorActionPreference = "Stop"
@@ -11,7 +11,7 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-$remote = "https://github.com/BGSoftwares/wenysha-connect.git"
+$remote = "https://github.com/BGSoftwares/AbleGodCollegeELibrary.git"
 
 # Initialize repo if needed
 if (-not (Test-Path ".git")) {

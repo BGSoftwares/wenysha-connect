@@ -35,6 +35,7 @@ import AttendanceSection from "@/components/admin/AttendanceSection";
 import MapSection from "@/components/admin/MapSection";
 import AdmissionSection from "@/components/admin/AdmissionSection";
 import PromotionSection from "@/components/admin/PromotionSection";
+import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
 
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
@@ -193,52 +194,94 @@ const AdminDashboard = () => {
     }
   };
 
-  const [newStudent, setNewStudent] = useState({ name: "", student_id: "", school_class: "", gender: "" });
-  const [newTeacher, setNewTeacher] = useState({ name: "", department: "", phone: "" });
+  const getNextStudentId = (studentList: Student[] = []) => {
+    let maxNum = 0;
+    const year = new Date().getFullYear().toString().slice(-2);
+    for (const s of studentList) {
+      if (!s.student_id) continue;
+      const match = s.student_id.match(/(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+    return `AGC${year}S${String(maxNum + 1).padStart(3, "0")}`;
+  };
+  const getNextEmployeeId = (teacherList: Teacher[] = []) => {
+    let maxNum = 0;
+    const year = new Date().getFullYear().toString().slice(-2);
+    for (const t of teacherList) {
+      if (!t.employee_id) continue;
+      const match = t.employee_id.match(/(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+    return `AGC${year}T${String(maxNum + 1).padStart(3, "0")}`;
+  };
+
+
+  const [newStudent, setNewStudent] = useState({ name: "", student_id: "", school_class: "", gender: "Male" });
+  const [newTeacher, setNewTeacher] = useState({ name: "", department: "", phone: "", employee_id: "" });
   const [newClass, setNewClass] = useState({ name: "", capacity: 40 });
   const [newSubject, setNewSubject] = useState({ name: "", code: "", department: "" });
   const [newAllocation, setNewAllocation] = useState({ teacher: "", subject: "", school_class: "", periods: 5 });
 
   const handleCreateStudent = async () => {
     try {
-      if (!newStudent.name || !newStudent.student_id || !newStudent.school_class) {
-        toast.error("Please fill in all fields");
+      const autoId = getNextStudentId(students);
+      const studentId = newStudent.student_id?.trim() || autoId;
+      if (!newStudent.name?.trim()) {
+        toast.error("Please enter student full name");
         return;
       }
-      const classId = classes?.find(c => c.name === newStudent.school_class)?.id;
+      const selectedClassName = newStudent.school_class || (classes && classes[0]?.name);
+      if (!selectedClassName) {
+        toast.error("Please select a class");
+        return;
+      }
+      const classId = classes?.find(c => c.name === selectedClassName)?.id;
       if (!classId) {
         toast.error("Invalid class selected");
         return;
       }
       await createStudentMutation.mutateAsync({
-        name: newStudent.name,
-        student_id: newStudent.student_id,
+        name: newStudent.name.trim(),
+        student_id: studentId,
         school_class: classId,
-        gender: newStudent.gender,
+        gender: newStudent.gender || "Male",
         status: "Active"
       });
-      toast.success("Student enrolled successfully");
+      toast.success(`Student enrolled successfully with ID ${studentId}`);
       setShowModal(null);
-      setNewStudent({ name: "", student_id: "", school_class: "", gender: "" });
+      setNewStudent({ name: "", student_id: "", school_class: "", gender: "Male" });
     } catch (error) {
-      toast.error("Failed to enroll student");
+      toast.error(getErrorMessage(error) || "Failed to enroll student");
     }
   };
 
   const handleCreateTeacher = async () => {
     try {
-      if (!newTeacher.name || !newTeacher.department) {
+      if (!newTeacher.name?.trim() || !newTeacher.department?.trim()) {
         toast.error("Name and Department are required");
         return;
       }
+      const autoId = getNextEmployeeId(teachers);
+      const employeeId = newTeacher.employee_id?.trim() || autoId;
       await createTeacherMutation.mutateAsync({
-        name: newTeacher.name,
-        department: newTeacher.department,
-        phone: newTeacher.phone
+        name: newTeacher.name.trim(),
+        department: newTeacher.department.trim(),
+        phone: newTeacher.phone?.trim() || "",
+        employee_id: employeeId
       });
-      toast.success("Teacher added successfully");
+      toast.success(`Teacher added successfully with Employee ID ${employeeId}`);
       setShowModal(null);
-      setNewTeacher({ name: "", department: "", phone: "" });
+      setNewTeacher({ name: "", department: "", phone: "", employee_id: "" });
     } catch (error) {
       toast.error("Failed to add teacher");
     }
@@ -314,6 +357,7 @@ const AdminDashboard = () => {
       allocations: "Subject & Class Assignments",
       parents: "Parents",
       library: "Library",
+      "learning-materials": "Learning Materials & Notes",
       account: "Account",
       classes: "Classes",
       "add-class": "Classes",
@@ -350,7 +394,16 @@ const AdminDashboard = () => {
           isLoading={isLoadingStudents}
           error={studentsError}
           classes={classes}
-          onAddStudent={() => setShowModal("addStudent")}
+          onAddStudent={() => {
+            const nextId = getNextStudentId(students);
+            setNewStudent({
+              name: "",
+              student_id: nextId,
+              school_class: classes?.[0]?.name || "",
+              gender: "Male"
+            });
+            setShowModal("addStudent");
+          }}
           onEditStudent={handleEditStudent}
           onDeleteStudent={handleDeleteStudent}
         />
@@ -365,7 +418,7 @@ const AdminDashboard = () => {
           subjects={subjects}
           allocations={allocations}
           isLoading={isLoadingTeachers}
-          onAddTeacher={() => setShowModal("addTeacher")}
+          onAddTeacher={() => { const nextId = getNextEmployeeId(teachers); setNewTeacher({ name: "", department: "", phone: "", employee_id: nextId }); setShowModal("addTeacher"); }}
           onEditTeacher={handleEditTeacher}
           onDeleteTeacher={teacher => void deleteRecord("/school/teachers/", Number(teacher.id), "Teacher", "teachers")}
           onAssignClassTeacher={(classId, teacherId) => void updateRecord(
@@ -413,6 +466,14 @@ const AdminDashboard = () => {
       case "profile": return <ProfileSection />;
       case "parents": return <ParentsSection />;
       case "library": return <LibrarySection />;
+      case "learning-materials": return (
+        <LearningMaterialsSection
+          classes={(classes || []).map((c) => ({ id: c.id, name: c.name }))}
+          subjects={(subjects || []).map((s) => ({ id: s.id, name: s.name }))}
+          uploadedBy="School Administrator"
+          emptyHint="No notes or materials have been uploaded yet. Upload lesson notes, syllabi, past papers, or videos from your computer."
+        />
+      );
       case "account": return <DashboardOverview />;
       case "attendance": return <AttendanceSection />;
       case "exam":
@@ -538,21 +599,34 @@ const AdminDashboard = () => {
                     <input type="text" className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={newStudent.name} onChange={e => setNewStudent({ ...newStudent, name: e.target.value })} placeholder="e.g. John Doe" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Student ID</label>
-                    <input type="text" className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={newStudent.student_id} onChange={e => setNewStudent({ ...newStudent, student_id: e.target.value })} placeholder="ID-2024-001" />
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Student ID</label>
+                      <span className="text-[10px] text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded font-medium">
+                        ⚡ Auto-incremented
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono font-semibold text-primary"
+                      value={newStudent.student_id || getNextStudentId(students)}
+                      onChange={e => setNewStudent({ ...newStudent, student_id: e.target.value })}
+                      placeholder={getNextStudentId(students)}
+                    />
+                    <p className="text-[11px] text-muted-foreground ml-1">
+                      Next sequential student ID generated automatically (editable if required)
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Class</label>
-                      <select className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={newStudent.school_class} onChange={e => setNewStudent({ ...newStudent, school_class: e.target.value })}>
+                      <select className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={newStudent.school_class || (classes && classes[0]?.name) || ""} onChange={e => setNewStudent({ ...newStudent, school_class: e.target.value })}>
                         <option value="">Select</option>
                         {classes?.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Gender</label>
-                      <select className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={newStudent.gender} onChange={e => setNewStudent({ ...newStudent, gender: e.target.value })}>
-                        <option value="">Select</option>
+                      <select className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={newStudent.gender || "Male"} onChange={e => setNewStudent({ ...newStudent, gender: e.target.value })}>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                       </select>

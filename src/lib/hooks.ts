@@ -22,6 +22,7 @@ export interface Teacher {
     name: string;
     department: string;
     phone: string;
+    employee_id?: string;
     allocations?: Allocation[];
 }
 
@@ -43,6 +44,7 @@ export interface SchoolClass {
     enrolled: number;
     class_teacher: number | null;
     class_teacher_name?: string;
+    parents_whatsapp_group?: string;
 }
 
 export interface Subject {
@@ -936,9 +938,28 @@ export interface LearningMaterial {
     subject_name: string;
     class_name: string;
     file_url: string;
+    file_name?: string;
     file_type: string;
     uploaded_by: string;
     created_at: string;
+}
+
+export interface LearningMaterialInput {
+    title: string;
+    subject_name: string;
+    class_name: string;
+    uploaded_by?: string;
+    file?: File;
+}
+
+function toLearningMaterialFormData(data: LearningMaterialInput): FormData {
+    const form = new FormData();
+    form.append("title", data.title);
+    form.append("subject_name", data.subject_name);
+    form.append("class_name", data.class_name);
+    if (data.uploaded_by) form.append("uploaded_by", data.uploaded_by);
+    if (data.file) form.append("file", data.file);
+    return form;
 }
 
 export const useLearningMaterials = (params?: { subject_name?: string; class_name?: string }) => useQuery({
@@ -949,7 +970,7 @@ export const useLearningMaterials = (params?: { subject_name?: string; class_nam
 export const useCreateLearningMaterial = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (data: Partial<LearningMaterial>) => api.post<LearningMaterial>("/content/materials/", data),
+        mutationFn: async (data: LearningMaterialInput) => api.postForm<LearningMaterial>("/content/materials/", toLearningMaterialFormData(data)),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learning-materials"] }),
     });
 };
@@ -965,8 +986,8 @@ export const useDeleteLearningMaterial = () => {
 export const useUpdateLearningMaterial = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ id, data }: { id: number; data: Partial<LearningMaterial> }) => {
-            return await api.patch<LearningMaterial>(`/content/materials/${id}/`, data);
+        mutationFn: async ({ id, data }: { id: number; data: LearningMaterialInput }) => {
+            return await api.patchForm<LearningMaterial>(`/content/materials/${id}/`, toLearningMaterialFormData(data));
         },
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learning-materials"] }),
     });

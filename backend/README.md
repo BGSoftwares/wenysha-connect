@@ -32,6 +32,6 @@ Configure a local administrator using Django's `createsuperuser` command or the 
 
 ## GitHub
 
-Repo: **https://github.com/BGSoftwares/wenysha-connect.git**
+Repo: **https://github.com/BGSoftwares/AbleGodCollegeELibrary.git**
 
 See **docs/GITHUB.md** in the project root for connecting this project to GitHub and pushing. Ensure Git is installed and that you never commit `backend/.env` or `backend/venv/`.

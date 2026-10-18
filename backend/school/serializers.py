@@ -11,7 +11,7 @@ class SchoolClassSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchoolClass
-        fields = ['id', 'name', 'capacity', 'enrolled', 'class_teacher', 'class_teacher_name']
+        fields = ['id', 'name', 'capacity', 'enrolled', 'class_teacher', 'class_teacher_name', 'parents_whatsapp_group']
 
     def get_enrolled(self, obj):
         return obj.students.count()
@@ -32,7 +32,7 @@ class TeacherSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Teacher
-        fields = ['id', 'user', 'name', 'department', 'phone', 'allocations']
+        fields = ['id', 'user', 'name', 'department', 'phone', 'employee_id', 'allocations']
 
 
 class SubjectSerializer(serializers.ModelSerializer):
@@ -42,6 +42,7 @@ class SubjectSerializer(serializers.ModelSerializer):
 
 
 class StudentSerializer(serializers.ModelSerializer):
+    student_id = serializers.CharField(required=False, allow_blank=True)
     class_name = serializers.CharField(source='school_class.name', read_only=True)
 
     class Meta:
@@ -50,6 +51,12 @@ class StudentSerializer(serializers.ModelSerializer):
             'id', 'user', 'student_id', 'name', 'school_class', 'class_name', 'gender', 'status',
             'date_of_birth', 'address'
         ]
+
+    def create(self, validated_data):
+        if not validated_data.get('student_id') or not validated_data['student_id'].strip():
+            from .models import generate_next_student_id
+            validated_data['student_id'] = generate_next_student_id()
+        return super().create(validated_data)
 
 
 class AcademicYearSerializer(serializers.ModelSerializer):

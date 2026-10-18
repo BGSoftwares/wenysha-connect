@@ -92,13 +92,15 @@ async function request<T>(
     const search = new URLSearchParams(params).toString();
     url += (url.includes("?") ? "&" : "?") + search;
   }
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(init.headers as Record<string, string>),
+  const headers: Record<string, string> = {
+    ...(init.headers as Record<string, string> | undefined),
   };
+  if (!(init.body instanceof FormData)) {
+    headers["Content-Type"] = headers["Content-Type"] || "application/json";
+  }
   const token = getToken();
   if (token) {
-    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
   let res: Response;
   try {
@@ -132,11 +134,17 @@ export const api = {
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
 
+  postForm: <T>(path: string, body: FormData) =>
+    request<T>(path, { method: "POST", body }),
+
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
 
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
+
+  patchForm: <T>(path: string, body: FormData) =>
+    request<T>(path, { method: "PATCH", body }),
 
   delete: <T>(path: string) =>
     request<T>(path, { method: "DELETE" }),

@@ -10,10 +10,16 @@ class SchoolClass(models.Model):
     class_teacher = models.ForeignKey(
         'Teacher', on_delete=models.SET_NULL, null=True, blank=True, related_name='teaching_classes'
     )
+    parents_whatsapp_group = models.CharField(
+        max_length=512,
+        blank=True,
+        help_text='WhatsApp group invite link for class parents (chat.whatsapp.com/...)',
+    )
 
     class Meta:
         verbose_name = 'Class'
         verbose_name_plural = 'Classes'
+
 
     def __str__(self):
         return self.name
@@ -23,12 +29,41 @@ class Teacher(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='teacher_profile'
     )
+    employee_id = models.CharField(
+        max_length=32,
+        blank=True,
+        help_text="Auto-incremented Employee ID (e.g. AGC26T001)",
+    )
     name = models.CharField(max_length=255)
     department = models.CharField(max_length=128, blank=True)
     phone = models.CharField(max_length=32, blank=True)
 
+    def save(self, *args, **kwargs):
+        if not self.employee_id or not self.employee_id.strip():
+            self.employee_id = generate_next_employee_id()
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.employee_id})" if self.employee_id else self.name
+
+
+def generate_next_employee_id():
+    import re
+    from datetime import datetime
+    year = datetime.now().strftime('%y')
+    prefix = f"AGC{year}T"
+    existing_ids = Teacher.objects.values_list('employee_id', flat=True)
+    max_num = 0
+    for eid in existing_ids:
+        match = re.search(r'(\d+)$', eid or '')
+        if match:
+            try:
+                val = int(match.group(1))
+                if val > max_num:
+                    max_num = val
+            except ValueError:
+                pass
+    return f"{prefix}{max_num + 1:03d}"
 
 
 class Subject(models.Model):
@@ -37,8 +72,28 @@ class Subject(models.Model):
     curriculum = models.CharField(max_length=64, blank=True)
     department = models.CharField(max_length=128, blank=True)
 
+
     def __str__(self):
         return self.name
+
+
+def generate_next_student_id():
+    import re
+    from datetime import datetime
+    year = datetime.now().strftime('%y')
+    prefix = f"AGC{year}S"
+    existing_ids = Student.objects.values_list('student_id', flat=True)
+    max_num = 0
+    for sid in existing_ids:
+        match = re.search(r'(\d+)$', sid or '')
+        if match:
+            try:
+                val = int(match.group(1))
+                if val > max_num:
+                    max_num = val
+            except ValueError:
+                pass
+    return f"{prefix}{max_num + 1:03d}"
 
 
 class Student(models.Model):
@@ -46,7 +101,7 @@ class Student(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='student_profile'
     )
-    student_id = models.CharField(max_length=32, unique=True)  # STU001
+    student_id = models.CharField(max_length=32, unique=True, blank=True)  # STU001
     name = models.CharField(max_length=255)
     school_class = models.ForeignKey(SchoolClass, on_delete=models.PROTECT, related_name='students')
     gender = models.CharField(max_length=16, blank=True)
@@ -56,6 +111,11 @@ class Student(models.Model):
 
     class Meta:
         ordering = ['student_id']
+
+    def save(self, *args, **kwargs):
+        if not self.student_id or not self.student_id.strip():
+            self.student_id = generate_next_student_id()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.student_id})"
@@ -72,6 +132,7 @@ class TeacherSubjectClass(models.Model):
         unique_together = [['teacher', 'subject', 'school_class']]
         verbose_name_plural = 'Teacher subject class allocations'
 
+
     def __str__(self):
         return f"{self.teacher.name} - {self.subject.name} - {self.school_class.name}"
 
@@ -83,6 +144,7 @@ class AcademicYear(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     is_current = models.BooleanField(default=False)
+
 
     def __str__(self):
         return self.name
@@ -96,6 +158,7 @@ class Term(models.Model):
 
     class Meta:
         unique_together = [['name', 'academic_year']]
+
 
     def __str__(self):
         return f"{self.name} - {self.academic_year.name}"
@@ -112,6 +175,7 @@ class Assessment(models.Model):
     total_marks = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)
     due_date = models.DateField(null=True, blank=True)
 
+
     def __str__(self):
         return f"{self.name} ({self.school_class} - {self.subject})"
 
@@ -124,6 +188,7 @@ class Grade(models.Model):
 
     class Meta:
         unique_together = [['student', 'assessment']]
+
 
     def __str__(self):
         return f"{self.student.name} - {self.assessment.name}: {self.score}"
@@ -141,6 +206,7 @@ class FeeStructure(models.Model):
     # Simple valid approach: create multiple entries "Form 4 Tuition"
     description = models.TextField(blank=True)
     due_date = models.DateField(null=True, blank=True)
+
 
     def __str__(self):
         return f"{self.name} ({self.term})"
@@ -163,6 +229,7 @@ class StudentFee(models.Model):
         else:
             self.status = 'Pending'
         super().save(*args, **kwargs)
+
 
     def __str__(self):
         return f"{self.student.name} - {self.fee_structure.name}"

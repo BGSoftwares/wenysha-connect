@@ -67,6 +67,7 @@ const navigation: NavItem[] = [
     ]
   },
   { name: "Reports", icon: BarChart3, id: "reports" },
+  { name: "Documents & Notes", icon: FileText, id: "financial-documents" },
   { name: "Profile", icon: User, id: "profile" },
 ];
 
