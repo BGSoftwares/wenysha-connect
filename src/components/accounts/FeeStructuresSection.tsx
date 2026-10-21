@@ -29,6 +29,7 @@ import { Plus, Edit2, Trash2, Search, Filter, DollarSign, Loader2, Landmark, Shi
 import { Badge } from "@/components/ui/badge";
 import { useFeeStructures, useUpdateFeeStructure, useDeleteFeeStructure, useCreateFeeStructure, FeeStructure } from "@/lib/hooks";
 import { toast } from "sonner";
+import { FINANCE_CURRENCIES, formatMoney, type FinanceCurrency } from "@/lib/finance";
 
 interface FeeStructuresSectionProps {
   activeSubNav: string;
@@ -47,6 +48,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
   const [formData, setFormData] = useState({
     name: "",
     amount: "0",
+    currency: "USD" as FinanceCurrency,
     term: "Term 1",
     form: "All Forms",
     category: "Academic",
@@ -62,7 +64,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
 
   const handleAddFee = () => {
     setEditingFee(null);
-    setFormData({ name: "", amount: "0", term: "Term 1", form: "All Forms", category: "Academic", boarding_type: "All", active: true });
+    setFormData({ name: "", amount: "0", currency: "USD", term: "Term 1", form: "All Forms", category: "Academic", boarding_type: "All", active: true });
     setShowModal(true);
   };
 
@@ -71,6 +73,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
     setFormData({
       name: fee.name,
       amount: fee.amount.toString(),
+      currency: fee.currency || "USD",
       term: fee.term,
       form: fee.form || "All Forms",
       category: fee.category || "Academic",
@@ -197,7 +200,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
                   filteredFees.map((fee) => (
                     <TableRow key={fee.id} className="hover:bg-muted/5 transition-colors border-b border-border/50">
                       <TableCell className="pl-8 font-black text-foreground">{fee.name}</TableCell>
-                      <TableCell className="text-right font-black text-primary text-lg">${parseFloat(fee.amount.toString()).toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-black text-primary text-lg">{formatMoney(fee.amount, fee.currency || "USD")}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-bold border-muted text-muted-foreground uppercase text-[10px]">{fee.term}</Badge>
                       </TableCell>
@@ -288,7 +291,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
           </div>
 
           <div className="p-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-accent uppercase tracking-widest ml-1">Fee Descriptor *</label>
                 <Input
@@ -299,7 +302,7 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-accent uppercase tracking-widest ml-1">Valuation ($) *</label>
+                <label className="text-[10px] font-black text-accent uppercase tracking-widest ml-1">Amount *</label>
                 <Input
                   type="number"
                   value={formData.amount}
@@ -307,6 +310,15 @@ const FeeStructuresSection = ({ activeSubNav }: FeeStructuresSectionProps) => {
                   placeholder="0.00"
                   className="h-12 rounded-xl font-black text-primary text-lg"
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-accent uppercase tracking-widest ml-1">Currency *</label>
+                <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value as "USD" | "ZWG" })}>
+                  <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select currency" /></SelectTrigger>
+                  <SelectContent>
+                    {FINANCE_CURRENCIES.map((currency) => <SelectItem key={currency.value} value={currency.value}>{currency.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

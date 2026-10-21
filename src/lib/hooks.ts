@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, getStoredUser } from "./api";
+import type { FinanceCurrency } from "./finance";
 
 // --- Types ---
 
@@ -761,6 +762,7 @@ export interface FeeStructure {
     id: number;
     name: string;
     amount: string;
+    currency: FinanceCurrency;
     term: string;
     form: string;
     category?: string;
@@ -773,9 +775,11 @@ export interface Invoice {
     invoice_no: string;
     student: number;
     student_name: string;
+    student_id_display?: string;
     class_name: string;
     term: string;
     amount: string;
+    currency: FinanceCurrency;
     paid: string;
     status: "paid" | "partial" | "unpaid";
     date: string;
@@ -788,6 +792,7 @@ export interface Payment {
     invoice_no: string;
     student_name: string;
     amount: string;
+    currency: FinanceCurrency;
     method: string;
     reference?: string;
     date: string;
@@ -799,6 +804,7 @@ export interface StudentBalance {
     student_id: string;
     student: string;
     class_name: string;
+    currency: FinanceCurrency;
     totalBilled: number;
     totalPaid: number;
     balance: number;
@@ -812,10 +818,44 @@ export interface Discount {
     student_name: string;
     discount_type: string;
     amount: string;
+    currency: FinanceCurrency;
     percentage: string;
     reason: string;
     status: "approved" | "pending" | "rejected";
     date: string;
+}
+
+export interface OnlinePayment {
+    id: number;
+    invoice: number;
+    invoice_no: string;
+    student_name: string;
+    provider: "ecocash" | "zimswitch";
+    status: "pending" | "paid" | "failed" | "cancelled";
+    amount: string;
+    currency: FinanceCurrency;
+    client_reference: string;
+    provider_reference: string;
+    created_at: string;
+    updated_at: string;
+    message?: string;
+    checkout_id?: string;
+    widget_url?: string;
+    brands?: string;
+    shopper_result_url?: string;
+}
+
+export interface OnlinePaymentConfig {
+    currencies: FinanceCurrency[];
+    providers: {
+        ecocash: { enabled: boolean; currencies: FinanceCurrency[] };
+        zimswitch: {
+            enabled: boolean;
+            currencies: FinanceCurrency[];
+            widget_url: string;
+            brands: string;
+        };
+    };
 }
 
 export const useFeeStructures = () => {
@@ -871,8 +911,7 @@ export const useInvoices = (params?: { student?: number; status?: string }) => {
             const cleanParams: Record<string, string> = {};
             if (params?.student) cleanParams.student = String(params.student);
             if (params?.status) cleanParams.status = params.status;
-            const response = await api.get<unknown>("/finance/invoices/", cleanParams);
-            return extractArray<Invoice>(response);
+            return fetchAllPages<Invoice>("/finance/invoices/", cleanParams);
         },
     });
 };
@@ -884,8 +923,7 @@ export const usePayments = (params?: { invoice?: number; student?: number }) => 
             const cleanParams: Record<string, string> = {};
             if (params?.invoice) cleanParams.invoice = String(params.invoice);
             if (params?.student) cleanParams.invoice__student = String(params.student);
-            const response = await api.get<unknown>("/finance/payments/", cleanParams);
-            return extractArray<Payment>(response);
+            return fetchAllPages<Payment>("/finance/payments/", cleanParams);
         },
     });
 };
@@ -904,8 +942,7 @@ export const useDiscounts = (params?: { student?: number }) => {
     return useQuery({
         queryKey: ["discounts", params],
         queryFn: async () => {
-            const response = await api.get<unknown>("/finance/discounts/", toQueryParams(params));
-            return extractArray<Discount>(response);
+            return fetchAllPages<Discount>("/finance/discounts/", toQueryParams(params));
         },
     });
 };
@@ -940,13 +977,59 @@ export const useCreatePayment = () => {
 export const useCreateInvoice = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (data: { student: number; term: string; amount: number; date: string }) => {
+        mutationFn: async (data: { student: number; term: string; amount: number; currency: FinanceCurrency; date: string }) => {
             return await api.post<Invoice>("/finance/invoices/", data);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["invoices"] });
             queryClient.invalidateQueries({ queryKey: ["student-balances"] });
         },
+    });
+};
+
+export const useOnlinePaymentConfig = () => useQuery({
+    queryKey: ["online-payment-config"],
+    queryFn: () => api.get<OnlinePaymentConfig>("/finance/online-payments/config/"),
+});
+
+export const useOnlinePayments = () => useQuery({
+    queryKey: ["online-payments"],
+    queryFn: async () => extractArray<OnlinePayment>(await api.get<unknown>("/finance/online-payments/")),
+  refetchInterval: 15000,
+});
+
+export const useStartOnlinePayment = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: { invoice: number; amount: number; provider: OnlinePayment["provider"]; phone?: string }) =>
+            api.post<OnlinePayment>("/finance/online-payments/", data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["online-payments"] });
+            queryClient.invalidateQueries({ queryKey: ["payments"] });
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            queryClient.invalidateQueries({ queryKey: ["student-balances"] });
+        },
+    });
+};
+
+export const useRefreshOnlinePayment = (reference: string, enabled = true) => {
+    const queryClient = useQueryClient();
+    return useQuery({
+        queryKey: ["online-payment", reference],
+        queryFn: async () => {
+            const payment = await api.get<OnlinePayment>(`/finance/online-payments/by-reference/${encodeURIComponent(reference)}/`);
+            if (payment.status !== "pending") {
+                await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: ["online-payments"] }),
+                    queryClient.invalidateQueries({ queryKey: ["payments"] }),
+                    queryClient.invalidateQueries({ queryKey: ["invoices"] }),
+                    queryClient.invalidateQueries({ queryKey: ["student-balances"] }),
+                ]);
+            }
+            return payment;
+        },
+        enabled: enabled && !!reference,
+        refetchInterval: (query) => query.state.data?.status === "pending" ? 8000 : false,
     });
 };
 

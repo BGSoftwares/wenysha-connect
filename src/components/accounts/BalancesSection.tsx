@@ -25,12 +25,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, DollarSign, FileText, Download, Printer, Eye, Loader2, CheckCircle, AlertTriangle, TrendingDown } from "lucide-react";
+import { Search, DollarSign, FileText, Download, Printer, Eye, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
 import { useStudentBalances, useInvoices, usePayments, StudentBalance as StudentBalanceType } from "@/lib/hooks";
-import { format } from "date-fns";
+import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate } from "@/lib/finance";
 
 const BalancesSection = () => {
   const { data: balances, isLoading: loadingBalances } = useStudentBalances();
+  const { data: invoices = [] } = useInvoices();
+  const { data: payments = [] } = usePayments();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -63,9 +65,35 @@ const BalancesSection = () => {
     setShowStatementModal(true);
   };
 
-  const totalOwing = balances?.filter(b => b.balance > 0).reduce((sum, b) => sum + b.balance, 0) || 0;
-  const totalOverpaid = balances?.filter(b => b.balance < 0).reduce((sum, b) => sum + Math.abs(b.balance), 0) || 0;
-  const clearedCount = balances?.filter(b => b.status === "cleared").length || 0;
+  const studentIds = new Set((balances || []).map((balance) => balance.student_id));
+  const owingStudentIds = new Set((balances || []).filter((balance) => balance.balance > 0).map((balance) => balance.student_id));
+  const clearedStudentCount = Math.max(0, studentIds.size - owingStudentIds.size);
+  const currencyTotals = FINANCE_CURRENCIES.map(({ value }) => ({
+    currency: value,
+    owing: (balances || []).filter((balance) => balance.currency === value && balance.balance > 0).reduce((sum, balance) => sum + Number(balance.balance), 0),
+    credit: (balances || []).filter((balance) => balance.currency === value && balance.balance < 0).reduce((sum, balance) => sum + Math.abs(Number(balance.balance)), 0),
+  }));
+  const selectedInvoices = selectedStudent ? invoices.filter((invoice) => invoice.student === selectedStudent.id && invoice.currency === selectedStudent.currency) : [];
+  const selectedInvoiceIds = new Set(selectedInvoices.map((invoice) => invoice.id));
+  const selectedPayments = payments.filter((payment) => selectedInvoiceIds.has(payment.invoice));
+  const statementEntries = [
+    ...selectedInvoices.map((invoice) => ({ date: invoice.date, label: `Invoice ${invoice.invoice_no} · ${invoice.term}`, debit: Number(invoice.amount), credit: 0 })),
+    ...selectedPayments.map((payment) => ({ date: payment.date, label: `${payment.method} · Receipt ${payment.receipt_no}`, debit: 0, credit: Number(payment.amount) })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+  const downloadStatementCsv = () => {
+    if (!selectedStudent) return;
+    const rows = [
+      ["Date", "Entry", "Debit", "Credit", "Currency"],
+      ...statementEntries.map((entry) => [entry.date, entry.label, entry.debit.toFixed(2), entry.credit.toFixed(2), selectedStudent.currency]),
+    ];
+    const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `fee-statement-${selectedStudent.student_id}-${selectedStudent.currency}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (loadingBalances) {
     return (
@@ -78,11 +106,11 @@ const BalancesSection = () => {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="border-none shadow-elegant bg-white">
           <CardContent className="p-6">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Total Registry</p>
-            <h3 className="text-3xl font-black text-foreground tracking-tight">{balances?.length || 0}</h3>
+            <h3 className="text-3xl font-black text-foreground tracking-tight">{studentIds.size}</h3>
             <p className="text-xs text-muted-foreground mt-2">Active Students</p>
           </CardContent>
         </Card>
@@ -92,30 +120,22 @@ const BalancesSection = () => {
               <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-widest">Cleared Accounts</p>
               <CheckCircle className="h-4 w-4 text-primary-foreground/40" />
             </div>
-            <h3 className="text-3xl font-black tracking-tight">{clearedCount}</h3>
+            <h3 className="text-3xl font-black tracking-tight">{clearedStudentCount}</h3>
             <p className="text-xs text-primary-foreground/70 mt-2">Full Compliance</p>
           </CardContent>
         </Card>
-        <Card className="border-none shadow-elegant bg-destructive text-destructive-foreground">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-destructive-foreground/70 text-[10px] font-bold uppercase tracking-widest">Total Outstanding</p>
-              <AlertTriangle className="h-4 w-4 text-destructive-foreground/40" />
-            </div>
-            <h3 className="text-3xl font-black tracking-tight">${totalOwing.toLocaleString()}</h3>
-            <p className="text-xs text-destructive-foreground/70 mt-2">Net Collectible</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-elegant bg-accent text-accent-foreground">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-accent-foreground/70 text-[10px] font-bold uppercase tracking-widest">Pre-payments</p>
-              <TrendingDown className="h-4 w-4 text-accent-foreground/40" />
-            </div>
-            <h3 className="text-3xl font-black tracking-tight">${totalOverpaid.toLocaleString()}</h3>
-            <p className="text-xs text-accent-foreground/70 mt-2">Credit Liability</p>
-          </CardContent>
-        </Card>
+        {currencyTotals.map((total) => (
+          <Card key={total.currency} className="border-none bg-destructive text-destructive-foreground shadow-elegant">
+            <CardContent className="p-6">
+              <div className="mb-1 flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-destructive-foreground/70">Outstanding · {total.currency === "ZWG" ? "ZiG" : "USD"}</p>
+                <AlertTriangle className="h-4 w-4 text-destructive-foreground/40" />
+              </div>
+              <h3 className="break-words text-2xl font-black tracking-tight">{formatMoney(total.owing, total.currency)}</h3>
+              <p className="mt-2 text-xs text-destructive-foreground/70">Credits held: {formatMoney(total.credit, total.currency)}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card className="border-none shadow-elegant overflow-hidden">
@@ -177,15 +197,15 @@ const BalancesSection = () => {
                             <span className="text-[10px] font-bold text-muted-foreground uppercase">{balance.student_id} • {balance.class_name}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-medium">${balance.totalBilled.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-medium text-primary">${balance.totalPaid.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-medium">{formatMoney(balance.totalBilled, balance.currency)}</TableCell>
+                        <TableCell className="text-right font-medium text-primary">{formatMoney(balance.totalPaid, balance.currency)}</TableCell>
                         <TableCell className={`text-right font-black ${balance.balance > 0 ? "text-destructive" :
                             balance.balance < 0 ? "text-accent" : "text-primary text-xl"
                           }`}>
-                          {balance.balance < 0 ? `+$${Math.abs(balance.balance).toLocaleString()}` : `$${balance.balance.toLocaleString()}`}
+                          {balance.balance < 0 ? `+${formatMoney(Math.abs(balance.balance), balance.currency)}` : formatMoney(balance.balance, balance.currency)}
                         </TableCell>
                         <TableCell className="text-center text-xs font-medium text-muted-foreground">
-                          {balance.lastPayment ? format(new Date(balance.lastPayment), "dd MMM yyyy") : "---"}
+                          {balance.lastPayment && balance.lastPayment !== "-" ? formatSchoolDate(balance.lastPayment) : "---"}
                         </TableCell>
                         <TableCell>{getStatusBadge(balance.status)}</TableCell>
                         <TableCell className="text-right">
@@ -253,8 +273,8 @@ const BalancesSection = () => {
                     <p className="font-bold text-foreground">{selectedStudent.class_name}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-accent uppercase tracking-widest mb-1">Current Cycle</p>
-                    <p className="font-bold text-foreground">Term 1, 2024</p>
+                    <p className="text-[10px] font-black text-accent uppercase tracking-widest mb-1">Currency</p>
+                    <p className="font-bold text-foreground">{selectedStudent.currency === "ZWG" ? "ZiG" : "USD"}</p>
                   </div>
                 </div>
 
@@ -270,22 +290,17 @@ const BalancesSection = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      <TableRow className="border-b border-border/30">
-                        <TableCell className="text-xs font-medium">15 Jan 2024</TableCell>
-                        <TableCell className="text-xs font-black">Seasonal Tuition Assessment</TableCell>
-                        <TableCell className="text-right text-xs font-bold">${selectedStudent.totalBilled.toLocaleString()}</TableCell>
-                        <TableCell className="text-right text-xs font-bold text-muted-foreground">---</TableCell>
-                        <TableCell className="text-right text-xs font-black">${selectedStudent.totalBilled.toLocaleString()}</TableCell>
-                      </TableRow>
-                      {selectedStudent.totalPaid > 0 && (
-                        <TableRow className="bg-primary/[0.03]">
-                          <TableCell className="text-xs font-medium">{selectedStudent.lastPayment ? format(new Date(selectedStudent.lastPayment), "dd MMM yyyy") : "---"}</TableCell>
-                          <TableCell className="text-xs font-black text-primary">Consolidated Settlement Batch</TableCell>
-                          <TableCell className="text-right text-xs font-bold text-muted-foreground">---</TableCell>
-                          <TableCell className="text-right text-xs font-black text-primary">(${selectedStudent.totalPaid.toLocaleString()})</TableCell>
-                          <TableCell className="text-right text-xs font-black text-foreground">${selectedStudent.balance.toLocaleString()}</TableCell>
-                        </TableRow>
-                      )}
+                      {statementEntries.map((entry, index) => {
+                        const runningBalance = statementEntries.slice(0, index + 1).reduce((sum, row) => sum + row.debit - row.credit, 0);
+                        return <TableRow key={`${entry.date}-${entry.label}-${index}`} className={entry.credit ? "bg-primary/[0.03]" : ""}>
+                          <TableCell className="text-xs font-medium">{formatSchoolDate(entry.date)}</TableCell>
+                          <TableCell className="text-xs font-semibold">{entry.label}</TableCell>
+                          <TableCell className="text-right text-xs font-bold">{entry.debit ? formatMoney(entry.debit, selectedStudent.currency) : "—"}</TableCell>
+                          <TableCell className="text-right text-xs font-bold text-primary">{entry.credit ? formatMoney(entry.credit, selectedStudent.currency) : "—"}</TableCell>
+                          <TableCell className="text-right text-xs font-black">{formatMoney(runningBalance, selectedStudent.currency)}</TableCell>
+                        </TableRow>;
+                      })}
+                      {!statementEntries.length && <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">No invoice transactions found for this currency.</TableCell></TableRow>}
                     </TableBody>
                   </Table>
                 </div>
@@ -296,8 +311,8 @@ const BalancesSection = () => {
                     <h4 className={`text-3xl font-black tracking-tighter ${selectedStudent.balance > 0 ? "text-destructive" : "text-primary"
                       }`}>
                       {selectedStudent.balance < 0
-                        ? `Active Credit: $${Math.abs(selectedStudent.balance).toLocaleString()}`
-                        : `$${selectedStudent.balance.toLocaleString()}`
+                        ? `Active Credit: ${formatMoney(Math.abs(selectedStudent.balance), selectedStudent.currency)}`
+                        : formatMoney(selectedStudent.balance, selectedStudent.currency)
                       }
                     </h4>
                   </div>
@@ -306,7 +321,7 @@ const BalancesSection = () => {
                       <Printer className="mr-3 h-5 w-5" />
                       Print Official Record
                     </Button>
-                    <Button variant="outline" className="h-full rounded-2xl font-black uppercase text-[10px] tracking-widest border-border text-muted-foreground hover:bg-muted/50">
+                    <Button variant="outline" className="h-full rounded-2xl font-black uppercase text-[10px] tracking-widest border-border text-muted-foreground hover:bg-muted/50" onClick={downloadStatementCsv}>
                       <Download className="mr-3 h-5 w-5" />
                       Secure Export
                     </Button>

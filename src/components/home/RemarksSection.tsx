@@ -1,4 +1,6 @@
-import studentImage from "@/assets/carousel-classroom.jpg";
+import communityImage from "@/assets/IMG_6135.jpg";
+import learnerImage from "@/assets/IMG_6140.jpg";
+import celebrationImage from "@/assets/IMG_6145.jpg";
 import { schoolContact } from "@/lib/schoolContact";
 
 const RemarksSection = () => {
@@ -27,12 +29,31 @@ const RemarksSection = () => {
             </p>
           </div>
           <div className="relative">
-            <div className="rounded-2xl overflow-hidden shadow-elegant">
-              <img
-                src={studentImage}
-                alt="Able God College student studying"
-                className="w-full h-80 object-cover"
-              />
+            <div className="grid h-80 grid-cols-5 grid-rows-2 gap-3 sm:h-96">
+              <div className="col-span-3 row-span-2 overflow-hidden rounded-2xl shadow-elegant">
+                <img
+                  src={communityImage}
+                  alt="Able God College community gathered outside the school"
+                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                  loading="lazy"
+                />
+              </div>
+              <div className="col-span-2 overflow-hidden rounded-2xl shadow-elegant">
+                <img
+                  src={learnerImage}
+                  alt="Able God College learner wearing a Class of 2026 shirt"
+                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                  loading="lazy"
+                />
+              </div>
+              <div className="col-span-2 overflow-hidden rounded-2xl shadow-elegant">
+                <img
+                  src={celebrationImage}
+                  alt="Learners celebrating together at Able God College"
+                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                  loading="lazy"
+                />
+              </div>
             </div>
             <div className="absolute -bottom-4 -right-4 h-24 w-24 bg-accent rounded-xl -z-10" />
           </div>

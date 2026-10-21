@@ -1,5 +1,5 @@
 import { GraduationCap, BookOpen, Users, CheckCircle, Award, Trophy } from "lucide-react";
-import studentImage from "@/assets/carousel-library.jpg";
+import studentImage from "@/assets/sections/img-6266.jpg";
 
 const features = [
   {
@@ -63,7 +63,7 @@ const FeaturesSection = () => {
             <div className="rounded-2xl overflow-hidden img-3d h-full">
               <img
                 src={studentImage}
-                alt="Able God College student"
+                alt="Able God College students conducting a science experiment in the laboratory"
                 className="w-full h-full object-cover"
               />
             </div>

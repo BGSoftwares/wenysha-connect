@@ -20,7 +20,7 @@ import { Plus, Printer, Upload, CheckCircle2, Download, Search, CreditCard, Rece
 import { usePayments, useCreatePayment, useInvoices, Payment as PaymentType } from "@/lib/hooks";
 import { paymentSchema, type PaymentFormData } from "@/lib/validations";
 import { toast } from "sonner";
-import { format, isToday } from "date-fns";
+import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, schoolDateInput } from "@/lib/finance";
 
 interface PaymentsSectionProps {
   activeSubNav: string;
@@ -108,7 +108,7 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
         amount,
         method: data.method,
         reference: finalRef,
-        date: new Date().toISOString().split("T")[0],
+        date: schoolDateInput(),
       });
       setShowRecordModal(false);
       form.reset();
@@ -119,8 +119,11 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
     }
   };
 
-  const totalCollections = payments?.reduce((sum, p) => sum + parseFloat(p.amount), 0) || 0;
-  const todayCollections = payments?.filter(p => isToday(new Date(p.date))).reduce((sum, p) => sum + parseFloat(p.amount), 0) || 0;
+  const currencyTotals = (currency: "USD" | "ZWG", today = false) => (payments || [])
+    .filter((payment) => payment.currency === currency && (!today || payment.date === schoolDateInput()))
+    .reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const totalCollections = FINANCE_CURRENCIES.map(({ value }) => `${formatMoney(currencyTotals(value), value)}`).join(" · ");
+  const todayCollections = FINANCE_CURRENCIES.map(({ value }) => `${formatMoney(currencyTotals(value, true), value)}`).join(" · ");
 
   if (isLoading) {
     return (
@@ -138,7 +141,7 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
           <CardContent className="p-6">
             <div className="relative z-10">
               <p className="text-primary-foreground/70 text-xs font-bold uppercase tracking-widest mb-1">Total Lifetime Collections</p>
-              <h3 className="text-3xl font-black tracking-tight">${totalCollections.toLocaleString()}</h3>
+              <h3 className="break-words text-xl font-black tracking-tight">{totalCollections}</h3>
               <div className="mt-4 flex items-center gap-2 text-[10px] font-bold uppercase">
                 <Receipt className="h-3 w-3" />
                 {payments?.length} Successful Transactions
@@ -151,7 +154,7 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
           <CardContent className="p-6">
             <div className="relative z-10">
               <p className="text-accent-foreground/70 text-xs font-bold uppercase tracking-widest mb-1">Today's Revenue</p>
-              <h3 className="text-3xl font-black tracking-tight">${todayCollections.toLocaleString()}</h3>
+              <h3 className="break-words text-xl font-black tracking-tight">{todayCollections}</h3>
               <div className="mt-4 flex items-center gap-2 text-[10px] font-bold uppercase">
                 <Calendar className="h-3 w-3" />
                 Updated just now
@@ -230,10 +233,10 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
                       <TableCell className="font-bold text-primary">{payment.receipt_no}</TableCell>
                       <TableCell className="font-medium">{payment.student_name}</TableCell>
                       <TableCell className="text-muted-foreground">{payment.invoice_no}</TableCell>
-                      <TableCell className="text-primary font-black">${parseFloat(payment.amount).toLocaleString()}</TableCell>
+                      <TableCell className="text-primary font-black">{formatMoney(payment.amount, payment.currency)}</TableCell>
                       <TableCell>{getMethodBadge(payment.method)}</TableCell>
                       <TableCell className="text-xs font-mono">{payment.reference || "---"}</TableCell>
-                      <TableCell className="text-sm">{format(new Date(payment.date), "dd MMM yyyy")}</TableCell>
+                      <TableCell className="text-sm">{formatSchoolDate(payment.date)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" className="hover:text-primary">

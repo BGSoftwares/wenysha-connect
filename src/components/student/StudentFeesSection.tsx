@@ -1,96 +1,59 @@
-import { useState } from "react";
-import { DollarSign, FileText, Download, CheckCircle, Clock, AlertTriangle, Calendar, Bell, User, LayoutDashboard, CreditCard, ChevronRight, AlertCircle, TrendingUp, Loader2, Wallet, Receipt } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertCircle, CheckCircle, CreditCard, Download, FileText, Loader2, Receipt, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { exportFeeStatementPdf, FeeStatementPdfData } from "@/lib/pdfExport";
 import PaymentModal from "./PaymentModal";
-import { useInvoices, usePayments, useStudentFees, useStudentProfile } from "@/lib/hooks";
+import { exportFeeStatementPdf, type FeeStatementPdfData } from "@/lib/pdfExport";
+import { useInvoices, usePayments, useStudentProfile, type Invoice } from "@/lib/hooks";
+import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, type FinanceCurrency } from "@/lib/finance";
 
-interface Transaction {
-  id: string;
-  date: string;
-  description: string;
-  amount: number;
-  type: "payment" | "invoice" | "discount" | "penalty";
-  reference: string;
-  status: "completed" | "pending";
-}
-
-interface Invoice {
-  id: string;
-  term: string;
-  amount: number;
-  paid: number;
-  balance: number;
-  dueDate: string;
-  status: "paid" | "partial" | "unpaid" | "overdue";
-}
-
-// Mock data
-const mockFeesSummary = {
-  totalFees: 1200,
-  totalPaid: 850,
-  balance: 350,
-  arrears: 0,
-  nextDueDate: "2024-04-15",
-  lastPaymentDate: "2024-02-20",
-  lastPaymentAmount: 300
-};
-
-const mockInvoices: Invoice[] = [
-  { id: "INV-2024-001", term: "Term 1 2024", amount: 1200, paid: 850, balance: 350, dueDate: "2024-04-15", status: "partial" },
-  { id: "INV-2023-003", term: "Term 3 2023", amount: 1150, paid: 1150, balance: 0, dueDate: "2023-12-01", status: "paid" },
-  { id: "INV-2023-002", term: "Term 2 2023", amount: 1150, paid: 1150, balance: 0, dueDate: "2023-08-15", status: "paid" },
-];
-
-const mockTransactions: Transaction[] = [
-  { id: "TXN-001", date: "2024-02-20", description: "Term 1 Fee Payment", amount: 300, type: "payment", reference: "CASH-2024-0234", status: "completed" },
-  { id: "TXN-002", date: "2024-01-15", description: "Term 1 Fee Payment", amount: 400, type: "payment", reference: "BANK-2024-0156", status: "completed" },
-  { id: "TXN-003", date: "2024-01-05", description: "Term 1 Invoice Generated", amount: 1200, type: "invoice", reference: "INV-2024-001", status: "completed" },
-  { id: "TXN-004", date: "2024-01-02", description: "Sibling Discount Applied", amount: -50, type: "discount", reference: "DSC-2024-001", status: "completed" },
-  { id: "TXN-005", date: "2024-01-10", description: "Term 1 Fee Payment", amount: 150, type: "payment", reference: "MOBILE-2024-0089", status: "completed" },
-];
-
-export interface StudentFeesSectionProps {
+interface StudentFeesSectionProps {
   studentId: number;
 }
 
 const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
   const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "transactions">("overview");
   const [isExporting, setIsExporting] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const { data: profile } = useStudentProfile();
-  const { data: fees = [] } = useStudentFees({ student: studentId });
-  const { data: invoices = [] } = useInvoices({ student: studentId });
-  const { data: payments = [] } = usePayments(); // Note: usePayments might need studentId filter if available on backend
+  const { data: invoices = [], isLoading: invoicesLoading } = useInvoices({ student: studentId });
+  const { data: payments = [], isLoading: paymentsLoading } = usePayments({ student: studentId });
 
-  // Calculate summary stats
-  const totalBilled = fees.reduce((acc, f) => acc + Number(f.amount_due), 0);
-  const totalPaid = fees.reduce((acc, f) => acc + Number(f.amount_paid), 0);
-  const balance = totalBilled - totalPaid;
-  const arrears = 0; // Arrears logic could be complex, assuming 0 for now
+  const accountTotals = useMemo(() => FINANCE_CURRENCIES.map(({ value }) => {
+    const currencyInvoices = invoices.filter((invoice) => invoice.currency === value);
+    const billed = currencyInvoices.reduce((sum, invoice) => sum + Number(invoice.amount), 0);
+    const paid = currencyInvoices.reduce((sum, invoice) => sum + Number(invoice.paid), 0);
+    return { currency: value, billed, paid, balance: Math.max(0, billed - paid), invoiceCount: currencyInvoices.length };
+  }).filter((summary) => summary.invoiceCount > 0), [invoices]);
+
+  const outstandingInvoices = invoices.filter((invoice) => Number(invoice.amount) > Number(invoice.paid));
+  const lastPayment = payments[0];
+
+  const startPayment = (invoice: Invoice) => setSelectedInvoice(invoice);
 
   const handleDownloadStatement = async () => {
     setIsExporting(true);
     try {
+      const firstSummary = accountTotals[0];
       const pdfData: FeeStatementPdfData = {
-        studentName: profile?.name || "Student",
-        studentId: profile?.student_id || "ID",
-        grade: profile?.class_name || "N/A",
-        date: new Date().toLocaleDateString(),
+        studentName: profile?.name || invoices[0]?.student_name || "Student",
+        studentId: profile?.student_id || "—",
+        grade: profile?.class_name || invoices[0]?.class_name || "—",
+        date: formatSchoolDate(new Date()),
         summary: {
-          totalFees: totalBilled,
-          totalPaid: totalPaid,
-          balance: balance,
-          arrears: arrears
+          totalFees: firstSummary?.billed || 0,
+          totalPaid: firstSummary?.paid || 0,
+          balance: firstSummary?.balance || 0,
+          arrears: 0,
         },
-        transactions: payments.map(p => ({
-          date: new Date(p.date).toLocaleDateString(),
-          description: `Payment - Receipt ${p.receipt_no}`,
-          amount: Number(p.amount),
+        currencyBreakdown: accountTotals.map((item) => ({ currency: item.currency, totalFees: item.billed, totalPaid: item.paid, balance: item.balance })),
+        transactions: payments.map((payment) => ({
+          date: formatSchoolDate(payment.date),
+          description: `Fee payment · ${payment.invoice_no}`,
+          amount: Number(payment.amount),
           type: "payment",
-          reference: p.reference || p.receipt_no
-        }))
+          reference: payment.reference || payment.receipt_no,
+          currency: payment.currency,
+        })),
       };
       await exportFeeStatementPdf(pdfData);
     } finally {
@@ -98,325 +61,109 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
     }
   };
 
-  const getStatusBadge = (status: Invoice["status"]) => {
-    const styles = {
-      paid: "bg-green-100 text-green-700",
-      partial: "bg-amber-100 text-amber-700",
-      unpaid: "bg-red-100 text-red-700",
-      overdue: "bg-red-100 text-red-700"
-    };
-    const labels = {
-      paid: "Paid",
-      partial: "Partial",
-      unpaid: "Unpaid",
-      overdue: "Overdue"
-    };
-    return <span className={`text-xs px-2 py-1 rounded-full font-medium ${styles[status]}`}>{labels[status]}</span>;
-  };
+  if (invoicesLoading || paymentsLoading) {
+    return <div className="flex h-80 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
 
-  const getTransactionIcon = (type: Transaction["type"]) => {
-    switch (type) {
-      case "payment": return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "invoice": return <FileText className="h-4 w-4 text-blue-600" />;
-      case "discount": return <TrendingUp className="h-4 w-4 text-purple-600" />;
-      case "penalty": return <AlertTriangle className="h-4 w-4 text-red-600" />;
-    }
-  };
+  const tabs = [
+    { id: "overview" as const, label: "Overview", Icon: Wallet },
+    { id: "invoices" as const, label: "Invoices", Icon: FileText },
+    { id: "transactions" as const, label: "Payment history", Icon: CreditCard },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="font-heading text-xl font-bold text-foreground">My Fees & Payments</h2>
-          <p className="text-muted-foreground text-sm">View your fee status, invoices, and payment history</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={handleDownloadStatement} disabled={isExporting}>
-            {isExporting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            {isExporting ? "Exporting..." : "Download Statement"}
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div><h2 className="text-xl font-bold">My fees and payments</h2><p className="text-sm text-muted-foreground">Current invoices, verified payments and downloadable statements.</p></div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => void handleDownloadStatement()} disabled={isExporting}>
+            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {isExporting ? "Preparing…" : "Download statement PDF"}
           </Button>
-          {balance > 0 && (
-            <Button variant="gold" size="sm" onClick={() => setShowPaymentModal(true)}>
-              <Wallet className="h-4 w-4 mr-2" />
-              Pay Now
-            </Button>
-          )}
+          {outstandingInvoices.length > 0 && <Button variant="gold" size="sm" onClick={() => startPayment(outstandingInvoices[0])}><Wallet className="mr-2 h-4 w-4" />Pay outstanding</Button>}
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-primary" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        {accountTotals.map((summary) => (
+          <div key={summary.currency} className="rounded-xl border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">Outstanding · {summary.currency === "ZWG" ? "ZiG" : "USD"}</p>
+            <p className="mt-1 text-2xl font-bold">{formatMoney(summary.balance, summary.currency)}</p>
+            <div className="mt-3 flex flex-wrap justify-between gap-2 text-sm text-muted-foreground">
+              <span>Billed {formatMoney(summary.billed, summary.currency)}</span><span>Paid {formatMoney(summary.paid, summary.currency)}</span>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Outstanding Balance</p>
-              <p className="text-2xl font-bold text-foreground">${balance}</p>
-            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary" style={{ width: `${summary.billed ? Math.min(100, summary.paid / summary.billed * 100) : 0}%` }} /></div>
           </div>
-        </div>
-        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-          <p className="text-sm text-muted-foreground mb-1">Arrears/Penalty</p>
-          <p className="text-2xl font-bold text-destructive">${arrears}</p>
-          <p className="text-xs text-destructive mt-2 flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Clear balance to avoid penalties
-          </p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-green-600">${totalPaid}</p>
-              <p className="text-xs text-muted-foreground">Total Paid</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-3">
-            <div className={`h-10 w-10 rounded-lg ${arrears > 0 ? 'bg-red-100' : 'bg-green-100'} flex items-center justify-center`}>
-              {arrears > 0 ? (
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-              ) : (
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              )}
-            </div>
-            <div>
-              <p className={`text-2xl font-bold ${arrears > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                ${arrears}
-              </p>
-              <p className="text-xs text-muted-foreground">Arrears</p>
-            </div>
-          </div>
-        </div>
+        ))}
+        {accountTotals.length === 0 && <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground sm:col-span-2">There are no fee invoices linked to this account yet. Contact the school Accounts office if you expected an invoice.</div>}
       </div>
 
-      {/* Payment Progress */}
-      <div className="bg-card rounded-xl border border-border p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-semibold text-foreground">Payment Progress - Term 1 2024</h3>
-            <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-              <p className="text-sm text-muted-foreground mb-1">Total Fees Due</p>
-              <p className="text-2xl font-bold text-foreground">${totalBilled}</p>
-              <div className="mt-4 h-2 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-1000"
-                  style={{ width: `${(totalPaid / totalBilled) * 100}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">${totalPaid} paid so far</p>
-            </div>
-          </div>
-          <span className="text-lg font-bold text-primary">{Math.round((totalPaid / totalBilled) * 100)}%</span>
-        </div>
-        <div className="h-3 bg-secondary rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500"
-            style={{ width: `${(totalPaid / totalBilled) * 100}%` }}
-          />
-        </div>
-        <div className="flex justify-between mt-2 text-sm">
-          <span className="text-muted-foreground">Paid: ${totalPaid}</span>
-          <span className="text-muted-foreground">Remaining: ${balance}</span>
-        </div>
+      {lastPayment && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-gradient-to-r from-primary/10 to-accent/10 p-4">
+        <div className="rounded-full bg-primary/15 p-3"><Receipt className="h-5 w-5 text-primary" /></div>
+        <div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground">Most recent recorded payment</p><p className="font-semibold">{formatMoney(lastPayment.amount, lastPayment.currency)} · {formatSchoolDate(lastPayment.date)}</p><p className="text-xs text-muted-foreground">{lastPayment.receipt_no} · {lastPayment.method}</p></div>
+      </div>}
+
+      <div className="flex gap-5 overflow-x-auto border-b border-border">
+        {tabs.map(({ id, label, Icon }) => <button key={id} onClick={() => setActiveTab(id)} className={`flex shrink-0 items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium ${activeTab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}><Icon className="h-4 w-4" />{label}</button>)}
       </div>
 
-      {/* Last Payment Card */}
-      <div className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-xl border border-border p-5">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
-            <Receipt className="h-6 w-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm text-muted-foreground">Last Payment</p>
-            <p className="font-semibold text-foreground">${payments.length > 0 ? payments[0].amount : 0} on {payments.length > 0 ? new Date(payments[0].date).toLocaleDateString() : 'N/A'}</p>
-          </div>
-          <Button variant="outline" size="sm">
-            <FileText className="h-4 w-4 mr-2" />
-            View Receipt
-          </Button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-border">
-        <div className="flex gap-6">
-          {[
-            { id: "overview", label: "Overview", icon: DollarSign },
-            { id: "invoices", label: "Invoices", icon: FileText },
-            { id: "transactions", label: "Transaction History", icon: CreditCard }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Overview Tab */}
       {activeTab === "overview" && (
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Fee Breakdown */}
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h3 className="font-semibold text-foreground mb-4">Fee Breakdown - Term 1 2024</h3>
+        <div className="grid gap-4 md:grid-cols-2">
+          <section className="rounded-xl border border-border bg-card p-5">
+            <h3 className="mb-3 font-semibold">Account summary by currency</h3>
             <div className="space-y-3">
-              {[
-                { item: "Tuition Fee", amount: 800 },
-                { item: "Development Levy", amount: 100 },
-                { item: "Examination Fee", amount: 50 },
-                { item: "Sports & Activities", amount: 75 },
-                { item: "ICT Levy", amount: 50 },
-                { item: "Library Fee", amount: 25 },
-                { item: "Stationery", amount: 100 }
-              ].map((fee, idx) => (
-                <div key={idx} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                  <span className="text-sm text-muted-foreground">{fee.item}</span>
-                  <span className="text-sm font-medium text-foreground">${fee.amount}</span>
-                </div>
-              ))}
-              <div className="flex justify-between items-center pt-2 border-t border-border">
-                <span className="font-semibold text-foreground">Total</span>
-                <span className="font-bold text-foreground">${totalBilled}</span>
-              </div>
+              {accountTotals.map((summary) => <div key={summary.currency} className="flex items-center justify-between gap-4 border-b border-border pb-3 last:border-0"><span className="text-sm text-muted-foreground">{summary.currency === "ZWG" ? "Zimbabwe Gold (ZiG)" : "US Dollars"}</span><span className="text-right text-sm font-semibold">{formatMoney(summary.balance, summary.currency)} due</span></div>)}
+              {!accountTotals.length && <p className="text-sm text-muted-foreground">No billed fees to summarise.</p>}
             </div>
-          </div>
-
-          {/* Payment Methods */}
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h3 className="font-semibold text-foreground mb-4">Accepted Payment Methods</h3>
-            <div className="space-y-3">
-              {[
-                { method: "Bank Transfer", details: "Able God College School Account - CBZ Bank", icon: "🏦" },
-                { method: "Cash", details: "Pay at School Accounts Office", icon: "💵" },
-                { method: "Mobile Money", details: "EcoCash, OneMoney", icon: "📱" },
-                { method: "POS", details: "Available at School Office", icon: "💳" }
-              ].map((pm, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30">
-                  <span className="text-xl">{pm.icon}</span>
-                  <div>
-                    <p className="font-medium text-foreground text-sm">{pm.method}</p>
-                    <p className="text-xs text-muted-foreground">{pm.details}</p>
-                  </div>
-                </div>
-              ))}
+          </section>
+          <section className="rounded-xl border border-border bg-card p-5">
+            <h3 className="mb-3 font-semibold">Online payment options</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex gap-3 rounded-lg bg-secondary/30 p-3"><span className="text-lg">📱</span><div><p className="font-medium">EcoCash</p><p className="text-xs text-muted-foreground">Enter your Zimbabwe mobile number and approve the payment prompt.</p></div></div>
+              <div className="flex gap-3 rounded-lg bg-secondary/30 p-3"><span className="text-lg">💳</span><div><p className="font-medium">ZimSwitch</p><p className="text-xs text-muted-foreground">Use the secure hosted checkout for a ZimSwitch enabled card.</p></div></div>
+              <p className="text-xs text-muted-foreground">Online methods appear during checkout when the school merchant is enabled for that invoice currency. Cash and bank payments can still be recorded by Accounts.</p>
             </div>
-          </div>
+          </section>
         </div>
       )}
 
-      {/* Invoices Tab */}
       {activeTab === "invoices" && (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-secondary/50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Invoice #</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Term</th>
-                <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Amount</th>
-                <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Paid</th>
-                <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Status</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Due Date</th>
-                <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Action</th>
-              </tr>
-            </thead>
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead className="bg-secondary/50"><tr><th className="px-4 py-3 text-left">Invoice</th><th className="px-4 py-3 text-left">Term</th><th className="px-4 py-3 text-right">Billed</th><th className="px-4 py-3 text-right">Paid</th><th className="px-4 py-3 text-right">Balance</th><th className="px-4 py-3 text-center">Status</th><th className="px-4 py-3 text-right">Action</th></tr></thead>
             <tbody className="divide-y divide-border">
-              {invoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-secondary/30 transition-colors">
-                  <td className="px-4 py-4 text-sm font-medium text-foreground">{invoice.invoice_no}</td>
-                  <td className="px-4 py-4 text-sm text-muted-foreground">{invoice.term}</td>
-                  <td className="px-4 py-4 text-sm text-right text-foreground">${invoice.amount}</td>
-                  <td className="px-4 py-4 text-sm text-right text-green-600">${invoice.paid}</td>
-                  <td className="px-4 py-4 text-center">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${invoice.status === "paid" ? "bg-green-100 text-green-700" :
-                      invoice.status === "partial" ? "bg-amber-100 text-amber-700" :
-                        "bg-red-100 text-red-700"
-                      }`}>
-                      {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</td>
-                  <td className="px-4 py-4 text-center">
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-              {invoices.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground italic">No invoices found.</td>
-                </tr>
-              )}
+              {invoices.map((invoice) => {
+                const due = Math.max(0, Number(invoice.amount) - Number(invoice.paid));
+                return <tr key={invoice.id}>
+                  <td className="px-4 py-3"><p className="font-medium">{invoice.invoice_no}</p><p className="text-xs text-muted-foreground">{formatSchoolDate(invoice.date)}</p></td>
+                  <td className="px-4 py-3">{invoice.term}</td>
+                  <td className="px-4 py-3 text-right">{formatMoney(invoice.amount, invoice.currency)}</td>
+                  <td className="px-4 py-3 text-right text-emerald-700">{formatMoney(invoice.paid, invoice.currency)}</td>
+                  <td className="px-4 py-3 text-right font-semibold">{formatMoney(due, invoice.currency)}</td>
+                  <td className="px-4 py-3 text-center"><span className={`rounded-full px-2 py-1 text-xs font-medium ${invoice.status === "paid" ? "bg-emerald-100 text-emerald-800" : invoice.status === "partial" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"}`}>{invoice.status}</span></td>
+                  <td className="px-4 py-3 text-right">{due > 0 ? <Button size="sm" variant="outline" onClick={() => startPayment(invoice)}>Pay</Button> : <span className="text-xs text-emerald-700">Settled</span>}</td>
+                </tr>;
+              })}
+              {!invoices.length && <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No invoices available.</td></tr>}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Transactions Tab */}
       {activeTab === "transactions" && (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <div className="divide-y divide-border">
-            {mockTransactions.map((txn) => (
-              <div key={txn.id} className="flex items-center gap-4 p-4 hover:bg-secondary/30">
-                <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
-                  {getTransactionIcon(txn.type)}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-foreground text-sm">{txn.description}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(txn.date).toLocaleDateString()} • Ref: {txn.reference}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className={`font-semibold ${txn.type === 'payment' || txn.type === 'discount' ? 'text-green-600' : txn.type === 'penalty' ? 'text-red-600' : 'text-foreground'}`}>
-                    {txn.type === 'payment' || txn.type === 'discount' ? '-' : '+'}${Math.abs(txn.amount)}
-                  </p>
-                  <p className="text-xs text-muted-foreground capitalize">{txn.type}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="divide-y divide-border rounded-xl border border-border bg-card">
+          {payments.map((payment) => <div key={payment.id} className="flex flex-wrap items-center gap-3 p-4">
+            <div className="rounded-full bg-emerald-100 p-2"><CheckCircle className="h-4 w-4 text-emerald-700" /></div>
+            <div className="min-w-0 flex-1"><p className="text-sm font-medium">{payment.method} · {payment.invoice_no}</p><p className="text-xs text-muted-foreground">{formatSchoolDate(payment.date)} · Receipt {payment.receipt_no}{payment.reference ? ` · ${payment.reference}` : ""}</p></div>
+            <p className="font-semibold text-emerald-700">{formatMoney(payment.amount, payment.currency)}</p>
+          </div>)}
+          {!payments.length && <div className="p-10 text-center text-sm text-muted-foreground">No recorded payments yet.</div>}
         </div>
       )}
 
-      {/* Arrears Warning (if applicable) */}
-      {arrears > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-semibold text-red-800">Outstanding Arrears</h4>
-            <p className="text-sm text-red-700">
-              You have outstanding arrears of ${arrears}. Please clear your balance to avoid restrictions on accessing academic services.
-            </p>
-          </div>
-        </div>
-      )}
+      {outstandingInvoices.length > 0 && activeTab === "overview" && <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><p>You have {outstandingInvoices.length} invoice{outstandingInvoices.length === 1 ? "" : "s"} with a remaining balance. Select an invoice to pay by EcoCash or ZimSwitch when online payments are enabled.</p></div>}
 
-      {/* Payment Modal */}
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        balance={balance}
-        studentName={profile?.name || "Student"}
-      />
+      <PaymentModal isOpen={Boolean(selectedInvoice)} onClose={() => setSelectedInvoice(null)} invoice={selectedInvoice} studentName={profile?.name || invoices[0]?.student_name || "Student"} />
     </div>
   );
 };

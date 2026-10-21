@@ -39,12 +39,19 @@ export interface FeeStatementPdfData {
     balance: number;
     arrears: number;
   };
+  currencyBreakdown?: Array<{
+    currency: "USD" | "ZWG";
+    totalFees: number;
+    totalPaid: number;
+    balance: number;
+  }>;
   transactions: Array<{
     date: string;
     description: string;
     amount: number;
     type: "payment" | "invoice" | "discount" | "penalty";
     reference: string;
+    currency?: "USD" | "ZWG";
   }>;
 }
 
@@ -233,28 +240,27 @@ export const exportFeeStatementPdf = async (data: FeeStatementPdfData) => {
   yPos += 12;
 
   // Summary Box
+  const breakdown = data.currencyBreakdown?.length ? data.currencyBreakdown : [{ currency: "USD" as const, ...data.summary }];
+  const summaryHeight = 18 + breakdown.length * 7;
   pdf.setFillColor(240, 240, 240);
-  pdf.rect(margin, yPos, pageWidth - 2 * margin, 30, "F");
+  pdf.rect(margin, yPos, pageWidth - 2 * margin, summaryHeight, "F");
   pdf.setFont("helvetica", "bold");
   pdf.text("Account Summary", margin + 5, yPos + 8);
   pdf.setFont("helvetica", "normal");
-  
   const summaryY = yPos + 15;
   const colWidth = (pageWidth - 2 * margin) / 4;
-  
-  pdf.text(`Total Fees:`, margin + 5, summaryY);
-  pdf.text(`$${data.summary.totalFees.toFixed(2)}`, margin + 5, summaryY + 5);
-  
-  pdf.text(`Paid:`, margin + colWidth + 5, summaryY);
-  pdf.text(`$${data.summary.totalPaid.toFixed(2)}`, margin + colWidth + 5, summaryY + 5);
-  
-  pdf.text(`Balance:`, margin + 2 * colWidth + 5, summaryY);
-  pdf.text(`$${data.summary.balance.toFixed(2)}`, margin + 2 * colWidth + 5, summaryY + 5);
-  
-  pdf.text(`Arrears:`, margin + 3 * colWidth + 5, summaryY);
-  pdf.text(`$${data.summary.arrears.toFixed(2)}`, margin + 3 * colWidth + 5, summaryY + 5);
-  
-  yPos += 40;
+  pdf.setFontSize(8);
+  pdf.setFont("helvetica", "bold");
+  ["Currency", "Total Fees", "Paid", "Balance"].forEach((label, index) => pdf.text(label, margin + 5 + index * colWidth, summaryY));
+  pdf.setFont("helvetica", "normal");
+  breakdown.forEach((item, index) => {
+    const rowY = summaryY + 6 + index * 7;
+    const symbol = item.currency === "USD" ? "US$" : "ZiG";
+    [item.currency, `${symbol} ${item.totalFees.toFixed(2)}`, `${symbol} ${item.totalPaid.toFixed(2)}`, `${symbol} ${item.balance.toFixed(2)}`]
+      .forEach((value, column) => pdf.text(value, margin + 5 + column * colWidth, rowY));
+  });
+  pdf.setFontSize(9);
+  yPos += summaryHeight + 10;
 
   // Transaction History Header
   pdf.setFont("helvetica", "bold");
@@ -295,8 +301,8 @@ export const exportFeeStatementPdf = async (data: FeeStatementPdfData) => {
     pdf.text(txn.reference.substring(0, 15), cols[3], yPos + 5);
     
     const amountStr = txn.type === "payment" || txn.type === "discount" 
-      ? `-$${Math.abs(txn.amount).toFixed(2)}` 
-      : `$${txn.amount.toFixed(2)}`;
+      ? `-${txn.currency === "ZWG" ? "ZiG" : "US$"} ${Math.abs(txn.amount).toFixed(2)}`
+      : `${txn.currency === "ZWG" ? "ZiG" : "US$"} ${txn.amount.toFixed(2)}`;
     pdf.text(amountStr, cols[4], yPos + 5);
     
     yPos += 7;

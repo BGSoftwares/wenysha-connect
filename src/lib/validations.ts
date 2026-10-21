@@ -42,6 +42,7 @@ export type AdmissionFormData = z.infer<typeof admissionSchema>;
 export const invoiceSchema = z.object({
   studentId: z.string().min(1, "Please select a student"),
   term: z.string().min(1, "Please select a term"),
+  currency: z.enum(["USD", "ZWG"]),
   amount: z
     .string()
     .min(1, "Amount is required")

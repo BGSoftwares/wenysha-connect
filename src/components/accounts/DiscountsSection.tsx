@@ -29,7 +29,7 @@ import {
 import { Plus, Search, Percent, AlertTriangle, Ban, CheckCircle, Loader2, Sparkles, UserPlus } from "lucide-react";
 import { useDiscounts, useCreateDiscount, useStudentBalances, useStudents, Discount } from "@/lib/hooks";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, schoolDateInput } from "@/lib/finance";
 
 interface DiscountsSectionProps {
   activeSubNav: string;
@@ -48,8 +48,9 @@ const DiscountsSection = ({ activeSubNav }: DiscountsSectionProps) => {
     student: "",
     discount_type: "Sibling Discount",
     amount: "0",
+    currency: "USD" as "USD" | "ZWG",
     reason: "",
-    date: new Date().toISOString().split('T')[0]
+    date: schoolDateInput()
   });
 
   const filteredDiscounts = (discounts || []).filter(d => {
@@ -87,7 +88,7 @@ const DiscountsSection = ({ activeSubNav }: DiscountsSectionProps) => {
       });
       toast.success("Adjustment applied successfully");
       setShowAddModal(false);
-      setFormData({ student: "", discount_type: "Sibling Discount", amount: "0", reason: "", date: new Date().toISOString().split('T')[0] });
+      setFormData({ student: "", discount_type: "Sibling Discount", amount: "0", currency: "USD", reason: "", date: schoolDateInput() });
     } catch (error) {
       toast.error("Failed to record adjustment");
     }
@@ -140,7 +141,7 @@ const DiscountsSection = ({ activeSubNav }: DiscountsSectionProps) => {
                     <TableRow><TableCell colSpan={5} className="h-40 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
                   ) : defaulters.length > 0 ? (
                     defaulters.filter(d => (d.student || "").toLowerCase().includes(searchTerm.toLowerCase())).map((defaulter) => (
-                      <TableRow key={defaulter.student_id} className="hover:bg-muted/5 transition-colors border-b border-border/50">
+                      <TableRow key={`${defaulter.student_id}-${defaulter.currency}`} className="hover:bg-muted/5 transition-colors border-b border-border/50">
                         <TableCell className="pl-8">
                           <div className="flex flex-col">
                             <span className="font-black text-foreground">{defaulter.student}</span>
@@ -150,10 +151,10 @@ const DiscountsSection = ({ activeSubNav }: DiscountsSectionProps) => {
                         <TableCell>
                           <Badge variant="outline" className="font-bold border-muted text-muted-foreground uppercase text-[10px]">Active</Badge>
                         </TableCell>
-                        <TableCell className="text-right font-bold text-muted-foreground">${(defaulter.totalBilled || 0).toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-bold text-emerald-600">${(defaulter.totalPaid || 0).toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-muted-foreground">{formatMoney(defaulter.totalBilled || 0, defaulter.currency)}</TableCell>
+                        <TableCell className="text-right font-bold text-emerald-600">{formatMoney(defaulter.totalPaid || 0, defaulter.currency)}</TableCell>
                         <TableCell className="text-right pr-8">
-                          <span className="text-lg font-black text-destructive">${(defaulter.balance || 0).toLocaleString()}</span>
+                          <span className="text-lg font-black text-destructive">{formatMoney(defaulter.balance || 0, defaulter.currency)}</span>
                         </TableCell>
                       </TableRow>
                     ))
@@ -216,7 +217,7 @@ const DiscountsSection = ({ activeSubNav }: DiscountsSectionProps) => {
                 <TableRow className="bg-muted/10 border-none">
                   <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest pl-8">Beneficiary</TableHead>
                   <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest">Classification</TableHead>
-                  <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest text-right">Value ($)</TableHead>
+                  <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest text-right">Value</TableHead>
                   <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest">Justification</TableHead>
                   <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest">Status</TableHead>
                   <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest text-right pr-8">Recorded</TableHead>
@@ -237,11 +238,11 @@ const DiscountsSection = ({ activeSubNav }: DiscountsSectionProps) => {
                       <TableCell>
                         <Badge variant="outline" className="font-bold border-muted text-muted-foreground uppercase text-[10px]">{discount.discount_type}</Badge>
                       </TableCell>
-                      <TableCell className="text-right font-black text-primary text-lg">${parseFloat(discount.amount.toString()).toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-black text-primary text-lg">{formatMoney(discount.amount, discount.currency || "USD")}</TableCell>
                       <TableCell className="max-w-[200px] truncate text-xs font-medium text-muted-foreground italic">{discount.reason || "Automatic eligibility"}</TableCell>
                       <TableCell>{getStatusBadge(discount.status)}</TableCell>
                       <TableCell className="text-right pr-8 font-medium text-[11px] text-muted-foreground">
-                        {discount.date ? format(new Date(discount.date), "MMM d, yyyy") : "-"}
+                        {discount.date ? formatSchoolDate(discount.date) : "-"}
                       </TableCell>
                     </TableRow>
                   ))
@@ -280,7 +281,7 @@ const DiscountsSection = ({ activeSubNav }: DiscountsSectionProps) => {
               </Select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-accent uppercase tracking-widest ml-1">Classification *</label>
                 <Select value={formData.discount_type} onValueChange={(v) => setFormData({ ...formData, discount_type: v })}>
@@ -298,7 +299,7 @@ const DiscountsSection = ({ activeSubNav }: DiscountsSectionProps) => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-accent uppercase tracking-widest ml-1">Valuation ($) *</label>
+                <label className="text-[10px] font-black text-accent uppercase tracking-widest ml-1">Amount *</label>
                 <Input
                   type="number"
                   value={formData.amount}
@@ -306,6 +307,13 @@ const DiscountsSection = ({ activeSubNav }: DiscountsSectionProps) => {
                   placeholder="0.00"
                   className="h-12 rounded-xl font-black text-primary text-xl"
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-accent uppercase tracking-widest ml-1">Currency</label>
+                <Select value={formData.currency} onValueChange={(currency: "USD" | "ZWG") => setFormData({ ...formData, currency })}>
+                  <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select currency" /></SelectTrigger>
+                  <SelectContent>{FINANCE_CURRENCIES.map((currency) => <SelectItem key={currency.value} value={currency.value}>{currency.label}</SelectItem>)}</SelectContent>
+                </Select>
               </div>
             </div>
 

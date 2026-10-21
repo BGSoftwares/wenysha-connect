@@ -39,17 +39,25 @@ import {
   Line,
   Legend
 } from "recharts";
-import { usePayments, useInvoices, useStudentBalances, useFeeStructures, useDiscounts } from "@/lib/hooks";
+import { usePayments, useInvoices, useDiscounts } from "@/lib/hooks";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
+import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, type FinanceCurrency } from "@/lib/finance";
 
 const ReportsSection = () => {
   const { data: payments, isLoading: paymentsLoading } = usePayments();
   const { data: invoices, isLoading: invoicesLoading } = useInvoices();
-  const { data: balances, isLoading: balancesLoading } = useStudentBalances();
-  const { data: structures } = useFeeStructures();
   const { data: discounts } = useDiscounts();
 
   const [selectedTerm, setSelectedTerm] = useState("all");
+  const [selectedCurrency, setSelectedCurrency] = useState<FinanceCurrency>("USD");
+
+  const selectedInvoices = useMemo(() => (invoices || []).filter((invoice) =>
+    (selectedTerm === "all" || invoice.term === selectedTerm) && invoice.currency === selectedCurrency
+  ), [invoices, selectedTerm, selectedCurrency]);
+  const selectedInvoiceIds = useMemo(() => new Set(selectedInvoices.map((invoice) => invoice.id)), [selectedInvoices]);
+  const selectedPayments = useMemo(() => (payments || []).filter((payment) =>
+    selectedInvoiceIds.has(payment.invoice) && payment.currency === selectedCurrency
+  ), [payments, selectedInvoiceIds, selectedCurrency]);
 
   const dailyCollections = useMemo(() => {
     const today = new Date();
@@ -58,17 +66,17 @@ const ReportsSection = () => {
     return Array.from({ length: 5 }).map((_, i) => {
       const day = addDays(startOfCurrentWeek, i);
       const dayName = format(day, "EEE");
-      const dayAmount = payments?.filter(p => isSameDay(parseISO(p.date), day))
+      const dayAmount = selectedPayments.filter(p => isSameDay(parseISO(p.date), day))
         .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
 
       return { day: dayName, amount: dayAmount };
     });
-  }, [payments]);
+  }, [selectedPayments]);
 
   const paymentMethodStats = useMemo(() => {
-    if (!payments) return [];
+    if (!selectedPayments.length) return [];
     const methods: Record<string, number> = {};
-    payments.forEach(p => {
+    selectedPayments.forEach(p => {
       methods[p.method] = (methods[p.method] || 0) + parseFloat(p.amount.toString());
     });
 
@@ -78,15 +86,18 @@ const ReportsSection = () => {
       value,
       color: colors[i % colors.length]
     }));
-  }, [payments]);
+  }, [selectedPayments]);
 
   const totalRevenue = useMemo(() => {
-    return payments?.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
-  }, [payments]);
+    return selectedPayments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0);
+  }, [selectedPayments]);
 
   const totalOutstanding = useMemo(() => {
-    return balances?.reduce((sum, b) => sum + b.balance, 0) || 0;
-  }, [balances]);
+    return selectedInvoices.reduce((sum, invoice) => sum + Number(invoice.amount) - Number(invoice.paid), 0);
+  }, [selectedInvoices]);
+
+  const totalBilled = selectedInvoices.reduce((sum, invoice) => sum + Number(invoice.amount), 0);
+  const recoveryRate = totalBilled > 0 ? Math.min(100, (totalRevenue / totalBilled) * 100) : 0;
 
   const reportTypes = [
     { id: "daily", name: "Settlement Audit", icon: DollarSign, description: "Detailed summary of recent collections" },
@@ -95,7 +106,80 @@ const ReportsSection = () => {
     { id: "discounts", name: "Subsidy Audit", icon: Percent, description: "Waivers and institutional scholarships" },
   ];
 
-  if (paymentsLoading || invoicesLoading || balancesLoading) {
+  const buildReportRows = (reportId: string): (string | number)[][] => {
+    if (reportId === "daily") {
+      return [
+        ["Date", "Student", "Invoice", "Method", "Receipt reference", "Amount", "Currency"],
+        ...selectedPayments.map((payment) => [
+          payment.date, payment.student_name, payment.invoice_no, payment.method,
+          payment.reference || "", payment.amount, payment.currency,
+        ]),
+      ];
+    }
+    if (reportId === "outstanding") {
+      return [
+        ["Student", "Student ID", "Class", "Invoice", "Term", "Amount billed", "Paid", "Balance", "Currency"],
+        ...selectedInvoices.filter((invoice) => Number(invoice.amount) > Number(invoice.paid)).map((invoice) => [
+          invoice.student_name, invoice.student_id_display || "", invoice.class_name, invoice.invoice_no,
+          invoice.term, invoice.amount, invoice.paid,
+          (Number(invoice.amount) - Number(invoice.paid)).toFixed(2), invoice.currency,
+        ]),
+      ];
+    }
+    if (reportId === "discounts") {
+      return [
+        ["Date", "Student", "Adjustment", "Reason", "Status", "Amount", "Currency"],
+        ...(discounts || []).filter((discount) => discount.currency === selectedCurrency).map((discount) => [
+          discount.date, discount.student_name, discount.discount_type, discount.reason,
+          discount.status, discount.amount, discount.currency,
+        ]),
+      ];
+    }
+    return [
+      ["Invoice", "Student", "Class", "Term", "Date", "Billed", "Paid", "Balance", "Currency"],
+      ...selectedInvoices.map((invoice) => [
+        invoice.invoice_no, invoice.student_name, invoice.class_name, invoice.term, invoice.date,
+        invoice.amount, invoice.paid, (Number(invoice.amount) - Number(invoice.paid)).toFixed(2), invoice.currency,
+      ]),
+    ];
+  };
+
+  const exportReport = async (reportId: string, fileType: "pdf" | "csv") => {
+    const rows = buildReportRows(reportId);
+    const fileBase = `able-god-${reportId}-${new Date().toISOString().slice(0, 10)}`;
+    if (fileType === "csv") {
+      const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${fileBase}.csv`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    const { default: jsPDF } = await import("jspdf");
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    pdf.setFontSize(16);
+    pdf.text(`Able God College · ${reportTypes.find((report) => report.id === reportId)?.name || "Finance report"}`, 14, 16);
+    pdf.setFontSize(9);
+    pdf.text(`${selectedTerm === "all" ? "All terms" : selectedTerm} · ${selectedCurrency} · ${formatSchoolDate(new Date())}`, 14, 23);
+    let y = 32;
+    rows.forEach((row, rowIndex) => {
+      const line = row.map(String).join("   |   ");
+      const wrapped = pdf.splitTextToSize(line, 270);
+      if (y + wrapped.length * 5 > 195) {
+        pdf.addPage();
+        y = 16;
+      }
+      if (rowIndex === 0) pdf.setFont("helvetica", "bold");
+      else pdf.setFont("helvetica", "normal");
+      pdf.text(wrapped, 14, y);
+      y += wrapped.length * 5 + 2;
+    });
+    pdf.save(`${fileBase}.pdf`);
+  };
+
+  if (paymentsLoading || invoicesLoading) {
     return (
       <div className="h-96 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -125,11 +209,11 @@ const ReportsSection = () => {
                 </div>
               </div>
               <div className="flex gap-2 mt-6">
-                <Button variant="outline" size="sm" className="flex-1 h-10 rounded-lg border-muted hover:bg-accent/5 hover:text-accent font-bold text-[10px] tracking-widest uppercase">
+                <Button variant="outline" size="sm" onClick={() => void exportReport(report.id, "pdf")} className="flex-1 h-10 rounded-lg border-muted hover:bg-accent/5 hover:text-accent font-bold text-[10px] tracking-widest uppercase">
                   <FileText className="h-3 w-3 mr-2" />
                   PDF
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 h-10 rounded-lg border-muted hover:bg-primary/5 hover:text-primary font-bold text-[10px] tracking-widest uppercase">
+                <Button variant="outline" size="sm" onClick={() => void exportReport(report.id, "csv")} className="flex-1 h-10 rounded-lg border-muted hover:bg-primary/5 hover:text-primary font-bold text-[10px] tracking-widest uppercase">
                   <FileSpreadsheet className="h-3 w-3 mr-2" />
                   XLS
                 </Button>
@@ -158,12 +242,20 @@ const ReportsSection = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Universal Ledger</SelectItem>
-                  <SelectItem value="term1">Term 1 2024</SelectItem>
-                  <SelectItem value="term2">Term 2 2024</SelectItem>
-                  <SelectItem value="term3">Term 3 2024</SelectItem>
+                  <SelectItem value="Term 1">Term 1</SelectItem>
+                  <SelectItem value="Term 2">Term 2</SelectItem>
+                  <SelectItem value="Term 3">Term 3</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="gold" className="h-12 px-8 rounded-xl shadow-lg shadow-black/20 gap-2">
+              <Select value={selectedCurrency} onValueChange={(value) => setSelectedCurrency(value as FinanceCurrency)}>
+                <SelectTrigger className="w-[220px] h-12 rounded-xl bg-white border-none font-bold text-primary">
+                  <SelectValue placeholder="Currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FINANCE_CURRENCIES.map((currency) => <SelectItem key={currency.value} value={currency.value}>{currency.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button variant="gold" onClick={() => void exportReport("term", "csv")} className="h-12 px-8 rounded-xl shadow-lg shadow-black/20 gap-2">
                 <Download className="h-4 w-4" />
                 Archive Global Data
               </Button>
@@ -183,8 +275,8 @@ const ReportsSection = () => {
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Rolling fee collection trends</p>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-black text-emerald-600">${totalRevenue.toLocaleString()}</span>
-                <p className="text-[10px] font-black text-muted-foreground uppercase opacity-50">Aggregate Recovery</p>
+                <span className="text-2xl font-black text-emerald-600">{formatMoney(totalRevenue, selectedCurrency)}</span>
+                <p className="text-[10px] font-black text-muted-foreground uppercase opacity-50">{selectedTerm === "all" ? "All terms" : selectedTerm} collections</p>
               </div>
             </CardHeader>
             <CardContent className="p-6">
@@ -201,7 +293,7 @@ const ReportsSection = () => {
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tickFormatter={(value) => `$${value}`}
+                      tickFormatter={(value) => formatMoney(value, selectedCurrency)}
                       tick={{ fill: '#64748b', fontWeight: 700, fontSize: 12 }}
                     />
                     <Tooltip
@@ -226,7 +318,7 @@ const ReportsSection = () => {
               <CardContent className="p-6 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">Recovery Rate</p>
-                  <h4 className="text-3xl font-black text-emerald-900 tracking-tighter">84.2%</h4>
+                  <h4 className="text-3xl font-black text-emerald-900 tracking-tighter">{recoveryRate.toFixed(1)}%</h4>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
                   <ArrowUpRight className="h-6 w-6 text-emerald-600" />
@@ -237,7 +329,7 @@ const ReportsSection = () => {
               <CardContent className="p-6 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">Portfolio Risk</p>
-                  <h4 className="text-3xl font-black text-amber-900 tracking-tighter">${(totalOutstanding / 1000).toFixed(1)}k</h4>
+                  <h4 className="text-2xl font-black text-amber-900 tracking-tighter">{formatMoney(totalOutstanding, selectedCurrency)}</h4>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-amber-500/20 flex items-center justify-center">
                   <ShieldCheck className="h-6 w-6 text-amber-600" />
@@ -287,11 +379,12 @@ const ReportsSection = () => {
                       <span className="text-sm font-bold text-foreground">{item.name}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-black text-primary">${item.value.toLocaleString()}</span>
+                      <span className="text-sm font-black text-primary">{formatMoney(item.value, selectedCurrency)}</span>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{((item.value / totalRevenue) * 100).toFixed(1)}%</p>
                     </div>
                   </div>
                 ))}
+                {paymentMethodStats.length === 0 && <p className="text-sm text-center text-muted-foreground">No recorded payments for this term and currency.</p>}
               </div>
             </CardContent>
           </Card>

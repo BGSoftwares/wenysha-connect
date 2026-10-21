@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Wallet,
   MessageSquare,
+  Smartphone,
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { useState } from "react";
@@ -58,6 +59,7 @@ const navigation: NavItem[] = [
     ]
   },
   { name: "Balances & Statements", icon: DollarSign, id: "balances" },
+  { name: "Online Payments", icon: Smartphone, id: "online-payments" },
   { 
     name: "Discounts & Adjustments", 
     icon: Percent, 

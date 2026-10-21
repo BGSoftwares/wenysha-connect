@@ -10,6 +10,7 @@ import BalancesSection from "@/components/accounts/BalancesSection";
 import DiscountsSection from "@/components/accounts/DiscountsSection";
 import ReportsSection from "@/components/accounts/ReportsSection";
 import AccountsProfileSection from "@/components/accounts/AccountsProfileSection";
+import OnlinePaymentsSection from "@/components/accounts/OnlinePaymentsSection";
 import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
 import CommunicationSection from "@/components/dashboard/CommunicationSection";
 import { useClasses, useStudents } from "@/lib/hooks";
@@ -31,6 +32,7 @@ const AccountsDashboard = () => {
       payments: "Payments",
       "record-payment": "Record Payment",
       balances: "Balances & Statements",
+      "online-payments": "Online Payments",
       discounts: "Discounts & Adjustments",
       arrears: "Arrears & Compliance",
       reports: "Reports & Analytics",
@@ -44,7 +46,7 @@ const AccountsDashboard = () => {
   const renderContent = () => {
     switch (activeNav) {
       case "dashboard":
-        return <div className="space-y-6"><DashboardExtras role="Accounts" actions={[{ label: "Record payment", onClick: () => setActiveNav("record-payment") }, { label: "Invoices", onClick: () => setActiveNav("invoices") }, { label: "Communications", onClick: () => setActiveNav("communications") }]} /><AccountsOverview onNavigate={setActiveNav} /></div>;
+        return <div className="space-y-6"><DashboardExtras role="Accounts" actions={[{ label: "Record payment", onClick: () => setActiveNav("record-payment") }, { label: "Online payments", onClick: () => setActiveNav("online-payments") }, { label: "Invoices", onClick: () => setActiveNav("invoices") }, { label: "Communications", onClick: () => setActiveNav("communications") }]} /><AccountsOverview onNavigate={setActiveNav} /></div>;
       case "fee-structures":
       case "add-fee":
         return <FeeStructuresSection activeSubNav={activeNav} />;
@@ -56,6 +58,8 @@ const AccountsDashboard = () => {
         return <PaymentsSection activeSubNav={activeNav} />;
       case "balances":
         return <BalancesSection />;
+      case "online-payments":
+        return <OnlinePaymentsSection />;
       case "discounts":
       case "arrears":
         return <DiscountsSection activeSubNav={activeNav} />;

@@ -24,6 +24,7 @@ const ParentPortal = lazy(() => import("./pages/ParentPortal"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
+const PaymentReturn = lazy(() => import("./pages/PaymentReturn"));
 
 // Loading Component
 const PageLoader = () => (
@@ -60,6 +61,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/payment/return" element={<PaymentReturn />} />
               <Route path="/portal" element={<Portal />} />
               <Route path="/admin/*" element={<PortalRoute role="admin"><AdminDashboard /></PortalRoute>} />
               <Route path="/student/*" element={<PortalRoute role="student"><StudentDashboard /></PortalRoute>} />

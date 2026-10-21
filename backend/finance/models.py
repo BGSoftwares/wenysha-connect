@@ -6,8 +6,10 @@ from school.models import Student
 
 
 class FeeStructure(models.Model):
+    CURRENCY_CHOICES = [('USD', 'US Dollar'), ('ZWG', 'Zimbabwe Gold (ZiG)')]
     name = models.CharField(max_length=128)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
     term = models.CharField(max_length=32)  # Term 1, Term 2, Annual
     form = models.CharField(max_length=32)  # Form 1, All Forms
     category = models.CharField(max_length=64, blank=True)
@@ -20,10 +22,12 @@ class FeeStructure(models.Model):
 
 class Invoice(models.Model):
     STATUS_CHOICES = [('paid', 'Paid'), ('partial', 'Partial'), ('unpaid', 'Unpaid')]
+    CURRENCY_CHOICES = FeeStructure.CURRENCY_CHOICES
     invoice_no = models.CharField(max_length=32, unique=True)
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='invoices')
     term = models.CharField(max_length=32)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
     paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unpaid')
     date = models.DateField()
@@ -100,9 +104,11 @@ class Payment(models.Model):
 
 class Discount(models.Model):
     STATUS_CHOICES = [('approved', 'Approved'), ('pending', 'Pending'), ('rejected', 'Rejected')]
+    CURRENCY_CHOICES = FeeStructure.CURRENCY_CHOICES
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='discounts')
     discount_type = models.CharField(max_length=64)  # Sibling Discount, Scholarship, etc.
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
     percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     reason = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -116,3 +122,32 @@ class Discount(models.Model):
 
     def __str__(self):
         return f"{self.student.name} - {self.discount_type} - {self.amount}"
+
+
+class OnlinePayment(models.Model):
+    PROVIDER_CHOICES = [('ecocash', 'EcoCash'), ('zimswitch', 'ZimSwitch')]
+    STATUS_CHOICES = [
+        ('pending', 'Pending'), ('paid', 'Paid'), ('failed', 'Failed'), ('cancelled', 'Cancelled')
+    ]
+
+    invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name='online_payments')
+    provider = models.CharField(max_length=16, choices=PROVIDER_CHOICES)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='pending')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, choices=FeeStructure.CURRENCY_CHOICES, default='USD')
+    client_reference = models.CharField(max_length=64, unique=True)
+    payer_phone = models.CharField(max_length=16, blank=True)
+    provider_reference = models.CharField(max_length=64, blank=True)
+    checkout_id = models.CharField(max_length=128, blank=True)
+    error_code = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='online_fee_payments'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.provider} {self.client_reference} - {self.status}"

@@ -19,7 +19,7 @@ import { Plus, Eye, Printer, Search, FileText, Loader2, AlertTriangle } from "lu
 import { useInvoices, useCreateInvoice, useStudents, Invoice as InvoiceType } from "@/lib/hooks";
 import { invoiceSchema, type InvoiceFormData } from "@/lib/validations";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, schoolDateInput } from "@/lib/finance";
 
 interface InvoicesSectionProps {
   activeSubNav: string;
@@ -38,7 +38,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
-    defaultValues: { term: "Term 1", studentId: "", amount: "" },
+    defaultValues: { term: "Term 1", studentId: "", amount: "", currency: "USD" },
   });
 
   const filteredInvoices = (invoices || []).filter(inv => {
@@ -67,8 +67,9 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
       await createInvoiceMutation.mutateAsync({
         student: parseInt(data.studentId),
         term: data.term,
+        currency: data.currency,
         amount: parseFloat(data.amount),
-        date: new Date().toISOString().split("T")[0],
+        date: schoolDateInput(),
       });
       setShowGenerateModal(false);
       toast.success("Invoice generated successfully");
@@ -153,10 +154,10 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
                       <TableCell className="font-medium">{invoice.student_name}</TableCell>
                       <TableCell>{invoice.class_name}</TableCell>
                       <TableCell>{invoice.term}</TableCell>
-                      <TableCell className="font-semibold">${parseFloat(invoice.amount).toLocaleString()}</TableCell>
-                      <TableCell className="text-primary">${parseFloat(invoice.paid).toLocaleString()}</TableCell>
+                      <TableCell className="font-semibold">{formatMoney(invoice.amount, invoice.currency)}</TableCell>
+                      <TableCell className="text-primary">{formatMoney(invoice.paid, invoice.currency)}</TableCell>
                       <TableCell className={parseFloat(invoice.amount) - parseFloat(invoice.paid) > 0 ? "text-destructive font-bold" : "text-primary font-bold"}>
-                        ${(parseFloat(invoice.amount) - parseFloat(invoice.paid)).toLocaleString()}
+                        {formatMoney(parseFloat(invoice.amount) - parseFloat(invoice.paid), invoice.currency)}
                       </TableCell>
                       <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                       <TableCell className="text-right">
@@ -237,10 +238,26 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
                 name="amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-bold text-accent uppercase tracking-widest">Fee Amount ($)</FormLabel>
+                    <FormLabel className="text-xs font-bold text-accent uppercase tracking-widest">Fee Amount</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="0.00" className="h-12" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold text-accent uppercase tracking-widest">Currency</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger className="h-12"><SelectValue placeholder="Select currency" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {FINANCE_CURRENCIES.map((currency) => <SelectItem key={currency.value} value={currency.value}>{currency.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -281,7 +298,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground text-sm font-medium">Issued Date:</span>
-                  <span className="font-semibold">{format(new Date(selectedInvoice.date), "PPP")}</span>
+                  <span className="font-semibold">{formatSchoolDate(selectedInvoice.date, { weekday: "short", month: "long" })}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground text-sm font-medium">Payment Status:</span>
@@ -308,11 +325,11 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
                 <div className="bg-secondary/30 rounded-2xl p-6 space-y-4 border border-border">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Billed:</span>
-                    <span className="font-bold">${parseFloat(selectedInvoice.amount).toLocaleString()}</span>
+                    <span className="font-bold">{formatMoney(selectedInvoice.amount, selectedInvoice.currency)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-primary">
                     <span className="text-muted-foreground font-medium">Total Paid:</span>
-                    <span className="font-bold">-${parseFloat(selectedInvoice.paid).toLocaleString()}</span>
+                    <span className="font-bold">-{formatMoney(selectedInvoice.paid, selectedInvoice.currency)}</span>
                   </div>
                   {parseFloat(selectedInvoice.amount) - parseFloat(selectedInvoice.paid) > 0 && (
                     <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/5 rounded-lg p-3">
@@ -324,7 +341,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
                     <div>
                       <p className="text-[10px] text-muted-foreground font-bold uppercase">Balance Due</p>
                       <p className="font-black text-2xl text-destructive tracking-tighter">
-                        ${(parseFloat(selectedInvoice.amount) - parseFloat(selectedInvoice.paid)).toLocaleString()}
+                        {formatMoney(parseFloat(selectedInvoice.amount) - parseFloat(selectedInvoice.paid), selectedInvoice.currency)}
                       </p>
                     </div>
                   </div>
