@@ -18,9 +18,12 @@ import {
   Calendar
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { getErrorMessage } from "@/lib/api";
+import { useLearningMaterials } from "@/lib/hooks";
 
-const ELearningSection = () => {
+const ELearningSection = ({ className }: { className: string }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const { data: materials = [], isLoading, error } = useLearningMaterials({ class_name: className, visibility: "class" });
 
   const courses = [
     {
@@ -59,14 +62,6 @@ const ELearningSection = () => {
       videos: 4,
       lastAccessed: "1 hour ago"
     },
-  ];
-
-  const recentMaterials = [
-    { id: 1, title: "Quadratic Equations Notes", subject: "Mathematics", type: "PDF", size: "2.4 MB", date: "Feb 1, 2024" },
-    { id: 2, title: "Newton's Laws of Motion", subject: "Physics", type: "Video", duration: "25 min", date: "Jan 30, 2024" },
-    { id: 3, title: "Organic Chemistry Chapter 5", subject: "Chemistry", type: "PDF", size: "3.1 MB", date: "Jan 28, 2024" },
-    { id: 4, title: "Essay Writing Techniques", subject: "English", type: "Video", duration: "18 min", date: "Jan 27, 2024" },
-    { id: 5, title: "Past Paper 2023 Solutions", subject: "Mathematics", type: "PDF", size: "1.8 MB", date: "Jan 25, 2024" },
   ];
 
   const assignments = [
@@ -154,41 +149,32 @@ const ELearningSection = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {recentMaterials.map((material) => (
-                  <div key={material.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${material.type === "Video" ? "bg-red-500/10" : "bg-blue-500/10"}`}>
-                        {material.type === "Video" ? (
-                          <Play className="h-5 w-5 text-red-600" />
-                        ) : (
-                          <File className="h-5 w-5 text-blue-600" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{material.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {material.subject} • {material.type === "Video" ? material.duration : material.size}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-muted-foreground">{material.date}</span>
-                      <Button variant="outline" size="sm">
-                        {material.type === "Video" ? (
-                          <>
-                            <Play className="h-4 w-4 mr-1" />
-                            Watch
-                          </>
-                        ) : (
-                          <>
-                            <Download className="h-4 w-4 mr-1" />
-                            Download
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                {isLoading ? <p className="py-6 text-center text-sm text-muted-foreground">Loading class materials…</p>
+                  : error ? <p className="py-6 text-center text-sm text-destructive">Could not load class materials: {getErrorMessage(error)}</p>
+                    : materials.filter((material) => `${material.title} ${material.subject_name}`.toLowerCase().includes(searchQuery.toLowerCase())).length === 0
+                      ? <p className="py-6 text-center text-sm text-muted-foreground">No materials have been shared with your class yet.</p>
+                      : materials.filter((material) => `${material.title} ${material.subject_name}`.toLowerCase().includes(searchQuery.toLowerCase())).map((material) => {
+                        const isVideo = material.file_type === "VIDEO";
+                        return (
+                          <div key={material.id} className="flex flex-col justify-between gap-3 rounded-lg p-3 transition-colors hover:bg-secondary/50 sm:flex-row sm:items-center">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className={`shrink-0 rounded-lg p-2 ${isVideo ? "bg-red-500/10" : "bg-blue-500/10"}`}>
+                                {isVideo ? <Play className="h-5 w-5 text-red-600" /> : <File className="h-5 w-5 text-blue-600" />}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="break-words font-medium text-foreground">{material.title}</p>
+                                <p className="text-sm text-muted-foreground">{material.subject_name} • {material.file_type}{material.file_name ? ` • ${material.file_name}` : ""}</p>
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
+                              <span className="text-xs text-muted-foreground">{new Date(material.created_at).toLocaleDateString()}</span>
+                              {material.file_url && <a href={material.file_url} target="_blank" rel="noreferrer" download={!isVideo}>
+                                <Button variant="outline" size="sm">{isVideo ? <><Play className="mr-1 h-4 w-4" />Watch</> : <><Download className="mr-1 h-4 w-4" />Download</>}</Button>
+                              </a>}
+                            </div>
+                          </div>
+                        );
+                      })}
               </div>
             </CardContent>
           </Card>

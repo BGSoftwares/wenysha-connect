@@ -26,6 +26,7 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
             await api.delete(`/school/allocations/${allocation.id}/`);
             await queryClient.invalidateQueries({ queryKey: ["allocations"] });
             await queryClient.invalidateQueries({ queryKey: ["teachers"] });
+            await queryClient.invalidateQueries({ queryKey: ["timetable"] });
             toast.success("Allocation removed");
         } catch (error) { toast.error(getErrorMessage(error)); }
     };
@@ -33,8 +34,12 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
     const handleSaveEdit = async () => {
         if (!editingAllocation) return;
         const periods = Number(editingAllocation.periods);
-        if (!Number.isInteger(periods) || periods < 1 || periods > 40) {
-            toast.error("Enter a whole number between 1 and 40 for periods");
+        if (!Number.isInteger(periods) || periods < 1 || periods > 35) {
+            toast.error("Enter a whole number between 1 and 35 for periods");
+            return;
+        }
+        if (!editingAllocation.room?.trim()) {
+            toast.error("Assign a room before saving this timetable allocation");
             return;
         }
 
@@ -45,9 +50,11 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
                 subject: Number(editingAllocation.subject),
                 school_class: Number(editingAllocation.school_class),
                 periods,
+                room: editingAllocation.room?.trim() || "",
             });
             await queryClient.invalidateQueries({ queryKey: ["allocations"] });
             await queryClient.invalidateQueries({ queryKey: ["teachers"] });
+            await queryClient.invalidateQueries({ queryKey: ["timetable"] });
             toast.success("Allocation updated successfully");
             setEditingAllocation(null);
         } catch (error) {
@@ -62,7 +69,7 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="font-heading text-xl font-bold text-foreground">Teacher-Class Allocations</h2>
-                    <p className="text-sm text-muted-foreground mt-0.5">Manage which teachers instruct each subject across classrooms</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">Assign each subject, weekly periods, and room. The master timetable fills free lesson slots immediately.</p>
                 </div>
                 <Button onClick={onAddAllocation} variant="gold" className="shadow-lg shadow-accent/20 transition-all hover:scale-105 active:scale-95">
                     <Plus className="h-4 w-4 mr-2" />
@@ -79,6 +86,7 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
                                 <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Subject</th>
                                 <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Class</th>
                                 <th className="px-6 py-4 text-left text-sm font-semibold text-foreground text-center">Periods/Week</th>
+                                <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Room & schedule</th>
                                 <th className="px-6 py-4 text-right text-sm font-semibold text-foreground">Actions</th>
                             </tr>
                         </thead>
@@ -91,6 +99,7 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
                                     </td>
                                     <td className="px-6 py-4 text-sm text-muted-foreground">{alloc.class_name}</td>
                                     <td className="px-6 py-4 text-sm font-bold text-foreground text-center">{alloc.periods}</td>
+                                    <td className="px-6 py-4 text-sm text-muted-foreground"><p>{alloc.room || "Room not assigned"}</p><p className="mt-1 text-xs">{alloc.scheduled_periods?.length ? alloc.scheduled_periods.map(period => `${period.day_of_week.slice(0, 3)} ${period.period_start}–${period.period_end}`).join(" · ") : "No periods scheduled"}</p></td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
                                             <button
@@ -113,7 +122,7 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
                             ))}
                             {allocations.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="p-8 text-center text-muted-foreground italic">
+                                        <td colSpan={6} className="p-8 text-center text-muted-foreground italic">
                                         No teacher allocations recorded yet.
                                     </td>
                                 </tr>
@@ -165,14 +174,25 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Periods per Week (1-40)</label>
+                                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Periods per Week (1-35)</label>
                                 <input
                                     type="number"
                                     min={1}
-                                    max={40}
+                                    max={35}
                                     className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
                                     value={editingAllocation.periods}
                                     onChange={e => setEditingAllocation({ ...editingAllocation, periods: Number(e.target.value) })}
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Room / venue</label>
+                                <input
+                                    type="text"
+                                    className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                                    placeholder="e.g. Room 14 or Science Lab"
+                                    value={editingAllocation.room || ""}
+                                    onChange={e => setEditingAllocation({ ...editingAllocation, room: e.target.value })}
                                 />
                             </div>
 

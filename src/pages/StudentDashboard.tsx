@@ -23,7 +23,8 @@ import StudentFeesSection from "@/components/student/StudentFeesSection";
 import ResultsSection from "@/components/student/ResultsSection";
 import ELearningSection from "@/components/student/ELearningSection";
 import StudentLibrarySection from "@/components/student/StudentLibrarySection";
-import StudentSettingsSection from "@/components/student/StudentSettingsSection";
+import ProfileSection from "@/components/admin/ProfileSection";
+import NotificationsFeed from "@/components/dashboard/NotificationsFeed";
 import { calculateGrade } from "@/lib/grading";
 import {
   useStudentProfile,
@@ -131,15 +132,20 @@ const StudentDashboard = () => {
     <div className="space-y-6">
       <h2 className="font-heading text-xl font-bold text-foreground">My Class Timetable</h2>
       <p className="text-muted-foreground">{profile?.class_name || "Assigned Class"}</p>
+      <div className="grid gap-3 rounded-xl border border-border bg-card p-4 text-sm sm:grid-cols-3">
+        <p><span className="font-semibold text-foreground">Lesson day:</span> 07:40–10:40, 11:10–13:10, 14:00–16:00</p>
+        <p><span className="font-semibold text-foreground">Morning break:</span> 10:40–11:10</p>
+        <p><span className="font-semibold text-foreground">Lunch:</span> 13:10–14:00</p>
+      </div>
 
       <div className="grid gap-4">
-        {timetable.length > 0 ? [...new Set(timetable.map(entry => entry.day_of_week))].map(day => (
+        {timetable.length > 0 ? ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].filter(day => timetable.some(entry => entry.day_of_week === day)).map(day => (
           <div key={day} className="bg-card rounded-xl border border-border overflow-hidden">
             <div className="bg-primary/10 px-4 py-3 border-b border-border">
               <h3 className="font-semibold text-foreground">{day}</h3>
             </div>
             <div className="divide-y divide-border">
-              {timetable.filter(entry => entry.day_of_week === day).map((period) => (
+              {timetable.filter(entry => entry.day_of_week === day).sort((a, b) => a.period_start.localeCompare(b.period_start)).map((period) => (
                 <div
                   key={period.id}
                   className="flex items-center gap-4 px-4 py-3"
@@ -153,11 +159,6 @@ const StudentDashboard = () => {
                     </p>
                     {period.teacher_name && <p className="text-xs text-muted-foreground">{period.teacher_name}</p>}
                   </div>
-                  {period.room && (
-                    <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">
-                      {period.room}
-                    </span>
-                  )}
                 </div>
               ))}
             </div>
@@ -168,10 +169,10 @@ const StudentDashboard = () => {
   );
 
   const renderDashboard = () => (
-    <>
+    <div className="space-y-6">
       <DashboardExtras role="Student" />
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Average Grade */}
         <div className="bg-card rounded-xl border border-border p-5">
           <p className="text-sm text-muted-foreground mb-1">Average Grade</p>
@@ -262,17 +263,11 @@ const StudentDashboard = () => {
           </div>
         </div>
 
-        {/* Announcements */}
-        <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="font-heading font-bold text-lg text-foreground mb-6">Announcements</h2>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">No announcements are currently available.</p>
-          </div>
-        </div>
+        <NotificationsFeed title="Class notifications" />
       </div>
 
       {/* Upcoming Assignments */}
-      <div className="mt-6 bg-card rounded-xl border border-border p-6">
+      <div className="bg-card rounded-xl border border-border p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-heading font-bold text-lg text-foreground">Upcoming Assignments</h2>
           <button onClick={() => setActiveNav("elearning")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -281,7 +276,7 @@ const StudentDashboard = () => {
         </div>
         <p className="text-sm text-muted-foreground">Assignments will appear here when teachers publish them.</p>
       </div>
-    </>
+    </div>
   );
 
   const renderContent = () => {
@@ -305,9 +300,9 @@ const StudentDashboard = () => {
       case "report-card": return resultsLocked ? lockedResultsMessage : <ReportCardSection studentId={profile.id} />;
       case "fees": return <StudentFeesSection studentId={profile.id} />;
       case "results": return resultsLocked ? lockedResultsMessage : <ResultsSection studentId={profile.id} />;
-      case "elearning": return <ELearningSection />;
+      case "elearning": return <ELearningSection className={profile.class_name} />;
       case "library": return <StudentLibrarySection />;
-      case "settings": return <StudentSettingsSection />;
+      case "settings": return <ProfileSection />;
       case "dashboard":
       default: return renderDashboard();
     }
@@ -394,15 +389,12 @@ const StudentDashboard = () => {
               <p className="text-white/50 text-sm">{profile.class_name} • Term 1 2024</p>
             </div>
           </div>
-          <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
+          <button aria-label="Open class notifications" onClick={() => setActiveNav("dashboard")} className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
             <Bell className="h-6 w-6 text-white/60" />
-            <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-              3
-            </span>
           </button>
         </header>
 
-        <div className="p-6">
+        <div className="mx-auto w-full max-w-[1600px] space-y-6 p-4 sm:p-6 lg:p-8">
           {renderContent()}
         </div>
       </main>

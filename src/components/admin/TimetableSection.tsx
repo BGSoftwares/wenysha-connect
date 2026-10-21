@@ -10,12 +10,18 @@ interface Props { classes: SchoolClass[] }
 
 const emptyDraft = {
   day_of_week: "Monday",
-  period_start: "08:00",
+  period_start: "07:40",
   period_end: "08:40",
   subject: "",
   teacher: "",
   room: ""
 };
+
+const lessonSlots = [
+  { start: "07:40", end: "08:40" }, { start: "08:40", end: "09:40" }, { start: "09:40", end: "10:40" },
+  { start: "11:10", end: "12:10" }, { start: "12:10", end: "13:10" },
+  { start: "14:00", end: "15:00" }, { start: "15:00", end: "16:00" },
+];
 
 const TimetableSection = ({ classes }: Props) => {
   const queryClient = useQueryClient();
@@ -42,8 +48,8 @@ const TimetableSection = ({ classes }: Props) => {
     setEditingId(entry.id);
     setDraft({
       day_of_week: entry.day_of_week || "Monday",
-      period_start: entry.period_start || "08:00",
-      period_end: entry.period_end || "08:40",
+      period_start: entry.period_start?.slice(0, 5) || "07:40",
+      period_end: entry.period_end?.slice(0, 5) || "08:40",
       subject: entry.subject ? String(entry.subject) : "",
       teacher: entry.teacher ? String(entry.teacher) : "",
       room: entry.room || ""
@@ -105,6 +111,7 @@ const TimetableSection = ({ classes }: Props) => {
         <div>
           <h2 className="font-heading text-xl font-bold">School Timetable</h2>
           <p className="text-sm text-muted-foreground">Schedule and manage lessons by class</p>
+          <p className="mt-1 text-xs text-muted-foreground">Lessons: 07:40–10:40, 11:10–13:10, 14:00–16:00 · Break: 10:40–11:10 · Lunch: 13:10–14:00</p>
         </div>
         <div className="flex gap-2">
           <select
@@ -236,24 +243,25 @@ const TimetableSection = ({ classes }: Props) => {
 
               <div className="grid grid-cols-2 gap-3">
                 <label className="block text-xs font-bold uppercase text-muted-foreground">
-                  Start time *
-                  <input
-                    type="time"
+                  One-hour lesson slot *
+                  <select
                     className="mt-1 w-full rounded-xl border border-border bg-background p-2.5 text-sm font-normal text-foreground outline-none focus:ring-2 focus:ring-primary/20"
                     value={draft.period_start}
-                    onChange={e => setDraft({ ...draft, period_start: e.target.value })}
-                  />
+                    onChange={e => {
+                      const slot = lessonSlots.find(option => option.start === e.target.value);
+                      if (slot) setDraft({ ...draft, period_start: slot.start, period_end: slot.end });
+                    }}
+                  >
+                    {!lessonSlots.some(slot => slot.start === draft.period_start) && <option value="">Choose a valid lesson slot</option>}
+                    {lessonSlots.map(slot => <option key={slot.start} value={slot.start}>{slot.start}–{slot.end}</option>)}
+                  </select>
                 </label>
-                <label className="block text-xs font-bold uppercase text-muted-foreground">
-                  End time *
-                  <input
-                    type="time"
-                    className="mt-1 w-full rounded-xl border border-border bg-background p-2.5 text-sm font-normal text-foreground outline-none focus:ring-2 focus:ring-primary/20"
-                    value={draft.period_end}
-                    onChange={e => setDraft({ ...draft, period_end: e.target.value })}
-                  />
-                </label>
+                <div className="text-xs font-bold uppercase text-muted-foreground">
+                  End time
+                  <p className="mt-1 rounded-xl border border-border bg-secondary/40 p-2.5 text-sm font-medium text-foreground">{draft.period_end}</p>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">Lessons run 07:40–10:40, 11:10–13:10, and 14:00–16:00. Break is 10:40–11:10; lunch is 13:10–14:00.</p>
 
               <label className="block text-xs font-bold uppercase text-muted-foreground">
                 Room / Venue

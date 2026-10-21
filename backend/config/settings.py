@@ -131,7 +131,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
-DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
+# This limit includes multipart headers and fields as well as the file itself.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 22 * 1024 * 1024
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',

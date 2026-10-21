@@ -31,6 +31,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import NotificationsFeed from "@/components/dashboard/NotificationsFeed";
+import ProfileSection from "@/components/admin/ProfileSection";
 
 const ParentPortal = () => {
     const { data: parentProfile, isLoading: isLoadingParent } = useParentProfile();
@@ -194,6 +196,8 @@ const ParentPortal = () => {
                                 </div>
                             </div>
 
+                            <NotificationsFeed title="School notifications" />
+
                             {selectedChildId && (
                                 <div className="animate-in fade-in slide-in-from-bottom duration-500">
                                     {/* Quick Stats Grid */}
@@ -245,18 +249,22 @@ const ParentPortal = () => {
 
                                     {/* Detailed Sections */}
                                     <Tabs defaultValue="academics" className="space-y-6">
-                                        <TabsList className="bg-secondary/40 p-1 rounded-2xl h-14">
-                                            <TabsTrigger value="academics" className="rounded-xl px-8 h-12 data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
+                                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl bg-secondary/40 p-1 sm:grid-cols-4">
+                                            <TabsTrigger value="academics" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
                                                 <FileText className="h-4 w-4 mr-2" />
                                                 Recent Grades
                                             </TabsTrigger>
-                                            <TabsTrigger value="attendance" className="rounded-xl px-8 h-12 data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
+                                            <TabsTrigger value="attendance" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
                                                 <Calendar className="h-4 w-4 mr-2" />
                                                 Attendance Log
                                             </TabsTrigger>
-                                            <TabsTrigger value="fees" className="rounded-xl px-8 h-12 data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
+                                            <TabsTrigger value="fees" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
                                                 <CreditCard className="h-4 w-4 mr-2" />
                                                 Financials
+                                            </TabsTrigger>
+                                            <TabsTrigger value="profile" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
+                                                <User className="h-4 w-4 mr-2" />
+                                                My Account
                                             </TabsTrigger>
                                         </TabsList>
 
@@ -417,6 +425,8 @@ const ParentPortal = () => {
                                                 </CardContent>
                                             </Card>
                                         </TabsContent>
+
+                                        <TabsContent value="profile"><Card className="rounded-3xl border-border p-5 shadow-md sm:p-8"><ProfileSection /></Card></TabsContent>
                                     </Tabs>
                                 </div>
                             )}

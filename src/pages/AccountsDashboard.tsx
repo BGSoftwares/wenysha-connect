@@ -11,11 +11,15 @@ import DiscountsSection from "@/components/accounts/DiscountsSection";
 import ReportsSection from "@/components/accounts/ReportsSection";
 import AccountsProfileSection from "@/components/accounts/AccountsProfileSection";
 import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
+import CommunicationSection from "@/components/dashboard/CommunicationSection";
+import { useClasses, useStudents } from "@/lib/hooks";
 
 const AccountsDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const { data: classes = [] } = useClasses();
+  const { data: students = [] } = useStudents();
 
   const getPageTitle = () => {
     const titles: Record<string, string> = {
@@ -32,6 +36,7 @@ const AccountsDashboard = () => {
       reports: "Reports & Analytics",
       profile: "My Profile",
       "financial-documents": "Financial Documents & Notes",
+      communications: "Communications",
     };
     return titles[activeNav] || "Dashboard";
   };
@@ -39,7 +44,7 @@ const AccountsDashboard = () => {
   const renderContent = () => {
     switch (activeNav) {
       case "dashboard":
-        return <><DashboardExtras role="Accounts" actions={[{ label: "Record payment", onClick: () => setActiveNav("record-payment") }, { label: "Invoices", onClick: () => setActiveNav("invoices") }]} /><AccountsOverview onNavigate={setActiveNav} /></>;
+        return <div className="space-y-6"><DashboardExtras role="Accounts" actions={[{ label: "Record payment", onClick: () => setActiveNav("record-payment") }, { label: "Invoices", onClick: () => setActiveNav("invoices") }, { label: "Communications", onClick: () => setActiveNav("communications") }]} /><AccountsOverview onNavigate={setActiveNav} /></div>;
       case "fee-structures":
       case "add-fee":
         return <FeeStructuresSection activeSubNav={activeNav} />;
@@ -58,6 +63,8 @@ const AccountsDashboard = () => {
         return <ReportsSection />;
       case "profile":
         return <AccountsProfileSection />;
+      case "communications":
+        return <CommunicationSection role="accounts" classes={classes} students={students} />;
       case "financial-documents":
         return (
           <LearningMaterialsSection
@@ -73,6 +80,7 @@ const AccountsDashboard = () => {
               { id: 203, name: "Compliance & Tax" },
             ]}
             uploadedBy="Accounts Officer"
+            visibility="staff"
             emptyHint="No financial documents or notes uploaded yet. Choose a fee schedule, spreadsheet, receipt scan, or policy document from your device."
           />
         );
@@ -99,7 +107,7 @@ const AccountsDashboard = () => {
           onMenuClick={() => setMobileSidebarOpen(true)}
         />
         
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="mx-auto flex-1 w-full max-w-[1600px] overflow-auto p-4 sm:p-6 lg:p-8">
           {renderContent()}
         </main>
       </div>

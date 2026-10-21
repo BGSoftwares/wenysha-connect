@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Edit, Eye, FileText, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getErrorMessage } from "@/lib/api";
+import { getErrorMessage, getStoredUser } from "@/lib/api";
 import {
   useCreateLearningMaterial,
   useDeleteLearningMaterial,
@@ -11,7 +11,7 @@ import {
   type LearningMaterial,
 } from "@/lib/hooks";
 
-const ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.webp,.mp4,.zip";
+const ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp,.mp4,.mov,.webm,.zip";
 const MAX_BYTES = 20 * 1024 * 1024;
 
 type NamedOption = { id: number; name: string };
@@ -21,10 +21,12 @@ interface Props {
   subjects: NamedOption[];
   uploadedBy: string;
   emptyHint?: string;
+  visibility?: "class" | "staff";
+  canManageAll?: boolean;
 }
 
-const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint }: Props) => {
-  const { data: learningMaterials = [] } = useLearningMaterials();
+const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, visibility = "class", canManageAll = false }: Props) => {
+  const { data: learningMaterials = [] } = useLearningMaterials({ visibility });
   const createMaterial = useCreateLearningMaterial();
   const updateMaterial = useUpdateLearningMaterial();
   const deleteMaterial = useDeleteLearningMaterial();
@@ -32,6 +34,8 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint }: 
   const [draft, setDraft] = useState({ title: "", subject_name: "", class_name: "" });
   const [editing, setEditing] = useState<LearningMaterial | null>(null);
   const [replacementFile, setReplacementFile] = useState<File | null>(null);
+  const [fileInputVersion, setFileInputVersion] = useState(0);
+  const currentUser = getStoredUser();
 
   const classNames = new Set(classes.map((item) => item.name));
   const subjectNames = new Set(subjects.map((item) => item.name));
@@ -61,10 +65,12 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint }: 
         subject_name: draft.subject_name,
         class_name: draft.class_name,
         uploaded_by: uploadedBy,
+        visibility,
         file: file as File,
       });
       setDraft({ title: "", subject_name: "", class_name: "" });
       setFile(null);
+      setFileInputVersion((version) => version + 1);
       toast.success("Learning material uploaded from this computer.");
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -85,7 +91,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint }: 
           </div>
         ) : (
           visible.map((material) => (
-            <div key={material.id} className="bg-card rounded-xl border border-border p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div key={material.id} className="bg-card rounded-xl border border-border p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
                   <FileText className="h-6 w-6 text-primary" />
@@ -98,7 +104,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint }: 
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm text-muted-foreground">Uploaded by {material.uploaded_by || "staff"}</span>
                 <div className="flex gap-2">
                   {material.file_url ? (
@@ -106,25 +112,27 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint }: 
                       <Button variant="outline" size="sm" aria-label={`View ${material.title}`}><Eye className="h-4 w-4" /></Button>
                     </a>
                   ) : null}
-                  <Button variant="outline" size="sm" aria-label={`Edit ${material.title}`} onClick={() => { setEditing({ ...material }); setReplacementFile(null); }}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    aria-label={`Delete ${material.title}`}
-                    onClick={async () => {
-                      if (!window.confirm(`Delete "${material.title}"?`)) return;
-                      try {
-                        await deleteMaterial.mutateAsync(material.id);
-                        toast.success("Material deleted.");
-                      } catch {
-                        toast.error("Unable to delete this material.");
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  {(canManageAll || material.uploaded_by_user === currentUser?.id) && <>
+                    <Button variant="outline" size="sm" aria-label={`Edit ${material.title}`} onClick={() => { setEditing({ ...material }); setReplacementFile(null); }}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={`Delete ${material.title}`}
+                      onClick={async () => {
+                        if (!window.confirm(`Delete "${material.title}"?`)) return;
+                        try {
+                          await deleteMaterial.mutateAsync(material.id);
+                          toast.success("Material deleted.");
+                        } catch (error) {
+                          toast.error(getErrorMessage(error));
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </>}
                 </div>
               </div>
             </div>
@@ -170,6 +178,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint }: 
             ))}
           </select>
           <input
+            key={fileInputVersion}
             type="file"
             accept={ACCEPT}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
@@ -245,12 +254,17 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint }: 
                 disabled={updateMaterial.isPending || !editing.title.trim()}
                 onClick={async () => {
                   try {
+                    if (replacementFile && replacementFile.size > MAX_BYTES) {
+                      toast.error("File must be 20MB or smaller.");
+                      return;
+                    }
                     await updateMaterial.mutateAsync({
                       id: editing.id,
                       data: {
                         title: editing.title,
                         class_name: editing.class_name,
                         subject_name: editing.subject_name,
+                        visibility,
                         file: replacementFile || undefined,
                       },
                     });

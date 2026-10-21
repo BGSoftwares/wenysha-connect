@@ -34,6 +34,14 @@ class AdminAccountSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'is_active', 'date_joined', 'full_name', 'role', 'role_name', 'password']
         read_only_fields = ['date_joined', 'role_name']
 
+    def validate_email(self, value):
+        existing = User.objects.filter(email__iexact=value)
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise serializers.ValidationError('A user with this email already exists.')
+        return value
+
     def validate(self, attrs):
         if self.instance is None and not attrs.get('password'):
             raise serializers.ValidationError({'password': 'A password is required when creating an account.'})
@@ -46,6 +54,8 @@ class AdminAccountSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         user = User.objects.create_user(password=password, **validated_data)
         UserProfile.objects.create(user=user, **profile_data)
+        from .sync import sync_linked_portal_records
+        sync_linked_portal_records(user, profile_data.get('full_name'), user.email)
         return user
 
     def update(self, instance, validated_data):
@@ -61,6 +71,16 @@ class AdminAccountSerializer(serializers.ModelSerializer):
             for key, value in profile_data.items():
                 setattr(profile, key, value)
             profile.save()
+        from .sync import sync_linked_portal_records
+        try:
+            current_profile = instance.profile
+        except UserProfile.DoesNotExist:
+            current_profile = None
+        sync_linked_portal_records(
+            instance,
+            current_profile.full_name if current_profile else None,
+            instance.email,
+        )
         return instance
 
 

@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.db.models import Q
 from .models import Role, UserProfile, PendingApproval
 from school.models import Student, SchoolClass
@@ -83,6 +84,11 @@ class CurrentUserView(APIView):
     def get(self, request):
         user = request.user
         role, full_name = get_portal_profile(user)
+        from parents.models import Parent
+        from school.models import Teacher
+        phone = Parent.objects.filter(user=user).values_list('phone', flat=True).first()
+        if phone is None:
+            phone = Teacher.objects.filter(user=user).values_list('phone', flat=True).first()
         return Response({
             'id': user.id,
             'username': user.username,
@@ -91,6 +97,7 @@ class CurrentUserView(APIView):
             'last_name': user.last_name,
             'role': role,
             'full_name': full_name,
+            'phone': phone or '',
         })
 
     def patch(self, request):
@@ -102,10 +109,18 @@ class CurrentUserView(APIView):
         if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
             return Response({'email': ['This email is already in use.']}, status=status.HTTP_400_BAD_REQUEST)
         user.email = email
-        user.save(update_fields=['email'])
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.full_name = full_name
         profile.save(update_fields=['full_name'])
+        user.save(update_fields=['email'])
+        phone = request.data.get('phone')
+        if phone is not None:
+            from parents.models import Parent
+            from school.models import Teacher
+            Parent.objects.filter(user=user).update(phone=phone.strip())
+            Teacher.objects.filter(user=user).update(phone=phone.strip())
+        from .sync import sync_linked_portal_records
+        sync_linked_portal_records(user, full_name, email)
         return Response({'detail': 'Profile updated.', 'email': user.email, 'full_name': full_name})
 
 
@@ -176,59 +191,65 @@ class PendingApprovalViewSet(ModelViewSet):
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         pending = self.get_object()
-        if pending.status != 'pending':
-            return Response({'detail': 'Already processed.'}, status=status.HTTP_400_BAD_REQUEST)
-        user = User(username=pending.email, email=pending.email)
-        user.password = pending.password_hash  # already hashed from signup
-        user.save()
-        pending.status = 'approved'
-        pending.save(update_fields=['status'])
-        role, _ = Role.objects.get_or_create(name=pending.role.capitalize(), defaults={'description': pending.role})
-        UserProfile.objects.create(user=user, role=role, full_name=pending.full_name)
-        # If this was a student signup, try to create a corresponding Student record
-        if pending.role == 'student':
-            try:
-                # Try to resolve a class from additional_info (id or name), else use first available class
-                class_obj = None
-                info = pending.additional_info or {}
-                cls_id = info.get('school_class') or info.get('school_class_id')
-                cls_name = info.get('class_name')
-                if cls_id:
-                    try:
-                        class_obj = SchoolClass.objects.get(id=cls_id)
-                    except SchoolClass.DoesNotExist:
-                        class_obj = None
-                if not class_obj and cls_name:
-                    try:
-                        class_obj = SchoolClass.objects.get(name=cls_name)
-                    except SchoolClass.DoesNotExist:
-                        class_obj = None
-                if not class_obj:
-                    class_obj = SchoolClass.objects.first()
+        with transaction.atomic():
+            pending = PendingApproval.objects.select_for_update().get(pk=pending.pk)
+            if pending.status != 'pending':
+                return Response({'detail': 'Already processed.'}, status=status.HTTP_400_BAD_REQUEST)
+            user = User(username=pending.email, email=pending.email)
+            user.password = pending.password_hash  # already hashed from signup
+            user.save()
+            role, _ = Role.objects.get_or_create(name=pending.role.capitalize(), defaults={'description': pending.role})
+            UserProfile.objects.create(user=user, role=role, full_name=pending.full_name)
 
-                if class_obj:
-                    # Generate a simple unique student_id
-                    base_num = (Student.objects.count() or 0) + 1
-                    student_id = f"STU{base_num:04d}"
-                    while Student.objects.filter(student_id=student_id).exists():
-                        base_num += 1
-                        student_id = f"STU{base_num:04d}"
-                    Student.objects.create(
-                        user=user,
-                        student_id=student_id,
-                        name=pending.full_name,
-                        school_class=class_obj,
-                    )
-            except Exception:
-                # Do not block approval if student record creation fails; admin can create later.
-                pass
+            # If this was a student signup, create a corresponding Student record
+            # in its own savepoint so failure cannot leave the approval half-saved.
+            if pending.role == 'student':
+                try:
+                    with transaction.atomic():
+                        class_obj = None
+                        info = pending.additional_info or {}
+                        cls_id = info.get('school_class') or info.get('school_class_id')
+                        cls_name = info.get('class_name')
+                        if cls_id:
+                            try:
+                                class_obj = SchoolClass.objects.get(id=cls_id)
+                            except SchoolClass.DoesNotExist:
+                                class_obj = None
+                        if not class_obj and cls_name:
+                            try:
+                                class_obj = SchoolClass.objects.get(name=cls_name)
+                            except SchoolClass.DoesNotExist:
+                                class_obj = None
+                        if not class_obj:
+                            class_obj = SchoolClass.objects.first()
+
+                        if class_obj:
+                            base_num = (Student.objects.count() or 0) + 1
+                            student_id = f"STU{base_num:04d}"
+                            while Student.objects.filter(student_id=student_id).exists():
+                                base_num += 1
+                                student_id = f"STU{base_num:04d}"
+                            Student.objects.create(
+                                user=user,
+                                student_id=student_id,
+                                name=pending.full_name,
+                                school_class=class_obj,
+                            )
+                except Exception:
+                    # Account approval can proceed; an admin can add the student record later.
+                    pass
+
+            pending.status = 'approved'
+            pending.save(update_fields=['status'])
         return Response({'detail': 'User approved and created.', 'user_id': user.id})
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         pending = self.get_object()
-        if pending.status != 'pending':
-            return Response({'detail': 'Already processed.'}, status=status.HTTP_400_BAD_REQUEST)
-        pending.status = 'rejected'
-        pending.save(update_fields=['status'])
+        with transaction.atomic():
+            pending = PendingApproval.objects.select_for_update().get(pk=pending.pk)
+            if pending.status != 'pending':
+                return Response({'detail': 'Already processed.'}, status=status.HTTP_400_BAD_REQUEST)
+            pending.status = 'rejected'
+            pending.save(update_fields=['status'])
         return Response({'detail': 'Request rejected.'})

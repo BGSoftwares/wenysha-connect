@@ -6,6 +6,8 @@ import { api, getStoredUser } from "./api";
 export interface Student {
     id: number;
     user?: number;
+    account_email?: string | null;
+    next_of_kin?: Array<{ id: number; name: string; phone: string; email: string }>;
     student_id: string;
     name: string;
     school_class: number;
@@ -35,6 +37,8 @@ export interface Allocation {
     school_class: number;
     class_name: string;
     periods: number;
+    room: string;
+    scheduled_periods?: Array<{ day_of_week: string; period_start: string; period_end: string; room: string }>;
 }
 
 export interface SchoolClass {
@@ -115,6 +119,7 @@ export const useStudents = () => {
     return useQuery({
         queryKey: ["students"],
         queryFn: () => fetchAllPages<Student>("/school/students/"),
+        refetchInterval: 15000,
     });
 };
 
@@ -183,6 +188,7 @@ export const useTimetable = (schoolClass?: number, extra?: { teacher?: number })
         teacher: extra?.teacher,
     }))),
     enabled: schoolClass !== undefined || extra?.teacher !== undefined,
+    refetchInterval: 5000,
 });
 
 export const useCreateClass = () => {
@@ -232,12 +238,13 @@ export const useAllocations = (params?: { teacher?: number; subject?: number; sc
 export const useCreateAllocation = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (payload: { teacher: number; subject: number; school_class: number; periods?: number }) => {
+        mutationFn: async (payload: { teacher: number; subject: number; school_class: number; periods?: number; room: string }) => {
             return await api.post<Allocation>("/school/allocations/", payload);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["allocations"] });
             queryClient.invalidateQueries({ queryKey: ["teachers"] });
+            queryClient.invalidateQueries({ queryKey: ["timetable"] });
         },
     });
 };
@@ -251,6 +258,7 @@ export const useDeleteAllocation = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["allocations"] });
             queryClient.invalidateQueries({ queryKey: ["teachers"] });
+            queryClient.invalidateQueries({ queryKey: ["timetable"] });
         },
     });
 };
@@ -265,7 +273,8 @@ export const useTeacherProfile = () => {
             const teachers = extractArray<Teacher>(response);
             return teachers.find(t => t.user === user.id) || null;
         },
-        enabled: !!user
+        enabled: !!user,
+        refetchInterval: 15000,
     });
 };
 
@@ -290,7 +299,8 @@ export const useStudentProfile = () => {
                 return null;
             }
         },
-        enabled: !!user
+        enabled: !!user,
+        refetchInterval: 15000,
     });
 };
 
@@ -304,7 +314,8 @@ export const useParentProfile = () => {
             const parents = extractArray<Parent>(response);
             return parents.find(p => p.user === user.id) || null;
         },
-        enabled: !!user
+        enabled: !!user,
+        refetchInterval: 15000,
     });
 };
 
@@ -921,15 +932,27 @@ export interface Notice {
     id: number;
     title: string;
     content: string;
+    author: string;
     date: string;
     audience: string;
     priority: string;
     pinned: boolean;
+    recipient_type: "all_students" | "all_parents" | "staff" | "class" | "individual";
+    recipient_class: number | null;
+    recipient_class_name?: string;
+    recipient_student: number | null;
+    recipient_student_name?: string;
+    created_by: number | null;
+    status: "pending" | "approved" | "rejected";
+    approved_by: number | null;
+    approved_at: string | null;
+    review_note: string;
+    views: number;
 }
 
 export const useNotices = () => useQuery({
     queryKey: ["notices"],
-    queryFn: async () => extractArray<Notice>(await api.get<unknown>("/notices/notices/")),
+    queryFn: () => fetchAllPages<Notice>("/notices/notices/"),
 });
 
 export interface LearningMaterial {
@@ -941,6 +964,8 @@ export interface LearningMaterial {
     file_name?: string;
     file_type: string;
     uploaded_by: string;
+    uploaded_by_user: number | null;
+    visibility: "class" | "staff";
     created_at: string;
 }
 
@@ -949,6 +974,7 @@ export interface LearningMaterialInput {
     subject_name: string;
     class_name: string;
     uploaded_by?: string;
+    visibility?: "class" | "staff";
     file?: File;
 }
 
@@ -958,11 +984,12 @@ function toLearningMaterialFormData(data: LearningMaterialInput): FormData {
     form.append("subject_name", data.subject_name);
     form.append("class_name", data.class_name);
     if (data.uploaded_by) form.append("uploaded_by", data.uploaded_by);
+    if (data.visibility) form.append("visibility", data.visibility);
     if (data.file) form.append("file", data.file);
     return form;
 }
 
-export const useLearningMaterials = (params?: { subject_name?: string; class_name?: string }) => useQuery({
+export const useLearningMaterials = (params?: { subject_name?: string; class_name?: string; visibility?: "class" | "staff" }) => useQuery({
     queryKey: ["learning-materials", params],
     queryFn: async () => extractArray<LearningMaterial>(await api.get<unknown>("/content/materials/", toQueryParams(params))),
 });

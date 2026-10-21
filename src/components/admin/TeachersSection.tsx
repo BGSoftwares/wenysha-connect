@@ -24,7 +24,7 @@ interface TeachersSectionProps {
     onEditTeacher: (teacher: Teacher) => void;
     onDeleteTeacher: (teacher: Teacher) => void;
     onAssignClassTeacher: (schoolClassId: number, teacherId: number | null) => void;
-    onAssignSubjectAllocation?: (teacherId: number, subjectId: number, classId: number, periods?: number) => Promise<void>;
+    onAssignSubjectAllocation?: (teacherId: number, subjectId: number, classId: number, periods?: number, room?: string) => Promise<void>;
     onRemoveSubjectAllocation?: (allocationId: number) => Promise<void>;
 }
 
@@ -48,6 +48,7 @@ const TeachersSection = ({
     const [selectedSubjects, setSelectedSubjects] = useState<Record<number, string>>({});
     const [selectedClassesForSubject, setSelectedClassesForSubject] = useState<Record<number, string>>({});
     const [periodsMap, setPeriodsMap] = useState<Record<number, number>>({});
+    const [roomsMap, setRoomsMap] = useState<Record<number, string>>({});
     const [isSubmitting, setIsSubmitting] = useState<Record<number, boolean>>({});
 
     // Fallbacks if not passed as props
@@ -64,14 +65,19 @@ const TeachersSection = ({
         const subjectId = Number(selectedSubjects[teacherId]);
         const classId = Number(selectedClassesForSubject[teacherId]);
         const periods = periodsMap[teacherId] ?? 5;
+        const room = roomsMap[teacherId]?.trim() ?? "";
 
         if (!subjectId || !classId) {
             toast.error("Please select both a subject and a classroom");
             return;
         }
 
-        if (periods < 1 || periods > 40) {
-            toast.error("Periods per week must be between 1 and 40");
+        if (!Number.isInteger(periods) || periods < 1 || periods > 35) {
+            toast.error("Periods per week must be between 1 and 35");
+            return;
+        }
+        if (!room) {
+            toast.error("Choose a room so the master timetable can avoid room clashes");
             return;
         }
 
@@ -87,13 +93,14 @@ const TeachersSection = ({
         setIsSubmitting(prev => ({ ...prev, [teacherId]: true }));
         try {
             if (onAssignSubjectAllocation) {
-                await onAssignSubjectAllocation(teacherId, subjectId, classId, periods);
+                await onAssignSubjectAllocation(teacherId, subjectId, classId, periods, room);
             } else {
                 await createAllocationMutation.mutateAsync({
                     teacher: teacherId,
                     subject: subjectId,
                     school_class: classId,
                     periods,
+                    room,
                 });
             }
 
@@ -105,6 +112,7 @@ const TeachersSection = ({
             setSelectedSubjects(prev => ({ ...prev, [teacherId]: "" }));
             setSelectedClassesForSubject(prev => ({ ...prev, [teacherId]: "" }));
             setPeriodsMap(prev => ({ ...prev, [teacherId]: 5 }));
+            setRoomsMap(prev => ({ ...prev, [teacherId]: "" }));
         } catch (error) {
             toast.error(getErrorMessage(error));
         } finally {
@@ -375,13 +383,13 @@ const TeachersSection = ({
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2 pt-1">
+                                            <div className="flex flex-wrap items-center gap-2 pt-1">
                                                 <div className="flex items-center gap-1.5 flex-1">
                                                     <span className="text-[11px] text-muted-foreground whitespace-nowrap">Periods/wk:</span>
                                                     <input
                                                         type="number"
                                                         min="1"
-                                                        max="40"
+                                                        max="35"
                                                         placeholder="5"
                                                         className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground"
                                                         value={periodsMap[teacherIdNum] ?? 5}
@@ -391,6 +399,14 @@ const TeachersSection = ({
                                                         }))}
                                                     />
                                                 </div>
+                                                <input
+                                                    type="text"
+                                                    aria-label={`Room for ${teacher.name}'s timetable allocation`}
+                                                    placeholder="Room / venue"
+                                                    className="min-w-28 flex-1 rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground"
+                                                    value={roomsMap[teacherIdNum] ?? ""}
+                                                    onChange={event => setRoomsMap(prev => ({ ...prev, [teacherIdNum]: event.target.value }))}
+                                                />
                                                 <Button
                                                     type="button"
                                                     size="sm"
@@ -399,6 +415,7 @@ const TeachersSection = ({
                                                     disabled={
                                                         !selectedSubjects[teacherIdNum] ||
                                                         !selectedClassesForSubject[teacherIdNum] ||
+                                                        !roomsMap[teacherIdNum]?.trim() ||
                                                         isSubmitting[teacherIdNum]
                                                     }
                                                     onClick={() => handleAssignSubject(teacherIdNum, teacher.name)}

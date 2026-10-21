@@ -1,7 +1,7 @@
 import { schoolContact } from "@/lib/schoolContact";
 import DashboardExtras from "@/components/dashboard/DashboardExtras";
 import AIFeedbackSection from "@/components/teacher/AIFeedbackSection";
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Home,
@@ -26,12 +26,15 @@ import {
   Check,
   X,
   Trash2,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { clearAuth } from "@/lib/api";
 import MarkSheetSection from "@/components/teacher/MarkSheetSection";
 import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
+import CommunicationSection from "@/components/dashboard/CommunicationSection";
+import ProfileSection from "@/components/admin/ProfileSection";
 import { Button } from "@/components/ui/button";
 import {
   useTeacherProfile,
@@ -43,6 +46,7 @@ import {
   useSaveExamMark,
   useAttendanceRecords,
   useUpdateAttendance,
+  useTimetable,
 } from "@/lib/hooks";
 import { toast } from "sonner";
 import { buildAttendancePdf, sharePdfToWhatsApp } from "@/lib/pdfExport";
@@ -57,8 +61,10 @@ const navigation = [
   { name: "AI Coach", icon: Sparkles, id: "ai-coach" },
   { name: "Attendance", icon: CheckSquare, id: "attendance" },
   { name: "Content", icon: Upload, id: "content" },
+  { name: "Messages", icon: MessageSquare, id: "messages" },
   { name: "Timetable", icon: Calendar, id: "timetable" },
   { name: "Settings", icon: Settings, id: "settings" },
+  { name: "Profile", icon: User, id: "profile" },
 ];
 
 const TeacherDashboard = () => {
@@ -75,6 +81,7 @@ const TeacherDashboard = () => {
 
   // Data Hooks
   const { data: teacher, isLoading: isLoadingProfile } = useTeacherProfile();
+  const { data: teacherTimetable = [] } = useTimetable(undefined, { teacher: teacher?.id });
   const { data: allocations = [], isLoading: isLoadingAllocations } = useAllocations({
     teacher: teacher?.id
   });
@@ -91,8 +98,13 @@ const TeacherDashboard = () => {
   const updateAttendanceMutation = useUpdateAttendance();
   const saveExamMarkMutation = useSaveExamMark();
 
-  const uniqueClasses = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.school_class, name: a.class_name }))))
-    .map(s => JSON.parse(s));
+  const allocatedClasses = allocations.map((allocation) => ({ id: allocation.school_class, name: allocation.class_name }));
+  const classTeacherClasses = classes
+    .filter((schoolClass) => schoolClass.class_teacher === teacher?.id)
+    .map((schoolClass) => ({ id: schoolClass.id, name: schoolClass.name }));
+  const uniqueClasses = Array.from(
+    new Map([...allocatedClasses, ...classTeacherClasses].map((schoolClass) => [schoolClass.id, schoolClass])).values(),
+  );
 
   const uniqueSubjects = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.subject, name: a.subject_name }))))
     .map(s => JSON.parse(s));
@@ -283,7 +295,7 @@ const TeacherDashboard = () => {
 
   const renderDashboard = () => (
     <div className="space-y-6">
-      <DashboardExtras role="Teacher" />
+      <DashboardExtras role="Teacher" actions={[{ label: "Message a class", onClick: () => setActiveNav("messages") }]} />
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-card rounded-xl border border-border p-5">
@@ -818,27 +830,31 @@ const TeacherDashboard = () => {
   const renderContent = () => (
     <LearningMaterialsSection
       classes={uniqueClasses}
-      subjects={uniqueSubjects}
+      subjects={uniqueSubjects.length > 0 ? uniqueSubjects : [{ id: 0, name: "General" }]}
       uploadedBy={teacher ? `Teacher ${teacher.name}` : "Teacher"}
       emptyHint="No notes or materials have been uploaded yet. Choose a file from this computer to share with the class."
     />
   );
 
+  const renderMessages = () => (
+    <CommunicationSection
+      role="teacher"
+      classes={uniqueClasses}
+      students={students.filter((student) => uniqueClasses.some((schoolClass) => schoolClass.id === student.school_class))}
+    />
+  );
+
   const renderTimetable = () => {
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-    const periods = ["08:00-08:40", "08:40-09:20", "09:20-10:00", "10:30-11:10", "11:10-11:50", "11:50-12:30", "14:00-14:40", "14:40-15:20"];
-
-    const mySchedule: Record<string, Record<string, { class: string; room: string } | null>> = {
-      "Monday": { "08:00-08:40": { class: "Form 4A", room: "Room 12" }, "10:30-11:10": { class: "Form 3B", room: "Room 8" } },
-      "Tuesday": { "08:40-09:20": { class: "Form 4B", room: "Room 12" }, "14:00-14:40": { class: "Form 4A", room: "Room 12" } },
-      "Wednesday": { "08:00-08:40": { class: "Form 3B", room: "Room 8" }, "11:10-11:50": { class: "Form 4B", room: "Room 12" } },
-      "Thursday": { "09:20-10:00": { class: "Form 4A", room: "Room 12" }, "14:40-15:20": { class: "Form 3B", room: "Room 8" } },
-      "Friday": { "08:00-08:40": { class: "Form 4B", room: "Room 12" }, "10:30-11:10": { class: "Form 4A", room: "Room 12" } },
-    };
+    const lessonSlots = [
+      ["07:40", "08:40"], ["08:40", "09:40"], ["09:40", "10:40"],
+      ["11:10", "12:10"], ["12:10", "13:10"], ["14:00", "15:00"], ["15:00", "16:00"],
+    ];
 
     return (
       <div className="space-y-6">
         <h2 className="font-heading text-xl font-bold text-foreground">My Timetable</h2>
+        <p className="text-sm text-muted-foreground">Lessons: 07:40–10:40, 11:10–13:10, and 14:00–16:00 · Break: 10:40–11:10 · Lunch: 13:10–14:00</p>
 
         <div className="bg-card rounded-xl border border-border overflow-x-auto">
           <table className="w-full min-w-[800px]">
@@ -851,31 +867,17 @@ const TeacherDashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {periods.map((period, idx) => (
-                <tr key={period} className="border-t border-border">
-                  <td className="px-4 py-3 text-sm font-medium text-foreground border-r border-border bg-secondary/30">
-                    {period}
-                  </td>
+              {lessonSlots.map(([start, end], idx) => <Fragment key={`${start}-${end}`}>
+                {idx === 3 && <tr key="morning-break" className="border-t border-border bg-secondary/30"><td className="px-4 py-2 text-sm font-medium border-r border-border">10:40–11:10</td><td colSpan={5} className="px-2 py-2 text-center text-xs text-muted-foreground">Morning break</td></tr>}
+                {idx === 5 && <tr key="lunch" className="border-t border-border bg-secondary/30"><td className="px-4 py-2 text-sm font-medium border-r border-border">13:10–14:00</td><td colSpan={5} className="px-2 py-2 text-center text-xs text-muted-foreground">Lunch</td></tr>}
+                <tr key={`${start}-${end}`} className="border-t border-border">
+                  <td className="px-4 py-3 text-sm font-medium text-foreground border-r border-border bg-secondary/30">{start}–{end}</td>
                   {days.map(day => {
-                    const slot = mySchedule[day]?.[period];
-                    const isBreak = idx === 3 || idx === 6;
-                    return (
-                      <td key={day} className="px-2 py-2 text-center">
-                        {isBreak ? (
-                          <span className="text-xs text-muted-foreground">Break</span>
-                        ) : slot ? (
-                          <div className="p-2 rounded bg-primary/10 border border-primary/20">
-                            <p className="text-xs font-medium text-primary">{slot.class}</p>
-                            <p className="text-xs text-muted-foreground">{slot.room}</p>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </td>
-                    );
+                    const entry = teacherTimetable.find(period => period.day_of_week === day && period.period_start.slice(0, 5) === start && period.period_end.slice(0, 5) === end);
+                    return <td key={day} className="px-2 py-2 text-center">{entry ? <div className="rounded border border-primary/20 bg-primary/10 p-2"><p className="text-xs font-semibold text-primary">{entry.class_name}</p><p className="text-xs text-foreground">{entry.subject_name}</p><p className="text-xs text-muted-foreground">{entry.room || "Room not assigned"}</p></div> : <span className="text-xs text-muted-foreground">—</span>}</td>;
                   })}
                 </tr>
-              ))}
+              </Fragment>)}
             </tbody>
           </table>
         </div>
@@ -974,11 +976,13 @@ const TeacherDashboard = () => {
       case "classes": return renderClasses();
       case "subjects": return renderSubjects();
       case "grading": return renderGrading();
-      case "ai-coach": return <AIFeedbackSection students={(students as any[]).map((s: any) => ({ id: s.id, name: s.name, class_name: s.class_name }))} />;
+      case "ai-coach": return <AIFeedbackSection students={students} />;
       case "attendance": return renderAttendance();
       case "content": return renderContent();
+      case "messages": return renderMessages();
       case "timetable": return renderTimetable();
       case "settings": return renderSettings();
+      case "profile": return <ProfileSection />;
       default: return renderDashboard();
     }
   };
@@ -1064,15 +1068,12 @@ const TeacherDashboard = () => {
               <p className="text-white/50 text-sm">{department} Department</p>
             </div>
           </div>
-          <button className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
+          <button aria-label="Open messages" onClick={() => setActiveNav("messages")} className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
             <Bell className="h-6 w-6 text-white/60" />
-            <span className="absolute top-1 right-1 h-4 w-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-              2
-            </span>
           </button>
         </header>
 
-        <div className="p-6">
+        <div className="mx-auto w-full max-w-[1600px] space-y-6 p-4 sm:p-6 lg:p-8">
           {renderContentSection()}
         </div>
       </main>

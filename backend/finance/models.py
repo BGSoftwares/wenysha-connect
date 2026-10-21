@@ -1,4 +1,6 @@
-from django.db import models
+from decimal import Decimal
+from django.db import models, transaction
+from django.db.models import Sum
 from django.conf import settings
 from school.models import Student
 
@@ -39,6 +41,9 @@ class Invoice(models.Model):
             self.status = 'partial'
         else:
             self.status = 'unpaid'
+        update_fields = kwargs.get('update_fields')
+        if update_fields:
+            kwargs['update_fields'] = set(update_fields) | {'status'}
         super().save(*args, **kwargs)
 
 
@@ -59,16 +64,38 @@ class Payment(models.Model):
     def __str__(self):
         return f"{self.receipt_no} - {self.amount}"
 
+    @staticmethod
+    def _sync_invoice_paid(invoice_id):
+        invoice = Invoice.objects.select_for_update().get(pk=invoice_id)
+        total_paid = Payment.objects.filter(invoice_id=invoice_id).aggregate(total=Sum('amount'))['total']
+        invoice.paid = total_paid or Decimal('0')
+        invoice.save(update_fields=['paid'])
+
     def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        super().save(*args, **kwargs)
-        if is_new:
-            # Update the invoice paid amount and recalculate status
-            from decimal import Decimal
-            add_amount = Decimal(str(self.amount)) if not isinstance(self.amount, Decimal) else self.amount
-            self.invoice.paid = (self.invoice.paid or Decimal('0')) + add_amount
-            # Call save without restricting update_fields so invoice.status is recalculated
-            self.invoice.save()
+        with transaction.atomic():
+            previous_invoice_id = None
+            if self.pk:
+                previous_invoice_id = (
+                    type(self).objects.select_for_update()
+                    .filter(pk=self.pk)
+                    .values_list('invoice_id', flat=True)
+                    .first()
+                )
+            invoice_ids = sorted({invoice_id for invoice_id in (previous_invoice_id, self.invoice_id) if invoice_id})
+            # Serialize payment changes for each affected invoice so concurrent
+            # receipts cannot overwrite one another's totals.
+            list(Invoice.objects.select_for_update().filter(pk__in=invoice_ids).order_by('pk'))
+            super().save(*args, **kwargs)
+            for invoice_id in invoice_ids:
+                self._sync_invoice_paid(invoice_id)
+
+    def delete(self, *args, **kwargs):
+        invoice_id = self.invoice_id
+        with transaction.atomic():
+            Invoice.objects.select_for_update().get(pk=invoice_id)
+            result = super().delete(*args, **kwargs)
+            self._sync_invoice_paid(invoice_id)
+            return result
 
 
 class Discount(models.Model):

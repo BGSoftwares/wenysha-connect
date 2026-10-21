@@ -23,10 +23,10 @@ const ParentsSection = () => {
   const [linkParent, setLinkParent] = useState<number | null>(null);
   const [linkStudent, setLinkStudent] = useState("");
   const studentsQuery = useStudents();
-  const refresh = () => client.invalidateQueries({ queryKey: ["admin-parents"] });
+  const refresh = () => { void client.invalidateQueries({ queryKey: ["admin-parents"] }); void client.invalidateQueries({ queryKey: ["students"] }); void client.invalidateQueries({ queryKey: ["parent-profile"] }); };
   const save = useMutation({ mutationFn: (value: Draft & { id?: number }) => value.id ? api.patch(`${path}${value.id}/`, value) : api.post(path, value), onSuccess: () => { void refresh(); setDraft(null); toast.success("Parent record saved"); }, onError: e => toast.error(getErrorMessage(e)) });
-  const remove = useMutation({ mutationFn: (id: number) => api.delete(`${path}${id}/`), onSuccess: () => { void refresh(); toast.success("Parent record deleted"); }, onError: e => toast.error(getErrorMessage(e)) });
-  const link = useMutation({ mutationFn: () => api.post("/parents/student-parents/", { parent: linkParent, student: Number(linkStudent) }), onSuccess: () => { void refresh(); setLinkParent(null); setLinkStudent(""); toast.success("Student linked to parent"); }, onError: e => toast.error(getErrorMessage(e)) });
+  const remove = useMutation({ mutationFn: (id: number) => api.delete(`${path}${id}/`), onSuccess: () => { void refresh(); void client.invalidateQueries({ queryKey: ["students"] }); toast.success("Parent record deleted"); }, onError: e => toast.error(getErrorMessage(e)) });
+  const link = useMutation({ mutationFn: () => api.post("/parents/student-parents/", { parent: linkParent, student: Number(linkStudent) }), onSuccess: () => { void refresh(); void client.invalidateQueries({ queryKey: ["students"] }); setLinkParent(null); setLinkStudent(""); toast.success("Student linked to parent"); }, onError: e => toast.error(getErrorMessage(e)) });
   const filtered = useMemo(() => data.filter(p => (status === "all" || p.status.toLowerCase() === status) && `${p.name} ${p.email} ${p.phone} ${(p.children ?? []).join(" ")}`.toLowerCase().includes(search.toLowerCase())), [data, search, status]);
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-heading text-xl font-bold">Parents & Guardians</h2><p className="text-sm text-muted-foreground">Manage saved parent records and contact details</p></div><Button variant="gold" onClick={() => setDraft({ ...empty })}><Plus className="mr-2 h-4 w-4"/>Add Parent/Guardian</Button></div>

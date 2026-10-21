@@ -56,8 +56,8 @@ const performance = [
 ];
 
 export const StatsCharts = ({ title1 = "Attendance trend (%)", title2 = "Average marks by subject" }) => (
-  <div className="grid gap-4 lg:grid-cols-2">
-    <div className="bg-card rounded-xl border border-border p-5">
+  <div className="grid items-stretch gap-4 xl:grid-cols-2">
+    <div className="h-full min-w-0 bg-card rounded-xl border border-border p-5">
       <h3 className="mb-4 font-semibold text-foreground">{title1}</h3>
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
@@ -77,7 +77,7 @@ export const StatsCharts = ({ title1 = "Attendance trend (%)", title2 = "Average
         </ResponsiveContainer>
       </div>
     </div>
-    <div className="bg-card rounded-xl border border-border p-5">
+    <div className="h-full min-w-0 bg-card rounded-xl border border-border p-5">
       <h3 className="mb-4 font-semibold text-foreground">{title2}</h3>
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
@@ -111,8 +111,8 @@ const events = [
 export const ActivityAndCalendar = () => {
   const [day, setDay] = useState<Date | undefined>(new Date());
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <div className="bg-card rounded-xl border border-border p-5 lg:col-span-2">
+    <div className="grid items-stretch gap-4 xl:grid-cols-3">
+      <div className="h-full min-w-0 bg-card rounded-xl border border-border p-5 xl:col-span-2">
         <h3 className="mb-4 font-semibold text-foreground">Recent activity</h3>
         <ol className="relative border-l border-border ml-3 space-y-5">
           {activities.map((a, i) => (
@@ -126,7 +126,7 @@ export const ActivityAndCalendar = () => {
           ))}
         </ol>
       </div>
-      <div className="bg-card rounded-xl border border-border p-5">
+      <div className="h-full min-w-0 bg-card rounded-xl border border-border p-5">
         <h3 className="mb-2 flex items-center gap-2 font-semibold text-foreground">
           <CalendarDays className="h-4 w-4 text-accent" /> Upcoming events
         </h3>
@@ -154,7 +154,7 @@ export const ActivityAndCalendar = () => {
 };
 
 export const DashboardExtras = (props: { name?: string; role: string; actions?: Action[] }) => (
-  <div className="space-y-6 mb-6">
+  <div className="space-y-6">
     <WelcomeBanner {...props} />
     <StatsCharts />
     <ActivityAndCalendar />

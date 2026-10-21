@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class GalleryItem(models.Model):
@@ -57,6 +58,11 @@ class StaffMember(models.Model):
 
 
 class LearningMaterial(models.Model):
+    VISIBILITY_CHOICES = [
+        ('class', 'Class material'),
+        ('staff', 'Staff only'),
+    ]
+
     title = models.CharField(max_length=255)
     subject_name = models.CharField(max_length=128)
     class_name = models.CharField(max_length=64, blank=True)
@@ -64,6 +70,10 @@ class LearningMaterial(models.Model):
     file_url = models.CharField(max_length=512, blank=True)
     file_type = models.CharField(max_length=32, default="PDF")
     uploaded_by = models.CharField(max_length=128, blank=True)
+    uploaded_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='learning_materials'
+    )
+    visibility = models.CharField(max_length=16, choices=VISIBILITY_CHOICES, default='class')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

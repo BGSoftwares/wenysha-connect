@@ -109,6 +109,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     filterset_fields = ['student', 'date', 'status']
 
 class TimetableViewSet(viewsets.ModelViewSet):
-    queryset = Timetable.objects.select_related('school_class', 'subject', 'teacher').all().order_by('id')
+    queryset = Timetable.objects.select_related('school_class', 'subject', 'teacher').all().order_by('day_of_week', 'period_start')
     serializer_class = TimetableSerializer
     filterset_fields = ['school_class', 'day_of_week', 'teacher']

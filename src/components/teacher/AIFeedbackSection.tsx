@@ -5,105 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { invokeSupabaseFunction } from "@/integrations/supabase/client";
+import { api, getErrorMessage } from "@/lib/api";
 
 type StudentOpt = { id: number | string; name: string; class_name?: string };
 type Row = { subject: string; score: string; total: string };
-
-function generateLocalSuggestions(
-  studentName: string,
-  className: string,
-  marks: { subject: string; score: number; total: number }[],
-  feedbackNotes: string
-): string {
-  const analyzed = marks.map((m) => {
-    const pct = m.total > 0 ? Math.round((m.score / m.total) * 100) : 0;
-    return { subject: m.subject, score: m.score, total: m.total, pct };
-  });
-
-  const strong = analyzed.filter((m) => m.pct >= 70);
-  const average = analyzed.filter((m) => m.pct >= 50 && m.pct < 70);
-  const weak = analyzed.filter((m) => m.pct < 50);
-
-  const overallAvg =
-    analyzed.length > 0
-      ? Math.round(analyzed.reduce((acc, m) => acc + m.pct, 0) / analyzed.length)
-      : null;
-
-  let summary = `${studentName} demonstrates notable potential at Able God College${className ? ` in ${className}` : ""}. `;
-  if (overallAvg !== null) {
-    if (overallAvg >= 75) {
-      summary += `With a solid overall average of ${overallAvg}%, their performance reflects good conceptual understanding and consistent preparation across subjects.`;
-    } else if (overallAvg >= 50) {
-      summary += `Their current academic average sits at ${overallAvg}%, highlighting a dependable foundation with key areas ready for targeted improvement.`;
-    } else {
-      summary += `With a current average of ${overallAvg}%, a structured and supportive intervention plan will help build confidence and boost exam readiness.`;
-    }
-  } else {
-    summary += "Continuous focus and steady study habits will be essential for academic advancement.";
-  }
-
-  let strengthsSection = "";
-  if (strong.length > 0) {
-    strengthsSection = strong
-      .map((s) => `- **${s.subject} (${s.pct}%)**: Shows commendable mastery and strong analytical grasp.`)
-      .join("\n");
-  } else if (average.length > 0) {
-    strengthsSection = average
-      .map((s) => `- **${s.subject} (${s.pct}%)**: Steady retention of core principles and active engagement in class.`)
-      .join("\n");
-  } else {
-    strengthsSection = `- Displays diligence and willingness to participate during class discussions.\n- Shows curiosity and receptiveness to academic feedback.`;
-  }
-
-  let areasSection = "";
-  if (weak.length > 0) {
-    areasSection = weak
-      .map(
-        (w) =>
-          `- **${w.subject} (${w.pct}%)**: Requires reinforcement in foundational concepts, timed question practice, and regular formula/vocabulary drills.`
-      )
-      .join("\n");
-  } else if (average.length > 0) {
-    areasSection = average
-      .map(
-        (a) =>
-          `- **${a.subject} (${a.pct}%)**: Can advance to top tier by practicing past exam papers and tackling higher-order problem sets.`
-      )
-      .join("\n");
-  } else {
-    areasSection = `- Maintain academic momentum across all subjects through consistent review.\n- Enhance exam technique and time management during assessments.`;
-  }
-
-  if (feedbackNotes.trim()) {
-    areasSection += `\n- **Teacher's Direct Observation**: "${feedbackNotes.trim()}"`;
-  }
-
-  const actionPlan = [
-    `1. **Daily Study Schedule**: Dedicate at least 45 minutes every evening to revision, focusing first on challenging topics.`,
-    `2. **Weekly Past Paper Drill**: Complete at least 2 past exam questions under timed conditions every weekend.`,
-    `3. **Active Summaries**: Create concise revision index cards for core definitions, formulas, and diagrams.`,
-    `4. **Teacher Consultation**: Attend weekly consultation hours with subject teachers to resolve questions before exams.`,
-    `5. **Study Group Participation**: Pair with peer study partners to review homework solutions and exchange notes.`,
-    `6. **Pre-test Self Assessment**: Test recall without notes before each topic quiz to verify deep comprehension.`
-  ].join("\n");
-
-  const parentNote = `Parents and guardians are encouraged to establish a dedicated, distraction-free evening study routine and review weekly progress with ${studentName} to celebrate academic milestones together.`;
-
-  return `## Overall summary
-${summary}
-
-## Strengths
-${strengthsSection}
-
-## Areas to improve
-${areasSection}
-
-## Action plan
-${actionPlan}
-
-## Note for parents
-${parentNote}`;
-}
 
 export default function AIFeedbackSection({ students = [] }: { students?: StudentOpt[] }) {
   const [studentName, setStudentName] = useState("");
@@ -122,18 +28,45 @@ export default function AIFeedbackSection({ students = [] }: { students?: Studen
     setRows((r) => r.map((row, idx) => (idx === i ? { ...row, [key]: v } : row)));
 
   const generate = async () => {
-    const marks = rows
-      .filter((r) => r.subject.trim() && r.score !== "")
-      .map((r) => ({ subject: r.subject.trim(), score: Number(r.score), total: Number(r.total) || 100 }));
     if (!studentName.trim()) return toast.error("Enter the student's name");
+    const enteredRows = rows.filter((r) => r.subject.trim() || r.score.trim());
+    const invalidRow = enteredRows.find((r) => {
+      const score = Number(r.score);
+      const total = Number(r.total);
+      return !r.subject.trim() || !r.score.trim() || !Number.isFinite(score) || !Number.isFinite(total)
+        || total <= 0 || score < 0 || score > total;
+    });
+    if (invalidRow) {
+      return toast.error("Each mark needs a subject, a valid score, and a total greater than zero; scores must be within the total.");
+    }
+    const marks = enteredRows.map((r) => ({
+      subject: r.subject.trim(),
+      score: Number(r.score),
+      total: Number(r.total),
+    }));
     if (!marks.length && !feedback.trim()) return toast.error("Add at least one mark or some feedback");
     setLoading(true);
     setResult("");
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    const suggestions = generateLocalSuggestions(studentName, className, marks, feedback);
-    setResult(suggestions);
-    setLoading(false);
-    toast.success("Improvement suggestions generated successfully!");
+    try {
+      // Let the API client refresh an expired access token before forwarding it
+      // to the cloud function for server-side teacher authorization.
+      await api.get("/auth/me/");
+      const data = await invokeSupabaseFunction<{ suggestions: string }>("student-feedback-ai", {
+        studentName: studentName.trim(),
+        className: className.trim(),
+        marks,
+        feedback: feedback.trim(),
+      });
+      if (typeof data?.suggestions !== "string" || !data.suggestions.trim()) {
+        throw new Error("The AI did not return suggestions. Please try again.");
+      }
+      setResult(data.suggestions);
+      toast.success("Improvement suggestions generated successfully!");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

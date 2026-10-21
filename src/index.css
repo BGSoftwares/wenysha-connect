@@ -293,6 +293,143 @@ html {
   }
 }
 
+#admin-report-print-root {
+  display: none;
+}
+
+.admin-report-page {
+  box-sizing: border-box;
+  color: #17234d;
+  background: #fff;
+  font-family: Arial, sans-serif;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  body.printing-admin-report-cards > *:not(#admin-report-print-root) {
+    display: none !important;
+  }
+
+  body.printing-admin-report-cards #admin-report-print-root {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    color: #17234d !important;
+    background: #fff !important;
+  }
+
+  .admin-report-page {
+    width: 100%;
+    min-height: 280mm;
+    padding: 5mm 4mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    color: #17234d !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .admin-report-page:not(:last-child) {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .admin-report-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8mm;
+    padding-bottom: 4mm;
+    border-bottom: 1.2mm solid #bd1e67;
+  }
+
+  .admin-report-header h2 {
+    margin: 1mm 0 0;
+    color: #172c58;
+    font-size: 15pt;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .admin-report-school {
+    margin: 0;
+    color: #a41d5e;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+  }
+
+  .admin-report-badge {
+    padding: 2mm 3mm;
+    border: 0.3mm solid #d6c2cf;
+    border-radius: 2mm;
+    color: #5c5570;
+    font-size: 8pt;
+    white-space: nowrap;
+  }
+
+  .admin-report-meta {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr;
+    gap: 3mm 5mm;
+    margin: 6mm 0;
+    padding: 4mm;
+    border: 0.3mm solid #eadde5;
+    border-radius: 2mm;
+    background: #fffafd !important;
+  }
+
+  .admin-report-meta div { min-width: 0; }
+  .admin-report-meta span,
+  .admin-report-meta strong { display: block; }
+  .admin-report-meta span { margin-bottom: 1.3mm; color: #716a7a; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.08em; }
+  .admin-report-meta strong { overflow-wrap: anywhere; color: #17234d; font-size: 10pt; }
+  .admin-report-exam { grid-column: span 2; }
+
+  .admin-report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+  }
+
+  .admin-report-table th {
+    padding: 3mm 2.5mm;
+    color: #fff;
+    background: #142b56 !important;
+    text-align: left;
+  }
+
+  .admin-report-table td {
+    padding: 2.6mm 2.5mm;
+    border-bottom: 0.25mm solid #e8e3e8;
+  }
+
+  .admin-report-table tbody tr:nth-child(even) { background: #f7f3f7 !important; }
+  .admin-report-table tr { break-inside: avoid; page-break-inside: avoid; }
+
+  .admin-report-summary {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+    margin-top: 5mm;
+    padding: 3mm 4mm;
+    border-radius: 2mm;
+    background: #f3edf3 !important;
+    font-size: 9pt;
+  }
+
+  .admin-report-summary strong { margin-right: 8mm; color: #a41d5e; font-size: 11pt; }
+  .admin-report-comments { margin-top: 5mm; font-size: 9pt; }
+  .admin-report-comments h3 { margin: 0 0 2mm; font-size: 10pt; }
+  .admin-report-comments p { margin: 1.5mm 0; }
+  .admin-report-footer { margin-top: 8mm; color: #666; font-size: 8pt; }
+}
+
 /* ===== 3D Effects (touch-friendly) ===== */
 @layer utilities {
   .perspective-1000 { perspective: 1000px; }

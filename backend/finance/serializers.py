@@ -1,3 +1,4 @@
+from decimal import Decimal
 from rest_framework import serializers
 from school.serializers import StudentSerializer
 from .models import FeeStructure, Invoice, Payment, Discount
@@ -23,6 +24,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal('0.01'))
     student_name = serializers.CharField(source='invoice.student.name', read_only=True)
     student_id_display = serializers.CharField(source='invoice.student.student_id', read_only=True)
     invoice_no = serializers.CharField(source='invoice.invoice_no', read_only=True)

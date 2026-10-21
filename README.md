@@ -81,6 +81,17 @@ This project is built with:
 
 Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
 
+### AI Coach configuration
+
+The teacher AI Coach calls the `student-feedback-ai` Supabase Edge Function. Set
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the frontend, then
+configure these secrets for the Edge Function:
+
+- `LOVABLE_API_KEY` — the server-side Lovable AI key.
+- `DJANGO_API_BASE_URL` — the backend API base URL, including `/api` (for example,
+  `https://your-backend.example.com/api`). The function uses it to confirm that a
+  request comes from an active teacher account before generating feedback.
+
 ## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!

@@ -14,7 +14,8 @@ import {
   Percent,
   BarChart3,
   AlertTriangle,
-  Wallet
+  Wallet,
+  MessageSquare,
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { useState } from "react";
@@ -68,6 +69,7 @@ const navigation: NavItem[] = [
   },
   { name: "Reports", icon: BarChart3, id: "reports" },
   { name: "Documents & Notes", icon: FileText, id: "financial-documents" },
+  { name: "Communications", icon: MessageSquare, id: "communications" },
   { name: "Profile", icon: User, id: "profile" },
 ];
 

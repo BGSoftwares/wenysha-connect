@@ -127,6 +127,7 @@ class TeacherSubjectClass(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='allocations')
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='allocations')
     periods = models.PositiveIntegerField(default=0)
+    room = models.CharField(max_length=32, blank=True)
 
     class Meta:
         unique_together = [['teacher', 'subject', 'school_class']]
@@ -272,6 +273,10 @@ class Timetable(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     room = models.CharField(max_length=32, blank=True)
     teacher = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True)
+    allocation = models.ForeignKey(
+        TeacherSubjectClass, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='scheduled_periods'
+    )
 
     class Meta:
         ordering = ['day_of_week', 'period_start']

@@ -179,7 +179,12 @@ export async function refreshAccessToken(): Promise<string> {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(String((data as ApiError).detail) || "Refresh failed");
-  const access = (data as { access: string }).access;
+  const tokens = data as { access?: string; refresh?: string };
+  if (!tokens.access) throw new Error("Refresh response did not include an access token");
+  const access = tokens.access;
   localStorage.setItem(TOKEN_KEY, access);
+  // Simple JWT can rotate the refresh token. Persist it so a later renewal
+  // does not reuse an expired token.
+  if (tokens.refresh) localStorage.setItem(REFRESH_KEY, tokens.refresh);
   return access;
 }

@@ -1,5 +1,4 @@
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 export interface ReportCardPdfData {
   studentName: string;
@@ -49,47 +48,162 @@ export interface FeeStatementPdfData {
   }>;
 }
 
-export const exportReportCardPdf = async (elementId: string, studentName: string) => {
-  const element = document.getElementById(elementId);
-  if (!element) {
-    console.error("Element not found for PDF export");
-    return;
-  }
+export interface StudentReportCardPdfData {
+  studentName: string;
+  studentId: string;
+  className: string;
+  examName: string;
+  termLabel: string;
+  issuedDate: string;
+  average: number;
+  overallGrade: string;
+  passed: number;
+  totalSubjects: number;
+  classPosition: string;
+  levelPosition: string;
+  teacherComment: string;
+  principalComment: string;
+  attendance: { totalDays: number; present: number; absent: number };
+  results: Array<{ subject: string; marks: number; scored: number; percentage: number; grade: string }>;
+}
 
-  try {
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      width: element.scrollWidth,
-      height: element.scrollHeight,
+export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
+  const pdf = new jsPDF("p", "mm", "a4");
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const left = 14;
+  const right = pageWidth - left;
+  const width = right - left;
+
+  pdf.setFillColor(20, 36, 79);
+  pdf.rect(0, 0, pageWidth, 34, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(18);
+  pdf.text("ABLE GOD COLLEGE", pageWidth / 2, 14, { align: "center" });
+  pdf.setFontSize(11);
+  pdf.text("STUDENT REPORT CARD", pageWidth / 2, 23, { align: "center" });
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.text(data.examName, pageWidth / 2, 30, { align: "center", maxWidth: width });
+
+  pdf.setTextColor(35, 39, 60);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.text("Student", left, 44);
+  pdf.text("Student ID", 112, 44);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.text(pdf.splitTextToSize(data.studentName, 85)[0], left, 50);
+  pdf.text(data.studentId || "—", 112, 50);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Class", left, 59);
+  pdf.text("Term", 112, 59);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(data.className || "—", left, 65);
+  pdf.text(data.termLabel, 112, 65, { maxWidth: 82 });
+  pdf.setDrawColor(221, 210, 220);
+  pdf.line(left, 70, right, 70);
+
+  const summaryY = 75;
+  const summaryWidth = width / 4;
+  const summary = [
+    ["AVERAGE", `${data.average.toFixed(2)}%`],
+    ["GRADE", data.overallGrade],
+    ["PASSED", `${data.passed} / ${data.totalSubjects}`],
+    ["CLASS POSITION", data.classPosition],
+  ];
+  summary.forEach(([label, value], index) => {
+    const x = left + index * summaryWidth;
+    pdf.setFillColor(index % 2 ? 249 : 244, index % 2 ? 243 : 239, index % 2 ? 247 : 244);
+    pdf.roundedRect(x, summaryY, summaryWidth - 1.5, 18, 2, 2, "F");
+    pdf.setTextColor(115, 108, 126);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7.5);
+    pdf.text(label, x + 3, summaryY + 6);
+    pdf.setTextColor(23, 36, 76);
+    pdf.setFontSize(10);
+    pdf.text(pdf.splitTextToSize(value, summaryWidth - 6)[0], x + 3, summaryY + 13);
+  });
+
+  const tableTop = 101;
+  const headerHeight = 9;
+  const reserve = data.teacherComment || data.principalComment ? 45 : 28;
+  const availableRowsHeight = pageHeight - 15 - tableTop - headerHeight - reserve;
+  const rowHeight = data.results.length
+    ? Math.max(5.5, Math.min(9, availableRowsHeight / data.results.length))
+    : 9;
+  pdf.setFillColor(20, 43, 86);
+  pdf.rect(left, tableTop, width, headerHeight, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(8.5);
+  pdf.text("Subject", left + 3, tableTop + 6);
+  pdf.text("Score", 119, tableTop + 6, { align: "right" });
+  pdf.text("Out of", 139, tableTop + 6, { align: "right" });
+  pdf.text("Percentage", 169, tableTop + 6, { align: "right" });
+  pdf.text("Grade", right - 3, tableTop + 6, { align: "right" });
+
+  let y = tableTop + headerHeight;
+  data.results.forEach((result, index) => {
+    if (index % 2 === 1) {
+      pdf.setFillColor(248, 245, 248);
+      pdf.rect(left, y, width, rowHeight, "F");
+    }
+    pdf.setDrawColor(232, 226, 233);
+    pdf.line(left, y + rowHeight, right, y + rowHeight);
+    pdf.setTextColor(37, 41, 62);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    const baseline = y + Math.min(rowHeight - 1.5, 4.4);
+    pdf.text(pdf.splitTextToSize(result.subject, 85)[0], left + 3, baseline);
+    pdf.text(result.scored.toFixed(2), 119, baseline, { align: "right" });
+    pdf.text(String(result.marks), 139, baseline, { align: "right" });
+    pdf.text(`${result.percentage.toFixed(1)}%`, 169, baseline, { align: "right" });
+    pdf.setFont("helvetica", "bold");
+    pdf.text(result.grade, right - 3, baseline, { align: "right" });
+    y += rowHeight;
+  });
+
+  y += 8;
+  pdf.setTextColor(23, 36, 76);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.text(`Level position: ${data.levelPosition}`, left, y);
+  pdf.text(`Attendance: ${data.attendance.present}/${data.attendance.totalDays} days present · ${data.attendance.absent} absent`, right, y, { align: "right", maxWidth: 112 });
+  y += 8;
+
+  const comments = [
+    ["TEACHER COMMENT", data.teacherComment],
+    ["PRINCIPAL'S COMMENT", data.principalComment],
+  ].filter((item) => item[1]);
+  if (comments.length && y < pageHeight - 39) {
+    const gap = 5;
+    const columnWidth = (width - gap) / comments.length;
+    comments.forEach(([label, comment], index) => {
+      const x = left + index * (columnWidth + gap);
+      const lines = pdf.splitTextToSize(comment, columnWidth - 8);
+      const boxHeight = Math.max(18, Math.min(38, 10 + lines.length * 4.2));
+      pdf.setDrawColor(226, 214, 224);
+      pdf.setFillColor(255, 250, 253);
+      pdf.roundedRect(x, y, columnWidth, boxHeight, 2, 2, "FD");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(7.5);
+      pdf.setTextColor(115, 108, 126);
+      pdf.text(label, x + 4, y + 6);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      pdf.setTextColor(55, 52, 69);
+      pdf.text(lines.slice(0, 5), x + 4, y + 12);
     });
-
-    const pdf = new jsPDF("p", "mm", "a4");
-    const margin = 8;
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const availableWidth = pageWidth - margin * 2;
-    const availableHeight = pageHeight - margin * 2;
-    const scale = Math.min(availableWidth / canvas.width, availableHeight / canvas.height);
-    const imgWidth = canvas.width * scale;
-    const imgHeight = canvas.height * scale;
-
-    pdf.addImage(
-      canvas.toDataURL("image/png"),
-      "PNG",
-      (pageWidth - imgWidth) / 2,
-      (pageHeight - imgHeight) / 2,
-      imgWidth,
-      imgHeight,
-      undefined,
-      "FAST",
-    );
-    pdf.save(`Report_Card_${studentName.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`);
-  } catch (error) {
-    console.error("Error generating PDF:", error);
   }
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  pdf.setTextColor(120, 120, 130);
+  pdf.text(`Issued ${data.issuedDate} · Available in the student portal`, left, pageHeight - 9);
+  const safeName = data.studentName.trim().replace(/[^a-z0-9-_]+/gi, "_") || "Student";
+  pdf.save(`Report_Card_${safeName}_${new Date().toISOString().split("T")[0]}.pdf`);
 };
 
 export const exportFeeStatementPdf = async (data: FeeStatementPdfData) => {

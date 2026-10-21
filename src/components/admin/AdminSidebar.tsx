@@ -44,6 +44,7 @@ const navigation: NavItem[] = [
     id: "students",
     children: [
       { name: "All Students", id: "students" },
+      { name: "School Directory", id: "directory" },
       { name: "Admission", id: "admission" },
       { name: "Promotion", id: "promotion" },
     ]
@@ -98,17 +99,17 @@ const navigation: NavItem[] = [
   },
   { name: "Transport", icon: Bus, id: "transport" },
   { name: "Hostel", icon: Building, id: "hostel" },
-  { name: "Notice", icon: MessageSquare, id: "notice" },
+  { name: "Communications", icon: MessageSquare, id: "notice" },
   { name: "Message", icon: MessageSquare, id: "message" },
   { name: "Report Cards", icon: FileText, id: "report-cards" },
   { name: "Gallery", icon: Image, id: "gallery" },
   { name: "Map", icon: MapPin, id: "map" },
   {
-    name: "Users & Roles",
+    name: "User Accounts & Roles",
     icon: Shield,
     id: "users-roles",
     children: [
-      { name: "All Users", id: "users-roles" },
+      { name: "Manage Accounts", id: "users-roles" },
       { name: "Roles", id: "roles" },
     ]
   },

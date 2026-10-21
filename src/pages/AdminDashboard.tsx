@@ -17,6 +17,7 @@ import SubjectsSection from "@/components/admin/SubjectsSection";
 import AllocationsSection from "@/components/admin/AllocationsSection";
 import GallerySection from "@/components/admin/GallerySection";
 import TimetableSection from "@/components/admin/TimetableSection";
+import StudentDirectorySection from "@/components/admin/StudentDirectorySection";
 
 // Existing Specialized Sections
 import UsersRolesSection from "@/components/admin/UsersRolesSection";
@@ -29,13 +30,14 @@ import ParentsSection from "@/components/admin/ParentsSection";
 import LibrarySection from "@/components/admin/LibrarySection";
 import TransportSection from "@/components/admin/TransportSection";
 import HostelSection from "@/components/admin/HostelSection";
-import NoticeSection from "@/components/admin/NoticeSection";
+import CommunicationSection from "@/components/dashboard/CommunicationSection";
 import MessageSection from "@/components/admin/MessageSection";
 import AttendanceSection from "@/components/admin/AttendanceSection";
 import MapSection from "@/components/admin/MapSection";
 import AdmissionSection from "@/components/admin/AdmissionSection";
 import PromotionSection from "@/components/admin/PromotionSection";
 import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
+import AdminReportCardsSection from "@/components/admin/ReportCardsSection";
 
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
@@ -47,7 +49,6 @@ const AdminDashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showModal, setShowModal] = useState<string | null>(null);
-  const [bulkComment, setBulkComment] = useState("Excellent work this term. Keep the momentum and continue to work hard in class.");
 
   // Hook Integration
   const { data: students, isLoading: isLoadingStudents, error: studentsError } = useStudents();
@@ -230,7 +231,7 @@ const AdminDashboard = () => {
   const [newTeacher, setNewTeacher] = useState({ name: "", department: "", phone: "", employee_id: "" });
   const [newClass, setNewClass] = useState({ name: "", capacity: 40 });
   const [newSubject, setNewSubject] = useState({ name: "", code: "", department: "" });
-  const [newAllocation, setNewAllocation] = useState({ teacher: "", subject: "", school_class: "", periods: 5 });
+  const [newAllocation, setNewAllocation] = useState({ teacher: "", subject: "", school_class: "", periods: 5, room: "" });
 
   const handleCreateStudent = async () => {
     try {
@@ -326,8 +327,8 @@ const AdminDashboard = () => {
   };
 
   const handleCreateAllocation = async () => {
-    if (!newAllocation.teacher || !newAllocation.subject || !newAllocation.school_class || newAllocation.periods < 1) {
-      toast.error("Select a teacher, subject, class, and valid weekly periods");
+    if (!newAllocation.teacher || !newAllocation.subject || !newAllocation.school_class || !Number.isInteger(newAllocation.periods) || newAllocation.periods < 1 || newAllocation.periods > 35 || !newAllocation.room.trim()) {
+      toast.error("Select a teacher, subject, class, room, and 1–35 weekly periods");
       return;
     }
     try {
@@ -336,9 +337,11 @@ const AdminDashboard = () => {
         subject: Number(newAllocation.subject),
         school_class: Number(newAllocation.school_class),
         periods: newAllocation.periods,
+        room: newAllocation.room.trim(),
       });
       await queryClient.invalidateQueries({ queryKey: ["allocations"] });
-      setNewAllocation({ teacher: "", subject: "", school_class: "", periods: 5 });
+      await queryClient.invalidateQueries({ queryKey: ["timetable"] });
+      setNewAllocation({ teacher: "", subject: "", school_class: "", periods: 5, room: "" });
       setShowModal(null);
       toast.success("Teacher allocation saved");
     } catch (error) {
@@ -370,13 +373,14 @@ const AdminDashboard = () => {
       "pending-approvals": "Pending Approvals",
       transport: "Transport",
       hostel: "Hostel",
-      notice: "Notice",
+      notice: "Communications",
       message: "Messages",
       gallery: "Gallery",
       map: "Map",
       "report-cards": "Report Cards",
-      "users-roles": "Users & Roles",
-      roles: "Users & Roles",
+      directory: "School Directory",
+      "users-roles": "User Accounts & Roles",
+      roles: "User Accounts & Roles",
       settings: "Settings",
       "system-setup": "Settings",
       cache: "Settings",
@@ -408,6 +412,7 @@ const AdminDashboard = () => {
           onDeleteStudent={handleDeleteStudent}
         />
       );
+      case "directory": return <StudentDirectorySection onManageGuardians={() => setActiveNav("parents")} />;
       case "admission": return <AdmissionSection />;
       case "promotion": return <PromotionSection />;
       case "teachers":
@@ -471,6 +476,7 @@ const AdminDashboard = () => {
           classes={(classes || []).map((c) => ({ id: c.id, name: c.name }))}
           subjects={(subjects || []).map((s) => ({ id: s.id, name: s.name }))}
           uploadedBy="School Administrator"
+          canManageAll
           emptyHint="No notes or materials have been uploaded yet. Upload lesson notes, syllabi, past papers, or videos from your computer."
         />
       );
@@ -481,70 +487,9 @@ const AdminDashboard = () => {
       case "pending-approvals": return <PendingApprovalsSection />;
       case "transport": return <TransportSection />;
       case "hostel": return <HostelSection />;
-      case "notice": return <NoticeSection />;
+      case "notice": return <CommunicationSection role="admin" classes={classes || []} students={students || []} />;
       case "message": return <MessageSection />;
-      case "report-cards": return (
-        <div className="space-y-6">
-          <div className="bg-card rounded-2xl border border-border p-6 shadow-elegant">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground uppercase tracking-[0.2em]">Administration</p>
-                <h2 className="font-heading text-2xl font-bold text-foreground">Bulk Report Cards</h2>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => window.print()}>Print All Report Cards</Button>
-                <Button
-                  variant="gold"
-                  onClick={() => {
-                    const message = `School report cards are ready. Please visit the portal to view the latest results and comments. ${window.location.origin}`;
-                    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
-                  }}
-                >
-                  Share via WhatsApp
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-card rounded-2xl border border-border p-6 shadow-elegant space-y-5">
-            <div>
-              <h3 className="font-semibold text-foreground mb-2">Admin Comment for All Generated Report Cards</h3>
-              <textarea
-                value={bulkComment}
-                onChange={(event) => setBulkComment(event.target.value)}
-                className="min-h-[120px] w-full rounded-xl border border-border bg-background p-4 text-sm text-foreground"
-                placeholder="Add a school-wide principal or admin comment..."
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Button variant="outline" onClick={() => setBulkComment("Excellent work this term. Keep up the positive attitude and continue to strive for excellence.")}>Use Default</Button>
-              <Button variant="gold" onClick={() => toast.success("Admin comment applied to the generated report cards.")}>Apply Comment to All</Button>
-            </div>
-          </div>
-
-          <div className="bg-card rounded-2xl border border-border p-6 shadow-elegant">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-foreground">Generated Report Cards</h3>
-              <span className="text-sm text-muted-foreground">{students?.length ?? 0} students</span>
-            </div>
-            <div className="space-y-3">
-              {(students ?? []).slice(0, 8).map((student) => (
-                <div key={student.id} className="flex items-center justify-between rounded-xl border border-border bg-secondary/20 p-4">
-                  <div>
-                    <p className="font-medium text-foreground">{student.name}</p>
-                    <p className="text-sm text-muted-foreground">{student.student_id} • {classes?.find(cls => cls.id === student.school_class)?.name || "Class not set"}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs rounded-full bg-primary/10 px-2 py-1 text-primary">Visible online</span>
-                    <Button variant="outline" size="sm" onClick={() => window.print()}>Print</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
+      case "report-cards": return <AdminReportCardsSection classes={classes || []} />;
       case "map": return <MapSection />;
       default: return <DashboardOverview />;
     }
@@ -568,8 +513,8 @@ const AdminDashboard = () => {
           onMenuClick={() => setMobileSidebarOpen(true)}
         />
 
-        <main className="flex-1 overflow-auto p-6 bg-secondary/10">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 overflow-auto bg-secondary/10 p-4 sm:p-6 lg:p-8">
+          <div className="mx-auto w-full max-w-[1600px] space-y-6">
             {renderContent()}
           </div>
         </main>
@@ -702,7 +647,10 @@ const AdminDashboard = () => {
                     </select>
                   </label>
                   <label className="block space-y-1.5 text-xs font-bold uppercase text-muted-foreground">Periods per week
-                    <input type="number" min={1} max={40} className="w-full rounded-xl border border-border bg-background p-2.5 text-sm font-normal normal-case text-foreground" value={newAllocation.periods} onChange={e => setNewAllocation({ ...newAllocation, periods: Number(e.target.value) })}/>
+                    <input type="number" min={1} max={35} className="w-full rounded-xl border border-border bg-background p-2.5 text-sm font-normal normal-case text-foreground" value={newAllocation.periods} onChange={e => setNewAllocation({ ...newAllocation, periods: Number(e.target.value) })}/>
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold uppercase text-muted-foreground">Room / venue
+                    <input type="text" placeholder="e.g. Room 14 or Science Lab" className="w-full rounded-xl border border-border bg-background p-2.5 text-sm font-normal normal-case text-foreground" value={newAllocation.room} onChange={e => setNewAllocation({ ...newAllocation, room: e.target.value })}/>
                   </label>
                 </>
               )}

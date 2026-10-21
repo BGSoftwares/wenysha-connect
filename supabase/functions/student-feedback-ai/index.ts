@@ -4,7 +4,8 @@ import { streamText } from "npm:ai";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-lovable-aig-run-id",
+    "authorization, x-client-info, apikey, content-type, x-lovable-aig-run-id, x-django-authorization",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Expose-Headers": "X-Lovable-AIG-Run-ID",
 };
 
@@ -20,29 +21,73 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  const djangoApiBaseUrl = Deno.env.get("DJANGO_API_BASE_URL")?.replace(/\/+$/, "");
+  const userAuthorization = req.headers.get("x-django-authorization");
+  if (!djangoApiBaseUrl) return json({ error: "AI authorization is not configured." }, 503);
+  if (!userAuthorization?.startsWith("Bearer ")) {
+    return json({ error: "Sign in with a teacher account to use the AI coach." }, 401);
+  }
+
+  let currentUser: { role?: string };
+  try {
+    const authResponse = await fetch(`${djangoApiBaseUrl}/auth/me/`, {
+      headers: { Authorization: userAuthorization, Accept: "application/json" },
+      signal: req.signal,
+    });
+    if (!authResponse.ok) {
+      if (authResponse.status === 401) return json({ error: "Your session expired. Please sign in again." }, 401);
+      if (authResponse.status === 403) return json({ error: "Your account cannot use the AI coach." }, 403);
+      return json({ error: "Unable to verify your account right now." }, 503);
+    }
+    currentUser = await authResponse.json();
+  } catch {
+    if (req.signal.aborted) return json({ error: "Cancelled" }, 499);
+    return json({ error: "Unable to reach the account service right now." }, 503);
+  }
+  if (String(currentUser.role ?? "").toLowerCase() !== "teacher") {
+    return json({ error: "The AI coach is available to teachers only." }, 403);
+  }
+
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) return json({ error: "AI is not configured yet." }, 500);
 
-  let body: { studentName?: string; className?: string; marks?: Mark[]; feedback?: string };
+  let body: { studentName?: string; className?: string; marks?: unknown; feedback?: string };
   try {
-    body = await req.json();
+    const parsedBody: unknown = await req.json();
+    if (typeof parsedBody !== "object" || parsedBody === null || Array.isArray(parsedBody)) {
+      return json({ error: "Request must be a JSON object." }, 400);
+    }
+    body = parsedBody as typeof body;
   } catch {
     return json({ error: "Invalid request" }, 400);
   }
   const studentName = String(body.studentName ?? "").slice(0, 120).trim();
-  const marks = Array.isArray(body.marks) ? body.marks.slice(0, 30) : [];
+  if (body.marks !== undefined && !Array.isArray(body.marks)) {
+    return json({ error: "Marks must be sent as a list." }, 400);
+  }
+  const rawMarks: unknown[] = Array.isArray(body.marks) ? body.marks : [];
+  if (rawMarks.length > 30) return json({ error: "A maximum of 30 marks can be submitted." }, 400);
+  const marks: Mark[] = [];
+  for (const rawMark of rawMarks) {
+    if (typeof rawMark !== "object" || rawMark === null) {
+      return json({ error: "Each mark must include a subject, score, and total." }, 400);
+    }
+    const candidate = rawMark as Record<string, unknown>;
+    const subject = typeof candidate.subject === "string" ? candidate.subject.trim().slice(0, 60) : "";
+    const score = typeof candidate.score === "number" ? candidate.score : Number.NaN;
+    const total = typeof candidate.total === "number" ? candidate.total : Number.NaN;
+    if (!subject || !Number.isFinite(score) || !Number.isFinite(total) || total <= 0 || score < 0 || score > total) {
+      return json({ error: "Each mark needs a subject, a valid score, and a positive total; scores must be within the total." }, 400);
+    }
+    marks.push({ subject, score, total });
+  }
   const feedback = String(body.feedback ?? "").slice(0, 4000).trim();
   if (!studentName || (marks.length === 0 && !feedback)) {
     return json({ error: "Add the student's name and at least one mark or some feedback." }, 400);
   }
 
   const markLines = marks
-    .filter((m) => m && m.subject)
-    .map((m) => {
-      const total = Number(m.total) || 100;
-      const score = Number(m.score) || 0;
-      return `- ${String(m.subject).slice(0, 60)}: ${score}/${total} (${Math.round((score / total) * 100)}%)`;
-    })
+    .map((m) => `- ${m.subject}: ${m.score}/${m.total} (${Math.round((m.score / m.total) * 100)}%)`)
     .join("\n");
 
   const prompt = `Student: ${studentName}${body.className ? ` (${String(body.className).slice(0, 40)})` : ""}

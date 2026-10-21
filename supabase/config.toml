@@ -1,1 +1,4 @@
 project_id = "rrjkpkbqncrqkffyjgow"
+
+[functions.student-feedback-ai]
+verify_jwt = false

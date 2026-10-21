@@ -12,6 +12,7 @@ FILE_TYPE_BY_EXT = {
     '.pptx': 'PPT',
     '.xls': 'XLS',
     '.xlsx': 'XLS',
+    '.csv': 'CSV',
     '.mp4': 'VIDEO',
     '.mov': 'VIDEO',
     '.webm': 'VIDEO',
@@ -56,14 +57,15 @@ class LearningMaterialSerializer(serializers.ModelSerializer):
     file = serializers.FileField(write_only=True, required=False)
     file_url = serializers.SerializerMethodField()
     file_name = serializers.SerializerMethodField()
+    uploaded_by_user = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = LearningMaterial
         fields = [
             'id', 'title', 'subject_name', 'class_name', 'file', 'file_url',
-            'file_name', 'file_type', 'uploaded_by', 'created_at',
+            'file_name', 'file_type', 'uploaded_by', 'uploaded_by_user', 'visibility', 'created_at',
         ]
-        read_only_fields = ['created_at', 'file_url', 'file_name']
+        read_only_fields = ['created_at', 'file_url', 'file_name', 'uploaded_by', 'uploaded_by_user']
 
     def get_file_url(self, obj):
         request = self.context.get('request')
