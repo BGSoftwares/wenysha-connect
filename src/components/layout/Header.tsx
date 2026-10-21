@@ -164,7 +164,7 @@ export const Header = () => {
                       className="w-full text-white/70 hover:text-red-400"
                       onClick={handleLogout}
                     >
-                      Log Out
+                      Sign Out
                     </Button>
                   </>
                 ) : (

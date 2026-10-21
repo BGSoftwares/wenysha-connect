@@ -5,13 +5,14 @@ import { Download, Send, Save, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api, getErrorMessage } from "@/lib/api";
 import { calculateGrade } from "@/lib/grading";
-import { useSaveExamMark, type ExamMark } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useSaveExamMark, type ExamMark, type ExamReportType } from "@/lib/hooks";
 
 interface Props {
   students: { id: number; name: string; student_id?: string }[];
   marks: ExamMark[];
   examId: number | null;
   examName: string;
+  reportType: ExamReportType;
   subjectId: number;
   subjectName: string;
   classId: number;
@@ -21,7 +22,7 @@ interface Props {
 
 type Row = { score: string; comment: string };
 
-const MarkSheetSection = ({ students, marks, examId, examName, subjectId, subjectName, classId, className, teacherName }: Props) => {
+const MarkSheetSection = ({ students, marks, examId, examName, reportType, subjectId, subjectName, classId, className, teacherName }: Props) => {
   const saveMark = useSaveExamMark();
   const [rows, setRows] = useState<Record<number, Row>>({});
   const [busy, setBusy] = useState(false);
@@ -62,9 +63,11 @@ const MarkSheetSection = ({ students, marks, examId, examName, subjectId, subjec
     const w = doc.internal.pageSize.getWidth();
     doc.setFontSize(16); doc.text("Class Mark Sheet", w / 2, 16, { align: "center" });
     doc.setFontSize(10);
+    const reportTypeLabel = EXAM_REPORT_TYPES.find(type => type.value === reportType)?.label ?? "Report card";
     doc.text(`Class: ${className}    Subject: ${subjectName}    Exam: ${examName}`, 14, 26);
-    doc.text(`Teacher: ${teacherName}    Date: ${new Date().toLocaleDateString()}`, 14, 32);
-    let y = 42;
+    doc.text(`Report type: ${reportTypeLabel}`, 14, 32);
+    doc.text(`Teacher: ${teacherName}    Date: ${new Date().toLocaleDateString()}`, 14, 38);
+    let y = 48;
     const header = () => {
       doc.setFont("helvetica", "bold");
       doc.text("#", 14, y); doc.text("Learner", 22, y); doc.text("Mark", 92, y); doc.text("Grade", 110, y); doc.text("Comment", 128, y);
@@ -125,6 +128,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, subjectId, subjec
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">{className} · {subjectName} · {examName || "No exam selected"}</p>
+          <p className="text-xs font-medium text-primary">{EXAM_REPORT_TYPES.find(type => type.value === reportType)?.label}</p>
           <h3 className="font-semibold text-foreground">Mark Sheet ({students.length} learners)</h3>
         </div>
         <div className="flex flex-wrap gap-2">

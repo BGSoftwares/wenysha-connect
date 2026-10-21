@@ -1,4 +1,6 @@
-import { Bell, Search, MessageSquare, Settings, ChevronDown, Globe, Menu } from "lucide-react";
+import { Bell, Search, MessageSquare, Settings, ChevronDown, Globe, Menu, LogOut } from "lucide-react";
+import { Link } from "react-router-dom";
+import { clearAuth } from "@/lib/api";
 
 interface AdminHeaderProps {
   title: string;
@@ -8,7 +10,7 @@ interface AdminHeaderProps {
 
 const AdminHeader = ({ title, breadcrumb, onMenuClick }: AdminHeaderProps) => {
   return (
-    <header className="glass-dark border-b border-white/10 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-lg">
+    <header className="portal-header bg-[hsl(var(--forest-dark))] border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-lg">
       <div className="flex items-center gap-4 flex-1">
         {onMenuClick && (
           <button onClick={onMenuClick} className="lg:hidden p-2 rounded-xl hover:bg-white/10 transition-colors">
@@ -26,6 +28,10 @@ const AdminHeader = ({ title, breadcrumb, onMenuClick }: AdminHeaderProps) => {
       </div>
 
       <div className="flex items-center gap-6">
+        <Link to="/portal" onClick={clearAuth} className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive transition-colors hover:bg-destructive/20">
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </Link>
         {/* Language Selector */}
         <button className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 transition-colors text-sm text-white/70 hover:text-white">
           <Globe className="h-4 w-4" />
@@ -50,7 +56,7 @@ const AdminHeader = ({ title, breadcrumb, onMenuClick }: AdminHeaderProps) => {
         <div className="flex items-center gap-4 pl-6 border-l border-white/10">
           <div className="flex flex-col items-end hidden md:flex">
             <p className="font-bold text-sm text-white">Administrator</p>
-            <p className="text-[10px] text-accent font-bold uppercase tracking-widest">Able God College High</p>
+            <p className="text-[10px] text-accent font-bold uppercase tracking-widest">Able God College College</p>
           </div>
           <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-accent to-gold-dark p-[2px] shadow-lg shadow-accent/20">
             <div className="h-full w-full rounded-[14px] bg-forest flex items-center justify-center border border-white/10">

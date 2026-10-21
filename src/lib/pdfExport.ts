@@ -387,9 +387,7 @@ export async function sharePdfToWhatsApp(opts: {
     try {
       await nav.share({ files: [file], title: opts.fileName, text: opts.text });
       return "shared";
-    } catch {
-      return "opened";
-    }
+    } catch { /* fall back to a downloadable PDF and WhatsApp link */ }
   }
   opts.pdf.save(opts.fileName);
   const destination = opts.groupUrl?.trim()

@@ -5,7 +5,7 @@ import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
 import { calculateGrade } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
-import { useAttendanceRecords, useExamMarks, useExamRanking, useExams, useStudentFees, useStudentProfile } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useAttendanceRecords, useExamMarks, useExamRanking, useExams, useStudentFees, useStudentProfile, type ExamReportType } from "@/lib/hooks";
 import { getPrincipalComment, getTeacherComment } from "@/lib/reportComments";
 
 interface SubjectResult {
@@ -31,6 +31,7 @@ const formatPosition = (position: number | null | undefined, total: number | nul
 
 const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const [reportCategory, setReportCategory] = useState<"current" | "past">("current");
+  const [selectedReportType, setSelectedReportType] = useState<ExamReportType | null>(null);
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const reportCardRef = useRef<HTMLDivElement>(null);
@@ -41,18 +42,19 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const { data: attendanceRecords = [] } = useAttendanceRecords({ student: studentId });
   const { data: exams = [], isLoading: isLoadingExams } = useExams();
   const availableExams = exams
-    .filter(exam => exam.status === "completed" && allMarks.some(mark => mark.exam === exam.id))
+    .filter(exam => exam.status === "completed" && exam.results_published && allMarks.some(mark => mark.exam === exam.id))
     .sort((first, second) => second.start_date.localeCompare(first.start_date));
+  const activeReportType = selectedReportType ?? availableExams[0]?.report_type ?? EXAM_REPORT_TYPES[0].value;
   const currentPeriod = availableExams[0]
     ? `${availableExams[0].year.trim()}-${availableExams[0].term.trim().toLowerCase()}`
     : null;
   const visibleExams = availableExams.filter(exam => {
     const isCurrent = `${exam.year.trim()}-${exam.term.trim().toLowerCase()}` === currentPeriod;
-    return reportCategory === "current" ? isCurrent : !isCurrent;
+    return exam.report_type === activeReportType && (reportCategory === "current" ? isCurrent : !isCurrent);
   });
   const selectedExam = visibleExams.find(exam => exam.id === selectedExamId) || visibleExams[0];
   const selectedTerm = selectedExam
-    ? `${selectedExam.name} · ${selectedExam.term} ${selectedExam.year}`
+    ? `${EXAM_REPORT_TYPES.find(type => type.value === selectedExam.report_type)?.label ?? "Report card"} · ${selectedExam.name} · ${selectedExam.term} ${selectedExam.year}`
     : "No examination selected";
   const marks = allMarks.filter(mark => mark.exam === selectedExam?.id);
   const { data: ranking, isLoading: isLoadingRanking, isError: isRankingError } =
@@ -73,7 +75,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
         studentId: profile?.student_id || "",
         className: profile?.class_name || "—",
         examName: selectedExam.name,
-        termLabel: `${selectedExam.term} ${selectedExam.year}`,
+        termLabel: `${EXAM_REPORT_TYPES.find(type => type.value === selectedExam.report_type)?.label ?? "Report card"} · ${selectedExam.term} ${selectedExam.year}`,
         issuedDate: new Date().toLocaleDateString("en-GB"),
         average: averagePercentage,
         overallGrade: calculateGrade(averagePercentage).grade,
@@ -166,7 +168,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
           <h2 className="font-heading text-xl font-bold text-foreground">Report Card</h2>
           <p className="text-muted-foreground text-sm">View your academic performance</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <select
             value={reportCategory}
             onChange={(event) => {
@@ -174,7 +176,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
               setReportCategory(nextCategory);
               const nextExam = availableExams.find(exam => {
                 const isCurrent = `${exam.year.trim()}-${exam.term.trim().toLowerCase()}` === currentPeriod;
-                return nextCategory === "current" ? isCurrent : !isCurrent;
+                return exam.report_type === activeReportType && (nextCategory === "current" ? isCurrent : !isCurrent);
               });
               setSelectedExamId(nextExam?.id ?? null);
             }}
@@ -183,6 +185,22 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
           >
             <option value="current">Current Term</option>
             <option value="past">Past Report Cards</option>
+          </select>
+          <select
+            value={activeReportType}
+            onChange={(event) => {
+              const nextType = event.target.value as ExamReportType;
+              setSelectedReportType(nextType);
+              const nextExam = availableExams.find(exam => {
+                const isCurrent = `${exam.year.trim()}-${exam.term.trim().toLowerCase()}` === currentPeriod;
+                return exam.report_type === nextType && (reportCategory === "current" ? isCurrent : !isCurrent);
+              });
+              setSelectedExamId(nextExam?.id ?? null);
+            }}
+            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+            aria-label="Report card type"
+          >
+            {EXAM_REPORT_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
           </select>
           <select
             value={selectedExam?.id ?? ""}

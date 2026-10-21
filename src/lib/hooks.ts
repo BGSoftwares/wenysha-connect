@@ -73,7 +73,7 @@ function extractArray<T>(response: unknown): T[] {
     return [];
 }
 
-async function fetchAllPages<T>(path: string, params?: Record<string, string>): Promise<T[]> {
+export async function fetchAllPages<T>(path: string, params?: Record<string, string>): Promise<T[]> {
     const results: T[] = [];
     let page = 1;
 
@@ -181,13 +181,13 @@ export const useClasses = () => {
     });
 };
 
-export const useTimetable = (schoolClass?: number, extra?: { teacher?: number }) => useQuery({
+export const useTimetable = (schoolClass?: number, extra?: { teacher?: number; allClasses?: boolean }) => useQuery({
     queryKey: ["timetable", schoolClass, extra],
-    queryFn: async () => extractArray<TimetableEntry>(await api.get<unknown>("/school/timetable/", toQueryParams({
+    queryFn: async () => fetchAllPages<TimetableEntry>("/school/timetable/", toQueryParams({
         school_class: schoolClass,
         teacher: extra?.teacher,
-    }))),
-    enabled: schoolClass !== undefined || extra?.teacher !== undefined,
+    })),
+    enabled: schoolClass !== undefined || extra?.teacher !== undefined || extra?.allClasses === true,
     refetchInterval: 5000,
 });
 
@@ -522,9 +522,21 @@ export interface StudentFee {
 
 // --- Exams ---
 
+export const EXAM_REPORT_TYPES = [
+    { value: "fortnightly_tests", label: "Fortnightly Tests" },
+    { value: "monthly_report_card", label: "Monthly Report Card" },
+    { value: "end_of_1st_term", label: "End of 1st Term" },
+    { value: "end_of_2nd_term", label: "End of 2nd Term" },
+    { value: "end_of_3rd_term", label: "End of 3rd Term" },
+] as const;
+
+export type ExamReportType = typeof EXAM_REPORT_TYPES[number]["value"];
+
 export interface Exam {
     id: number;
     name: string;
+    report_type: ExamReportType;
+    results_published: boolean;
     term: string;
     year: string;
     start_date: string;
@@ -621,6 +633,16 @@ export const useCreateExam = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["exams"] });
         },
+    });
+};
+
+export const useUpdateExam = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ id, data }: { id: number; data: Partial<Exam> }) => {
+            return await api.patch<Exam>(`/exams/exams/${id}/`, data);
+        },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["exams"] }),
     });
 };
 
@@ -953,6 +975,7 @@ export interface Notice {
 export const useNotices = () => useQuery({
     queryKey: ["notices"],
     queryFn: () => fetchAllPages<Notice>("/notices/notices/"),
+    refetchInterval: 15000,
 });
 
 export interface LearningMaterial {
@@ -992,6 +1015,7 @@ function toLearningMaterialFormData(data: LearningMaterialInput): FormData {
 export const useLearningMaterials = (params?: { subject_name?: string; class_name?: string; visibility?: "class" | "staff" }) => useQuery({
     queryKey: ["learning-materials", params],
     queryFn: async () => extractArray<LearningMaterial>(await api.get<unknown>("/content/materials/", toQueryParams(params))),
+    refetchInterval: 15000,
 });
 
 export const useCreateLearningMaterial = () => {
@@ -1017,6 +1041,139 @@ export const useUpdateLearningMaterial = () => {
             return await api.patchForm<LearningMaterial>(`/content/materials/${id}/`, toLearningMaterialFormData(data));
         },
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learning-materials"] }),
+    });
+};
+
+export interface LearningAssignment {
+    id: number;
+    title: string;
+    instructions: string;
+    school_class: number;
+    class_name: string;
+    subject: number;
+    subject_name: string;
+    teacher: number;
+    teacher_name: string;
+    due_at: string | null;
+    attachment_url: string;
+    attachment_name: string;
+    is_published: boolean;
+    submission_count: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LearningAssignmentInput {
+    title: string;
+    instructions: string;
+    school_class: number;
+    subject: number;
+    due_at?: string;
+    attachment?: File;
+    is_published?: boolean;
+}
+
+export interface LearningSubmission {
+    id: number;
+    assignment: number;
+    assignment_title: string;
+    class_name: string;
+    subject_name: string;
+    student: number;
+    student_name: string;
+    answer: string;
+    attachment_url: string;
+    attachment_name: string;
+    submitted_at: string;
+    teacher_feedback: string;
+    score: string | null;
+    reviewed_at: string | null;
+}
+
+export interface LearningSubmissionInput {
+    assignment: number;
+    answer: string;
+    attachment?: File;
+}
+
+function toLearningAssignmentFormData(data: LearningAssignmentInput): FormData {
+    const form = new FormData();
+    form.append("title", data.title);
+    form.append("instructions", data.instructions);
+    form.append("school_class", String(data.school_class));
+    form.append("subject", String(data.subject));
+    if (data.due_at) form.append("due_at", data.due_at);
+    if (data.attachment) form.append("attachment", data.attachment);
+    if (data.is_published !== undefined) form.append("is_published", String(data.is_published));
+    return form;
+}
+
+function toLearningSubmissionFormData(data: LearningSubmissionInput): FormData {
+    const form = new FormData();
+    form.append("assignment", String(data.assignment));
+    form.append("answer", data.answer);
+    if (data.attachment) form.append("attachment", data.attachment);
+    return form;
+}
+
+export const useLearningAssignments = () => useQuery({
+    queryKey: ["learning-assignments"],
+    queryFn: () => fetchAllPages<LearningAssignment>("/content/assignments/"),
+    refetchInterval: 15000,
+});
+
+export const useCreateLearningAssignment = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: LearningAssignmentInput) => api.postForm<LearningAssignment>(
+            "/content/assignments/", toLearningAssignmentFormData(data),
+        ),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["learning-assignments"] });
+            void queryClient.invalidateQueries({ queryKey: ["learning-materials"] });
+        },
+    });
+};
+
+export const useUpdateLearningAssignment = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number; data: LearningAssignmentInput }) => api.patchForm<LearningAssignment>(
+            `/content/assignments/${id}/`, toLearningAssignmentFormData(data),
+        ),
+        onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["learning-assignments"] }),
+    });
+};
+
+export const useDeleteLearningAssignment = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => { await api.delete(`/content/assignments/${id}/`); },
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["learning-assignments"] });
+            void queryClient.invalidateQueries({ queryKey: ["learning-submissions"] });
+        },
+    });
+};
+
+export const useLearningSubmissions = (assignment?: number) => useQuery({
+    queryKey: ["learning-submissions", assignment],
+    queryFn: () => fetchAllPages<LearningSubmission>(
+        "/content/submissions/", assignment ? { assignment: String(assignment) } : undefined,
+    ),
+    refetchInterval: 15000,
+});
+
+export const useSubmitLearningAssignment = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id?: number; data: LearningSubmissionInput }) => id
+            ? api.patchForm<LearningSubmission>(`/content/submissions/${id}/`, toLearningSubmissionFormData(data))
+            : api.postForm<LearningSubmission>("/content/submissions/", toLearningSubmissionFormData(data)),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["learning-submissions"] });
+            void queryClient.invalidateQueries({ queryKey: ["learning-assignments"] });
+        },
     });
 };
 

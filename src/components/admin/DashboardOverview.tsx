@@ -8,7 +8,7 @@ type Notice = { id: number; title: string; content: string; date: string; audien
 const list = (x: Notice[] | { results?: Notice[] }) => Array.isArray(x) ? x : x.results ?? [];
 const DashboardOverview = () => {
   const students = useStudents(); const teachers = useTeachers(); const classes = useClasses(); const parents = useParents();
-  const notices = useQuery({ queryKey: ["admin-notices"], queryFn: async () => list(await api.get<Notice[] | { results?: Notice[] }>("/notices/notices/")) });
+  const notices = useQuery({ queryKey: ["admin-notices"], queryFn: async () => list(await api.get<Notice[] | { results?: Notice[] }>("/notices/notices/")), refetchInterval: 15000 });
   const isLoading = students.isLoading || teachers.isLoading || classes.isLoading || parents.isLoading || notices.isLoading;
   const error = students.error || teachers.error || classes.error || parents.error || notices.error;
   const stats = [

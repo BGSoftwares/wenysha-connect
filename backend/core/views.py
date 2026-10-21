@@ -47,6 +47,8 @@ def get_portal_profile(user):
     # including legacy accounts created before role profiles were introduced.
     if user.is_superuser or user.is_staff:
         role = 'Admin'
+    elif role and role.strip().casefold() == 'class teacher':
+        role = 'Teacher'
     return role, full_name
 
 
@@ -103,16 +105,20 @@ class CurrentUserView(APIView):
     def patch(self, request):
         user = request.user
         email = request.data.get('email', user.email).strip()
+        username = request.data.get('username', user.username).strip()
         full_name = request.data.get('full_name', '').strip()
-        if not email or not full_name:
-            return Response({'detail': 'Name and email are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not email or not username or not full_name:
+            return Response({'detail': 'Name, username, and email are required.'}, status=status.HTTP_400_BAD_REQUEST)
         if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
             return Response({'email': ['This email is already in use.']}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(username__iexact=username).exclude(pk=user.pk).exists():
+            return Response({'username': ['This username is already in use.']}, status=status.HTTP_400_BAD_REQUEST)
         user.email = email
+        user.username = username
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.full_name = full_name
         profile.save(update_fields=['full_name'])
-        user.save(update_fields=['email'])
+        user.save(update_fields=['email', 'username'])
         phone = request.data.get('phone')
         if phone is not None:
             from parents.models import Parent
@@ -121,7 +127,7 @@ class CurrentUserView(APIView):
             Teacher.objects.filter(user=user).update(phone=phone.strip())
         from .sync import sync_linked_portal_records
         sync_linked_portal_records(user, full_name, email)
-        return Response({'detail': 'Profile updated.', 'email': user.email, 'full_name': full_name})
+        return Response({'detail': 'Profile updated.', 'email': user.email, 'username': user.username, 'full_name': full_name})
 
 
 class ChangePasswordView(APIView):
@@ -200,6 +206,8 @@ class PendingApprovalViewSet(ModelViewSet):
             user.save()
             role, _ = Role.objects.get_or_create(name=pending.role.capitalize(), defaults={'description': pending.role})
             UserProfile.objects.create(user=user, role=role, full_name=pending.full_name)
+            from .sync import sync_linked_portal_records
+            sync_linked_portal_records(user, pending.full_name, pending.email)
 
             # If this was a student signup, create a corresponding Student record
             # in its own savepoint so failure cannot leave the approval half-saved.

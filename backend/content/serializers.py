@@ -1,7 +1,10 @@
 from pathlib import Path
 
 from rest_framework import serializers
-from .models import GalleryItem, Announcement, ContactMessage, StaffMember, LearningMaterial
+from .models import (
+    GalleryItem, Announcement, ContactMessage, StaffMember, LearningMaterial,
+    LearningAssignment, LearningSubmission,
+)
 
 MAX_MATERIAL_BYTES = 20 * 1024 * 1024
 FILE_TYPE_BY_EXT = {
@@ -105,3 +108,80 @@ class LearningMaterialSerializer(serializers.ModelSerializer):
         if uploaded:
             validated_data['file_type'] = file_type_from_name(uploaded.name)
         return super().update(instance, validated_data)
+
+
+class LearningAssignmentSerializer(serializers.ModelSerializer):
+    class_name = serializers.CharField(source='school_class.name', read_only=True)
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    teacher_name = serializers.CharField(source='teacher.name', read_only=True)
+    attachment = serializers.FileField(required=False, allow_null=True, write_only=True)
+    attachment_url = serializers.SerializerMethodField()
+    attachment_name = serializers.SerializerMethodField()
+    submission_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LearningAssignment
+        fields = [
+            'id', 'title', 'instructions', 'school_class', 'class_name', 'subject',
+            'subject_name', 'teacher', 'teacher_name', 'due_at', 'attachment',
+            'attachment_url', 'attachment_name', 'is_published', 'submission_count',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['teacher', 'created_at', 'updated_at', 'submission_count']
+
+    def get_attachment_url(self, obj):
+        if not obj.attachment:
+            return ''
+        return f'/content/assignments/{obj.pk}/attachment/'
+
+    def get_attachment_name(self, obj):
+        return Path(obj.attachment.name).name if obj.attachment else ''
+
+    def get_submission_count(self, obj):
+        return obj.submissions.count()
+
+    def validate_attachment(self, value):
+        if value and value.size > MAX_MATERIAL_BYTES:
+            raise serializers.ValidationError('File must be 20MB or smaller.')
+        return value
+
+
+class LearningSubmissionSerializer(serializers.ModelSerializer):
+    assignment_title = serializers.CharField(source='assignment.title', read_only=True)
+    class_name = serializers.CharField(source='assignment.school_class.name', read_only=True)
+    subject_name = serializers.CharField(source='assignment.subject.name', read_only=True)
+    student_name = serializers.CharField(source='student.name', read_only=True)
+    attachment = serializers.FileField(required=False, allow_null=True, write_only=True)
+    attachment_url = serializers.SerializerMethodField()
+    attachment_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LearningSubmission
+        fields = [
+            'id', 'assignment', 'assignment_title', 'class_name', 'subject_name',
+            'student', 'student_name', 'answer', 'attachment', 'attachment_url',
+            'attachment_name', 'submitted_at', 'teacher_feedback', 'score', 'reviewed_at',
+        ]
+        read_only_fields = [
+            'student', 'submitted_at', 'teacher_feedback', 'score', 'reviewed_at',
+        ]
+
+    def get_attachment_url(self, obj):
+        if not obj.attachment:
+            return ''
+        return f'/content/submissions/{obj.pk}/attachment/'
+
+    def get_attachment_name(self, obj):
+        return Path(obj.attachment.name).name if obj.attachment else ''
+
+    def validate_attachment(self, value):
+        if value and value.size > MAX_MATERIAL_BYTES:
+            raise serializers.ValidationError('File must be 20MB or smaller.')
+        return value
+
+    def validate(self, attrs):
+        answer = attrs.get('answer', getattr(self.instance, 'answer', '')).strip()
+        attachment = attrs.get('attachment', getattr(self.instance, 'attachment', None))
+        if not answer and not attachment:
+            raise serializers.ValidationError('Add a written answer or attach a file before submitting.')
+        return attrs

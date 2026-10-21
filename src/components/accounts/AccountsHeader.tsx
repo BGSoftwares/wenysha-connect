@@ -1,4 +1,6 @@
-import { Search, Bell, Mail, Globe, User, Menu } from "lucide-react";
+import { Search, Bell, Mail, Globe, User, Menu, LogOut } from "lucide-react";
+import { Link } from "react-router-dom";
+import { clearAuth } from "@/lib/api";
 
 interface AccountsHeaderProps {
   title: string;
@@ -23,6 +25,9 @@ const AccountsHeader = ({ title, breadcrumb, onMenuClick }: AccountsHeaderProps)
         </div>
 
         <div className="flex items-center gap-4">
+          <Link to="/portal" onClick={clearAuth} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive hover:bg-destructive/20">
+            <LogOut className="h-4 w-4" />Sign Out
+          </Link>
           {/* Search */}
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

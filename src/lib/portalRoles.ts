@@ -14,7 +14,7 @@ export function normalizePortalRole(role?: string | null): PortalRole | null {
   if (!value) return null;
   if (["admin", "administrator", "superuser", "staff"].includes(value)) return "admin";
   if (["student", "learner", "pupil"].includes(value)) return "student";
-  if (["teacher", "educator", "teaching staff"].includes(value)) return "teacher";
+  if (["teacher", "class teacher", "educator", "teaching staff"].includes(value)) return "teacher";
   if (["account", "accounts", "accountant", "accounts officer", "finance", "finance officer"].includes(value)) return "accounts";
   if (["parent", "guardian"].includes(value)) return "parent";
   return null;

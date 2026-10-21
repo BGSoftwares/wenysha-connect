@@ -1,6 +1,8 @@
 from datetime import datetime
 
+from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Q
 from rest_framework import serializers
 from .models import (
     SchoolClass, Teacher, Subject, Student, TeacherSubjectClass,
@@ -161,7 +163,57 @@ class TeacherSerializer(serializers.ModelSerializer):
         model = Teacher
         fields = ['id', 'user', 'name', 'department', 'phone', 'employee_id', 'allocations']
 
+    def validate_user(self, value):
+        if value:
+            from core.roles import portal_role
+            if portal_role(value) != 'teacher':
+                raise serializers.ValidationError('Link only an account with the Teacher or Class Teacher role.')
+        return value
+
+    @transaction.atomic
     def create(self, validated_data):
+        name = validated_data.get('name', '').strip()
+        linked_user = validated_data.get('user')
+
+        if linked_user is None:
+            linked_user = User.objects.filter(
+                profile__full_name__iexact=name,
+                teacher_profile__isnull=True,
+            ).filter(
+                Q(profile__role__name__iexact='teacher')
+                | Q(profile__role__name__iexact='class teacher')
+            ).order_by('id').first()
+            if linked_user:
+                validated_data['user'] = linked_user
+
+        if linked_user:
+            existing = Teacher.objects.filter(user=linked_user).first()
+            if existing:
+                for field in ('name', 'department', 'phone', 'employee_id'):
+                    if field in validated_data:
+                        setattr(existing, field, validated_data[field])
+                existing.save()
+                return existing
+
+            unlinked = Teacher.objects.filter(user__isnull=True, name__iexact=name).first()
+            if unlinked:
+                unlinked.user = linked_user
+                for field in ('name', 'department', 'phone', 'employee_id'):
+                    if field in validated_data:
+                        setattr(unlinked, field, validated_data[field])
+                unlinked.save()
+                from core.sync import sync_linked_portal_records
+                sync_linked_portal_records(linked_user, unlinked.name)
+                return unlinked
+
+        duplicate = Teacher.objects.filter(user__isnull=False, name__iexact=name).first()
+        if duplicate and linked_user is None:
+            for field in ('department', 'phone', 'employee_id'):
+                if field in validated_data:
+                    setattr(duplicate, field, validated_data[field])
+            duplicate.save()
+            return duplicate
+
         teacher = super().create(validated_data)
         if teacher.user_id:
             from core.sync import sync_linked_portal_records

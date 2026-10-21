@@ -15,6 +15,7 @@ const ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,
 const MAX_BYTES = 20 * 1024 * 1024;
 
 type NamedOption = { id: number; name: string };
+type TeachingPair = { class_name: string; subject_name: string };
 
 interface Props {
   classes: NamedOption[];
@@ -23,9 +24,10 @@ interface Props {
   emptyHint?: string;
   visibility?: "class" | "staff";
   canManageAll?: boolean;
+  allowedPairs?: TeachingPair[];
 }
 
-const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, visibility = "class", canManageAll = false }: Props) => {
+const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, visibility = "class", canManageAll = false, allowedPairs }: Props) => {
   const { data: learningMaterials = [] } = useLearningMaterials({ visibility });
   const createMaterial = useCreateLearningMaterial();
   const updateMaterial = useUpdateLearningMaterial();
@@ -39,10 +41,16 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
 
   const classNames = new Set(classes.map((item) => item.name));
   const subjectNames = new Set(subjects.map((item) => item.name));
+  const subjectsForClass = (className: string) => {
+    if (!allowedPairs) return subjects;
+    const allowed = new Set(allowedPairs.filter((pair) => pair.class_name === className).map((pair) => pair.subject_name));
+    return subjects.filter((subject) => allowed.has(subject.name));
+  };
   const visible = learningMaterials.filter((material) => {
     const matchesClass = classNames.size === 0 || classNames.has(material.class_name);
     const matchesSubject = subjectNames.size === 0 || subjectNames.has(material.subject_name);
-    return matchesClass && matchesSubject;
+    const matchesPair = !allowedPairs || allowedPairs.some((pair) => pair.class_name === material.class_name && pair.subject_name === material.subject_name);
+    return matchesClass && matchesSubject && matchesPair;
   });
 
   const validateFile = (next: File | null) => {
@@ -159,7 +167,14 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
           />
           <select
             value={draft.class_name}
-            onChange={(event) => setDraft((current) => ({ ...current, class_name: event.target.value }))}
+            onChange={(event) => {
+              const className = event.target.value;
+              setDraft((current) => ({
+                ...current,
+                class_name: className,
+                subject_name: subjectsForClass(className).some((subject) => subject.name === current.subject_name) ? current.subject_name : "",
+              }));
+            }}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
           >
             <option value="">Select class</option>
@@ -173,7 +188,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
           >
             <option value="">Select subject</option>
-            {subjects.map((subject) => (
+            {subjectsForClass(draft.class_name).map((subject) => (
               <option key={subject.id} value={subject.name}>{subject.name}</option>
             ))}
           </select>
@@ -215,7 +230,14 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
                 Class
                 <select
                   value={editing.class_name}
-                  onChange={(event) => setEditing({ ...editing, class_name: event.target.value })}
+                  onChange={(event) => {
+                    const className = event.target.value;
+                    setEditing({
+                      ...editing,
+                      class_name: className,
+                      subject_name: subjectsForClass(className).some((subject) => subject.name === editing.subject_name) ? editing.subject_name : "",
+                    });
+                  }}
                   className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 >
                   <option value="">Select class</option>
@@ -232,7 +254,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
                   className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 >
                   <option value="">Select subject</option>
-                  {subjects.map((sub) => (
+                  {subjectsForClass(editing.class_name).map((sub) => (
                     <option key={sub.id} value={sub.name}>{sub.name}</option>
                   ))}
                 </select>

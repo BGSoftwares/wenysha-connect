@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, X, Clock, Calendar, Search, Users, TrendingUp, AlertCircle } from "lucide-react";
+import { Check, X, Clock, Calendar, Search, Users, TrendingUp, AlertCircle, Share2 } from "lucide-react";
+import { buildAttendancePdf, sharePdfToWhatsApp } from "@/lib/pdfExport";
 
 const AttendanceSection = () => {
   const { data: students = [] } = useStudents();
@@ -50,7 +51,7 @@ const AttendanceSection = () => {
         status
       });
       toast.success("Attendance updated");
-    } catch (error) {
+    } catch {
       toast.error("Failed to update attendance");
     }
   };
@@ -61,16 +62,34 @@ const AttendanceSection = () => {
   const totalCount = attendanceData.length;
   const avgAttendance = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(0) : "0";
 
+  const attendancePdf = () => buildAttendancePdf({
+    className: selectedClass?.name || "Class",
+    date: selectedDate,
+    teacherName: selectedClass?.class_teacher_name || "School Administration",
+    rows: attendanceData.map(record => ({ name: record.name, status: record.status })),
+  });
+
   const exportAttendance = () => {
-    const rows = [["Student", "Class", "Date", "Status"], ...attendanceData.map(record => [record.name, selectedClass?.name || "", selectedDate, record.status])];
-    const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `attendance-${selectedDate}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success("Attendance report downloaded");
+    attendancePdf().save(`${selectedClass?.name || "class"}-attendance-${selectedDate}.pdf`.replace(/\s+/g, "_"));
+    toast.success("Attendance PDF downloaded");
+  };
+
+  const shareAttendance = async () => {
+    if (!selectedClass || attendanceData.length === 0) {
+      toast.error("Select a class with attendance records first.");
+      return;
+    }
+    try {
+      const result = await sharePdfToWhatsApp({
+        pdf: attendancePdf(),
+        fileName: `${selectedClass.name}-attendance-${selectedDate}.pdf`.replace(/\s+/g, "_"),
+        text: `${selectedClass.name} attendance for ${selectedDate}.`,
+        groupUrl: selectedClass.parents_whatsapp_group,
+      });
+      toast.success(result === "shared" ? "Attendance PDF shared." : "Attendance PDF downloaded. Attach it in WhatsApp.");
+    } catch (error) {
+      toast.error("Could not share the attendance PDF.");
+    }
   };
 
   return (
@@ -80,10 +99,14 @@ const AttendanceSection = () => {
           <h2 className="font-heading text-xl font-bold text-foreground">Attendance Management</h2>
           <p className="text-sm text-muted-foreground">Track and manage student attendance</p>
         </div>
-        <Button variant="gold" onClick={exportAttendance} disabled={isLoadingAttendance}>
-          <Calendar className="h-4 w-4 mr-2" />
-          Generate Report
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="gold" onClick={exportAttendance} disabled={isLoadingAttendance || attendanceData.length === 0}>
+            <Calendar className="h-4 w-4 mr-2" />Download PDF
+          </Button>
+          <Button variant="outline" onClick={() => void shareAttendance()} disabled={isLoadingAttendance || attendanceData.length === 0}>
+            <Share2 className="mr-2 h-4 w-4" />Share PDF to WhatsApp
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

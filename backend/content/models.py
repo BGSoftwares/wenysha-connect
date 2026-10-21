@@ -81,3 +81,52 @@ class LearningMaterial(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class LearningAssignment(models.Model):
+    title = models.CharField(max_length=255)
+    instructions = models.TextField(blank=True)
+    school_class = models.ForeignKey(
+        'school.SchoolClass', on_delete=models.CASCADE, related_name='learning_assignments'
+    )
+    subject = models.ForeignKey(
+        'school.Subject', on_delete=models.CASCADE, related_name='learning_assignments'
+    )
+    teacher = models.ForeignKey(
+        'school.Teacher', on_delete=models.CASCADE, related_name='learning_assignments'
+    )
+    due_at = models.DateTimeField(null=True, blank=True)
+    attachment = models.FileField(upload_to='learning_assignments/', blank=True, null=True)
+    is_published = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['due_at', '-created_at']
+
+    def __str__(self):
+        return f'{self.title} - {self.school_class.name}'
+
+
+class LearningSubmission(models.Model):
+    assignment = models.ForeignKey(
+        LearningAssignment, on_delete=models.CASCADE, related_name='submissions'
+    )
+    student = models.ForeignKey(
+        'school.Student', on_delete=models.CASCADE, related_name='learning_submissions'
+    )
+    answer = models.TextField(blank=True)
+    attachment = models.FileField(upload_to='learning_submissions/', blank=True, null=True)
+    submitted_at = models.DateTimeField(auto_now=True)
+    teacher_feedback = models.TextField(blank=True)
+    score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+        constraints = [
+            models.UniqueConstraint(fields=['assignment', 'student'], name='one_learning_submission_per_student'),
+        ]
+
+    def __str__(self):
+        return f'{self.student.name} - {self.assignment.title}'

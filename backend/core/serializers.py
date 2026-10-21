@@ -24,15 +24,43 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class AdminAccountSerializer(serializers.ModelSerializer):
-    full_name = serializers.CharField(source='profile.full_name', max_length=255, required=False, allow_blank=True)
-    role = serializers.PrimaryKeyRelatedField(source='profile.role', queryset=Role.objects.all(), required=False, allow_null=True)
-    role_name = serializers.CharField(source='profile.role.name', read_only=True)
+    full_name = serializers.CharField(max_length=255, required=False, allow_blank=True, write_only=True)
+    role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), required=False, allow_null=True, write_only=True)
+    role_name = serializers.SerializerMethodField()
     password = serializers.CharField(write_only=True, min_length=8, required=False)
+    phone = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'is_active', 'date_joined', 'full_name', 'role', 'role_name', 'password']
-        read_only_fields = ['date_joined', 'role_name']
+        fields = [
+            'id', 'username', 'email', 'is_active', 'is_staff', 'date_joined', 'last_login',
+            'full_name', 'role', 'role_name', 'phone', 'password',
+        ]
+        read_only_fields = ['date_joined', 'last_login', 'is_staff', 'role_name', 'phone']
+
+    def get_phone(self, obj):
+        teacher = getattr(obj, 'teacher_profile', None)
+        if teacher:
+            return teacher.phone
+        parent = getattr(obj, 'parent_profile', None)
+        return parent.phone if parent else ''
+
+    def get_role_name(self, obj):
+        try:
+            return obj.profile.role.name if obj.profile.role else ''
+        except UserProfile.DoesNotExist:
+            return ''
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        try:
+            profile = instance.profile
+            data['full_name'] = profile.full_name or instance.get_full_name()
+            data['role'] = profile.role_id
+        except UserProfile.DoesNotExist:
+            data['full_name'] = instance.get_full_name()
+            data['role'] = None
+        return data
 
     def validate_email(self, value):
         existing = User.objects.filter(email__iexact=value)
@@ -45,32 +73,39 @@ class AdminAccountSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if self.instance is None and not attrs.get('password'):
             raise serializers.ValidationError({'password': 'A password is required when creating an account.'})
-        if self.instance is None and not attrs.get('profile', {}).get('role'):
+        if self.instance is None and not attrs.get('role'):
             raise serializers.ValidationError({'role': 'Select a role when creating an account.'})
         return attrs
 
     def create(self, validated_data):
-        profile_data = validated_data.pop('profile')
+        full_name = validated_data.pop('full_name', '')
+        role = validated_data.pop('role')
         password = validated_data.pop('password')
         user = User.objects.create_user(password=password, **validated_data)
-        UserProfile.objects.create(user=user, **profile_data)
+        UserProfile.objects.create(user=user, role=role, full_name=full_name)
         from .sync import sync_linked_portal_records
-        sync_linked_portal_records(user, profile_data.get('full_name'), user.email)
+        sync_linked_portal_records(user, full_name, user.email)
         return user
 
     def update(self, instance, validated_data):
-        profile_data = validated_data.pop('profile', {})
+        full_name = validated_data.pop('full_name', serializers.empty)
+        role = validated_data.pop('role', serializers.empty)
         password = validated_data.pop('password', None)
         for key, value in validated_data.items():
             setattr(instance, key, value)
         if password:
             instance.set_password(password)
         instance.save()
-        if profile_data:
+        if full_name is not serializers.empty or role is not serializers.empty:
             profile, _ = UserProfile.objects.get_or_create(user=instance)
-            for key, value in profile_data.items():
-                setattr(profile, key, value)
-            profile.save()
+            update_fields = []
+            if full_name is not serializers.empty:
+                profile.full_name = full_name
+                update_fields.append('full_name')
+            if role is not serializers.empty:
+                profile.role = role
+                update_fields.append('role')
+            profile.save(update_fields=update_fields)
         from .sync import sync_linked_portal_records
         try:
             current_profile = instance.profile

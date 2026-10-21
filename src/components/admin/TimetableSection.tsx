@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Trash2, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { api, getErrorMessage } from "@/lib/api";
@@ -25,16 +25,12 @@ const lessonSlots = [
 
 const TimetableSection = ({ classes }: Props) => {
   const queryClient = useQueryClient();
-  const [classId, setClassId] = useState<number | undefined>(classes[0]?.id);
+  const [classId, setClassId] = useState<number | undefined>(undefined);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [draft, setDraft] = useState(emptyDraft);
 
-  useEffect(() => {
-    if (classId === undefined && classes.length) setClassId(classes[0].id);
-  }, [classId, classes]);
-
-  const { data: entries = [], isLoading, error } = useTimetable(classId);
+  const { data: entries = [], isLoading, error } = useTimetable(classId, { allClasses: classId === undefined });
   const { data: subjects = [] } = useSubjects();
   const { data: teachers = [] } = useTeachers();
 
@@ -45,6 +41,7 @@ const TimetableSection = ({ classes }: Props) => {
   };
 
   const openEdit = (entry: TimetableEntry) => {
+    setClassId(entry.school_class);
     setEditingId(entry.id);
     setDraft({
       day_of_week: entry.day_of_week || "Monday",
@@ -85,7 +82,7 @@ const TimetableSection = ({ classes }: Props) => {
         await api.post("/school/timetable/", payload);
         toast.success("Timetable period saved");
       }
-      await queryClient.invalidateQueries({ queryKey: ["timetable", classId] });
+      await queryClient.invalidateQueries({ queryKey: ["timetable"] });
       setShowModal(false);
       setEditingId(null);
       setDraft(emptyDraft);
@@ -98,7 +95,7 @@ const TimetableSection = ({ classes }: Props) => {
     if (!window.confirm("Delete this timetable period?")) return;
     try {
       await api.delete(`/school/timetable/${id}/`);
-      await queryClient.invalidateQueries({ queryKey: ["timetable", classId] });
+      await queryClient.invalidateQueries({ queryKey: ["timetable"] });
       toast.success("Period deleted");
     } catch (e) {
       toast.error(getErrorMessage(e));
@@ -110,7 +107,7 @@ const TimetableSection = ({ classes }: Props) => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-xl font-bold">School Timetable</h2>
-          <p className="text-sm text-muted-foreground">Schedule and manage lessons by class</p>
+          <p className="text-sm text-muted-foreground">Master timetable showing every class, lesson time, subject, teacher, and room</p>
           <p className="mt-1 text-xs text-muted-foreground">Lessons: 07:40–10:40, 11:10–13:10, 14:00–16:00 · Break: 10:40–11:10 · Lunch: 13:10–14:00</p>
         </div>
         <div className="flex gap-2">
@@ -120,7 +117,7 @@ const TimetableSection = ({ classes }: Props) => {
             value={classId ?? ""}
             onChange={e => setClassId(Number(e.target.value) || undefined)}
           >
-            <option value="">Select class</option>
+            <option value="">All classes — master timetable</option>
             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <Button variant="gold" disabled={!classId} onClick={openAdd}>
@@ -136,20 +133,17 @@ const TimetableSection = ({ classes }: Props) => {
         <p className="rounded-xl border border-destructive/30 p-5 text-destructive">
           Could not load timetable: {getErrorMessage(error)}
         </p>
-      ) : !classId ? (
-        <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
-          Create or select a class to view its timetable.
-        </p>
       ) : entries.length === 0 ? (
         <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
           No timetable periods have been entered for this class yet.
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border bg-card shadow-elegant">
-          <table className="w-full min-w-[700px]">
+          <table className="w-full min-w-[860px]">
             <thead className="bg-secondary/50">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Day</th>
+                {classId === undefined && <th className="px-4 py-3 text-left text-sm font-semibold">Class</th>}
                 <th className="px-4 py-3 text-left text-sm font-semibold">Start</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">End</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Subject</th>
@@ -162,6 +156,7 @@ const TimetableSection = ({ classes }: Props) => {
               {entries.map(entry => (
                 <tr key={entry.id} className="hover:bg-secondary/30 transition-colors">
                   <td className="px-4 py-3 text-sm font-medium">{entry.day_of_week}</td>
+                  {classId === undefined && <td className="px-4 py-3 text-sm font-semibold">{entry.class_name}</td>}
                   <td className="px-4 py-3 text-sm text-muted-foreground">{entry.period_start}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{entry.period_end}</td>
                   <td className="px-4 py-3 text-sm font-semibold text-foreground">{entry.subject_name}</td>

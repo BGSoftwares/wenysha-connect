@@ -389,9 +389,14 @@ const StudentDashboard = () => {
               <p className="text-white/50 text-sm">{profile.class_name} • Term 1 2024</p>
             </div>
           </div>
-          <button aria-label="Open class notifications" onClick={() => setActiveNav("dashboard")} className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
-            <Bell className="h-6 w-6 text-white/60" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button aria-label="Open class notifications" onClick={() => setActiveNav("dashboard")} className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
+              <Bell className="h-6 w-6 text-white/60" />
+            </button>
+            <Link to="/portal" onClick={clearAuth} className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">
+              <LogOut className="h-4 w-4" />Sign Out
+            </Link>
+          </div>
         </header>
 
         <div className="mx-auto w-full max-w-[1600px] space-y-6 p-4 sm:p-6 lg:p-8">

@@ -13,6 +13,8 @@ def portal_role(user):
     except (AttributeError, UserProfile.DoesNotExist):
         return ""
     normalized = role.name.strip().lower() if role else ""
+    if normalized in {"teacher", "class teacher", "educator", "teaching staff"}:
+        return "teacher"
     if normalized in {"accountant", "accounts officer", "finance", "finance officer"}:
         return "accounts"
     return normalized

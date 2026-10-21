@@ -3,6 +3,13 @@ from school.models import SchoolClass, Subject, Student
 
 
 class Exam(models.Model):
+    REPORT_TYPE_CHOICES = [
+        ('fortnightly_tests', 'Fortnightly Tests'),
+        ('monthly_report_card', 'Monthly Report Card'),
+        ('end_of_1st_term', 'End of 1st Term'),
+        ('end_of_2nd_term', 'End of 2nd Term'),
+        ('end_of_3rd_term', 'End of 3rd Term'),
+    ]
     STATUS_CHOICES = [
         ('scheduled', 'Scheduled'),
         ('ongoing', 'Ongoing'),
@@ -10,6 +17,8 @@ class Exam(models.Model):
         ('grading', 'Grading in Progress'),
     ]
     name = models.CharField(max_length=255)
+    report_type = models.CharField(max_length=32, choices=REPORT_TYPE_CHOICES, default='fortnightly_tests')
+    results_published = models.BooleanField(default=False)
     term = models.CharField(max_length=32)
     year = models.CharField(max_length=8)
     start_date = models.DateField()

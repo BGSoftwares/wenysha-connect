@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from .roles import portal_role
 
 
 def sync_linked_portal_records(user: User, full_name=None, email=None):
@@ -30,13 +31,9 @@ def sync_linked_portal_records(user: User, full_name=None, email=None):
 
     # A newly created teacher account must be attached to a teacher record so
     # the teacher portal can resolve its classes and subject allocations.
-    role_name = ''
-    try:
-        role_name = (user.profile.role.name or '').strip().casefold()
-    except UserProfile.DoesNotExist:
-        pass
+    user_role = portal_role(user)
 
-    if role_name == 'teacher' and not Teacher.objects.filter(user=user).exists():
+    if user_role == 'teacher' and not Teacher.objects.filter(user=user).exists():
         name = full_name or user.get_full_name() or user.username
         teacher = Teacher.objects.filter(user__isnull=True, name__iexact=name).first()
         if teacher:
@@ -45,7 +42,7 @@ def sync_linked_portal_records(user: User, full_name=None, email=None):
         else:
             Teacher.objects.create(user=user, name=name)
 
-    if role_name in {'parent', 'guardian'} and not Parent.objects.filter(user=user).exists():
+    if user_role in {'parent', 'guardian'} and not Parent.objects.filter(user=user).exists():
         name = full_name or user.get_full_name() or user.username
         parent = Parent.objects.filter(user__isnull=True, email__iexact=email or user.email).first()
         if not parent:

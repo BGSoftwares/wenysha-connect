@@ -150,6 +150,37 @@ export const api = {
     request<T>(path, { method: "DELETE" }),
 };
 
+export async function downloadAuthenticatedFile(path: string, filename: string): Promise<void> {
+  const base = getApiBaseUrl();
+  const url = path.startsWith("http") ? path : `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+  const token = getToken();
+  const fetchFile = (accessToken?: string | null) => fetch(url, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+
+  let response = await fetchFile(token);
+  if (response.status === 401 && token) {
+    try {
+      response = await fetchFile(await refreshAccessToken());
+    } catch {
+      clearAuth();
+    }
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw data && typeof data === "object" ? data : { detail: "Could not download this file." };
+  }
+
+  const objectUrl = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename || "download";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const data = await api.post<LoginResponse>("/auth/login/", { email, password });
   setTokens(data.access, data.refresh, data.user);

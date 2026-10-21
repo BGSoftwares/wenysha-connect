@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Plus, Edit, Trash2, Search, Calendar, BookOpen, Users, CheckCircle, Clock, FileText } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Calendar, BookOpen, Users, CheckCircle, Clock, FileText, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { calculateGrade, GRADING_SCALE } from "@/lib/grading";
-import { useExams, useExamSchedules, useExamMarks, useSaveExamMark, useCreateExam, useClasses, useSubjects, useStudents, Exam } from "@/lib/hooks";
+import { useExams, useExamSchedules, useExamMarks, useSaveExamMark, useCreateExam, useClasses, useSubjects, useStudents, EXAM_REPORT_TYPES, Exam } from "@/lib/hooks";
 import { api, getErrorMessage } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -39,6 +39,7 @@ const ExamManagementSection = () => {
     name: "",
     term: "Term 1",
     year: "2024",
+    report_type: "fortnightly_tests" as Exam["report_type"],
     startDate: "",
     endDate: "",
     classes: [] as string[],
@@ -69,6 +70,7 @@ const ExamManagementSection = () => {
       }
       await createExamMutation.mutateAsync({
         name: newExam.name,
+        report_type: newExam.report_type,
         term: newExam.term,
         year: newExam.year,
         start_date: newExam.startDate,
@@ -78,7 +80,7 @@ const ExamManagementSection = () => {
       });
       toast.success("Exam created successfully");
       setShowCreateModal(false);
-      setNewExam({ name: "", term: "Term 1", year: "2024", startDate: "", endDate: "", classes: [], subjects: [] });
+      setNewExam({ name: "", term: "Term 1", year: "2024", report_type: "fortnightly_tests", startDate: "", endDate: "", classes: [], subjects: [] });
     } catch (error) {
       toast.error("Failed to create exam");
     }
@@ -98,6 +100,7 @@ const ExamManagementSection = () => {
     try {
       await api.patch(`/exams/exams/${editingExam.id}/`, {
         name: editingExam.name.trim(),
+        report_type: editingExam.report_type,
         term: editingExam.term,
         year: editingExam.year,
         start_date: editingExam.start_date,
@@ -111,6 +114,17 @@ const ExamManagementSection = () => {
       toast.error(getErrorMessage(error));
     } finally {
       setIsSavingExam(false);
+    }
+  };
+
+  const handlePublishResults = async (exam: Exam) => {
+    const resultsPublished = !exam.results_published;
+    try {
+      await api.patch(`/exams/exams/${exam.id}/`, { results_published: resultsPublished });
+      await queryClient.invalidateQueries({ queryKey: ["exams"] });
+      toast.success(resultsPublished ? "Results sent to student portals" : "Results hidden from student portals");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     }
   };
 
@@ -270,6 +284,7 @@ const ExamManagementSection = () => {
                       {getStatusBadge(exam.status)}
                     </div>
                     <p className="text-sm text-muted-foreground">{exam.term} {exam.year}</p>
+                    <p className="text-xs font-medium text-primary mt-1">{EXAM_REPORT_TYPES.find(type => type.value === exam.report_type)?.label ?? "Report card"}</p>
                     <p className="text-sm text-muted-foreground mt-1">
                       <Calendar className="inline h-3 w-3 mr-1" />
                       {new Date(exam.start_date).toLocaleDateString()} - {new Date(exam.end_date).toLocaleDateString()}
@@ -293,6 +308,15 @@ const ExamManagementSection = () => {
                     <p className="text-sm font-medium text-foreground">{exam.subjects.length} subjects</p>
                   </div>
                   <div className="flex gap-2">
+                    <Button
+                      variant={exam.results_published ? "outline" : "gold"}
+                      size="sm"
+                      onClick={() => void handlePublishResults(exam)}
+                      disabled={!exam.results_published && exam.status !== "completed"}
+                    >
+                      <Send className="h-4 w-4 mr-1" />
+                      {exam.results_published ? "Hide from Students" : "Send to Students"}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -425,6 +449,17 @@ const ExamManagementSection = () => {
                     <option>2026</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Report card type *</label>
+                <select
+                  value={newExam.report_type}
+                  onChange={(e) => setNewExam(prev => ({ ...prev, report_type: e.target.value as Exam["report_type"] }))}
+                  className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+                >
+                  {EXAM_REPORT_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
+                </select>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
@@ -582,6 +617,17 @@ const ExamManagementSection = () => {
                     onChange={e => setEditingExam({ ...editingExam, year: e.target.value })}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-muted-foreground ml-1 block mb-1">Report Card Type</label>
+                <select
+                  className="w-full p-2.5 bg-background border border-border rounded-xl text-foreground text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                  value={editingExam.report_type}
+                  onChange={e => setEditingExam({ ...editingExam, report_type: e.target.value as Exam["report_type"] })}
+                >
+                  {EXAM_REPORT_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

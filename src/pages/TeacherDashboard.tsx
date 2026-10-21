@@ -1,7 +1,7 @@
 import { schoolContact } from "@/lib/schoolContact";
 import DashboardExtras from "@/components/dashboard/DashboardExtras";
 import AIFeedbackSection from "@/components/teacher/AIFeedbackSection";
-import { Fragment, useState, useEffect } from "react";
+import { Fragment, useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Home,
@@ -27,11 +27,14 @@ import {
   X,
   Trash2,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  ClipboardList
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
-import { clearAuth } from "@/lib/api";
+import { clearAuth, getErrorMessage } from "@/lib/api";
 import MarkSheetSection from "@/components/teacher/MarkSheetSection";
+import ClassRegisterSection from "@/components/teacher/ClassRegisterSection";
+import LearningAssignmentsSection from "@/components/teacher/LearningAssignmentsSection";
 import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
 import CommunicationSection from "@/components/dashboard/CommunicationSection";
 import ProfileSection from "@/components/admin/ProfileSection";
@@ -44,10 +47,13 @@ import {
   useExams,
   useExamMarks,
   useSaveExamMark,
+  useUpdateExam,
+  EXAM_REPORT_TYPES,
   useAttendanceRecords,
   useUpdateAttendance,
   useTimetable,
 } from "@/lib/hooks";
+import type { ExamReportType } from "@/lib/hooks";
 import { toast } from "sonner";
 import { buildAttendancePdf, sharePdfToWhatsApp } from "@/lib/pdfExport";
 import { calculateGrade } from "@/lib/grading";
@@ -56,11 +62,13 @@ import { getPrincipalComment, getTeacherComment, TEACHER_COMMENT_LIBRARY } from 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
   { name: "My Classes", icon: Users, id: "classes" },
+  { name: "Class Register", icon: Users, id: "class-register" },
   { name: "Subjects", icon: BookOpen, id: "subjects" },
   { name: "Grading", icon: FileText, id: "grading" },
   { name: "AI Coach", icon: Sparkles, id: "ai-coach" },
   { name: "Attendance", icon: CheckSquare, id: "attendance" },
   { name: "Content", icon: Upload, id: "content" },
+  { name: "Assignments", icon: ClipboardList, id: "assignments" },
   { name: "Messages", icon: MessageSquare, id: "messages" },
   { name: "Timetable", icon: Calendar, id: "timetable" },
   { name: "Settings", icon: Settings, id: "settings" },
@@ -91,23 +99,31 @@ const TeacherDashboard = () => {
 
   const { data: exams = [] } = useExams();
   const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
+  const { data: selectedExamMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId } : undefined);
   const { data: attendanceRecords = [] } = useAttendanceRecords({
     date: attendanceDate
   });
 
   const updateAttendanceMutation = useUpdateAttendance();
   const saveExamMarkMutation = useSaveExamMark();
+  const updateExamMutation = useUpdateExam();
 
   const allocatedClasses = allocations.map((allocation) => ({ id: allocation.school_class, name: allocation.class_name }));
   const classTeacherClasses = classes
     .filter((schoolClass) => schoolClass.class_teacher === teacher?.id)
     .map((schoolClass) => ({ id: schoolClass.id, name: schoolClass.name }));
+  const managedClasses = classes.filter((schoolClass) => schoolClass.class_teacher === teacher?.id);
   const uniqueClasses = Array.from(
     new Map([...allocatedClasses, ...classTeacherClasses].map((schoolClass) => [schoolClass.id, schoolClass])).values(),
   );
 
   const uniqueSubjects = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.subject, name: a.subject_name }))))
     .map(s => JSON.parse(s));
+
+  const matchingExams = useMemo(() => exams.filter(exam =>
+    !!selectedClassId && !!selectedSubjectId &&
+    exam.classes.includes(selectedClassId) && exam.subjects.includes(selectedSubjectId),
+  ), [exams, selectedClassId, selectedSubjectId]);
 
   const classStudents = students.filter(student => student.school_class === selectedClassId);
 
@@ -118,8 +134,14 @@ const TeacherDashboard = () => {
   }, [uniqueClasses, selectedClassId]);
 
   useEffect(() => {
-    if (selectedExamId === null && exams.length > 0) setSelectedExamId(exams[0].id);
-  }, [exams, selectedExamId]);
+    if (matchingExams.length === 0) {
+      if (selectedExamId !== null) setSelectedExamId(null);
+      return;
+    }
+    if (!matchingExams.some(exam => exam.id === selectedExamId)) {
+      setSelectedExamId(matchingExams[0].id);
+    }
+  }, [matchingExams, selectedExamId]);
 
   useEffect(() => {
     const allocatedSubject = allocations.find(allocation => allocation.school_class === selectedClassId)?.subject;
@@ -249,15 +271,17 @@ const TeacherDashboard = () => {
     student,
     status: attendanceRecords.find(record => record.student === student.id)?.status || "present",
   }));
+  const buildClassAttendancePdf = () => buildAttendancePdf({
+    className: selectedClass?.name || "Class",
+    date: attendanceDate,
+    teacherName,
+    rows: classAttendance.map(({ student, status }) => ({ name: student.name, status })),
+  });
+
   const exportClassAttendance = () => {
-    const rows = [["Student", "Class", "Date", "Status"], ...classAttendance.map(({ student, status }) => [student.name, student.class_name || "", attendanceDate, status])];
-    const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `class-attendance-${attendanceDate}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const fileName = `${selectedClass?.name || "class"}-attendance-${attendanceDate}.pdf`.replace(/\s+/g, "_");
+    buildClassAttendancePdf().save(fileName);
+    toast.success("Attendance PDF downloaded.");
   };
 
   const shareAttendanceToParents = async () => {
@@ -270,12 +294,7 @@ const TeacherDashboard = () => {
       return;
     }
     const className = selectedClass?.name || "Class";
-    const pdf = buildAttendancePdf({
-      className,
-      date: attendanceDate,
-      teacherName,
-      rows: classAttendance.map(({ student, status }) => ({ name: student.name, status })),
-    });
+    const pdf = buildClassAttendancePdf();
     const result = await sharePdfToWhatsApp({
       pdf,
       fileName: `${className}-attendance-${attendanceDate}.pdf`.replace(/\s+/g, "_"),
@@ -471,11 +490,32 @@ const TeacherDashboard = () => {
           </select>
           <select value={selectedExamId || ""} onChange={e => setSelectedExamId(Number(e.target.value))} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">Select Exam</option>
-            {exams.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+            {matchingExams.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+          <select
+            aria-label="Report card type"
+            value={exams.find(exam => exam.id === selectedExamId)?.report_type ?? "fortnightly_tests"}
+            disabled={!selectedExamId || !!exams.find(exam => exam.id === selectedExamId)?.results_published || selectedExamMarks.length > 0 || updateExamMutation.isPending}
+            onChange={async event => {
+              if (!selectedExamId) return;
+              const reportType = event.target.value as ExamReportType;
+              try {
+                await updateExamMutation.mutateAsync({ id: selectedExamId, data: { report_type: reportType } });
+                toast.success("Report card type saved");
+              } catch (error) {
+                toast.error(getErrorMessage(error));
+              }
+            }}
+            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+          >
+            {EXAM_REPORT_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
           </select>
           <Button variant="outline" onClick={generateReportCardPreview}>Generate Report Card</Button>
         </div>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Choose the report card type before entering marks. The type locks after marks are saved or an administrator publishes the results.
+      </p>
 
       {selectedClassId && selectedSubjectId && (
         <div className="space-y-4">
@@ -484,6 +524,7 @@ const TeacherDashboard = () => {
             marks={examMarks}
             examId={selectedExamId}
             examName={exams.find(e => e.id === selectedExamId)?.name || ""}
+            reportType={exams.find(e => e.id === selectedExamId)?.report_type ?? "fortnightly_tests"}
             subjectId={selectedSubjectId}
             subjectName={uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Subject"}
             classId={selectedClassId}
@@ -576,11 +617,12 @@ const TeacherDashboard = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-px bg-border">
             {[
               ["Student", currentStudent?.name || "Student"],
               ["Class", uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"],
               ["Exam", exams.find(exam => exam.id === selectedExamId)?.name || "Selected exam"],
+              ["Report type", EXAM_REPORT_TYPES.find(type => type.value === exams.find(exam => exam.id === selectedExamId)?.report_type)?.label || "Report card"],
               ["Passed", `${reportCardRows.filter(row => row.percentage >= 40).length} of ${reportCardRows.length}`],
               ["Date", new Date().toLocaleDateString()],
             ].map(([k, v]) => (
@@ -820,8 +862,9 @@ const TeacherDashboard = () => {
             })}
           </tbody>
         </table>
-        <div className="p-4 border-t border-border flex justify-end">
-          <Button variant="gold" onClick={exportClassAttendance} disabled={classAttendance.length === 0}>Download Attendance</Button>
+        <div className="p-4 border-t border-border flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={() => void shareAttendanceToParents()} disabled={classAttendance.length === 0}>Share PDF to WhatsApp</Button>
+          <Button variant="gold" onClick={exportClassAttendance} disabled={classAttendance.length === 0}>Download Attendance PDF</Button>
         </div>
       </div>
     </div>
@@ -831,10 +874,13 @@ const TeacherDashboard = () => {
     <LearningMaterialsSection
       classes={uniqueClasses}
       subjects={uniqueSubjects.length > 0 ? uniqueSubjects : [{ id: 0, name: "General" }]}
+      allowedPairs={allocations.map(allocation => ({ class_name: allocation.class_name, subject_name: allocation.subject_name }))}
       uploadedBy={teacher ? `Teacher ${teacher.name}` : "Teacher"}
       emptyHint="No notes or materials have been uploaded yet. Choose a file from this computer to share with the class."
     />
   );
+
+  const renderAssignments = () => <LearningAssignmentsSection allocations={allocations} />;
 
   const renderMessages = () => (
     <CommunicationSection
@@ -974,11 +1020,13 @@ const TeacherDashboard = () => {
     switch (activeNav) {
       case "dashboard": return renderDashboard();
       case "classes": return renderClasses();
+      case "class-register": return <ClassRegisterSection classes={managedClasses} students={students} />;
       case "subjects": return renderSubjects();
       case "grading": return renderGrading();
       case "ai-coach": return <AIFeedbackSection students={students} />;
       case "attendance": return renderAttendance();
       case "content": return renderContent();
+      case "assignments": return renderAssignments();
       case "messages": return renderMessages();
       case "timetable": return renderTimetable();
       case "settings": return renderSettings();
@@ -1011,7 +1059,7 @@ const TeacherDashboard = () => {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navigation.map((item) => (
+          {navigation.filter(item => item.id !== "class-register" || managedClasses.length > 0).map((item) => (
             <button
               key={item.id}
               onClick={() => { setActiveNav(item.id); setSidebarOpen(false); }}
@@ -1068,9 +1116,14 @@ const TeacherDashboard = () => {
               <p className="text-white/50 text-sm">{department} Department</p>
             </div>
           </div>
-          <button aria-label="Open messages" onClick={() => setActiveNav("messages")} className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
-            <Bell className="h-6 w-6 text-white/60" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button aria-label="Open messages" onClick={() => setActiveNav("messages")} className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
+              <Bell className="h-6 w-6 text-white/60" />
+            </button>
+            <Link to="/portal" onClick={clearAuth} className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">
+              <LogOut className="h-4 w-4" />Sign Out
+            </Link>
+          </div>
         </header>
 
         <div className="mx-auto w-full max-w-[1600px] space-y-6 p-4 sm:p-6 lg:p-8">
