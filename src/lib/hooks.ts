@@ -8,7 +8,10 @@ export interface Student {
     id: number;
     user?: number;
     account_email?: string | null;
-    next_of_kin?: Array<{ id: number; name: string; phone: string; email: string }>;
+    account_username?: string | null;
+    portal_credentials?: { username: string; temporary_password: string };
+    next_of_kin_details?: { name: string; relationship: string; phone: string; email?: string; address?: string };
+    next_of_kin?: Array<{ id: number; name: string; relationship?: string; phone: string; email: string; address?: string }>;
     student_id: string;
     name: string;
     school_class: number;
@@ -21,7 +24,7 @@ export interface Student {
 
 export interface Teacher {
     id: number;
-    user?: number;
+    user?: number | null;
     name: string;
     department: string;
     phone: string;
@@ -484,6 +487,7 @@ export const useStudentParentLinks = (params?: { parent?: number; student?: numb
             const response = await api.get<unknown>("/parents/student-parents/", toQueryParams(params));
             return extractArray<StudentParent>(response);
         },
+        refetchInterval: 15000,
     });
 };
 
@@ -614,6 +618,7 @@ export const useGrades = (params?: { student?: number; assessment?: number }) =>
             return extractArray<Grade>(response);
         },
         enabled: !!params?.student,
+        refetchInterval: 15000,
     });
 };
 
@@ -714,6 +719,7 @@ export const useAttendanceRecords = (params?: { student?: number; date?: string;
             return extractArray<AttendanceRecord>(response);
         },
         enabled: !params?.student ? true : !!params.student,
+        refetchInterval: 15000,
     });
 };
 
@@ -753,6 +759,7 @@ export const useStudentFees = (params?: { student?: number; status?: string }) =
             return extractArray<StudentFee>(response);
         },
         enabled: !!params?.student,
+        refetchInterval: 15000,
     });
 };
 
@@ -913,6 +920,8 @@ export const useInvoices = (params?: { student?: number; status?: string }) => {
             if (params?.status) cleanParams.status = params.status;
             return fetchAllPages<Invoice>("/finance/invoices/", cleanParams);
         },
+        enabled: params?.student === undefined || !!params.student,
+        refetchInterval: 15000,
     });
 };
 
@@ -925,6 +934,8 @@ export const usePayments = (params?: { invoice?: number; student?: number }) => 
             if (params?.student) cleanParams.invoice__student = String(params.student);
             return fetchAllPages<Payment>("/finance/payments/", cleanParams);
         },
+        enabled: params?.student === undefined || !!params.student,
+        refetchInterval: 15000,
     });
 };
 
@@ -935,6 +946,7 @@ export const useStudentBalances = () => {
             const response = await api.get<unknown>("/finance/balances/");
             return extractArray<StudentBalance>(response);
         },
+        refetchInterval: 15000,
     });
 };
 
@@ -956,6 +968,7 @@ export const useCreateDiscount = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["discounts"] });
             queryClient.invalidateQueries({ queryKey: ["student-balances"] });
+            queryClient.invalidateQueries({ queryKey: ["student-fees"] });
         },
     });
 };
@@ -1154,6 +1167,7 @@ export interface LearningAssignmentInput {
     due_at?: string;
     attachment?: File;
     is_published?: boolean;
+    teacher?: number;
 }
 
 export interface LearningSubmission {
@@ -1179,6 +1193,11 @@ export interface LearningSubmissionInput {
     attachment?: File;
 }
 
+export interface LearningSubmissionReviewInput {
+    teacher_feedback: string;
+    score?: number | null;
+}
+
 function toLearningAssignmentFormData(data: LearningAssignmentInput): FormData {
     const form = new FormData();
     form.append("title", data.title);
@@ -1188,6 +1207,7 @@ function toLearningAssignmentFormData(data: LearningAssignmentInput): FormData {
     if (data.due_at) form.append("due_at", data.due_at);
     if (data.attachment) form.append("attachment", data.attachment);
     if (data.is_published !== undefined) form.append("is_published", String(data.is_published));
+    if (data.teacher !== undefined) form.append("teacher", String(data.teacher));
     return form;
 }
 
@@ -1256,6 +1276,19 @@ export const useSubmitLearningAssignment = () => {
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["learning-submissions"] });
             void queryClient.invalidateQueries({ queryKey: ["learning-assignments"] });
+        },
+    });
+};
+
+export const useReviewLearningSubmission = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number; data: LearningSubmissionReviewInput }) =>
+            api.post<LearningSubmission>(`/content/submissions/${id}/review/`, data),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["learning-submissions"] });
+            void queryClient.invalidateQueries({ queryKey: ["learning-assignments"] });
+            void queryClient.invalidateQueries({ queryKey: ["grades"] });
         },
     });
 };

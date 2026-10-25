@@ -38,7 +38,11 @@ export const Header = () => {
 
   const isActive = (path: string) => location.pathname === path;
   const dashboardPath = dashboardPathForRole(user?.role);
-  const useSolidHeader = scrolled || ["/", "/portal", "/auth", "/signup"].includes(location.pathname);
+  const isHomePage = location.pathname === "/";
+  const useSolidHeader = scrolled || (!isHomePage && ["/about", "/academics", "/announcements", "/portal", "/auth", "/signup"].includes(location.pathname));
+  const headerSurface = useSolidHeader
+    ? "bg-[#10264f]/95 backdrop-blur-md border-b border-white/10 shadow-lg"
+    : "bg-transparent";
 
   const handleLogout = () => {
     clearAuth();
@@ -48,33 +52,29 @@ export const Header = () => {
   };
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ${useSolidHeader ? "bg-gradient-to-r from-[#10264f] via-[#283d72] to-[#b51e63] backdrop-blur-md border-b border-white/15 shadow-lg" : "bg-transparent"}`}>
-      <div className="container mx-auto px-4">
+    <header className={`fixed top-0 left-0 right-0 z-50 w-full text-white transition-all duration-300 ${headerSurface}`}>
+      <div className="container mx-auto px-4 md:px-6">
         <div className="flex h-20 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex shrink-0 items-center gap-3 group">
-            <img
-              src={logo}
-              alt="Able God College"
-              className="h-14 w-14 object-contain rounded-lg border-2 border-accent/30 transition-transform group-hover:scale-105"
-            />
-            <div className="hidden sm:block">
-              <h1 className="font-heading text-xl font-bold text-white leading-tight drop-shadow-md whitespace-nowrap">
-                Able God College
-              </h1>
-              <p className="text-xs text-accent font-medium">College</p>
-            </div>
+          <Link to="/" className="group flex shrink-0 items-center gap-2">
+            <span className="rounded bg-white/10 p-1.5 backdrop-blur-md transition-colors group-hover:bg-white/20">
+              <img src={logo} alt="Able God College" className="h-12 w-12 object-contain" />
+            </span>
+            <span className="ml-1 hidden border-l border-white/30 pl-3 sm:block">
+              <span className="block whitespace-nowrap text-base font-extrabold leading-tight tracking-tight text-white lg:text-lg">Able God</span>
+              <span className="block whitespace-nowrap text-base font-extrabold leading-tight tracking-tight text-white lg:text-lg">College</span>
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav className="hidden items-center gap-0 md:flex md:gap-1 lg:gap-4">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
-                className={`px-4 py-2 text-xs uppercase tracking-[0.18em] font-semibold transition-all duration-300 border-b ${isActive(link.path)
-                  ? "text-white border-white"
-                  : "text-white/75 border-transparent hover:text-white"
+                className={`whitespace-nowrap border-b-2 px-1 py-2 text-sm font-bold tracking-wide transition-all duration-300 lg:px-2 lg:text-base ${isActive(link.path)
+                  ? "border-[#f36b8e] text-[#f36b8e]"
+                  : "border-transparent text-white/90 hover:text-[#f36b8e]"
                   }`}
               >
                 {link.name}
@@ -83,7 +83,7 @@ export const Header = () => {
           </nav>
 
           {/* Portal Button / User Menu */}
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden items-center gap-3 md:flex">
             {user ? (
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
@@ -112,14 +112,14 @@ export const Header = () => {
                 </Button>
               </div>
             ) : (
-              <Link to="/auth" className="sl-btn !py-2.5 !px-6">Login</Link>
+              <Link to="/auth" className="inline-flex items-center justify-center rounded-md border border-[#d42d35] bg-[#d42d35] px-3 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:border-[#b51e27] hover:bg-[#b51e27] lg:px-5">Login</Link>
             )}
           </div>
 
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="lg:hidden p-2 rounded-lg text-white hover:bg-white/10 transition-colors"
+            className="p-2 text-white transition-colors hover:text-[#f36b8e] md:hidden"
             aria-label="Toggle menu"
           >
             {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -128,16 +128,16 @@ export const Header = () => {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className="lg:hidden py-4 border-t border-white/20 animate-fade-in bg-forest-dark/95 absolute top-20 left-0 right-0 px-4 rounded-b-2xl shadow-2xl">
+          <div className="absolute left-0 right-0 top-20 rounded-b-2xl border-t border-white/15 bg-[#10264f]/95 px-4 py-4 shadow-2xl backdrop-blur-md animate-fade-in md:hidden">
             <nav className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <Link
                   key={link.path}
                   to={link.path}
                   onClick={() => setIsOpen(false)}
-                  className={`px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive(link.path)
-                    ? "bg-accent/20 text-accent"
-                    : "text-white/90 hover:text-accent hover:bg-white/5"
+                  className={`px-4 py-3 rounded-lg text-base font-bold transition-all ${isActive(link.path)
+                    ? "bg-white/10 text-[#f36b8e]"
+                    : "text-white/90 hover:bg-white/5 hover:text-[#f36b8e]"
                     }`}
                 >
                   {link.name}
@@ -168,15 +168,9 @@ export const Header = () => {
                     </Button>
                   </>
                 ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-                    asChild
-                  >
-                    <Link to="/auth" onClick={() => setIsOpen(false)}>
-                      Secure Login
-                    </Link>
-                  </Button>
+                  <Link to="/auth" onClick={() => setIsOpen(false)} className="inline-flex w-full items-center justify-center rounded-md border border-[#d42d35] bg-[#d42d35] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:border-[#b51e27] hover:bg-[#b51e27]">
+                    Secure Login
+                  </Link>
                 )}
               </div>
             </nav>

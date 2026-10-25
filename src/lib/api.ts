@@ -60,24 +60,39 @@ export interface LoginResponse {
 }
 
 export interface ApiError {
-  detail?: string | string[] | Record<string, string[]>;
+  detail?: unknown;
   [key: string]: unknown;
+}
+
+function formatErrorValue(value: unknown): string[] {
+  if (typeof value === "string" || typeof value === "number") return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(formatErrorValue);
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value).flatMap(([key, nested]) => {
+      const messages = formatErrorValue(nested);
+      return messages.map(message => `${key}: ${message}`);
+    });
+  }
+  return [];
 }
 
 /** Extract a user-facing message from an API error or thrown value. */
 export function getErrorMessage(err: unknown): string {
   if (err == null) return "Something went wrong.";
   if (typeof err === "string") return err;
-  if (typeof err === "object" && err !== null && "detail" in err) {
-    const d = (err as ApiError).detail;
-    if (typeof d === "string") return d;
-    if (Array.isArray(d) && d.length) return String(d[0]);
-    if (typeof d === "object" && d !== null) {
-      const first = Object.values(d)[0];
-      return Array.isArray(first) ? String(first[0]) : String(first);
-    }
+  if (typeof err === "object" && err !== null) {
+    const error = err as ApiError;
+    const detailMessages = formatErrorValue(error.detail);
+    if (detailMessages.length) return detailMessages.join(" ");
+
+    // Django REST Framework validation responses put errors under fields such
+    // as `email` or `username`, without a top-level `detail` key.
+    const fieldMessages = Object.entries(error)
+      .filter(([key]) => !["status", "statusText", "code", "message"].includes(key))
+      .flatMap(([field, value]) => formatErrorValue(value).map(message => `${field}: ${message}`));
+    if (fieldMessages.length) return fieldMessages.join(" ");
+    if ("message" in error) return String(error.message);
   }
-  if (typeof err === "object" && err !== null && "message" in err) return String((err as { message: string }).message);
   return "Something went wrong.";
 }
 
@@ -121,7 +136,9 @@ async function request<T>(
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err: ApiError = typeof data === "object" && data !== null ? data : {};
-    if (!err.detail) err.detail = res.statusText || `Request failed (${res.status})`;
+    // Keep DRF's field errors intact. Replacing them with the HTTP status text
+    // made valid-looking form submissions surface only as "Bad Request".
+    if (!Object.keys(err).length) err.detail = res.statusText || `Request failed (${res.status})`;
     throw err;
   }
   return data as T;
@@ -152,14 +169,19 @@ export const api = {
 
 export async function downloadAuthenticatedFile(path: string, filename: string): Promise<void> {
   const base = getApiBaseUrl();
-  const url = path.startsWith("http") ? path : `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+  const apiBase = new URL(base, window.location.origin);
+  const url = path.startsWith("http")
+    ? new URL(path).toString()
+    : new URL(`${apiBase.pathname.replace(/\/$/, "")}${path.startsWith("/") ? "" : "/"}${path}`, apiBase.origin).toString();
+  const apiOrigin = apiBase.origin;
   const token = getToken();
+  const sendAuthorization = new URL(url).origin === apiOrigin;
   const fetchFile = (accessToken?: string | null) => fetch(url, {
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    headers: sendAuthorization && accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
   });
 
-  let response = await fetchFile(token);
-  if (response.status === 401 && token) {
+  let response = await fetchFile(sendAuthorization ? token : null);
+  if (response.status === 401 && token && sendAuthorization) {
     try {
       response = await fetchFile(await refreshAccessToken());
     } catch {

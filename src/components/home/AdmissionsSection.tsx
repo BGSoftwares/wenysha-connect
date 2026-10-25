@@ -26,22 +26,16 @@ const AdmissionsSection = () => {
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4 text-center">
           <h3 className="font-heading text-2xl md:text-3xl font-bold text-foreground mb-4">
-            Able God College Admissions
+            Admissions Enquiries
           </h3>
           <div className="w-16 h-1 bg-primary mx-auto mb-8" />
           
           <p className="text-muted-foreground max-w-3xl mx-auto mb-6 leading-relaxed">
-            Welcome to Able God College admissions, where academic excellence meets tradition
-            and opportunity. Every year, we welcome new learners into our community through a fair and
-            transparent admissions process. Whether you are applying for Form One, seeking a
-            transfer, or joining us at A-Level (Lower 6), this page provides everything you need to begin
-            your journey at Able God College.
+            Contact Able God College to ask about admissions and current enrolment information.
           </p>
           
           <p className="text-muted-foreground max-w-3xl mx-auto mb-8 leading-relaxed">
-            Our admissions team is committed to maintaining the school's legacy of academic
-            achievement, sporting excellence, cultural enrichment, and leadership development. Before
-            completing your application, please review all admission requirements carefully.
+            Send an enquiry using the form and the school can provide the current application details.
           </p>
           
           <Button 
@@ -49,7 +43,7 @@ const AdmissionsSection = () => {
             onClick={() => setShowAdmissionForm(true)}
             className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold shadow-lg shadow-accent/30"
           >
-            Apply Now
+            Send an Enquiry
           </Button>
         </div>
       </section>

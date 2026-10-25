@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import transaction
 from school.serializers import StudentSerializer
 from .models import Parent, StudentParent
 
@@ -29,11 +30,13 @@ class ParentSerializer(serializers.ModelSerializer):
             for link in links
         ]
 
+    @transaction.atomic
     def create(self, validated_data):
         parent = super().create(validated_data)
         self._sync_linked_user(parent)
         return parent
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         parent = super().update(instance, validated_data)
         self._sync_linked_user(parent)
@@ -56,4 +59,4 @@ class StudentParentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StudentParent
-        fields = ['id', 'student', 'student_name', 'parent', 'parent_name']
+        fields = ['id', 'student', 'student_name', 'parent', 'parent_name', 'relationship']

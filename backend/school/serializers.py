@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from django.contrib.auth.models import User
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from rest_framework import serializers
 from .models import (
@@ -162,12 +162,20 @@ class TeacherSerializer(serializers.ModelSerializer):
     class Meta:
         model = Teacher
         fields = ['id', 'user', 'name', 'department', 'phone', 'employee_id', 'allocations']
+        read_only_fields = ['employee_id']
 
     def validate_user(self, value):
         if value:
             from core.roles import portal_role
-            if portal_role(value) != 'teacher':
+            profile = getattr(value, 'profile', None)
+            role = getattr(getattr(profile, 'role', None), 'name', '').strip().casefold()
+            if portal_role(value) != 'teacher' or role not in {'teacher', 'class teacher'}:
                 raise serializers.ValidationError('Link only an account with the Teacher or Class Teacher role.')
+            linked_teachers = Teacher.objects.filter(user=value)
+            if self.instance:
+                linked_teachers = linked_teachers.exclude(pk=self.instance.pk)
+            if linked_teachers.exists():
+                raise serializers.ValidationError('This account is already linked to another teacher.')
         return value
 
     @transaction.atomic
@@ -220,6 +228,7 @@ class TeacherSerializer(serializers.ModelSerializer):
             sync_linked_portal_records(teacher.user, teacher.name)
         return teacher
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         teacher = super().update(instance, validated_data)
         if teacher.user_id:
@@ -234,35 +243,151 @@ class SubjectSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'code', 'curriculum', 'department']
 
 
+class NextOfKinInputSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255)
+    relationship = serializers.CharField(max_length=64)
+    phone = serializers.CharField(max_length=32)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+
+
 class StudentSerializer(serializers.ModelSerializer):
-    student_id = serializers.CharField(required=False, allow_blank=True)
+    student_id = serializers.CharField(read_only=True)
     class_name = serializers.CharField(source='school_class.name', read_only=True)
     account_email = serializers.EmailField(source='user.email', read_only=True, allow_null=True)
+    account_username = serializers.CharField(source='user.username', read_only=True, allow_null=True)
     next_of_kin = serializers.SerializerMethodField()
+    next_of_kin_details = NextOfKinInputSerializer(write_only=True, required=False)
 
     class Meta:
         model = Student
         fields = [
-            'id', 'user', 'account_email', 'next_of_kin', 'student_id', 'name', 'school_class', 'class_name', 'gender', 'status',
-            'date_of_birth', 'address'
+            'id', 'user', 'account_email', 'account_username', 'next_of_kin', 'next_of_kin_details',
+            'student_id', 'name', 'school_class', 'class_name', 'gender', 'status', 'date_of_birth', 'address'
         ]
+        read_only_fields = ['student_id']
+
+    def validate_user(self, value):
+        if value is None:
+            return value
+        from core.roles import portal_role
+        if portal_role(value) != 'student':
+            raise serializers.ValidationError('Link only an account with the Student role.')
+        linked_students = Student.objects.filter(user=value)
+        if self.instance:
+            linked_students = linked_students.exclude(pk=self.instance.pk)
+        if linked_students.exists():
+            raise serializers.ValidationError('This account is already linked to another student.')
+        return value
 
     def get_next_of_kin(self, obj):
         from parents.models import StudentParent
         links = StudentParent.objects.filter(student=obj).select_related('parent')
         return [
-            {'id': link.parent_id, 'name': link.parent.name, 'phone': link.parent.phone, 'email': link.parent.email}
+            {
+                'id': link.parent_id,
+                'name': link.parent.name,
+                'relationship': link.relationship,
+                'phone': link.parent.phone,
+                'email': link.parent.email,
+                'address': link.parent.address,
+            }
             for link in links
         ]
 
-    def create(self, validated_data):
-        if not validated_data.get('student_id') or not validated_data['student_id'].strip():
-            from .models import generate_next_student_id
-            validated_data['student_id'] = generate_next_student_id()
-        return super().create(validated_data)
+    @staticmethod
+    def _link_next_of_kin(student, details):
+        if not details:
+            return
 
+        from django.db.models import Q
+        from parents.models import Parent, StudentParent
+
+        matching_contact = Q()
+        if details.get('email'):
+            matching_contact |= Q(email__iexact=details['email'])
+        if details.get('phone'):
+            matching_contact |= Q(phone=details['phone'])
+        parent = None
+        if matching_contact:
+            parent = Parent.objects.filter(name__iexact=details['name']).filter(matching_contact).order_by('id').first()
+        if parent is None:
+            parent = Parent.objects.create(
+                name=details['name'].strip(),
+                phone=details.get('phone', '').strip(),
+                email=details.get('email', '').strip(),
+                address=details.get('address', '').strip(),
+            )
+        else:
+            changed_fields = []
+            for field in ('phone', 'email', 'address'):
+                value = details.get(field, '').strip()
+                if value and getattr(parent, field) != value:
+                    setattr(parent, field, value)
+                    changed_fields.append(field)
+            if changed_fields:
+                parent.save(update_fields=changed_fields)
+
+        StudentParent.objects.get_or_create(
+            student=student,
+            parent=parent,
+            defaults={'relationship': details['relationship'].strip()},
+        )
+
+    @transaction.atomic
+    def create(self, validated_data):
+        kin_details = validated_data.pop('next_of_kin_details', None)
+        from core.models import Role, UserProfile
+        from .models import generate_next_student_id
+
+        linked_user = validated_data.get('user')
+        if linked_user:
+            student_id = generate_next_student_id()
+            student = super().create({**validated_data, 'student_id': student_id})
+            self._link_next_of_kin(student, kin_details)
+            return student
+
+        for attempt in range(10):
+            student_id = generate_next_student_id()
+            temporary_password = User.objects.make_random_password(length=12)
+            try:
+                with transaction.atomic():
+                    if User.objects.filter(username=student_id).exists():
+                        continue
+                    student_user = User.objects.create_user(
+                        username=student_id,
+                        password=temporary_password,
+                    )
+                    student_role, _ = Role.objects.get_or_create(
+                        name='Student',
+                        defaults={'description': 'Student portal access'},
+                    )
+                    UserProfile.objects.create(
+                        user=student_user,
+                        role=student_role,
+                        full_name=validated_data['name'].strip(),
+                    )
+                    student = super().create({
+                        **validated_data,
+                        'user': student_user,
+                        'student_id': student_id,
+                    })
+                    self._link_next_of_kin(student, kin_details)
+                student._portal_temporary_password = temporary_password
+                return student
+            except IntegrityError:
+                if (Student.objects.filter(student_id=student_id).exists()
+                        or User.objects.filter(username=student_id).exists()):
+                    continue
+                raise
+        raise serializers.ValidationError({'student_id': 'Could not reserve a unique student ID. Please try again.'})
+
+    @transaction.atomic
     def update(self, instance, validated_data):
+        kin_details = validated_data.pop('next_of_kin_details', None)
         student = super().update(instance, validated_data)
+        if kin_details:
+            self._link_next_of_kin(student, kin_details)
         if student.user_id:
             from core.models import UserProfile
             user = student.user

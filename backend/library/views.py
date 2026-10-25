@@ -80,6 +80,9 @@ class BookViewSet(viewsets.ModelViewSet):
             raise ValidationError({'detail': 'No student profile linked to this account.'})
 
         with transaction.atomic():
+            # Serialize a student's active-loan limit across simultaneous
+            # requests, even when they borrow different books.
+            student = Student.objects.select_for_update().get(pk=student.pk)
             book = Book.objects.select_for_update().get(pk=pk)
             if book.available < 1:
                 raise ValidationError({'detail': 'No copies available right now.'})
@@ -147,9 +150,10 @@ class BorrowingViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def renew(self, request, pk=None):
-        loan = self.get_queryset().filter(pk=pk).first()
-        if not loan or loan.status != 'Borrowed':
-            raise ValidationError({'detail': 'Only active, non-overdue loans can be renewed.'})
-        loan.due_date = loan.due_date + timedelta(days=7)
-        loan.save()
+        with transaction.atomic():
+            loan = self.get_queryset().select_for_update().filter(pk=pk).first()
+            if not loan or loan.status != 'Borrowed':
+                raise ValidationError({'detail': 'Only active, non-overdue loans can be renewed.'})
+            loan.due_date = loan.due_date + timedelta(days=7)
+            loan.save(update_fields=['due_date'])
         return Response(BorrowingSerializer(loan).data)

@@ -21,6 +21,7 @@ class StudentParent(models.Model):
     """M:M student ↔ parent."""
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='parents_link')
     parent = models.ForeignKey(Parent, on_delete=models.CASCADE, related_name='students_link')
+    relationship = models.CharField(max_length=64, blank=True)
 
     class Meta:
         unique_together = [['student', 'parent']]

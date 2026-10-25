@@ -1,7 +1,9 @@
 from django.contrib.auth.models import User
+from django.db import transaction
 from .roles import portal_role
 
 
+@transaction.atomic
 def sync_linked_portal_records(user: User, full_name=None, email=None):
     """Keep an account's linked portal record names and contact email aligned."""
     from .models import UserProfile

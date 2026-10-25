@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Phone, MapPin, Facebook, Twitter, Instagram, Youtube } from "lucide-react";
+import { Phone, MapPin } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
 
@@ -33,14 +33,11 @@ export const Footer = () => {
               />
               <div>
                 <h3 className="font-heading text-xl font-bold">Able God College</h3>
-                <p className="text-sm text-primary-foreground/70">College</p>
+                <p className="text-sm text-primary-foreground/70">B'Ezrat Hesham</p>
               </div>
             </div>
             <p className="text-primary-foreground/80 text-sm leading-relaxed">
-              Smart • Innovative • Infinite
-            </p>
-            <p className="text-primary-foreground/70 text-sm">
-              Nurturing future leaders through excellence in education.
+              Honour God • Respect Others • Excel in All You Do
             </p>
           </div>
 
@@ -101,18 +98,6 @@ export const Footer = () => {
               </li>
             </ul>
 
-            {/* Social Links */}
-            <div className="flex gap-3 mt-6">
-              {[Facebook, Twitter, Instagram, Youtube].map((Icon, index) => (
-                <a
-                  key={index}
-                  href="#"
-                  className="h-9 w-9 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-all"
-                >
-                  <Icon className="h-4 w-4" />
-                </a>
-              ))}
-            </div>
           </div>
         </div>
       </div>

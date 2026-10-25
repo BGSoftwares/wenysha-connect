@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { User, Edit, Trash2, Plus, School, BookOpen, Layers } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { User, Edit, Trash2, Plus, School, BookOpen, Layers, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/api";
+import { api, getErrorMessage } from "@/lib/api";
 import {
+    fetchAllPages,
     useSubjects,
     useAllocations,
     useCreateAllocation,
@@ -13,6 +15,15 @@ import {
     type Subject,
     type Allocation
 } from "@/lib/hooks";
+
+type PortalAccount = {
+    id: number;
+    username: string;
+    email: string;
+    full_name: string;
+    role_name: string;
+    is_active: boolean;
+};
 
 interface TeachersSectionProps {
     teachers: Teacher[] | undefined;
@@ -50,6 +61,14 @@ const TeachersSection = ({
     const [periodsMap, setPeriodsMap] = useState<Record<number, number>>({});
     const [roomsMap, setRoomsMap] = useState<Record<number, string>>({});
     const [isSubmitting, setIsSubmitting] = useState<Record<number, boolean>>({});
+    const [selectedAccounts, setSelectedAccounts] = useState<Record<number, string>>({});
+    const [linkingAccounts, setLinkingAccounts] = useState<Record<number, boolean>>({});
+
+    const queryClient = useQueryClient();
+    const accountsQuery = useQuery({
+        queryKey: ["admin-teacher-accounts"],
+        queryFn: () => fetchAllPages<PortalAccount>("/auth/accounts/", { portal_role: "teacher" }),
+    });
 
     // Fallbacks if not passed as props
     const { data: fallbackSubjects } = useSubjects();
@@ -60,6 +79,34 @@ const TeachersSection = ({
 
     const createAllocationMutation = useCreateAllocation();
     const deleteAllocationMutation = useDeleteAllocation();
+
+    const handleLinkAccount = async (teacher: Teacher, accountValue: string) => {
+        const accountId = accountValue ? Number(accountValue) : null;
+        setLinkingAccounts(previous => ({ ...previous, [teacher.id]: true }));
+        try {
+            await api.patch(`/school/teachers/${teacher.id}/`, { user: accountId });
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["teachers"] }),
+                queryClient.invalidateQueries({ queryKey: ["admin-accounts"] }),
+                queryClient.invalidateQueries({ queryKey: ["admin-teacher-accounts"] }),
+                queryClient.invalidateQueries({ queryKey: ["teacher-profile"] }),
+                queryClient.invalidateQueries({ queryKey: ["allocations"] }),
+                queryClient.invalidateQueries({ queryKey: ["timetable"] }),
+            ]);
+            setSelectedAccounts(previous => {
+                const next = { ...previous };
+                delete next[teacher.id];
+                return next;
+            });
+            toast.success(accountId
+                ? "Teacher account linked. Their assigned classes and subjects will appear in the teacher portal."
+                : "Teacher account unlinked.");
+        } catch (error) {
+            toast.error(getErrorMessage(error));
+        } finally {
+            setLinkingAccounts(previous => ({ ...previous, [teacher.id]: false }));
+        }
+    };
 
     const handleAssignSubject = async (teacherId: number, teacherName: string) => {
         const subjectId = Number(selectedSubjects[teacherId]);
@@ -161,6 +208,14 @@ const TeachersSection = ({
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {(teachers || []).map((teacher) => {
                         const teacherIdNum = Number(teacher.id);
+                        const currentAccountId = teacher.user == null ? "" : String(teacher.user);
+                        const selectedAccountId = selectedAccounts[teacherIdNum] ?? currentAccountId;
+                        const linkedAccount = accountsQuery.data?.find(account => account.id === teacher.user);
+                        const availableAccounts = (accountsQuery.data ?? []).filter(account => {
+                            const linkedToAnotherTeacher = teachers?.some(other => other.id !== teacher.id && other.user === account.id);
+                            return !linkedToAnotherTeacher;
+                        });
+                        const accountSelectionChanged = selectedAccountId !== currentAccountId;
 
                         // Find all allocations for this teacher (either from teacher.allocations or global allocations)
                         const teacherAllocations = allocationsList.filter(a => a.teacher === teacherIdNum);
@@ -182,7 +237,7 @@ const TeachersSection = ({
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <h3 className="font-bold text-foreground leading-tight text-base">{teacher.name}</h3>
                                                     <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
-                                                        {teacher.employee_id || `AGC-EMP-${teacher.id}`}
+                                                        {teacher.employee_id || `AbleGodStaff${String(teacher.id).padStart(3, "0")}`}
                                                     </span>
                                                 </div>
                                                 <div className="flex flex-col gap-0.5 mt-1">
@@ -202,6 +257,52 @@ const TeachersSection = ({
                                         <Button variant="outline" size="sm" aria-label={`Delete ${teacher.name}`} onClick={() => onDeleteTeacher(teacher)} className="rounded-lg hover:border-destructive/50 hover:bg-destructive/5 transition-colors group/del">
                                             <Trash2 className="h-4 w-4 text-muted-foreground group-hover/del:text-destructive" />
                                         </Button>
+                                    </div>
+
+                                    <div className="mt-4 rounded-xl border border-border bg-secondary/20 p-4">
+                                        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                                            <Link2 className="h-4 w-4 text-primary" />
+                                            Teacher Portal Account
+                                        </div>
+                                        <p className="mb-3 text-xs text-muted-foreground">
+                                            {teacher.user
+                                                ? `Linked to ${linkedAccount?.full_name || linkedAccount?.username || `account #${teacher.user}`}${linkedAccount?.email ? ` · ${linkedAccount.email}` : ""}`
+                                                : "No portal account linked. Create a Teacher or Class Teacher account under Users & Roles, then link it here."}
+                                        </p>
+                                        {accountsQuery.error
+                                            ? <p className="mb-3 text-xs text-destructive">Could not load accounts: {getErrorMessage(accountsQuery.error)}</p>
+                                            : <div className="flex flex-col gap-2 sm:flex-row">
+                                                <select
+                                                    aria-label={`Select portal account for ${teacher.name}`}
+                                                    className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-2 text-xs text-foreground"
+                                                    value={selectedAccountId}
+                                                    disabled={accountsQuery.isLoading || linkingAccounts[teacherIdNum]}
+                                                    onChange={event => setSelectedAccounts(previous => ({ ...previous, [teacherIdNum]: event.target.value }))}
+                                                >
+                                                    <option value="">No account linked</option>
+                                                    {availableAccounts.map(account => (
+                                                        <option key={account.id} value={account.id} disabled={!account.is_active}>
+                                                            {account.full_name || account.username} · {account.email || account.username} · {account.role_name}{!account.is_active ? " · inactive" : account.id === teacher.user ? " · currently linked" : ""}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-9 text-xs"
+                                                    disabled={!accountSelectionChanged || accountsQuery.isLoading || linkingAccounts[teacherIdNum]}
+                                                    onClick={() => void handleLinkAccount(teacher, selectedAccountId)}
+                                                >
+                                                    {linkingAccounts[teacherIdNum] ? "Saving…" : "Save link"}
+                                                </Button>
+                                            </div>}
+                                        {!accountsQuery.isLoading && !accountsQuery.error && availableAccounts.length === 0 && (
+                                            <p className="mt-2 text-xs text-muted-foreground">No teacher-role accounts are in the account database yet. Create one under Users &amp; Roles.</p>
+                                        )}
+                                        {availableAccounts.length > 0 && !availableAccounts.some(account => account.is_active) && (
+                                            <p className="mt-2 text-xs text-muted-foreground">Teacher accounts are listed, but they must be activated under Users &amp; Roles before they can be linked.</p>
+                                        )}
                                     </div>
 
                                     {/* 1. Class Teacher Assignment (Homeroom) */}

@@ -1,185 +1,59 @@
+import { Link } from "react-router-dom";
+import { ArrowRight, BookOpen } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
-import { BookOpen, Music, Dumbbell, Laptop, Upload, Download, Globe } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import CoreSubjectsSection from "@/components/academics/CoreSubjectsSection";
+import SchoolInformationPosters from "@/components/public/SchoolInformationPosters";
 import UniversityPathwaysSection from "@/components/academics/UniversityPathwaysSection";
 
-const resources = [
-  { title: "Mathematics Notes - Grade 7", subject: "Mathematics", type: "PDF", size: "2.3 MB" },
-  { title: "Science Practical Guide", subject: "Sciences", type: "PDF", size: "4.1 MB" },
-  { title: "English Grammar Workbook", subject: "Languages", type: "PDF", size: "1.8 MB" },
-  { title: "History Timeline Charts", subject: "Humanities", type: "PDF", size: "3.2 MB" },
-];
+const Academics = () => (
+  <Layout>
+    <section className="py-20 bg-gradient-hero">
+      <div className="container mx-auto px-4 text-center">
+        <h1 className="mb-4 font-heading text-4xl font-bold text-primary-foreground md:text-5xl">Academic Programs</h1>
+        <p className="mx-auto max-w-2xl text-xl text-primary-foreground/80">
+          ZIMSEC results and school work expectations at Able God College.
+        </p>
+      </div>
+    </section>
 
-const gradingScale = [
-  { grade: "A", range: "70-100%", description: "Excellent" },
-  { grade: "B", range: "60-69%", description: "Very Good" },
-  { grade: "C", range: "50-59%", description: "Good" },
-  { grade: "D", range: "45-49%", description: "Fair" },
-  { grade: "E", range: "40-44%", description: "Pass" },
-  { grade: "U", range: "0-39%", description: "Ungraded" },
-];
+    <SchoolInformationPosters sections={["results", "rules"]} />
 
-const Academics = () => {
-  return (
-    <Layout>
-      {/* Hero Section */}
-      <section className="py-20 bg-gradient-hero">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="font-heading text-4xl md:text-5xl font-bold text-primary-foreground mb-4">
-            Academic Programs
-          </h1>
-          <p className="text-xl text-primary-foreground/80 max-w-2xl mx-auto">
-            Comprehensive ZIMSEC and Cambridge International curriculum designed to prepare students for success globally.
+    <UniversityPathwaysSection />
+
+    <section className="bg-card py-16 md:py-20">
+      <div className="container mx-auto px-4">
+        <div className="mb-10 text-center">
+          <h2 className="mb-3 font-heading text-3xl font-bold text-foreground">Learning Resources</h2>
+          <p className="mx-auto max-w-2xl text-muted-foreground">
+            Sign in to the student portal to view learning materials made available to your account.
           </p>
         </div>
-      </section>
-
-      {/* Core Subjects Section */}
-      <CoreSubjectsSection />
-
-      {/* University Pathways Section */}
-      <UniversityPathwaysSection />
-
-      {/* Curriculum Overview */}
-      <section className="py-20 bg-card">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="font-heading text-3xl font-bold text-foreground mb-4">
-              Our Curriculum
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              We follow the ZIMSEC and Cambridge International Curriculum, enhanced with local 
-              content to provide a well-rounded education.
-            </p>
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 rounded-2xl border border-border bg-background p-8 text-center shadow-elegant sm:flex-row sm:text-left">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <BookOpen className="h-7 w-7" aria-hidden="true" />
+          </span>
+          <div className="flex-1">
+            <h3 className="font-heading text-xl font-semibold text-foreground">Student Portal</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Access materials and assignments shared through the school portal.</p>
           </div>
-
-          {/* Dual Curriculum Info */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <div className="p-6 rounded-xl bg-primary/5 border border-primary/20">
-              <h3 className="font-heading font-bold text-lg text-primary mb-2">ZIMSEC Programme</h3>
-              <p className="text-sm text-muted-foreground">
-                Zimbabwe Schools Examination Council curriculum preparing students for national examinations with locally relevant content and practical skills.
-              </p>
-            </div>
-            <div className="p-6 rounded-xl bg-accent/5 border border-accent/20">
-              <h3 className="font-heading font-bold text-lg text-accent mb-2">Cambridge International</h3>
-              <p className="text-sm text-muted-foreground">
-                Internationally recognized qualifications opening doors to universities worldwide with rigorous academic standards.
-              </p>
-            </div>
-          </div>
+          <Link to="/portal" className="inline-flex items-center gap-2 rounded-md bg-accent px-5 py-3 font-semibold text-accent-foreground transition hover:bg-accent/90">
+            Open Portal <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
-      </section>
+      </div>
+    </section>
 
-      {/* Grading System */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="font-heading text-3xl font-bold text-foreground text-center mb-12">
-              Grading System
-            </h2>
-            <div className="bg-card rounded-2xl border border-border overflow-hidden">
-              <div className="grid grid-cols-3 bg-primary text-primary-foreground p-4 font-semibold">
-                <span>Grade</span>
-                <span>Percentage</span>
-                <span>Description</span>
-              </div>
-              {gradingScale.map((item, index) => (
-                <div 
-                  key={index}
-                  className={`grid grid-cols-3 p-4 ${index % 2 === 0 ? 'bg-secondary/30' : 'bg-card'}`}
-                >
-                  <span className="font-bold text-accent text-lg">{item.grade}</span>
-                  <span className="text-foreground">{item.range}</span>
-                  <span className="text-muted-foreground">{item.description}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Resources & Downloads */}
-      <section className="py-20 bg-secondary/30">
-        <div className="container mx-auto px-4">
-          <h2 className="font-heading text-3xl font-bold text-foreground text-center mb-4">
-            Learning Resources
-          </h2>
-          <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-12">
-            Access study materials, lecture notes, and resources shared by our teachers.
-            Login to the portal to download or submit assignments.
-          </p>
-
-          <div className="max-w-3xl mx-auto space-y-4">
-            {resources.map((resource, index) => (
-              <div 
-                key={index}
-                className="flex items-center justify-between p-5 rounded-xl bg-card border border-border hover:border-primary/30 transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <BookOpen className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground">{resource.title}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {resource.subject} • {resource.type} • {resource.size}
-                    </p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-8">
-            <p className="text-muted-foreground mb-4">
-              Need to submit an assignment?
-            </p>
-            <Button variant="gold" asChild>
-              <a href="/portal">
-                <Upload className="h-4 w-4 mr-2" />
-                Login to Portal
-              </a>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Extra-curricular */}
-      <section className="py-20 bg-card">
-        <div className="container mx-auto px-4">
-          <h2 className="font-heading text-3xl font-bold text-foreground text-center mb-12">
-            Extra-Curricular Activities
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { icon: Dumbbell, name: "Sports", items: ["Soccer", "Basketball", "Athletics", "Swimming"] },
-              { icon: Music, name: "Arts", items: ["Choir", "Drama Club", "Art Club", "Dance"] },
-              { icon: Laptop, name: "Clubs", items: ["Coding Club", "Debate Club", "Chess Club", "Robotics"] },
-              { icon: Globe, name: "Community", items: ["Environmental Club", "Outreach", "Leadership", "Scouts"] },
-            ].map((category, index) => (
-              <div key={index} className="p-6 rounded-xl bg-background border border-border">
-                <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4">
-                  <category.icon className="h-6 w-6 text-accent" />
-                </div>
-                <h3 className="font-heading font-semibold text-foreground mb-3">{category.name}</h3>
-                <ul className="space-y-1">
-                  {category.items.map((item, i) => (
-                    <li key={i} className="text-sm text-muted-foreground">• {item}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    </Layout>
-  );
-};
+    <section className="bg-background py-16">
+      <div className="container mx-auto px-4 text-center">
+        <h2 className="mb-3 font-heading text-2xl font-bold text-foreground">Academic Enquiries</h2>
+        <p className="mx-auto mb-6 max-w-2xl text-muted-foreground">
+          Contact the school for current subject and programme information.
+        </p>
+        <Link to="/contact" className="inline-flex items-center gap-2 font-semibold text-accent hover:text-primary">
+          Contact Able God College <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </section>
+  </Layout>
+);
 
 export default Academics;

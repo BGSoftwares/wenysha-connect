@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { schoolContact } from "@/lib/schoolContact";
+import { api, getErrorMessage } from "@/lib/api";
 
 const Contact = () => {
   const { toast } = useToast();
@@ -14,14 +15,20 @@ const Contact = () => {
     subject: "",
     message: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Message Sent!",
-      description: "Thank you for contacting us. We'll get back to you soon.",
-    });
-    setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+    setIsSubmitting(true);
+    try {
+      await api.post("/content/contact-messages/", formData);
+      toast({ title: "Message sent", description: "Thank you for contacting Able God College." });
+      setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+    } catch (error) {
+      toast({ title: "Could not send message", description: getErrorMessage(error), variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -133,9 +140,9 @@ const Contact = () => {
                   />
                 </div>
 
-                <Button type="submit" variant="gold" size="lg" className="w-full sm:w-auto">
+                <Button type="submit" variant="gold" size="lg" className="w-full sm:w-auto" disabled={isSubmitting}>
                   <Send className="h-4 w-4 mr-2" />
-                  Send Message
+                  {isSubmitting ? "Sending…" : "Send Message"}
                 </Button>
               </form>
             </div>
@@ -172,14 +179,22 @@ const Contact = () => {
                 </div>
               </div>
 
-              {/* Map Placeholder */}
-              <div className="aspect-video rounded-xl bg-secondary overflow-hidden">
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
-                  <div className="text-center">
-                    <MapPin className="h-12 w-12 text-primary/30 mx-auto mb-2" />
-                    <p className="text-muted-foreground text-sm">Interactive map coming soon</p>
-                  </div>
-                </div>
+              <div className="overflow-hidden rounded-xl border border-border bg-secondary">
+                <iframe
+                  title={`Map to ${schoolContact.name}`}
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(schoolContact.address)}&output=embed`}
+                  className="aspect-video w-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(schoolContact.address)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block px-4 py-3 text-sm font-medium text-primary hover:underline"
+                >
+                  Open {schoolContact.address} in Google Maps
+                </a>
               </div>
             </div>
           </div>

@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from school.models import SchoolClass, Student
 from finance.models import Invoice, Payment
+from core.models import Role, UserProfile
 from datetime import date
 
 class FinanceAPITests(TestCase):
@@ -10,6 +11,8 @@ class FinanceAPITests(TestCase):
         cls = SchoolClass.objects.create(name='API Form')
         self.student = Student.objects.create(student_id='API001', name='API Student', school_class=cls)
         self.user = User.objects.create_user(username='finance_user', email='fin@local', password='pwd')
+        accounts = Role.objects.create(name='Accounts')
+        UserProfile.objects.create(user=self.user, role=accounts)
         self.client = APIClient()
 
     def test_invoice_create_requires_auth(self):
@@ -33,3 +36,10 @@ class FinanceAPITests(TestCase):
         self.assertEqual(inv_resp.status_code, 200)
         self.assertEqual(str(inv_resp.data['paid']), '50.00')
         self.assertEqual(inv_resp.data['status'], 'partial')
+
+        balance_resp = self.client.get('/api/finance/balances/')
+        self.assertEqual(balance_resp.status_code, 200)
+        balance = next(row for row in balance_resp.data if row['id'] == self.student.id)
+        self.assertEqual(str(balance['totalBilled']), '200.00')
+        self.assertEqual(str(balance['totalPaid']), '50.00')
+        self.assertEqual(str(balance['balance']), '150.00')

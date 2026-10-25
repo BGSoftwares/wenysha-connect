@@ -11,7 +11,9 @@ from school.models import SchoolClass, Student, Subject
 class ExamRankingApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.client.force_authenticate(user=User.objects.create_user(username='rank_user'))
+        self.client.force_authenticate(user=User.objects.create_superuser(
+            username='rank_admin', email='rank-admin@example.test', password='rank-password-123'
+        ))
         self.exam = Exam.objects.create(
             name='Final Examination',
             term='Term 1',

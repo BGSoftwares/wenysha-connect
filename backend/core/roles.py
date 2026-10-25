@@ -3,6 +3,32 @@
 from core.models import UserProfile
 
 
+def normalize_role_name(name):
+    """Map role labels to the portal keys used by access checks and login."""
+    value = " ".join((name or "").strip().casefold().replace("_", " ").replace("-", " ").split())
+    aliases = {
+        "admin": "admin",
+        "administrator": "admin",
+        "school administrator": "admin",
+        "student": "student",
+        "learner": "student",
+        "pupil": "student",
+        "teacher": "teacher",
+        "class teacher": "teacher",
+        "educator": "teacher",
+        "teaching staff": "teacher",
+        "account": "accounts",
+        "accounts": "accounts",
+        "accountant": "accounts",
+        "accounts officer": "accounts",
+        "finance": "accounts",
+        "finance officer": "accounts",
+        "parent": "parent",
+        "guardian": "parent",
+    }
+    return aliases.get(value, value)
+
+
 def portal_role(user):
     if not getattr(user, "is_authenticated", False):
         return ""
@@ -12,12 +38,7 @@ def portal_role(user):
         role = user.profile.role
     except (AttributeError, UserProfile.DoesNotExist):
         return ""
-    normalized = role.name.strip().lower() if role else ""
-    if normalized in {"teacher", "class teacher", "educator", "teaching staff"}:
-        return "teacher"
-    if normalized in {"accountant", "accounts officer", "finance", "finance officer"}:
-        return "accounts"
-    return normalized
+    return normalize_role_name(role.name) if role else ""
 
 
 def is_admin(user):

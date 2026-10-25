@@ -4,7 +4,7 @@ const pathways = [
   {
     icon: Stethoscope,
     title: "Science & Engineering",
-    description: "Our science program prepares students for careers in medicine, engineering, computer science, and research. Graduates gain admission to top programs in:",
+    description: "Students with a Science background may consider further study and careers in areas such as:",
     programs: [
       "Medicine and Health Sciences",
       "Engineering (Civil, Mechanical, Electrical, Chemical)",
@@ -16,7 +16,7 @@ const pathways = [
   {
     icon: Building2,
     title: "Business & Commerce",
-    description: "Commercial students develop skills for careers in business, finance, and economics, with pathways to:",
+    description: "Students with a Commercials background may consider further study and careers in areas such as:",
     programs: [
       "Business Administration and Management",
       "Accounting and Finance",
@@ -29,7 +29,7 @@ const pathways = [
   {
     icon: BookMarked,
     title: "Arts & Humanities",
-    description: "Arts students pursue careers in law, education, media, and public service through:",
+    description: "Students with an Arts background may consider further study and careers in areas such as:",
     programs: [
       "Law and Legal Studies",
       "Education and Teaching",
@@ -48,10 +48,10 @@ const UniversityPathwaysSection = () => {
         <div className="text-center mb-12">
           <div className="w-24 h-1 bg-primary mx-auto mb-6"></div>
           <h2 className="font-heading text-3xl font-bold text-primary mb-4">
-            University Pathways
+            Academic Preparation & Pathways
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Our dual ZIMSEC and Cambridge curriculum opens doors to universities locally and internationally.
+            Possible post-school programmes for Arts, Commercials and Sciences learners.
           </p>
         </div>
 
@@ -82,13 +82,9 @@ const UniversityPathwaysSection = () => {
           ))}
         </div>
 
-        {/* University Partners Note */}
-        <div className="mt-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            Our graduates have been accepted to universities including <span className="font-medium text-foreground">University of Zimbabwe</span>,{" "}
-            <span className="font-medium text-foreground">NUST</span>,{" "}
-            <span className="font-medium text-foreground">University of Cape Town</span>,{" "}
-            <span className="font-medium text-foreground">Oxford</span>, and many more.
+        <div className="mt-8 rounded-xl border border-primary/15 bg-card p-5 text-center">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            These are examples of possible post-school pathways, subject to each institution’s entry requirements. HEXCO courses are separate technical and vocational options; contact the school for current subject combinations and programme guidance.
           </p>
         </div>
       </div>

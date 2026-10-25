@@ -26,3 +26,19 @@ class FinanceModelTests(TestCase):
         inv.refresh_from_db()
         self.assertEqual(float(inv.paid), 100.00)
         self.assertEqual(inv.status, 'paid')
+
+    def test_payment_edits_and_deletes_recalculate_invoice_atomically(self):
+        inv = Invoice.objects.create(invoice_no='INV101', student=self.student, term='Term 1', amount=100.00, date=date.today())
+        payment = Payment.objects.create(
+            receipt_no='R102', invoice=inv, amount=30.00, method='Cash', date=date.today(), recorded_by=self.user,
+        )
+
+        payment.amount = 20
+        payment.save()
+        inv.refresh_from_db()
+        self.assertEqual(float(inv.paid), 20.00)
+
+        payment.delete()
+        inv.refresh_from_db()
+        self.assertEqual(float(inv.paid), 0.00)
+        self.assertEqual(inv.status, 'unpaid')

@@ -14,6 +14,8 @@ class MarkSheetTests(APITestCase):
         self.subject = Subject.objects.create(name='Maths')
         self.student = Student.objects.create(student_id='S1', name='Tariro', school_class=self.cls)
         self.exam = Exam.objects.create(name='Term 1', term='1', year='2026', start_date=date.today(), end_date=date.today())
+        self.exam.classes.add(self.cls)
+        self.exam.subjects.add(self.subject)
 
     def test_mark_saves_with_comment(self):
         r = self.client.post('/api/exams/exam-marks/', {'exam': self.exam.id, 'student': self.student.id, 'subject': self.subject.id, 'total_marks': 100, 'scored': 72, 'comment': 'Good effort'}, format='json')
@@ -32,7 +34,7 @@ class MarkSheetTests(APITestCase):
         self.assertEqual(self.cls.class_teacher_id, self.teacher.id)
 
     def test_admin_allocates_subject_to_teacher(self):
-        r = self.client.post('/api/school/allocations/', {'teacher': self.teacher.id, 'subject': self.subject.id, 'school_class': self.cls.id, 'periods': 5}, format='json')
+        r = self.client.post('/api/school/allocations/', {'teacher': self.teacher.id, 'subject': self.subject.id, 'school_class': self.cls.id, 'periods': 5, 'room': '101'}, format='json')
         self.assertEqual(r.status_code, 201, r.content)
         r = self.client.get(f'/api/school/allocations/?teacher={self.teacher.id}')
         self.assertEqual(r.status_code, 200)

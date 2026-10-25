@@ -44,6 +44,7 @@ import {
   useAllocations,
   useStudents,
   useClasses,
+  useSubjects,
   useExams,
   useExamMarks,
   useSaveExamMark,
@@ -67,7 +68,7 @@ const navigation = [
   { name: "Grading", icon: FileText, id: "grading" },
   { name: "AI Coach", icon: Sparkles, id: "ai-coach" },
   { name: "Attendance", icon: CheckSquare, id: "attendance" },
-  { name: "Content", icon: Upload, id: "content" },
+  { name: "Library & Notes", icon: Upload, id: "content" },
   { name: "Assignments", icon: ClipboardList, id: "assignments" },
   { name: "Messages", icon: MessageSquare, id: "messages" },
   { name: "Timetable", icon: Calendar, id: "timetable" },
@@ -96,6 +97,7 @@ const TeacherDashboard = () => {
 
   const { data: students = [] } = useStudents();
   const { data: classes = [] } = useClasses();
+  const { data: allSubjects = [] } = useSubjects();
 
   const { data: exams = [] } = useExams();
   const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
@@ -119,6 +121,11 @@ const TeacherDashboard = () => {
 
   const uniqueSubjects = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.subject, name: a.subject_name }))))
     .map(s => JSON.parse(s));
+  const contentSubjects = managedClasses.length > 0 && allSubjects.length > 0 ? allSubjects : uniqueSubjects;
+  const contentPairs = [
+    ...allocations.map(allocation => ({ class_name: allocation.class_name, subject_name: allocation.subject_name })),
+    ...managedClasses.flatMap(schoolClass => contentSubjects.map(subject => ({ class_name: schoolClass.name, subject_name: subject.name }))),
+  ];
 
   const matchingExams = useMemo(() => exams.filter(exam =>
     !!selectedClassId && !!selectedSubjectId &&
@@ -873,8 +880,8 @@ const TeacherDashboard = () => {
   const renderContent = () => (
     <LearningMaterialsSection
       classes={uniqueClasses}
-      subjects={uniqueSubjects.length > 0 ? uniqueSubjects : [{ id: 0, name: "General" }]}
-      allowedPairs={allocations.map(allocation => ({ class_name: allocation.class_name, subject_name: allocation.subject_name }))}
+      subjects={contentSubjects.length > 0 ? contentSubjects : [{ id: 0, name: "General" }]}
+      allowedPairs={contentPairs}
       uploadedBy={teacher ? `Teacher ${teacher.name}` : "Teacher"}
       emptyHint="No notes or materials have been uploaded yet. Choose a file from this computer to share with the class."
     />

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BookOpen, Download, Eye, Plus, Trash2, Upload } from "lucide-react";
+import { BookOpen, CheckCircle2, Download, Eye, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +11,59 @@ import {
   useDeleteLearningAssignment,
   useLearningAssignments,
   useLearningSubmissions,
+  useReviewLearningSubmission,
   type Allocation,
+  type LearningSubmission,
 } from "@/lib/hooks";
 
 type Draft = { allocation: string; title: string; instructions: string; dueAt: string };
 const emptyDraft: Draft = { allocation: "", title: "", instructions: "", dueAt: "" };
 const maxFileBytes = 20 * 1024 * 1024;
 
-const LearningAssignmentsSection = ({ allocations }: { allocations: Allocation[] }) => {
+const SubmissionReviewEditor = ({ submission }: { submission: LearningSubmission }) => {
+  const [feedback, setFeedback] = useState(submission.teacher_feedback || "");
+  const [score, setScore] = useState(submission.score ?? "");
+  const reviewSubmission = useReviewLearningSubmission();
+
+  const saveReview = async () => {
+    const numericScore = score.trim() ? Number(score) : null;
+    if (!feedback.trim() && numericScore === null) {
+      toast.error("Add feedback or a score before saving the review.");
+      return;
+    }
+    if (numericScore !== null && (!Number.isFinite(numericScore) || numericScore < 0 || numericScore > 100)) {
+      toast.error("Score must be between 0 and 100.");
+      return;
+    }
+    try {
+      await reviewSubmission.mutateAsync({
+        id: submission.id,
+        data: { teacher_feedback: feedback.trim(), score: numericScore },
+      });
+      toast.success("Review saved and shared with the student and parent portal.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  return (
+    <div className="mt-4 space-y-3 border-t border-border pt-4">
+      <p className="text-sm font-semibold">Teacher review</p>
+      <Textarea rows={3} maxLength={5000} value={feedback} onChange={event => setFeedback(event.target.value)} placeholder="Feedback for the student" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <label className="space-y-1 text-sm">Score (%)
+          <Input type="number" min="0" max="100" step="0.1" value={score} onChange={event => setScore(event.target.value)} placeholder="Optional" className="sm:w-40" />
+        </label>
+        <Button variant="gold" disabled={reviewSubmission.isPending} onClick={() => void saveReview()}>
+          <CheckCircle2 className="mr-2 h-4 w-4" />{reviewSubmission.isPending ? "Saving…" : submission.reviewed_at ? "Update review" : "Save review"}
+        </Button>
+      </div>
+      {submission.reviewed_at && <p className="text-xs text-muted-foreground">Last reviewed {new Date(submission.reviewed_at).toLocaleString()}</p>}
+    </div>
+  );
+};
+
+const LearningAssignmentsSection = ({ allocations, adminMode = false }: { allocations: Allocation[]; adminMode?: boolean }) => {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [file, setFile] = useState<File | null>(null);
   const [expandedAssignment, setExpandedAssignment] = useState<number | null>(null);
@@ -29,8 +74,10 @@ const LearningAssignmentsSection = ({ allocations }: { allocations: Allocation[]
 
   const selectedAllocation = allocations.find(item => String(item.id) === draft.allocation);
   const allocationOptions = useMemo(() => allocations.filter((allocation, index, all) =>
-    all.findIndex(candidate => candidate.school_class === allocation.school_class && candidate.subject === allocation.subject) === index,
-  ), [allocations]);
+    all.findIndex(candidate => candidate.school_class === allocation.school_class
+      && candidate.subject === allocation.subject
+      && (!adminMode || candidate.teacher === allocation.teacher)) === index,
+  ), [allocations, adminMode]);
 
   const downloadFile = async (url: string, filename: string) => {
     try {
@@ -55,6 +102,7 @@ const LearningAssignmentsSection = ({ allocations }: { allocations: Allocation[]
         instructions: draft.instructions.trim(),
         school_class: selectedAllocation.school_class,
         subject: selectedAllocation.subject,
+        ...(adminMode ? { teacher: selectedAllocation.teacher } : {}),
         ...(draft.dueAt ? { due_at: new Date(draft.dueAt).toISOString() } : {}),
         ...(file ? { attachment: file } : {}),
         is_published: true,
@@ -80,8 +128,8 @@ const LearningAssignmentsSection = ({ allocations }: { allocations: Allocation[]
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
       <div>
-        <h2 className="font-heading text-2xl font-bold">Assignments</h2>
-        <p className="text-sm text-muted-foreground">Publish work to classes and subjects assigned to you, then review student submissions.</p>
+        <h2 className="font-heading text-2xl font-bold">{adminMode ? "Learning Assignments" : "Assignments"}</h2>
+        <p className="text-sm text-muted-foreground">{adminMode ? "Monitor published work and review student submissions across the school." : "Publish work to classes and subjects assigned to you, then review student submissions."}</p>
       </div>
 
       <Card>
@@ -95,7 +143,7 @@ const LearningAssignmentsSection = ({ allocations }: { allocations: Allocation[]
                 <label className="space-y-1 text-sm">Class and subject
                   <select className="w-full rounded-lg border border-border bg-background px-3 py-2" value={draft.allocation} onChange={event => setDraft(current => ({ ...current, allocation: event.target.value }))}>
                     <option value="">Select an allocation</option>
-                    {allocationOptions.map(allocation => <option key={allocation.id} value={allocation.id}>{allocation.class_name} · {allocation.subject_name}</option>)}
+                    {allocationOptions.map(allocation => <option key={allocation.id} value={allocation.id}>{allocation.class_name} · {allocation.subject_name}{adminMode ? ` · ${allocation.teacher_name}` : ""}</option>)}
                   </select>
                 </label>
                 <label className="space-y-1 text-sm">Assignment title
@@ -121,7 +169,7 @@ const LearningAssignmentsSection = ({ allocations }: { allocations: Allocation[]
         <div><h3 className="font-heading text-xl font-bold">Published assignments</h3><p className="text-sm text-muted-foreground">Student work is visible only to its student, the assigned teacher, and administrators.</p></div>
         {isLoading ? <Card><CardContent className="p-6 text-center text-muted-foreground">Loading assignments…</CardContent></Card>
           : error ? <Card><CardContent className="p-6 text-sm text-destructive">Could not load assignments: {getErrorMessage(error)}</CardContent></Card>
-            : assignments.length === 0 ? <Card><CardContent className="p-8 text-center text-muted-foreground">You have not published an assignment yet.</CardContent></Card>
+              : assignments.length === 0 ? <Card><CardContent className="p-8 text-center text-muted-foreground">No assignments have been published yet.</CardContent></Card>
               : assignments.map(assignment => {
                 const assignmentSubmissions = submissions.filter(submission => submission.assignment === assignment.id);
                 const expanded = expandedAssignment === assignment.id;
@@ -130,7 +178,7 @@ const LearningAssignmentsSection = ({ allocations }: { allocations: Allocation[]
                     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                       <div className="min-w-0 space-y-1">
                         <h4 className="break-words font-semibold">{assignment.title}</h4>
-                        <p className="text-sm text-muted-foreground">{assignment.class_name} · {assignment.subject_name}{assignment.due_at ? ` · Due ${new Date(assignment.due_at).toLocaleString()}` : " · No due date"}</p>
+                        <p className="text-sm text-muted-foreground">{assignment.class_name} · {assignment.subject_name}{adminMode ? ` · ${assignment.teacher_name}` : ""}{assignment.due_at ? ` · Due ${new Date(assignment.due_at).toLocaleString()}` : " · No due date"}</p>
                         {assignment.instructions && <p className="whitespace-pre-wrap text-sm">{assignment.instructions}</p>}
                         {assignment.attachment_url && <Button variant="link" className="h-auto justify-start p-0 text-sm" onClick={() => void downloadFile(assignment.attachment_url, assignment.attachment_name || `${assignment.title}-instructions`)}><Download className="mr-1 h-4 w-4" />{assignment.attachment_name || "Download instructions"}</Button>}
                       </div>
@@ -145,6 +193,7 @@ const LearningAssignmentsSection = ({ allocations }: { allocations: Allocation[]
                           <p className="font-medium">{submission.student_name}<span className="ml-2 text-xs font-normal text-muted-foreground">{new Date(submission.submitted_at).toLocaleString()}</span></p>
                           {submission.answer && <p className="mt-2 whitespace-pre-wrap break-words text-sm">{submission.answer}</p>}
                           {submission.attachment_url && <Button variant="link" className="mt-2 h-auto justify-start p-0 text-sm" onClick={() => void downloadFile(submission.attachment_url, submission.attachment_name || `${submission.student_name}-work`)}><Download className="mr-1 h-4 w-4" />{submission.attachment_name || "Download student work"}</Button>}
+                          <SubmissionReviewEditor submission={submission} />
                         </div>)}
                     </div>}
                   </CardContent>

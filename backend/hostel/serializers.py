@@ -7,6 +7,7 @@ class HostelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Hostel
         fields = ['id', 'name', 'hostel_type', 'capacity', 'occupied', 'warden', 'phone']
+        read_only_fields = ['occupied']
 
 
 class RoomSerializer(serializers.ModelSerializer):
@@ -15,6 +16,7 @@ class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
         fields = ['id', 'hostel', 'hostel_name', 'room_code', 'beds', 'occupied']
+        read_only_fields = ['occupied']
 
 
 class RoomStudentSerializer(serializers.ModelSerializer):

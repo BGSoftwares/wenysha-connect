@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Max, Sum
 from django.utils import timezone
 from rest_framework import viewsets, status, permissions
 from rest_framework.exceptions import PermissionDenied
@@ -92,37 +92,42 @@ class BalancesViewSet(viewsets.ViewSet):
     """List student balances (derived from invoices and payments)."""
 
     def list(self, request):
-        students = Student.objects.select_related('school_class').all()
+        students = Student.objects.all()
         if portal_role(request.user) not in {'admin', 'accounts'}:
             students = students.filter(pk__in=_student_ids_for_user(request.user))
+        student_ids = list(students.values_list('pk', flat=True))
+        invoice_totals = Invoice.objects.filter(student_id__in=student_ids).values(
+            'student_id', 'student__student_id', 'student__name',
+            'student__school_class__name', 'currency',
+        ).annotate(total_billed=Sum('amount'), total_paid=Sum('paid'))
+        payment_dates = {
+            (row['invoice__student_id'], row['invoice__currency']): row['last_payment']
+            for row in Payment.objects.filter(invoice__student_id__in=student_ids)
+            .values('invoice__student_id', 'invoice__currency')
+            .annotate(last_payment=Max('date'))
+        }
         balances = []
-        for s in students:
-            currencies = Invoice.objects.filter(student=s).values_list('currency', flat=True).distinct()
-            for currency in currencies:
-                inv_agg = Invoice.objects.filter(student=s, currency=currency).aggregate(
-                    total_billed=Sum('amount'), total_paid=Sum('paid')
-                )
-                total_billed = inv_agg['total_billed'] or Decimal('0')
-                total_paid = inv_agg['total_paid'] or Decimal('0')
-                balance = total_billed - total_paid
-                last_payment = Payment.objects.filter(invoice__student=s, invoice__currency=currency).order_by('-date').first()
-                last_payment_str = last_payment.date.isoformat() if last_payment else '-'
-                if balance <= 0 and total_billed > 0:
-                    status_str = 'cleared' if balance == 0 else 'overpaid'
-                else:
-                    status_str = 'owing'
-                balances.append({
-                    'id': s.id,
-                    'student_id': s.student_id,
-                    'student': s.name,
-                    'class_name': s.school_class.name if s.school_class else '',
-                    'currency': currency,
-                    'totalBilled': total_billed,
-                    'totalPaid': total_paid,
-                    'balance': balance,
-                    'lastPayment': last_payment_str,
-                    'status': status_str,
-                })
+        for row in invoice_totals:
+            total_billed = row['total_billed'] or Decimal('0')
+            total_paid = row['total_paid'] or Decimal('0')
+            balance = total_billed - total_paid
+            last_payment = payment_dates.get((row['student_id'], row['currency']))
+            if balance <= 0 and total_billed > 0:
+                status_str = 'cleared' if balance == 0 else 'overpaid'
+            else:
+                status_str = 'owing'
+            balances.append({
+                'id': row['student_id'],
+                'student_id': row['student__student_id'],
+                'student': row['student__name'],
+                'class_name': row['student__school_class__name'] or '',
+                'currency': row['currency'],
+                'totalBilled': total_billed,
+                'totalPaid': total_paid,
+                'balance': balance,
+                'lastPayment': last_payment.isoformat() if last_payment else '-',
+                'status': status_str,
+            })
         ser = StudentBalanceSerializer(balances, many=True)
         return Response(ser.data)
 

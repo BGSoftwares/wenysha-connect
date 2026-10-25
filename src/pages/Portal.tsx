@@ -107,7 +107,7 @@ const Portal = () => {
                 <form onSubmit={handleLogin} className="space-y-5">
                   <div>
                     <label className="block text-sm font-bold text-primary mb-2">
-                      Email Address
+                      Email Address or Username
                     </label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />

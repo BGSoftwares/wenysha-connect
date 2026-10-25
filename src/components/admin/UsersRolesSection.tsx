@@ -7,6 +7,7 @@ import { fetchAllPages } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { normalizePortalRole } from "@/lib/portalRoles";
 
 type Role = { id: number; name: string; description: string; permissions: string[]; users_count: number };
 type Account = {
@@ -94,6 +95,9 @@ const UsersRolesSection = ({ activeSubNav }: { activeSubNav: string }) => {
 
   const accounts = accountsQuery.data ?? emptyAccounts;
   const roles = rolesQuery.data ?? emptyRoles;
+  const selectedRole = accountDraft ? roles.find(role => String(role.id) === accountDraft.role) : undefined;
+  const selectedRoleName = selectedRole?.name ?? accounts.find(account => account.id === accountDraft?.id)?.role_name;
+  const requiresEmail = Boolean(accountDraft?.role) && normalizePortalRole(selectedRoleName) !== "student";
   const filteredAccounts = useMemo(() => accounts.filter(account =>
     `${account.full_name} ${account.username} ${account.email} ${account.role_name} ${account.phone}`.toLowerCase().includes(search.toLowerCase()),
   ), [accounts, search]);
@@ -146,13 +150,13 @@ const UsersRolesSection = ({ activeSubNav }: { activeSubNav: string }) => {
 
       {accountDraft && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setAccountDraft(null)}><div className="max-h-[90vh] w-full max-w-md space-y-4 overflow-y-auto rounded-xl bg-card p-6" onClick={event => event.stopPropagation()}>
         <div><h3 className="text-xl font-bold">{accountDraft.id ? "Edit Account" : "Create Account"}</h3><p className="mt-1 text-sm text-muted-foreground">Passwords are securely stored and cannot be viewed. Set a new password here to reset it.</p></div>
-        <label className="block text-sm">Full name<Input autoComplete="name" value={accountDraft.full_name} onChange={event => updateDraft("full_name", event.target.value)} /></label>
-        <label className="block text-sm">Username<Input autoComplete="username" value={accountDraft.username} onChange={event => updateDraft("username", event.target.value)} /></label>
-        <label className="block text-sm">Email<Input type="email" autoComplete="email" value={accountDraft.email} onChange={event => updateDraft("email", event.target.value)} /></label>
+        <label className="block text-sm">Full name<Input autoComplete="name" required value={accountDraft.full_name} onChange={event => updateDraft("full_name", event.target.value)} /></label>
+        <label className="block text-sm">Username<Input autoComplete="username" required value={accountDraft.username} onChange={event => updateDraft("username", event.target.value)} /></label>
+        <label className="block text-sm">Email{requiresEmail ? "" : " (optional for student accounts)"}<Input type="email" autoComplete="email" required={requiresEmail} value={accountDraft.email} onChange={event => updateDraft("email", event.target.value)} /></label>
         <label className="block text-sm">Role<select className="mt-1 w-full rounded-lg border bg-background p-2" value={accountDraft.role} onChange={event => updateDraft("role", event.target.value)}><option value="">Select role</option>{roles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
         <label className="block text-sm">{accountDraft.id ? "Set new password" : "Initial password"}<Input type="password" autoComplete="new-password" minLength={8} value={accountDraft.password} onChange={event => updateDraft("password", event.target.value)} placeholder={accountDraft.id ? "Leave blank to keep current password" : "At least 8 characters"} /></label>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={accountDraft.is_active} onChange={event => updateDraft("is_active", event.target.checked)} />Account active</label>
-        <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setAccountDraft(null)}>Cancel</Button><Button variant="gold" disabled={saveAccount.isPending || !accountDraft.username.trim() || !accountDraft.email.trim() || !accountDraft.role || (!accountDraft.id && accountDraft.password.length < 8) || (Boolean(accountDraft.password) && accountDraft.password.length < 8)} onClick={() => saveAccount.mutate(accountDraft)}>{saveAccount.isPending ? "Saving…" : accountDraft.id ? "Save / Reset Password" : "Create Account"}</Button></div>
+        <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setAccountDraft(null)}>Cancel</Button><Button variant="gold" disabled={saveAccount.isPending || !accountDraft.full_name.trim() || !accountDraft.username.trim() || (requiresEmail && !accountDraft.email.trim()) || !accountDraft.role || (!accountDraft.id && accountDraft.password.length < 8) || (Boolean(accountDraft.password) && accountDraft.password.length < 8)} onClick={() => saveAccount.mutate(accountDraft)}>{saveAccount.isPending ? "Saving…" : accountDraft.id ? "Save / Reset Password" : "Create Account"}</Button></div>
       </div></div>}
 
       {roleDraft && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setRoleDraft(null)}><div className="w-full max-w-md space-y-4 rounded-xl bg-card p-6" onClick={event => event.stopPropagation()}>

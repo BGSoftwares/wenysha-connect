@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.db import transaction
 from .models import Role, UserProfile, PendingApproval
+from .roles import normalize_role_name
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -13,6 +15,15 @@ class RoleSerializer(serializers.ModelSerializer):
     def get_users_count(self, obj):
         return UserProfile.objects.filter(role=obj).count()
 
+    def validate_name(self, value):
+        value = value.strip()
+        existing = Role.objects.filter(name__iexact=value)
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise serializers.ValidationError('A role with this name already exists.')
+        return value
+
 
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
@@ -20,10 +31,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ['id', 'user', 'email', 'role', 'role_name', 'full_name']
+        fields = ['id', 'user', 'email', 'role', 'role_name', 'full_name', 'preferences']
 
 
 class AdminAccountSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=False, allow_blank=True)
     full_name = serializers.CharField(max_length=255, required=False, allow_blank=True, write_only=True)
     role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), required=False, allow_null=True, write_only=True)
     role_name = serializers.SerializerMethodField()
@@ -63,6 +75,9 @@ class AdminAccountSerializer(serializers.ModelSerializer):
         return data
 
     def validate_email(self, value):
+        value = value.strip().casefold()
+        if not value:
+            return value
         existing = User.objects.filter(email__iexact=value)
         if self.instance:
             existing = existing.exclude(pk=self.instance.pk)
@@ -70,13 +85,53 @@ class AdminAccountSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('A user with this email already exists.')
         return value
 
+    def validate_username(self, value):
+        value = value.strip()
+        existing = User.objects.filter(username__iexact=value)
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise serializers.ValidationError('A user with this username already exists.')
+        return value
+
     def validate(self, attrs):
-        if self.instance is None and not attrs.get('password'):
+        creating = self.instance is None
+        role = attrs.get('role', None)
+        email = attrs.get('email', self.instance.email if self.instance else '')
+        full_name = attrs.get('full_name', '')
+
+        if creating and not attrs.get('password'):
             raise serializers.ValidationError({'password': 'A password is required when creating an account.'})
-        if self.instance is None and not attrs.get('role'):
+        if creating and not full_name.strip():
+            raise serializers.ValidationError({'full_name': 'Enter the account holder’s full name.'})
+        if creating and role is None:
             raise serializers.ValidationError({'role': 'Select a role when creating an account.'})
+        if not creating and 'role' in attrs and role is None:
+            raise serializers.ValidationError({'role': 'An account must have an assigned role.'})
+
+        effective_role = role
+        if effective_role is None and self.instance:
+            try:
+                effective_role = self.instance.profile.role
+            except UserProfile.DoesNotExist:
+                effective_role = None
+        if effective_role and normalize_role_name(effective_role.name) != 'student' and not email:
+            raise serializers.ValidationError({'email': 'Email is required for non-student accounts.'})
+
+        request = self.context.get('request')
+        if (
+            not creating
+            and request
+            and request.user.pk == self.instance.pk
+            and not (self.instance.is_staff or self.instance.is_superuser)
+        ):
+            if attrs.get('is_active', self.instance.is_active) is False:
+                raise serializers.ValidationError({'is_active': 'You cannot deactivate the administrator account you are using.'})
+            if role is not None and normalize_role_name(role.name) != 'admin':
+                raise serializers.ValidationError({'role': 'You cannot remove administrator access from the account you are using.'})
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
         full_name = validated_data.pop('full_name', '')
         role = validated_data.pop('role')
@@ -87,6 +142,7 @@ class AdminAccountSerializer(serializers.ModelSerializer):
         sync_linked_portal_records(user, full_name, user.email)
         return user
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         full_name = validated_data.pop('full_name', serializers.empty)
         role = validated_data.pop('role', serializers.empty)
@@ -139,9 +195,10 @@ class SignUpSerializer(serializers.Serializer):
     def validate(self, data):
         if data['password'] != data['confirm_password']:
             raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
-        if User.objects.filter(email=data['email']).exists():
+        data['email'] = data['email'].strip().casefold()
+        if User.objects.filter(email__iexact=data['email']).exists():
             raise serializers.ValidationError({'email': 'A user with this email already exists.'})
-        if PendingApproval.objects.filter(email=data['email'], status='pending').exists():
+        if PendingApproval.objects.filter(email__iexact=data['email'], status='pending').exists():
             raise serializers.ValidationError({'email': 'A pending request with this email already exists.'})
         return data
 

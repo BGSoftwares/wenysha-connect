@@ -10,7 +10,6 @@ import {
     CheckCircle2,
     Clock,
     AlertCircle,
-    ChevronRight,
     User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,12 +19,12 @@ import {
     useStudents,
     useGrades,
     useAttendanceRecords,
-    useStudentFees,
-    useInvoices
+    useInvoices,
+    usePayments,
 } from "@/lib/hooks";
-import { calculateGrade } from "@/lib/grading";
 import { getStoredUser } from "@/lib/api";
 import { api, getErrorMessage } from "@/lib/api";
+import { formatMoney, formatSchoolDate } from "@/lib/finance";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -33,6 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import NotificationsFeed from "@/components/dashboard/NotificationsFeed";
 import ProfileSection from "@/components/admin/ProfileSection";
+import ParentELearningSection from "@/components/parent/ParentELearningSection";
 
 const ParentPortal = () => {
     const { data: parentProfile, isLoading: isLoadingParent } = useParentProfile();
@@ -41,6 +41,7 @@ const ParentPortal = () => {
     const { data: parentLinks } = useStudentParentLinks(
         parentProfile ? { parent: parentProfile.id } : undefined
     );
+    const { data: linkedStudents = [] } = useStudents();
 
     const studentIds = useMemo(() => parentLinks?.map(link => link.student) || [], [parentLinks]);
     const [selectedChildId, setSelectedChildId] = useState<number | null>(null);
@@ -84,13 +85,19 @@ const ParentPortal = () => {
     const { data: attendance = [] } = useAttendanceRecords(
         selectedChildId ? { student: selectedChildId } : undefined
     );
-    const { data: fees = [] } = useStudentFees(
-        selectedChildId ? { student: selectedChildId } : undefined
+    const { data: invoices = [] } = useInvoices(
+        { student: selectedChildId || 0 }
+    );
+    const { data: payments = [] } = usePayments(
+        { student: selectedChildId || 0 }
     );
 
     const selectedChild = useMemo(() =>
         parentLinks?.find(link => link.student === selectedChildId),
         [parentLinks, selectedChildId]);
+    const selectedStudent = useMemo(() =>
+        linkedStudents.find(student => student.id === selectedChildId),
+        [linkedStudents, selectedChildId]);
 
     // Summary calculations
     const averageScore = useMemo(() => {
@@ -104,10 +111,11 @@ const ParentPortal = () => {
         return (present / attendance.length) * 100;
     }, [attendance]);
 
-    const pendingFees = useMemo(() => {
-        if (!fees) return 0;
-        return fees.filter(f => f.status !== 'Paid').reduce((acc, f) => acc + (f.amount_due - f.amount_paid), 0);
-    }, [fees]);
+    const pendingBalances = useMemo(() => invoices.reduce<Record<string, number>>((totals, invoice) => {
+        totals[invoice.currency] = (totals[invoice.currency] || 0) + Math.max(0, Number(invoice.amount) - Number(invoice.paid));
+        return totals;
+    }, {}), [invoices]);
+    const hasPendingFees = Object.values(pendingBalances).some(amount => amount > 0);
 
     if (!isParent) {
         return (
@@ -236,20 +244,22 @@ const ParentPortal = () => {
                                                     <div className="h-12 w-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
                                                         <CreditCard className="h-6 w-6 text-amber-600" />
                                                     </div>
-                                                    <Badge variant={pendingFees > 0 ? "destructive" : "default"} className={pendingFees === 0 ? "bg-green-100 text-green-700" : ""}>
-                                                        {pendingFees === 0 ? "Cleared" : "Attention"}
+                                                    <Badge variant={hasPendingFees ? "destructive" : "default"} className={!hasPendingFees ? "bg-green-100 text-green-700" : ""}>
+                                                        {hasPendingFees ? "Attention" : "Cleared"}
                                                     </Badge>
                                                 </div>
                                                 <h3 className="text-muted-foreground text-sm font-medium">Outstanding Balance</h3>
-                                                <p className="text-3xl font-black text-foreground mt-1">${pendingFees.toFixed(2)}</p>
-                                                <p className="text-xs text-muted-foreground mt-2">Term 1 2024</p>
+                                                {Object.entries(pendingBalances).length > 0
+                                                    ? Object.entries(pendingBalances).map(([currency, amount]) => <p key={currency} className="text-xl font-black text-foreground mt-1">{formatMoney(amount, currency as "USD" | "ZWG")}</p>)
+                                                    : <p className="text-3xl font-black text-foreground mt-1">{formatMoney(0)}</p>}
+                                                <p className="text-xs text-muted-foreground mt-2">Live Accounts balance</p>
                                             </CardContent>
                                         </Card>
                                     </div>
 
                                     {/* Detailed Sections */}
                                     <Tabs defaultValue="academics" className="space-y-6">
-                                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl bg-secondary/40 p-1 sm:grid-cols-4">
+                                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl bg-secondary/40 p-1 sm:grid-cols-3 xl:grid-cols-5">
                                             <TabsTrigger value="academics" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
                                                 <FileText className="h-4 w-4 mr-2" />
                                                 Recent Grades
@@ -261,6 +271,10 @@ const ParentPortal = () => {
                                             <TabsTrigger value="fees" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
                                                 <CreditCard className="h-4 w-4 mr-2" />
                                                 Financials
+                                            </TabsTrigger>
+                                            <TabsTrigger value="elearning" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
+                                                <FileText className="h-4 w-4 mr-2" />
+                                                E-Learning
                                             </TabsTrigger>
                                             <TabsTrigger value="profile" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
                                                 <User className="h-4 w-4 mr-2" />
@@ -371,59 +385,51 @@ const ParentPortal = () => {
                                             <Card className="rounded-3xl border-border shadow-md">
                                                 <CardHeader>
                                                     <CardTitle>Student Fees & Financials</CardTitle>
-                                                    <CardDescription>Track payments and outstanding balances</CardDescription>
+                                                    <CardDescription>Live invoices and recorded payments from the school Accounts portal</CardDescription>
                                                 </CardHeader>
                                                 <CardContent>
                                                     <div className="space-y-6">
-                                                        {fees?.map(f => (
-                                                            <div key={f.id} className="p-6 rounded-2xl border border-border bg-background hover:shadow-lg transition-all">
-                                                                <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
+                                                        {invoices.map(invoice => {
+                                                            const balance = Math.max(0, Number(invoice.amount) - Number(invoice.paid));
+                                                            const progress = Number(invoice.amount) > 0 ? Math.min(100, Number(invoice.paid) / Number(invoice.amount) * 100) : 0;
+                                                            return <div key={invoice.id} className="space-y-4 rounded-2xl border border-border bg-background p-6 transition-all hover:shadow-lg">
+                                                                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                                                                     <div>
-                                                                        <h4 className="font-bold text-lg text-foreground">{f.fee_name}</h4>
-                                                                        <div className="flex items-center gap-3 mt-1">
-                                                                            <Badge variant={f.status === 'Paid' ? 'default' : f.status === 'Partial' ? 'secondary' : 'destructive'} className={f.status === 'Paid' ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}>
-                                                                                {f.status}
-                                                                            </Badge>
-                                                                            <span className="text-sm text-muted-foreground">Due Date: Mar 15, 2024</span>
+                                                                        <h4 className="text-lg font-bold text-foreground">{invoice.invoice_no}</h4>
+                                                                        <div className="mt-1 flex flex-wrap items-center gap-3">
+                                                                            <Badge variant="outline" className={invoice.status === "paid" ? "border-green-200 bg-green-100 text-green-700" : invoice.status === "partial" ? "border-amber-200 bg-amber-100 text-amber-700" : "border-red-200 bg-red-100 text-red-700"}>{invoice.status}</Badge>
+                                                                            <span className="text-sm text-muted-foreground">{invoice.term} · Issued {formatSchoolDate(invoice.date)}</span>
                                                                         </div>
                                                                     </div>
-                                                                    <div className="text-right w-full md:w-auto">
-                                                                        <div className="flex justify-between md:justify-end gap-8 mb-2">
-                                                                            <div className="text-left md:text-right">
-                                                                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Amount Due</p>
-                                                                                <p className="font-bold text-foreground text-lg">${Number(f.amount_due).toFixed(2)}</p>
-                                                                            </div>
-                                                                            <div className="hidden sm:block text-right">
-                                                                                <p className="text-sm font-medium text-foreground">{parentProfile.name}</p>
-                                                                                <p className="text-xs text-muted-foreground">Parent Account</p>
-                                                                            </div>
-                                                                            <div className="text-left md:text-right">
-                                                                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Paid</p>
-                                                                                <p className="font-bold text-green-600 text-lg">${Number(f.amount_paid).toFixed(2)}</p>
-                                                                            </div>
-                                                                        </div>
-                                                                        {f.status !== 'Paid' && (
-                                                                            <p className="text-sm text-muted-foreground">Please contact the accounts office to arrange payment.</p>
-                                                                        )}
+                                                                    <div className="grid grid-cols-3 gap-4 text-right">
+                                                                        <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Billed</p><p className="font-semibold">{formatMoney(invoice.amount, invoice.currency)}</p></div>
+                                                                        <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Paid</p><p className="font-semibold text-green-700">{formatMoney(invoice.paid, invoice.currency)}</p></div>
+                                                                        <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Balance</p><p className="font-semibold">{formatMoney(balance, invoice.currency)}</p></div>
                                                                     </div>
                                                                 </div>
-                                                                {f.status === 'Partial' && (
-                                                                    <div className="mt-6">
-                                                                        <div className="flex justify-between text-xs font-medium mb-1.5 px-1">
-                                                                            <span>Payment Progress</span>
-                                                                            <span>{((f.amount_paid / f.amount_due) * 100).toFixed(0)}%</span>
-                                                                        </div>
-                                                                        <Progress value={(f.amount_paid / f.amount_due) * 100} className="h-3 bg-secondary" />
-                                                                    </div>
-                                                                )}
+                                                                <div className="flex items-center gap-3"><Progress value={progress} className="h-2 bg-secondary" /><span className="w-12 text-right text-xs text-muted-foreground">{progress.toFixed(0)}%</span></div>
+                                                            </div>;
+                                                        })}
+                                                        {!invoices.length && <div className="py-8 text-center text-muted-foreground">No Accounts invoices found for this student.</div>}
+                                                        <div className="border-t border-border pt-5">
+                                                            <h4 className="mb-3 font-semibold">Recorded payments</h4>
+                                                            <div className="divide-y divide-border rounded-xl border border-border">
+                                                                {payments.map(payment => <div key={payment.id} className="flex flex-wrap items-center gap-3 p-4">
+                                                                    <div className="min-w-0 flex-1"><p className="font-medium">{payment.method} · {payment.invoice_no}</p><p className="text-xs text-muted-foreground">{formatSchoolDate(payment.date)} · Receipt {payment.receipt_no}{payment.recorded_by_name ? ` · Recorded by ${payment.recorded_by_name}` : ""}</p></div>
+                                                                    <p className="font-semibold text-green-700">{formatMoney(payment.amount, payment.currency)}</p>
+                                                                </div>)}
+                                                                {!payments.length && <div className="p-5 text-center text-sm text-muted-foreground">No recorded payments yet.</div>}
                                                             </div>
-                                                        ))}
-                                                        {(!fees || fees.length === 0) && (
-                                                            <div className="py-12 text-center text-muted-foreground">No fee records found.</div>
-                                                        )}
+                                                        </div>
                                                     </div>
                                                 </CardContent>
                                             </Card>
+                                        </TabsContent>
+
+                                        <TabsContent value="elearning">
+                                            {selectedStudent?.class_name
+                                                ? <ParentELearningSection studentId={selectedStudent.id} className={selectedStudent.class_name} />
+                                                : <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">Student class information is not available yet.</CardContent></Card>}
                                         </TabsContent>
 
                                         <TabsContent value="profile"><Card className="rounded-3xl border-border p-5 shadow-md sm:p-8"><ProfileSection /></Card></TabsContent>

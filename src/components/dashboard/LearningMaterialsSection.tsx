@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Edit, Eye, FileText, Trash2, Upload } from "lucide-react";
+import { Download, Edit, FileText, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getErrorMessage, getStoredUser } from "@/lib/api";
+import { downloadAuthenticatedFile, getErrorMessage, getStoredUser } from "@/lib/api";
 import {
   useCreateLearningMaterial,
   useDeleteLearningMaterial,
@@ -23,12 +23,14 @@ interface Props {
   uploadedBy: string;
   emptyHint?: string;
   visibility?: "class" | "staff";
+  filterVisibility?: "class" | "staff" | "all";
   canManageAll?: boolean;
   allowedPairs?: TeachingPair[];
 }
 
-const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, visibility = "class", canManageAll = false, allowedPairs }: Props) => {
-  const { data: learningMaterials = [] } = useLearningMaterials({ visibility });
+const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, visibility = "class", filterVisibility, canManageAll = false, allowedPairs }: Props) => {
+  const queryVisibility = filterVisibility ?? visibility;
+  const { data: learningMaterials = [] } = useLearningMaterials(queryVisibility === "all" ? undefined : { visibility: queryVisibility });
   const createMaterial = useCreateLearningMaterial();
   const updateMaterial = useUpdateLearningMaterial();
   const deleteMaterial = useDeleteLearningMaterial();
@@ -39,6 +41,14 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
   const [fileInputVersion, setFileInputVersion] = useState(0);
   const currentUser = getStoredUser();
 
+  const downloadMaterial = async (material: LearningMaterial) => {
+    try {
+      await downloadAuthenticatedFile(material.file_url, material.file_name || material.title);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
   const classNames = new Set(classes.map((item) => item.name));
   const subjectNames = new Set(subjects.map((item) => item.name));
   const subjectsForClass = (className: string) => {
@@ -47,6 +57,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
     return subjects.filter((subject) => allowed.has(subject.name));
   };
   const visible = learningMaterials.filter((material) => {
+    if (queryVisibility === "all") return true;
     const matchesClass = classNames.size === 0 || classNames.has(material.class_name);
     const matchesSubject = subjectNames.size === 0 || subjectNames.has(material.subject_name);
     const matchesPair = !allowedPairs || allowedPairs.some((pair) => pair.class_name === material.class_name && pair.subject_name === material.subject_name);
@@ -116,9 +127,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
                 <span className="text-sm text-muted-foreground">Uploaded by {material.uploaded_by || "staff"}</span>
                 <div className="flex gap-2">
                   {material.file_url ? (
-                    <a href={material.file_url} target="_blank" rel="noreferrer">
-                      <Button variant="outline" size="sm" aria-label={`View ${material.title}`}><Eye className="h-4 w-4" /></Button>
-                    </a>
+                    <Button variant="outline" size="sm" aria-label={`Download ${material.title}`} onClick={() => void downloadMaterial(material)}><Download className="mr-1 h-4 w-4" />Download</Button>
                   ) : null}
                   {(canManageAll || material.uploaded_by_user === currentUser?.id) && <>
                     <Button variant="outline" size="sm" aria-label={`Edit ${material.title}`} onClick={() => { setEditing({ ...material }); setReplacementFile(null); }}>
@@ -286,7 +295,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
                         title: editing.title,
                         class_name: editing.class_name,
                         subject_name: editing.subject_name,
-                        visibility,
+                        visibility: editing.visibility || visibility,
                         file: replacementFile || undefined,
                       },
                     });

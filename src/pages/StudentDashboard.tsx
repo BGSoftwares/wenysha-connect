@@ -30,10 +30,13 @@ import {
   useStudentProfile,
   useGrades,
   useAttendanceRecords,
-  useStudentFees,
+  useInvoices,
   useTimetable,
+  useLearningAssignments,
+  useLearningSubmissions,
 } from "@/lib/hooks";
 import { clearAuth, getStoredUser } from "@/lib/api";
+import { formatMoney, type FinanceCurrency } from "@/lib/finance";
 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
@@ -54,8 +57,15 @@ const StudentDashboard = () => {
   const { data: profile, isLoading: isLoadingProfile } = useStudentProfile();
   const { data: grades = [] } = useGrades({ student: profile?.id });
   const { data: attendance = [] } = useAttendanceRecords({ student: profile?.id });
-  const { data: fees = [] } = useStudentFees({ student: profile?.id });
+  const { data: invoices = [] } = useInvoices({ student: profile?.id || 0 });
   const { data: timetable = [] } = useTimetable(profile?.school_class);
+  const { data: learningAssignments = [] } = useLearningAssignments();
+  const { data: learningSubmissions = [] } = useLearningSubmissions();
+
+  const outstandingAssignments = useMemo(() => learningAssignments
+    .filter(assignment => assignment.class_name === profile?.class_name
+      && !learningSubmissions.some(submission => submission.assignment === assignment.id))
+    .slice(0, 3), [learningAssignments, learningSubmissions, profile?.class_name]);
 
   const averageGrade = useMemo(() => {
     if (!grades.length) return 0;
@@ -68,19 +78,20 @@ const StudentDashboard = () => {
     return ((presentCount / attendance.length) * 100).toFixed(0);
   }, [attendance]);
 
-  const totalFeesDue = useMemo(() => {
-    return fees.reduce((acc, f) => acc + (Number(f.amount_due) - Number(f.amount_paid)), 0);
-  }, [fees]);
-
-  const totalPaid = useMemo(() => {
-    return fees.reduce((acc, f) => acc + Number(f.amount_paid), 0);
-  }, [fees]);
-
-  const totalBilled = useMemo(() => {
-    return fees.reduce((acc, f) => acc + Number(f.amount_due), 0);
-  }, [fees]);
-
-  const resultsLocked = totalFeesDue > 0;
+  const financeTotals = useMemo(() => invoices.reduce<Record<string, { billed: number; paid: number; balance: number }>>((totals, invoice) => {
+    const currency = invoice.currency;
+    const total = totals[currency] || { billed: 0, paid: 0, balance: 0 };
+    total.billed += Number(invoice.amount);
+    total.paid += Number(invoice.paid);
+    total.balance += Math.max(0, Number(invoice.amount) - Number(invoice.paid));
+    totals[currency] = total;
+    return totals;
+  }, {}), [invoices]);
+  const resultsLocked = Object.values(financeTotals).some(total => total.balance > 0);
+  const outstandingBalanceLabel = Object.entries(financeTotals)
+    .filter(([, total]) => total.balance > 0)
+    .map(([currency, total]) => formatMoney(total.balance, currency as FinanceCurrency))
+    .join(" · ") || formatMoney(0);
 
   // Require authentication
   if (!user) {
@@ -218,12 +229,14 @@ const StudentDashboard = () => {
         <div className="bg-card rounded-xl border border-border p-5">
           <p className="text-sm text-muted-foreground mb-1">Fees Balance</p>
           <div className="flex items-center justify-between">
-            <span className="text-3xl font-bold text-foreground">${totalFeesDue}</span>
+            <div className="space-y-1">{Object.entries(financeTotals).length
+              ? Object.entries(financeTotals).map(([currency, totals]) => <span key={currency} className="block text-xl font-bold text-foreground">{formatMoney(totals.balance, currency as FinanceCurrency)}</span>)
+              : <span className="text-3xl font-bold text-foreground">{formatMoney(0)}</span>}</div>
             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
               <DollarSign className="h-5 w-5 text-blue-600" />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">${totalPaid} paid of ${totalBilled}</p>
+          <div className="mt-2 space-y-1">{Object.entries(financeTotals).map(([currency, totals]) => <p key={currency} className="text-xs text-muted-foreground">{formatMoney(totals.paid, currency as FinanceCurrency)} paid of {formatMoney(totals.billed, currency as FinanceCurrency)}</p>)}</div>
         </div>
       </div>
 
@@ -274,7 +287,12 @@ const StudentDashboard = () => {
             View All
           </button>
         </div>
-        <p className="text-sm text-muted-foreground">Assignments will appear here when teachers publish them.</p>
+        {outstandingAssignments.length > 0
+          ? <div className="space-y-3">{outstandingAssignments.map(assignment => <button key={assignment.id} onClick={() => setActiveNav("elearning")} className="flex w-full items-center justify-between gap-3 rounded-lg border border-border p-4 text-left transition-colors hover:bg-secondary/40">
+            <div className="min-w-0"><p className="truncate font-medium text-foreground">{assignment.title}</p><p className="text-xs text-muted-foreground">{assignment.subject_name} · {assignment.teacher_name}</p></div>
+            <span className="shrink-0 text-right text-xs text-muted-foreground">{assignment.due_at ? `Due ${new Date(assignment.due_at).toLocaleDateString()}` : "No due date"}</span>
+          </button>)}</div>
+          : <p className="text-sm text-muted-foreground">{learningAssignments.some(assignment => assignment.class_name === profile?.class_name) ? "You are up to date with your current assignments." : "Assignments will appear here when your teachers publish them."}</p>}
       </div>
     </div>
   );
@@ -288,7 +306,7 @@ const StudentDashboard = () => {
           </div>
           <h3 className="font-heading text-2xl font-bold text-foreground mb-2">Results Are Locked</h3>
           <p className="text-muted-foreground mb-4">
-            Academic results and the report card are currently hidden because the account has an outstanding balance of ${totalFeesDue.toFixed(2)}.
+            Academic results and the report card are currently hidden because the account has an outstanding balance of {outstandingBalanceLabel}.
           </p>
           <p className="text-sm text-muted-foreground">Please clear your account balance in the fees section before viewing results.</p>
         </div>

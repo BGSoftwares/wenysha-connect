@@ -1,9 +1,16 @@
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-from .models import SchoolClass, Teacher, Subject, Student, TeacherSubjectClass
+from core.roles import is_admin, portal_role, teacher_class_ids
+from parents.models import StudentParent
+from .models import (
+    SchoolClass, Teacher, Subject, Student, TeacherSubjectClass,
+    Assessment, Grade, StudentFee, Attendance, Timetable,
+)
 from .serializers import (
     SchoolClassSerializer,
     TeacherSerializer,
@@ -107,14 +114,30 @@ class StudentViewSet(viewsets.ModelViewSet):
         from core.roles import is_admin
 
         school_class = serializer.validated_data.get('school_class')
+        role = portal_role(self.request.user)
         if not is_admin(self.request.user) and not self._is_class_teacher_for(school_class):
             raise PermissionDenied('Only the assigned class teacher can add students to this class.')
-        serializer.save()
+        if role == 'teacher' and not serializer.validated_data.get('next_of_kin_details'):
+            raise ValidationError({'next_of_kin_details': 'Next of kin details are required when a teacher enrolls a student.'})
+        self.created_student = serializer.save()
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        student = getattr(self, 'created_student', None)
+        temporary_password = getattr(student, '_portal_temporary_password', None)
+        if student and temporary_password:
+            response.data['portal_credentials'] = {
+                'username': student.user.username,
+                'temporary_password': temporary_password,
+            }
+        return response
 
     def perform_update(self, serializer):
         from core.roles import is_admin
 
         if not is_admin(self.request.user):
+            if 'user' in serializer.validated_data:
+                raise PermissionDenied('Only an administrator can link a student portal account.')
             current_class = self.get_object().school_class
             target_class = serializer.validated_data.get('school_class', current_class)
             if not self._is_class_teacher_for(current_class) or not self._is_class_teacher_for(target_class):
@@ -211,6 +234,63 @@ class GradeViewSet(viewsets.ModelViewSet):
     serializer_class = GradeSerializer
     filterset_fields = ['student', 'assessment']
 
+    def get_queryset(self):
+        user = self.request.user
+        queryset = super().get_queryset()
+        role = portal_role(user)
+        if is_admin(user):
+            return queryset
+        if role == 'student':
+            return queryset.filter(student__user=user)
+        if role == 'parent':
+            linked_ids = StudentParent.objects.filter(parent__user=user).values_list('student_id', flat=True)
+            return queryset.filter(student_id__in=linked_ids)
+        if role == 'teacher':
+            class_teacher_ids = SchoolClass.objects.filter(class_teacher__user=user).values_list('id', flat=True)
+            allocations = TeacherSubjectClass.objects.filter(teacher__user=user)
+            return queryset.filter(
+                Q(assessment__school_class_id__in=class_teacher_ids)
+                | Q(
+                    assessment__school_class_id__in=allocations.values('school_class_id'),
+                    assessment__subject_id__in=allocations.values('subject_id'),
+                )
+            )
+        return queryset.none()
+
+    def _validate_grade_write(self, student, assessment):
+        user = self.request.user
+        if not (is_admin(user) or portal_role(user) == 'teacher'):
+            raise PermissionDenied('Only teachers and administrators can change academic grades.')
+        if student.school_class_id != assessment.school_class_id:
+            raise PermissionDenied('A student can only receive a grade for an assessment in their class.')
+        if portal_role(user) == 'teacher':
+            is_class_teacher = SchoolClass.objects.filter(
+                pk=assessment.school_class_id, class_teacher__user=user
+            ).exists()
+            is_subject_teacher = TeacherSubjectClass.objects.filter(
+                teacher__user=user,
+                school_class_id=assessment.school_class_id,
+                subject_id=assessment.subject_id,
+            ).exists()
+            if not (is_class_teacher or is_subject_teacher):
+                raise PermissionDenied('You can only grade assessments for classes and subjects assigned to you.')
+
+    def perform_create(self, serializer):
+        self._validate_grade_write(serializer.validated_data['student'], serializer.validated_data['assessment'])
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        self._validate_grade_write(
+            serializer.validated_data.get('student', instance.student),
+            serializer.validated_data.get('assessment', instance.assessment),
+        )
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._validate_grade_write(instance.student, instance.assessment)
+        instance.delete()
+
 # --- Fees & Finance Views ---
 
 class FeeStructureViewSet(viewsets.ModelViewSet):
@@ -223,6 +303,35 @@ class StudentFeeViewSet(viewsets.ModelViewSet):
     serializer_class = StudentFeeSerializer
     filterset_fields = ['student', 'status']
 
+    def get_queryset(self):
+        user = self.request.user
+        role = portal_role(user)
+        queryset = super().get_queryset()
+        if is_admin(user) or role == 'accounts':
+            return queryset
+        if role == 'student':
+            return queryset.filter(student__user=user)
+        if role == 'parent':
+            linked_ids = StudentParent.objects.filter(parent__user=user).values_list('student_id', flat=True)
+            return queryset.filter(student_id__in=linked_ids)
+        return queryset.none()
+
+    def _require_finance_staff(self):
+        if not (is_admin(self.request.user) or portal_role(self.request.user) == 'accounts'):
+            raise PermissionDenied('Only accounts staff or administrators can change fee records.')
+
+    def perform_create(self, serializer):
+        self._require_finance_staff()
+        serializer.save()
+
+    def perform_update(self, serializer):
+        self._require_finance_staff()
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._require_finance_staff()
+        instance.delete()
+
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.select_related('student_fee__student', 'student_fee__fee_structure').all().order_by('id')
     serializer_class = PaymentSerializer
@@ -234,6 +343,51 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     queryset = Attendance.objects.select_related('student').all().order_by('id')
     serializer_class = AttendanceSerializer
     filterset_fields = ['student', 'date', 'status']
+
+    def get_queryset(self):
+        user = self.request.user
+        role = portal_role(user)
+        queryset = super().get_queryset()
+        if is_admin(user):
+            return queryset
+        if role == 'student':
+            return queryset.filter(student__user=user)
+        if role == 'parent':
+            linked_ids = StudentParent.objects.filter(parent__user=user).values_list('student_id', flat=True)
+            return queryset.filter(student_id__in=linked_ids)
+        if role == 'teacher':
+            return queryset.filter(student__school_class_id__in=teacher_class_ids(user))
+        return queryset.none()
+
+    def _require_teacher_or_admin(self, student):
+        user = self.request.user
+        if is_admin(user):
+            return
+        if portal_role(user) != 'teacher' or student.school_class_id not in teacher_class_ids(user):
+            raise PermissionDenied('Only an administrator or a teacher assigned to the class can change attendance.')
+
+    def perform_create(self, serializer):
+        self._require_teacher_or_admin(serializer.validated_data['student'])
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        self._require_teacher_or_admin(serializer.validated_data.get('student', instance.student))
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._require_teacher_or_admin(instance.student)
+        instance.delete()
+
+    @action(detail=False, methods=['post'])
+    def bulk(self, request):
+        serializer = self.get_serializer(data=request.data, many=True)
+        serializer.is_valid(raise_exception=True)
+        for record in serializer.validated_data:
+            self._require_teacher_or_admin(record['student'])
+        with transaction.atomic():
+            records = serializer.save()
+        return Response(self.get_serializer(records, many=True).data, status=status.HTTP_201_CREATED)
 
 class TimetableViewSet(viewsets.ModelViewSet):
     queryset = Timetable.objects.select_related('school_class', 'subject', 'teacher').all().order_by('day_of_week', 'period_start')

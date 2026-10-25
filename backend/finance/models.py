@@ -34,6 +34,9 @@ class Invoice(models.Model):
 
     class Meta:
         ordering = ['-date']
+        constraints = [
+            models.CheckConstraint(check=models.Q(amount__gt=0), name='finance_invoice_amount_positive'),
+        ]
 
     def __str__(self):
         return f"{self.invoice_no} - {self.student.name}"
@@ -64,6 +67,9 @@ class Payment(models.Model):
 
     class Meta:
         ordering = ['-date']
+        constraints = [
+            models.CheckConstraint(check=models.Q(amount__gt=0), name='finance_payment_amount_positive'),
+        ]
 
     def __str__(self):
         return f"{self.receipt_no} - {self.amount}"
@@ -148,6 +154,9 @@ class OnlinePayment(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(check=models.Q(amount__gt=0), name='online_payment_amount_positive'),
+        ]
 
     def __str__(self):
         return f"{self.provider} {self.client_reference} - {self.status}"

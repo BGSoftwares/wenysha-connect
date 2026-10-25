@@ -4,17 +4,31 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { StudentPortalCredentialsDialog, type StudentPortalCredentials } from "@/components/admin/StudentPortalCredentials";
 import { getErrorMessage } from "@/lib/api";
 import { useCreateStudent, useDeleteStudent, type SchoolClass, type Student } from "@/lib/hooks";
 
 type Props = { classes: SchoolClass[]; students: Student[] };
-type StudentDraft = { name: string; gender: string; date_of_birth: string; address: string };
-const emptyDraft: StudentDraft = { name: "", gender: "", date_of_birth: "", address: "" };
+type StudentDraft = {
+  name: string;
+  gender: string;
+  date_of_birth: string;
+  address: string;
+  next_of_kin: { name: string; relationship: string; phone: string; email: string; address: string };
+};
+const emptyDraft: StudentDraft = {
+  name: "",
+  gender: "",
+  date_of_birth: "",
+  address: "",
+  next_of_kin: { name: "", relationship: "", phone: "", email: "", address: "" },
+};
 
 const ClassRegisterSection = ({ classes, students }: Props) => {
   const [classId, setClassId] = useState<number | "">(classes[0]?.id ?? "");
   const [draft, setDraft] = useState<StudentDraft>(emptyDraft);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [portalCredentials, setPortalCredentials] = useState<StudentPortalCredentials | null>(null);
   const createStudent = useCreateStudent();
   const deleteStudent = useDeleteStudent();
 
@@ -33,19 +47,31 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
       toast.error("Enter the student's name and select a class.");
       return;
     }
+    if (!draft.next_of_kin.name.trim() || !draft.next_of_kin.relationship.trim() || !draft.next_of_kin.phone.trim()) {
+      toast.error("Enter the next of kin's name, relationship, and phone number.");
+      return;
+    }
     const payload: Partial<Student> = {
       name: draft.name.trim(),
       school_class: selectedClass.id,
       gender: draft.gender,
       status: "Active",
       address: draft.address.trim(),
+      next_of_kin_details: {
+        name: draft.next_of_kin.name.trim(),
+        relationship: draft.next_of_kin.relationship.trim(),
+        phone: draft.next_of_kin.phone.trim(),
+        email: draft.next_of_kin.email.trim(),
+        address: draft.next_of_kin.address.trim(),
+      },
       ...(draft.date_of_birth ? { date_of_birth: draft.date_of_birth } : {}),
     };
     try {
-      await createStudent.mutateAsync(payload);
+      const created = await createStudent.mutateAsync(payload);
       setDraft(emptyDraft);
       setShowAddForm(false);
-      toast.success(`${draft.name.trim()} added to ${selectedClass.name}.`);
+      toast.success(`${created.name} added to ${selectedClass.name} with ID ${created.student_id}.`);
+      if (created.portal_credentials) setPortalCredentials(created.portal_credentials);
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
@@ -94,7 +120,7 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
           </tbody>
         </table></div>}
 
-      {showAddForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowAddForm(false)}><div className="w-full max-w-lg space-y-4 rounded-xl bg-card p-6" onClick={event => event.stopPropagation()}>
+      {showAddForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowAddForm(false)}><div className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-xl bg-card p-6" onClick={event => event.stopPropagation()}>
         <div><h3 className="text-xl font-bold">Add a student</h3><p className="text-sm text-muted-foreground">Class: {selectedClass?.name}. Student ID is generated automatically.</p></div>
         <label className="block text-sm">Full name<Input autoComplete="name" value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -102,8 +128,19 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
           <label className="block text-sm">Date of birth<Input type="date" value={draft.date_of_birth} onChange={event => setDraft({ ...draft, date_of_birth: event.target.value })} /></label>
         </div>
         <label className="block text-sm">Address<Input value={draft.address} onChange={event => setDraft({ ...draft, address: event.target.value })} /></label>
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <div><h4 className="font-semibold">Next of kin</h4><p className="text-xs text-muted-foreground">Name, relationship, and phone number are required.</p></div>
+          <label className="block text-sm">Full name<Input autoComplete="name" required value={draft.next_of_kin.name} onChange={event => setDraft({ ...draft, next_of_kin: { ...draft.next_of_kin, name: event.target.value } })} /></label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm">Relationship<Input required placeholder="Parent, guardian, aunt…" value={draft.next_of_kin.relationship} onChange={event => setDraft({ ...draft, next_of_kin: { ...draft.next_of_kin, relationship: event.target.value } })} /></label>
+            <label className="block text-sm">Phone number<Input autoComplete="tel" type="tel" required value={draft.next_of_kin.phone} onChange={event => setDraft({ ...draft, next_of_kin: { ...draft.next_of_kin, phone: event.target.value } })} /></label>
+          </div>
+          <label className="block text-sm">Email (optional)<Input autoComplete="email" type="email" value={draft.next_of_kin.email} onChange={event => setDraft({ ...draft, next_of_kin: { ...draft.next_of_kin, email: event.target.value } })} /></label>
+          <label className="block text-sm">Address (optional)<Input autoComplete="street-address" value={draft.next_of_kin.address} onChange={event => setDraft({ ...draft, next_of_kin: { ...draft.next_of_kin, address: event.target.value } })} /></label>
+        </div>
         <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowAddForm(false)}>Cancel</Button><Button variant="gold" disabled={!draft.name.trim() || createStudent.isPending} onClick={() => void addStudent()}>{createStudent.isPending ? "Saving…" : "Save Student"}</Button></div>
       </div></div>}
+      {portalCredentials && <StudentPortalCredentialsDialog credentials={portalCredentials} onClose={() => setPortalCredentials(null)} />}
     </div>
   );
 };

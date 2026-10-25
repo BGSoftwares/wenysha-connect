@@ -18,6 +18,7 @@ import AllocationsSection from "@/components/admin/AllocationsSection";
 import GallerySection from "@/components/admin/GallerySection";
 import TimetableSection from "@/components/admin/TimetableSection";
 import StudentDirectorySection from "@/components/admin/StudentDirectorySection";
+import { StudentPortalCredentialsDialog, type StudentPortalCredentials } from "@/components/admin/StudentPortalCredentials";
 
 // Existing Specialized Sections
 import UsersRolesSection from "@/components/admin/UsersRolesSection";
@@ -37,6 +38,7 @@ import MapSection from "@/components/admin/MapSection";
 import AdmissionSection from "@/components/admin/AdmissionSection";
 import PromotionSection from "@/components/admin/PromotionSection";
 import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
+import LearningAssignmentsSection from "@/components/teacher/LearningAssignmentsSection";
 import AdminReportCardsSection from "@/components/admin/ReportCardsSection";
 
 import { Button } from "@/components/ui/button";
@@ -68,6 +70,7 @@ const AdminDashboard = () => {
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [editingClass, setEditingClass] = useState<SchoolClass | null>(null);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [studentPortalCredentials, setStudentPortalCredentials] = useState<StudentPortalCredentials | null>(null);
 
   const handleEditStudent = (student: Student) => {
     setEditingStudent({ ...student });
@@ -75,8 +78,8 @@ const AdminDashboard = () => {
 
   const handleSaveStudentEdit = async () => {
     if (!editingStudent) return;
-    if (!editingStudent.name?.trim() || !editingStudent.student_id?.trim()) {
-      toast.error("Student name and ID are required");
+    if (!editingStudent.name?.trim()) {
+      toast.error("Student name is required");
       return;
     }
     try {
@@ -84,7 +87,6 @@ const AdminDashboard = () => {
         id: editingStudent.id,
         data: {
           name: editingStudent.name.trim(),
-          student_id: editingStudent.student_id.trim(),
           school_class: Number(editingStudent.school_class),
           gender: editingStudent.gender,
           status: editingStudent.status,
@@ -195,48 +197,14 @@ const AdminDashboard = () => {
     }
   };
 
-  const getNextStudentId = (studentList: Student[] = []) => {
-    let maxNum = 0;
-    const year = new Date().getFullYear().toString().slice(-2);
-    for (const s of studentList) {
-      if (!s.student_id) continue;
-      const match = s.student_id.match(/(\d+)$/);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num;
-        }
-      }
-    }
-    return `AGC${year}S${String(maxNum + 1).padStart(3, "0")}`;
-  };
-  const getNextEmployeeId = (teacherList: Teacher[] = []) => {
-    let maxNum = 0;
-    const year = new Date().getFullYear().toString().slice(-2);
-    for (const t of teacherList) {
-      if (!t.employee_id) continue;
-      const match = t.employee_id.match(/(\d+)$/);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num;
-        }
-      }
-    }
-    return `AGC${year}T${String(maxNum + 1).padStart(3, "0")}`;
-  };
-
-
-  const [newStudent, setNewStudent] = useState({ name: "", student_id: "", school_class: "", gender: "Male" });
-  const [newTeacher, setNewTeacher] = useState({ name: "", department: "", phone: "", employee_id: "" });
+  const [newStudent, setNewStudent] = useState({ name: "", school_class: "", gender: "Male" });
+  const [newTeacher, setNewTeacher] = useState({ name: "", department: "", phone: "" });
   const [newClass, setNewClass] = useState({ name: "", capacity: 40 });
   const [newSubject, setNewSubject] = useState({ name: "", code: "", department: "" });
   const [newAllocation, setNewAllocation] = useState({ teacher: "", subject: "", school_class: "", periods: 5, room: "" });
 
   const handleCreateStudent = async () => {
     try {
-      const autoId = getNextStudentId(students);
-      const studentId = newStudent.student_id?.trim() || autoId;
       if (!newStudent.name?.trim()) {
         toast.error("Please enter student full name");
         return;
@@ -251,16 +219,16 @@ const AdminDashboard = () => {
         toast.error("Invalid class selected");
         return;
       }
-      await createStudentMutation.mutateAsync({
+      const createdStudent = await createStudentMutation.mutateAsync({
         name: newStudent.name.trim(),
-        student_id: studentId,
         school_class: classId,
         gender: newStudent.gender || "Male",
         status: "Active"
       });
-      toast.success(`Student enrolled successfully with ID ${studentId}`);
+      toast.success(`Student enrolled successfully with ID ${createdStudent.student_id}`);
+      if (createdStudent.portal_credentials) setStudentPortalCredentials(createdStudent.portal_credentials);
       setShowModal(null);
-      setNewStudent({ name: "", student_id: "", school_class: "", gender: "Male" });
+      setNewStudent({ name: "", school_class: "", gender: "Male" });
     } catch (error) {
       toast.error(getErrorMessage(error) || "Failed to enroll student");
     }
@@ -272,19 +240,16 @@ const AdminDashboard = () => {
         toast.error("Name and Department are required");
         return;
       }
-      const autoId = getNextEmployeeId(teachers);
-      const employeeId = newTeacher.employee_id?.trim() || autoId;
-      await createTeacherMutation.mutateAsync({
+      const createdTeacher = await createTeacherMutation.mutateAsync({
         name: newTeacher.name.trim(),
         department: newTeacher.department.trim(),
-        phone: newTeacher.phone?.trim() || "",
-        employee_id: employeeId
+        phone: newTeacher.phone?.trim() || ""
       });
-      toast.success(`Teacher added successfully with Employee ID ${employeeId}`);
+      toast.success(`Teacher added successfully${createdTeacher.employee_id ? ` with Employee ID ${createdTeacher.employee_id}` : ""}`);
       setShowModal(null);
-      setNewTeacher({ name: "", department: "", phone: "", employee_id: "" });
+      setNewTeacher({ name: "", department: "", phone: "" });
     } catch (error) {
-      toast.error("Failed to add teacher");
+      toast.error(getErrorMessage(error));
     }
   };
 
@@ -361,6 +326,7 @@ const AdminDashboard = () => {
       parents: "Parents",
       library: "Library",
       "learning-materials": "Learning Materials & Notes",
+      "learning-assignments": "Learning Assignments",
       account: "Account",
       classes: "Classes",
       "add-class": "Classes",
@@ -399,10 +365,8 @@ const AdminDashboard = () => {
           error={studentsError}
           classes={classes}
           onAddStudent={() => {
-            const nextId = getNextStudentId(students);
             setNewStudent({
               name: "",
-              student_id: nextId,
               school_class: classes?.[0]?.name || "",
               gender: "Male"
             });
@@ -423,7 +387,7 @@ const AdminDashboard = () => {
           subjects={subjects}
           allocations={allocations}
           isLoading={isLoadingTeachers}
-          onAddTeacher={() => { const nextId = getNextEmployeeId(teachers); setNewTeacher({ name: "", department: "", phone: "", employee_id: nextId }); setShowModal("addTeacher"); }}
+          onAddTeacher={() => { setNewTeacher({ name: "", department: "", phone: "" }); setShowModal("addTeacher"); }}
           onEditTeacher={handleEditTeacher}
           onDeleteTeacher={teacher => void deleteRecord("/school/teachers/", Number(teacher.id), "Teacher", "teachers")}
           onAssignClassTeacher={(classId, teacherId) => void updateRecord(
@@ -470,7 +434,7 @@ const AdminDashboard = () => {
       case "cache": return <SettingsSection activeSubNav={activeNav} />;
       case "profile": return <ProfileSection />;
       case "parents": return <ParentsSection />;
-      case "library": return <LibrarySection />;
+      case "library": return <LibrarySection classes={(classes || []).map((c) => ({ id: c.id, name: c.name }))} subjects={(subjects || []).map((s) => ({ id: s.id, name: s.name }))} />;
       case "learning-materials": return (
         <LearningMaterialsSection
           classes={(classes || []).map((c) => ({ id: c.id, name: c.name }))}
@@ -480,6 +444,7 @@ const AdminDashboard = () => {
           emptyHint="No notes or materials have been uploaded yet. Upload lesson notes, syllabi, past papers, or videos from your computer."
         />
       );
+      case "learning-assignments": return <LearningAssignmentsSection allocations={allocations} adminMode />;
       case "account": return <DashboardOverview />;
       case "attendance": return <AttendanceSection />;
       case "exam":
@@ -547,19 +512,11 @@ const AdminDashboard = () => {
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Student ID</label>
                       <span className="text-[10px] text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded font-medium">
-                        ⚡ Auto-incremented
+                        Server assigned
                       </span>
                     </div>
-                    <input
-                      type="text"
-                      className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono font-semibold text-primary"
-                      value={newStudent.student_id || getNextStudentId(students)}
-                      onChange={e => setNewStudent({ ...newStudent, student_id: e.target.value })}
-                      placeholder={getNextStudentId(students)}
-                    />
-                    <p className="text-[11px] text-muted-foreground ml-1">
-                      Next sequential student ID generated automatically (editable if required)
-                    </p>
+                    <p className="rounded-xl border border-border bg-background p-3 font-mono font-semibold text-primary">AbleGodStudent00001, then increments automatically</p>
+                    <p className="text-[11px] text-muted-foreground ml-1">The server assigns the next unused ID when enrollment is saved.</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
@@ -699,9 +656,9 @@ const AdminDashboard = () => {
                 <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Student ID</label>
                 <input
                   type="text"
-                  className="w-full p-2.5 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                  disabled
+                  className="w-full p-2.5 bg-background border border-border rounded-xl text-muted-foreground"
                   value={editingStudent.student_id}
-                  onChange={e => setEditingStudent({ ...editingStudent, student_id: e.target.value })}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -894,6 +851,7 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+      {studentPortalCredentials && <StudentPortalCredentialsDialog credentials={studentPortalCredentials} onClose={() => setStudentPortalCredentials(null)} />}
     </div>
   );
 };

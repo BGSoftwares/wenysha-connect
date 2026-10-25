@@ -12,35 +12,130 @@ import g9 from "@/assets/IMG_6142.jpg";
 import g10 from "@/assets/IMG_6143.jpg";
 import g11 from "@/assets/IMG_6144.jpg";
 import g12 from "@/assets/IMG_6145.jpg";
-const photos = [g1,g2,g3,g4,g5,g6,g7,g8,g9,g10,g11,g12];
+import communityGroup1 from "@/assets/new-school-media/school-community-group-1.jpeg";
+import communityGroup2 from "@/assets/new-school-media/school-community-group-2.jpeg";
+import communityGroup3 from "@/assets/new-school-media/school-community-group-3.jpeg";
+import communityGroup4 from "@/assets/new-school-media/school-community-group-4.jpeg";
+import preparationProgram from "@/assets/new-school-media/grade7-form1-preparation.jpeg";
+import communityGathering from "@/assets/new-school-media/school-community-gathering.jpeg";
+import groupOfSchools from "@/assets/new-school-media/group-of-schools-flyer.jpeg";
+import schoolAssembly from "@/assets/new-school-media/school-assembly.jpeg";
+import examWishesShirt from "@/assets/new-school-media/exam-wishes-shirt.jpeg";
+import communityCelebration from "@/assets/new-school-media/school-community-celebration.jpeg";
+import novemberExams from "@/assets/new-school-media/november-2026-exams-poster.jpeg";
 import { Layout } from "@/components/layout/Layout";
-import { Image, Play, X } from "lucide-react";
+import { Image, X } from "lucide-react";
 
-const categories = ["All", "Sports", "Academics", "Arts", "Events", "Campus"];
+type GalleryCategory = "School Photos" | "School Posters & Designs";
+type GalleryItem = {
+  id: number;
+  src: string;
+  category: GalleryCategory;
+  title: string;
+  alt: string;
+  isPoster?: boolean;
+};
 
-const galleryItems = [
-  { id: 1, category: "Sports", title: "Inter-School Athletics", type: "image" },
-  { id: 2, category: "Academics", title: "Science Fair 2025", type: "image" },
-  { id: 3, category: "Arts", title: "Annual Drama Performance", type: "image" },
-  { id: 4, category: "Events", title: "Independence Day Celebration", type: "image" },
-  { id: 5, category: "Campus", title: "Our Modern Campus", type: "image" },
-  { id: 6, category: "Sports", title: "Soccer Championship", type: "image" },
-  { id: 7, category: "Academics", title: "Mathematics Olympiad", type: "image" },
-  { id: 8, category: "Arts", title: "Choir Performance", type: "image" },
-  { id: 9, category: "Events", title: "Prize Giving Day", type: "image" },
-  { id: 10, category: "Campus", title: "Library Facilities", type: "image" },
-  { id: 11, category: "Sports", title: "Swimming Gala", type: "image" },
-  { id: 12, category: "Academics", title: "Computer Lab Session", type: "image" },
-];
+const categories = ["All", "School Photos", "School Posters & Designs"];
+
+const galleryItems: GalleryItem[] = [
+  ...[
+    { src: g1, alt: "Able God College learners and school activities" },
+    { src: g2, alt: "Learners at Able God College" },
+    { src: g3, alt: "Able God College school community" },
+    { src: g4, alt: "Able God College learners in uniform" },
+    { src: g5, alt: "School event at Able God College" },
+    { src: g6, alt: "Able God College learners and teachers" },
+    { src: g7, alt: "Able God College school gathering" },
+    { src: g8, alt: "Able God College learners" },
+    { src: g9, alt: "Able God College school event" },
+    { src: g10, alt: "Able God College learners and staff" },
+    { src: g11, alt: "Able God College celebration" },
+    { src: g12, alt: "Able God College community" },
+  ].map((item, index) => ({
+    ...item,
+    category: "School Photos" as const,
+    title: `Able God College photograph ${String(index + 1).padStart(2, "0")}`,
+  })),
+  ...[
+    {
+      src: communityGroup1,
+      title: "Able God College community",
+      alt: "Able God College learners and staff gathered outdoors for a group photograph",
+    },
+    {
+      src: communityGroup2,
+      title: "Learners and staff together",
+      alt: "Able God College learners and teachers standing together in school uniform",
+    },
+    {
+      src: communityGroup3,
+      title: "A school community gathering",
+      alt: "Staff and learners gathered together in navy and pink uniforms",
+    },
+    {
+      src: communityGroup4,
+      title: "School gathering",
+      alt: "Able God College students and staff gathered outdoors",
+    },
+  ].map((item) => ({ ...item, category: "School Photos" as const })),
+  {
+    src: preparationProgram,
+    category: "School Posters & Designs",
+    title: "Grade 7 to Form 1 Preparation Programme",
+    alt: "Able God College flyer for the free Grade 7 to Form 1 preparation programme, 12 October to December 2026",
+    isPoster: true,
+  },
+  {
+    src: communityGathering,
+    category: "School Photos",
+    title: "Able God College Community",
+    alt: "Able God College staff and community members gathered outdoors",
+  },
+  {
+    src: groupOfSchools,
+    category: "School Posters & Designs",
+    title: "Able God Group of Schools",
+    alt: "Able God Group of Schools flyer featuring Able God Junior and Able God College",
+    isPoster: true,
+  },
+  {
+    src: schoolAssembly,
+    category: "School Photos",
+    title: "School Assembly",
+    alt: "Able God College learners gathered in navy and pink uniforms",
+  },
+  {
+    src: examWishesShirt,
+    category: "School Posters & Designs",
+    title: "Best Wishes in Your Exams T-shirt",
+    alt: "Navy Able God College T-shirt design wishing learners success in their exams",
+    isPoster: true,
+  },
+  {
+    src: communityCelebration,
+    category: "School Photos",
+    title: "School Community Gathering",
+    alt: "Able God College staff and community members together outdoors",
+  },
+  {
+    src: novemberExams,
+    category: "School Posters & Designs",
+    title: "November 2026 Exams",
+    alt: "Best wishes in your exams, Class of November 2026 poster",
+    isPoster: true,
+  },
+].map((item, index) => ({ ...item, id: index + 1 }));
 
 const Gallery = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
 
-  const filteredItems = activeCategory === "All" 
-    ? galleryItems 
+  const filteredItems = activeCategory === "All"
+    ? galleryItems
     : galleryItems.filter(item => item.category === activeCategory);
   const pos = filteredItems.findIndex(i => i.id === selectedImage);
+  const selectedItem = galleryItems.find((item) => item.id === selectedImage);
   const step = (d: number) => {
     if (pos < 0) return;
     setSelectedImage(filteredItems[(pos + d + filteredItems.length) % filteredItems.length].id);
@@ -65,7 +160,7 @@ const Gallery = () => {
             Photo Gallery
           </h1>
           <p className="text-xl text-primary-foreground/80 max-w-2xl mx-auto">
-            Capturing memories and celebrating moments at Able God College.
+            Photographs from Able God College.
           </p>
         </div>
       </section>
@@ -96,30 +191,25 @@ const Gallery = () => {
         <div className="container mx-auto px-4">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredItems.map((item, index) => (
-              <div
+              <button
+                type="button"
                 key={item.id}
                 onClick={() => setSelectedImage(item.id)}
-                className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-secondary"
+                aria-label={`Open image: ${item.title}`}
+                className={`group relative w-full ${item.isPoster ? "aspect-[4/5]" : "aspect-square"} overflow-hidden rounded-xl bg-secondary text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2`}
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <img src={photos[item.id - 1]} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                <img src={item.src} alt={item.alt} loading="lazy" className={`absolute inset-0 h-full w-full ${item.isPoster ? "bg-white object-contain" : "object-cover transition-transform duration-700 group-hover:scale-110"}`} />
                 
                 {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-forest-dark/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="absolute inset-0 bg-gradient-to-t from-forest-dark/90 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
                   <div className="absolute bottom-0 left-0 right-0 p-4">
                     <span className="text-xs text-accent font-medium">{item.category}</span>
                     <h3 className="text-primary-foreground font-semibold">{item.title}</h3>
                   </div>
                 </div>
 
-                {item.type === "video" && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="h-16 w-16 rounded-full bg-accent/90 flex items-center justify-center">
-                      <Play className="h-8 w-8 text-accent-foreground ml-1" />
-                    </div>
-                  </div>
-                )}
-              </div>
+              </button>
             ))}
           </div>
 
@@ -149,9 +239,9 @@ const Gallery = () => {
             <ChevronLeft className="h-7 w-7 text-primary-foreground" />
           </button>
           <figure className="max-w-5xl w-full animate-scale-in" onClick={(e) => e.stopPropagation()}>
-            <img src={photos[selectedImage - 1]} alt="" className="max-h-[80vh] w-full object-contain rounded-xl" />
+            {selectedItem && <img src={selectedItem.src} alt={selectedItem.alt} className="max-h-[80vh] w-full rounded-xl object-contain" />}
             <figcaption className="mt-4 text-center text-primary-foreground">
-              {galleryItems.find(i => i.id === selectedImage)?.title}
+              {selectedItem?.title}
               <span className="ml-3 text-sm text-primary-foreground/60">{pos + 1} / {filteredItems.length}</span>
             </figcaption>
           </figure>
@@ -161,35 +251,6 @@ const Gallery = () => {
         </div>
       )}
 
-      {/* Video Section */}
-      <section className="py-20 bg-card">
-        <div className="container mx-auto px-4">
-          <h2 className="font-heading text-3xl font-bold text-foreground text-center mb-12">
-            Video Highlights
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              "Annual Prize Giving Ceremony",
-              "Sports Day Highlights",
-              "Choir Performance at National Competition",
-            ].map((video, index) => (
-              <div 
-                key={index}
-                className="group relative aspect-video rounded-xl overflow-hidden bg-secondary cursor-pointer"
-              >
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
-                  <div className="h-16 w-16 rounded-full bg-accent flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Play className="h-7 w-7 text-accent-foreground ml-1" />
-                  </div>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-forest-dark/80 to-transparent">
-                  <p className="text-primary-foreground font-medium">{video}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
     </Layout>
   );
 };

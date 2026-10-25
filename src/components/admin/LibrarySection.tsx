@@ -12,10 +12,18 @@ import {
   useBooks, useSaveBook, useDeleteBook, useBorrowings, useReturnBook, Book as BookT,
 } from "@/lib/hooks";
 import { getErrorMessage } from "@/lib/api";
+import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
 
 const empty: Partial<BookT> = { title: "", author: "", isbn: "", category: "", copies: 1 };
 
-const LibrarySection = () => {
+type NamedOption = { id: number; name: string };
+
+interface Props {
+  classes?: NamedOption[];
+  subjects?: NamedOption[];
+}
+
+const LibrarySection = ({ classes = [], subjects = [] }: Props) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [loanFilter, setLoanFilter] = useState("active");
@@ -81,6 +89,7 @@ const LibrarySection = () => {
         <TabsList>
           <TabsTrigger value="catalog">Book Catalog</TabsTrigger>
           <TabsTrigger value="borrowings">Borrowings</TabsTrigger>
+          <TabsTrigger value="materials">Learning Materials</TabsTrigger>
         </TabsList>
 
         <TabsContent value="catalog" className="space-y-4 mt-4">
@@ -157,6 +166,18 @@ const LibrarySection = () => {
               </tbody>
             </table>
           </CardContent></Card>
+        </TabsContent>
+
+        <TabsContent value="materials" className="mt-4">
+          <LearningMaterialsSection
+            classes={classes}
+            subjects={subjects}
+            uploadedBy="School Administrator"
+            canManageAll
+            visibility="class"
+            filterVisibility="all"
+            emptyHint="No learning materials have been uploaded yet. Add lesson notes, syllabi, past papers, or videos for students and staff."
+          />
         </TabsContent>
       </Tabs>
 

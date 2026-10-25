@@ -1,8 +1,9 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
-from school.models import SchoolClass, Student
+from school.models import SchoolClass, Student, Teacher
 from finance.models import Invoice
+from core.models import Role, UserProfile
 from datetime import date
 
 class PermissionMatrixTests(TestCase):
@@ -11,8 +12,15 @@ class PermissionMatrixTests(TestCase):
         self.admin = User.objects.create_superuser(username='adminperm', email='adminperm@local', password='adminpass')
         self.staff = User.objects.create_user(username='staffuser', email='staff@local', password='staffpass', is_staff=True)
         self.user = User.objects.create_user(username='regular', email='user@local', password='userpass')
+        self.accounts = User.objects.create_user(username='accounts', email='accounts@local', password='accountspass')
+        accounts_role = Role.objects.create(name='Accounts')
+        UserProfile.objects.create(user=self.accounts, role=accounts_role)
+        teacher_role = Role.objects.get(name='Class Teacher')
+        self.teacher_user = User.objects.create_user(username='teacherperm', email='teacher@local', password='teacherpass')
+        UserProfile.objects.create(user=self.teacher_user, role=teacher_role, full_name='Assigned Teacher')
+        teacher = Teacher.objects.create(user=self.teacher_user, name='Assigned Teacher')
         # Student and class for endpoints
-        cls = SchoolClass.objects.create(name='PermClass')
+        cls = SchoolClass.objects.create(name='PermClass', class_teacher=teacher)
         self.student = Student.objects.create(student_id='PM001', name='Perm Student', school_class=cls)
         self.client = APIClient()
 
@@ -38,10 +46,14 @@ class PermissionMatrixTests(TestCase):
         # Unauthenticated blocked
         r = self.client.post('/api/finance/invoices/', payload, format='json')
         self.assertEqual(r.status_code, 401)
-        # Regular authenticated allowed
+        # Regular authenticated accounts cannot alter financial records.
         self.client.force_authenticate(user=self.user)
         r2 = self.client.post('/api/finance/invoices/', payload, format='json')
-        self.assertEqual(r2.status_code, 201)
+        self.assertEqual(r2.status_code, 403)
+        # Accounts staff can create the invoice.
+        self.client.force_authenticate(user=self.accounts)
+        r3 = self.client.post('/api/finance/invoices/', payload, format='json')
+        self.assertEqual(r3.status_code, 201, r3.data)
 
     def test_grades_and_attendance_auth_required(self):
         grade_payload = {'student': self.student.id, 'assessment': None, 'score': '70.0'}
@@ -52,10 +64,9 @@ class PermissionMatrixTests(TestCase):
         self.assertEqual(gr.status_code, 401)
         self.assertEqual(at.status_code, 401)
         # Authenticated allowed
-        self.client.force_authenticate(user=self.user)
+        self.client.force_authenticate(user=self.teacher_user)
         # For grade, assessment is required by model; skip create but check GET/list access
         grl = self.client.get('/api/school/grades/')
         self.assertIn(grl.status_code, (200, 204))
         atl = self.client.post('/api/attendance/attendance/', attend_payload, format='json')
-        # attendance create should be allowed
-        self.assertEqual(atl.status_code, 201)
+        self.assertEqual(atl.status_code, 201, atl.data)

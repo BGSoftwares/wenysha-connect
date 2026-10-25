@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
 from .models import Role, UserProfile, PendingApproval
+from .roles import is_admin, normalize_role_name, portal_role
 from school.models import Student, SchoolClass
 from .serializers import (
     RoleSerializer,
@@ -47,9 +48,25 @@ def get_portal_profile(user):
     # including legacy accounts created before role profiles were introduced.
     if user.is_superuser or user.is_staff:
         role = 'Admin'
-    elif role and role.strip().casefold() == 'class teacher':
-        role = 'Teacher'
+    elif role:
+        normalized_role = normalize_role_name(role)
+        role = {
+            'admin': 'Admin',
+            'teacher': 'Teacher',
+            'student': 'Student',
+            'parent': 'Parent',
+            'accounts': 'Accounts',
+        }.get(normalized_role, role)
     return role, full_name
+
+
+class IsPortalAdmin(permissions.BasePermission):
+    """Allow Django staff and accounts assigned the Admin portal role."""
+
+    message = 'Administrator access is required.'
+
+    def has_permission(self, request, view):
+        return is_admin(request.user)
 
 
 class LoginView(APIView):
@@ -60,7 +77,9 @@ class LoginView(APIView):
         ser.is_valid(raise_exception=True)
         email_or_username = ser.validated_data['email']
         password = ser.validated_data['password']
-        user = User.objects.filter(Q(email=email_or_username) | Q(username=email_or_username)).first()
+        user = User.objects.filter(
+            Q(email__iexact=email_or_username) | Q(username__iexact=email_or_username)
+        ).first()
         if not user:
             return Response({'detail': 'Invalid username/email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.check_password(password):
@@ -88,6 +107,10 @@ class CurrentUserView(APIView):
         role, full_name = get_portal_profile(user)
         from parents.models import Parent
         from school.models import Teacher
+        try:
+            preferences = user.profile.preferences
+        except UserProfile.DoesNotExist:
+            preferences = {}
         phone = Parent.objects.filter(user=user).values_list('phone', flat=True).first()
         if phone is None:
             phone = Teacher.objects.filter(user=user).values_list('phone', flat=True).first()
@@ -100,25 +123,38 @@ class CurrentUserView(APIView):
             'role': role,
             'full_name': full_name,
             'phone': phone or '',
+            'preferences': preferences,
         })
 
+    @transaction.atomic
     def patch(self, request):
         user = request.user
-        email = request.data.get('email', user.email).strip()
+        email = request.data.get('email', user.email).strip().casefold()
         username = request.data.get('username', user.username).strip()
         full_name = request.data.get('full_name', '').strip()
-        if not email or not username or not full_name:
-            return Response({'detail': 'Name, username, and email are required.'}, status=status.HTTP_400_BAD_REQUEST)
-        if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
+        role = portal_role(user)
+        if not username or not full_name or (not email and role != 'student'):
+            return Response({'detail': 'Name and username are required; email is required for staff and parent accounts.'}, status=status.HTTP_400_BAD_REQUEST)
+        if email and User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
             return Response({'email': ['This email is already in use.']}, status=status.HTTP_400_BAD_REQUEST)
         if User.objects.filter(username__iexact=username).exclude(pk=user.pk).exists():
             return Response({'username': ['This username is already in use.']}, status=status.HTTP_400_BAD_REQUEST)
+        preferences = request.data.get('preferences')
+        if preferences is not None and not isinstance(preferences, dict):
+            return Response({'preferences': ['Preferences must be a JSON object.']}, status=status.HTTP_400_BAD_REQUEST)
         user.email = email
         user.username = username
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.full_name = full_name
-        profile.save(update_fields=['full_name'])
+        update_profile_fields = ['full_name']
+        if preferences is not None:
+            profile.preferences = preferences
+            update_profile_fields.append('preferences')
+        profile.save(update_fields=update_profile_fields)
         user.save(update_fields=['email', 'username'])
+        address = request.data.get('address')
+        if address is not None and role == 'student':
+            Student.objects.filter(user=user).update(address=str(address).strip())
         phone = request.data.get('phone')
         if phone is not None:
             from parents.models import Parent
@@ -127,7 +163,13 @@ class CurrentUserView(APIView):
             Teacher.objects.filter(user=user).update(phone=phone.strip())
         from .sync import sync_linked_portal_records
         sync_linked_portal_records(user, full_name, email)
-        return Response({'detail': 'Profile updated.', 'email': user.email, 'username': user.username, 'full_name': full_name})
+        return Response({
+            'detail': 'Profile updated.',
+            'email': user.email,
+            'username': user.username,
+            'full_name': full_name,
+            'preferences': profile.preferences,
+        })
 
 
 class ChangePasswordView(APIView):
@@ -161,19 +203,29 @@ class SignUpView(APIView):
 class RoleViewSet(ModelViewSet):
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPortalAdmin]
 
 
 class UserProfileViewSet(ModelViewSet):
     queryset = UserProfile.objects.select_related('user', 'role').all()
     serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPortalAdmin]
 
 
 class AdminAccountViewSet(ModelViewSet):
     queryset = User.objects.select_related('profile__role').all().order_by('username')
     serializer_class = AdminAccountSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPortalAdmin]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.query_params.get('portal_role', '').strip().casefold() == 'teacher':
+            teacher_role_names = ('teacher', 'class teacher', 'educator', 'teaching staff')
+            teacher_roles = Q()
+            for role_name in teacher_role_names:
+                teacher_roles |= Q(profile__role__name__iexact=role_name)
+            queryset = queryset.filter(teacher_roles)
+        return queryset
 
     def destroy(self, request, *args, **kwargs):
         account = self.get_object()
@@ -187,8 +239,7 @@ class AdminAccountViewSet(ModelViewSet):
 class PendingApprovalViewSet(ModelViewSet):
     queryset = PendingApproval.objects.all()
     serializer_class = PendingApprovalSerializer
-    # Only admin/staff users should approve/reject accounts
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPortalAdmin]
     filterset_fields = ['status', 'role']
 
     def get_queryset(self):
@@ -232,14 +283,8 @@ class PendingApprovalViewSet(ModelViewSet):
                             class_obj = SchoolClass.objects.first()
 
                         if class_obj:
-                            base_num = (Student.objects.count() or 0) + 1
-                            student_id = f"STU{base_num:04d}"
-                            while Student.objects.filter(student_id=student_id).exists():
-                                base_num += 1
-                                student_id = f"STU{base_num:04d}"
                             Student.objects.create(
                                 user=user,
-                                student_id=student_id,
                                 name=pending.full_name,
                                 school_class=class_obj,
                             )

@@ -1,225 +1,63 @@
-import { useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Bell, CalendarDays, MapPin, Phone } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
-import { Bell, Calendar, BookOpen, Award, Users, Filter } from "lucide-react";
+import preparationProgram from "@/assets/new-school-media/grade7-form1-preparation.jpeg";
+import communityGathering from "@/assets/new-school-media/school-community-gathering.jpeg";
 
-const categories = ["All", "Academic", "Events", "Sports", "Administrative"];
+const Announcements = () => (
+  <Layout>
+    <section className="bg-[#18112f] px-4 py-16 text-center text-white md:py-20">
+      <div className="container mx-auto max-w-3xl">
+        <Bell className="mx-auto h-10 w-10 text-[#f27aac]" aria-hidden="true" />
+        <h1 className="mt-4 font-serif text-4xl font-black uppercase tracking-wide md:text-5xl">School Notices</h1>
+        <p className="mt-4 text-lg text-white/80">Updates and announcements from Able God College</p>
+      </div>
+    </section>
 
-const announcements = [
-  {
-    id: 1,
-    category: "Academic",
-    title: "Mid-Term Examinations Schedule Released",
-    content: "The mid-term examination timetable for all grades has been released. Please check the portal for detailed schedules and examination venues.",
-    date: "Dec 28, 2025",
-    important: true,
-  },
-  {
-    id: 2,
-    category: "Events",
-    title: "Annual Prize Giving Day - Save the Date",
-    content: "Our Annual Prize Giving Ceremony will be held on January 30th, 2026. All parents and guardians are cordially invited to attend.",
-    date: "Dec 25, 2025",
-    important: true,
-  },
-  {
-    id: 3,
-    category: "Sports",
-    title: "Inter-School Sports Day Results",
-    content: "Congratulations to all our athletes who participated in the Inter-School Sports Day. We secured 2nd place overall!",
-    date: "Dec 20, 2025",
-    important: false,
-  },
-  {
-    id: 4,
-    category: "Administrative",
-    title: "Holiday Closure Notice",
-    content: "The school office will be closed from December 23rd to January 2nd for the holiday break. Emergency contacts are available.",
-    date: "Dec 18, 2025",
-    important: false,
-  },
-  {
-    id: 5,
-    category: "Academic",
-    title: "New Computer Lab Now Open",
-    content: "We are pleased to announce that our new state-of-the-art computer laboratory is now fully operational with 50 workstations.",
-    date: "Dec 15, 2025",
-    important: false,
-  },
-  {
-    id: 6,
-    category: "Events",
-    title: "Parent-Teacher Conference Scheduled",
-    content: "The next Parent-Teacher Conference will be held on January 22nd, 2026. Please book your appointment through the portal.",
-    date: "Dec 12, 2025",
-    important: true,
-  },
-];
-
-const upcomingEvents = [
-  { date: "Jan 6", title: "New Term Begins", type: "Academic" },
-  { date: "Jan 15", title: "Grade 7 Orientation", type: "Academic" },
-  { date: "Jan 22", title: "Parent-Teacher Meeting", type: "Meeting" },
-  { date: "Jan 30", title: "Prize Giving Day", type: "Event" },
-  { date: "Feb 5", title: "Inter-School Sports Day", type: "Sports" },
-  { date: "Feb 14", title: "Science Fair", type: "Academic" },
-];
-
-const getCategoryIcon = (category: string) => {
-  switch (category) {
-    case "Academic": return BookOpen;
-    case "Events": return Calendar;
-    case "Sports": return Award;
-    case "Administrative": return Users;
-    default: return Bell;
-  }
-};
-
-const Announcements = () => {
-  const [activeCategory, setActiveCategory] = useState("All");
-
-  const filteredAnnouncements = activeCategory === "All"
-    ? announcements
-    : announcements.filter(a => a.category === activeCategory);
-
-  return (
-    <Layout>
-      {/* Hero Section */}
-      <section className="py-20 bg-gradient-hero">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="font-heading text-4xl md:text-5xl font-bold text-primary-foreground mb-4">
-            Announcements
-          </h1>
-          <p className="text-xl text-primary-foreground/80 max-w-2xl mx-auto">
-            Stay updated with the latest news, events, and important notices from Able God College.
-          </p>
-        </div>
-      </section>
-
-      {/* Main Content */}
-      <section className="py-12 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-3 gap-12">
-            {/* Announcements List */}
-            <div className="lg:col-span-2">
-              {/* Filter */}
-              <div className="flex flex-wrap items-center gap-3 mb-8">
-                <Filter className="h-5 w-5 text-muted-foreground" />
-                {categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => setActiveCategory(category)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      activeCategory === category
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </div>
-
-              {/* Announcements */}
-              <div className="space-y-6">
-                {filteredAnnouncements.map((announcement) => {
-                  const Icon = getCategoryIcon(announcement.category);
-                  return (
-                    <article
-                      key={announcement.id}
-                      className={`p-6 rounded-xl border transition-all hover:shadow-elegant ${
-                        announcement.important 
-                          ? "bg-accent/5 border-accent/30" 
-                          : "bg-card border-border"
-                      }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className={`h-12 w-12 rounded-lg flex items-center justify-center shrink-0 ${
-                          announcement.important ? "bg-accent/20" : "bg-primary/10"
-                        }`}>
-                          <Icon className={`h-6 w-6 ${
-                            announcement.important ? "text-accent" : "text-primary"
-                          }`} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-3 mb-2">
-                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                              announcement.important 
-                                ? "bg-accent text-accent-foreground" 
-                                : "bg-secondary text-secondary-foreground"
-                            }`}>
-                              {announcement.category}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {announcement.date}
-                            </span>
-                            {announcement.important && (
-                              <span className="text-xs font-semibold text-destructive">
-                                Important
-                              </span>
-                            )}
-                          </div>
-                          <h3 className="font-heading text-lg font-semibold text-foreground mb-2">
-                            {announcement.title}
-                          </h3>
-                          <p className="text-muted-foreground text-sm">
-                            {announcement.content}
-                          </p>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
+    <section className="bg-[#f3f1f5] px-4 py-12 md:py-16">
+      <div className="mx-auto grid max-w-6xl gap-7 lg:grid-cols-2">
+        <article className="overflow-hidden rounded-2xl border border-[#dedbe3] bg-white shadow-lg">
+          <img
+            src={preparationProgram}
+            alt="Grade 7 to Form 1 Preparation Programme flyer"
+            className="max-h-[44rem] w-full bg-[#fff5fa] object-contain"
+          />
+          <div className="border-t-4 border-[#c51f67] p-6 sm:p-8">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#c51f67]">Programme Announcement</p>
+            <h2 className="mt-2 font-serif text-2xl font-black text-[#18112f] sm:text-3xl">Grade 7 to Form 1 Preparation Programme</h2>
+            <p className="mt-3 leading-relaxed text-muted-foreground">A free programme to help reduce idleness which may lead to drug abuse, and prepare learners for Form 1 with confidence.</p>
+            <ul className="mt-5 space-y-2 text-sm font-medium text-[#18112f]">
+              <li>• Skills in Maths, English, Science and study habits</li>
+              <li>• Mentorship and guidance</li>
+              <li>• Safe, supportive environment</li>
+            </ul>
+            <div className="mt-6 grid gap-3 border-t border-[#dedbe3] pt-5 text-sm text-[#32254c] sm:grid-cols-2">
+              <p className="flex items-start gap-2"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[#c51f67]" aria-hidden="true" /><span><strong>Date:</strong> 12 October – December 2026</span></p>
+              <p className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#c51f67]" aria-hidden="true" /><span><strong>Venue:</strong> Able God College</span></p>
+              <p className="flex items-start gap-2 sm:col-span-2"><Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#c51f67]" aria-hidden="true" /><span><strong>Contact:</strong> 0779 381 415 / 078 583 0960</span></p>
             </div>
-
-            {/* Sidebar - Upcoming Events */}
-            <div>
-              <div className="sticky top-28">
-                <div className="bg-card rounded-xl border border-border p-6">
-                  <h3 className="font-heading text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-accent" />
-                    Upcoming Events
-                  </h3>
-                  <div className="space-y-4">
-                    {upcomingEvents.map((event, index) => (
-                      <div 
-                        key={index}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
-                      >
-                        <div className="h-12 w-12 rounded-lg bg-accent flex flex-col items-center justify-center text-accent-foreground shrink-0">
-                          <span className="text-xs font-medium">{event.date.split(" ")[0]}</span>
-                          <span className="text-lg font-bold">{event.date.split(" ")[1]}</span>
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground text-sm">{event.title}</p>
-                          <span className="text-xs text-muted-foreground">{event.type}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Subscribe Box */}
-                <div className="mt-6 bg-primary rounded-xl p-6 text-primary-foreground">
-                  <Bell className="h-8 w-8 text-accent mb-3" />
-                  <h3 className="font-heading font-semibold mb-2">Stay Notified</h3>
-                  <p className="text-sm text-primary-foreground/80 mb-4">
-                    Login to the portal to receive instant notifications for important announcements.
-                  </p>
-                  <a 
-                    href="/portal"
-                    className="inline-block px-4 py-2 bg-accent text-accent-foreground rounded-lg font-medium text-sm hover:bg-gold-dark transition-colors"
-                  >
-                    Login to Portal
-                  </a>
-                </div>
-              </div>
-            </div>
+            <p className="mt-5 rounded-lg bg-[#18112f] px-4 py-3 text-center text-sm font-extrabold uppercase tracking-wide text-white"><span className="text-[#f27aac]">Enrol now</span> · Limited spaces · Sponsored free programme</p>
           </div>
-        </div>
-      </section>
-    </Layout>
-  );
-};
+        </article>
+
+        <article className="overflow-hidden rounded-2xl border border-[#dedbe3] bg-white shadow-lg">
+          <img
+            src={communityGathering}
+            alt="Able God College staff and community members gathered outdoors"
+            className="aspect-[4/3] w-full object-cover"
+          />
+          <div className="border-t-4 border-[#18112f] p-6 sm:p-8">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#c51f67]">School Community</p>
+            <h2 className="mt-2 font-serif text-2xl font-black text-[#18112f] sm:text-3xl">Able God College Community</h2>
+            <p className="mt-3 leading-relaxed text-muted-foreground">A moment with the staff and community members who make up Able God College.</p>
+            <Link to="/gallery" className="mt-6 inline-flex items-center gap-2 rounded-md bg-[#18112f] px-5 py-3 font-bold text-white transition hover:bg-[#c51f67]">
+              View the Gallery <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </article>
+      </div>
+    </section>
+  </Layout>
+);
 
 export default Announcements;

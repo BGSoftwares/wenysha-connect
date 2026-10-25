@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from core.roles import is_admin, portal_role
 from rest_framework import serializers
 from .models import (
     GalleryItem, Announcement, ContactMessage, StaffMember, LearningMaterial,
@@ -73,7 +74,7 @@ class LearningMaterialSerializer(serializers.ModelSerializer):
     def get_file_url(self, obj):
         request = self.context.get('request')
         if obj.file:
-            url = obj.file.url
+            url = f'/api/content/materials/{obj.pk}/file/'
             return request.build_absolute_uri(url) if request else url
         return obj.file_url or ''
 
@@ -138,7 +139,10 @@ class LearningAssignmentSerializer(serializers.ModelSerializer):
         return Path(obj.attachment.name).name if obj.attachment else ''
 
     def get_submission_count(self, obj):
-        return obj.submissions.count()
+        request = self.context.get('request')
+        if request and (is_admin(request.user) or portal_role(request.user) == 'teacher'):
+            return obj.submissions.count()
+        return 0
 
     def validate_attachment(self, value):
         if value and value.size > MAX_MATERIAL_BYTES:
@@ -185,3 +189,11 @@ class LearningSubmissionSerializer(serializers.ModelSerializer):
         if not answer and not attachment:
             raise serializers.ValidationError('Add a written answer or attach a file before submitting.')
         return attrs
+
+
+class LearningSubmissionReviewSerializer(serializers.Serializer):
+    teacher_feedback = serializers.CharField(required=False, allow_blank=True, max_length=5000)
+    score = serializers.DecimalField(
+        required=False, allow_null=True, max_digits=5, decimal_places=2,
+        min_value=0, max_value=100,
+    )

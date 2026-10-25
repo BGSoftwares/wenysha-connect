@@ -1,194 +1,64 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, BookOpen, Image, Bell, Calendar } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, Bell, BookOpen, Image, Mail } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
-import logo from "/able-god-college-logo.png";
 import HeroCarousel from "@/components/home/HeroCarousel";
-import RemarksSection from "@/components/home/RemarksSection";
-import FeaturesSection from "@/components/home/FeaturesSection";
 import AdmissionsSection from "@/components/home/AdmissionsSection";
-import HighlightsSection from "@/components/home/HighlightsSection";
-import DepartmentsSection from "@/components/home/DepartmentsSection";
-import ClubsSection from "@/components/home/ClubsSection";
-import { StatsCounters, TestimonialsSlider } from "@/components/home/StatsAndTestimonials";
+import SchoolInformationPosters from "@/components/public/SchoolInformationPosters";
+import SchoolCommunitySection from "@/components/public/SchoolCommunitySection";
+import SchoolHighlightsSection from "@/components/public/SchoolHighlightsSection";
+import PrincipalRemarksSection from "@/components/public/PrincipalRemarksSection";
+import SchoolStructureSection from "@/components/home/SchoolStructureSection";
 
 const quickLinks = [
-  { icon: BookOpen, title: "Academics", description: "Explore our curriculum", path: "/academics" },
-  { icon: Image, title: "Gallery", description: "View school memories", path: "/gallery" },
-  { icon: Bell, title: "Announcements", description: "Latest updates", path: "/announcements" },
-  { icon: Calendar, title: "Events", description: "Upcoming activities", path: "/announcements" },
+  { icon: BookOpen, title: "Academics", description: "See ZIMSEC results and school work rules", path: "/academics" },
+  { icon: Image, title: "Gallery", description: "View Able God College photographs", path: "/gallery" },
+  { icon: Bell, title: "Announcements", description: "School notices", path: "/announcements" },
+  { icon: Mail, title: "Contact", description: "Contact Able God College", path: "/contact" },
 ];
 
-const upcomingEvents = [
-  { date: "Jan 15", title: "New Term Begins", type: "Academic" },
-  { date: "Jan 22", title: "Parent-Teacher Meeting", type: "Meeting" },
-  { date: "Feb 5", title: "Inter-School Sports Day", type: "Sports" },
-  { date: "Feb 14", title: "Valentine Day", type: "Academic" },
-];
+const Index = () => (
+  <Layout>
+    <section className="relative h-[100dvh] min-h-[700px] w-full overflow-hidden" aria-label="Able God College photographs">
+      <HeroCarousel />
+    </section>
 
-const newsHighlights = [
-  {
-    title: "Students Excel in Chess competitions at NICAZ District level.",
-    excerpt: "Our students secured top positions in the 2025 NICAZ District Competitions.",
-    date: "Mar 20, 2026",
-  },
-  {
-    title: "New Computer Lab Inaugurated",
-    excerpt: "State-of-the-art computer laboratory with 50 workstations now open.",
-    date: "Dec 15, 2026",
-  },
-  {
-    title: "Annual Sports Day Success",
-    excerpt: "Record participation and outstanding performances at this year's sports day.",
-    date: "Dec 01, 2026",
-  },
-];
+    <SchoolHighlightsSection />
 
-const Index = () => {
-  return (
-    <Layout>
-      {/* Hero Section with Cinematic Carousel */}
-      <section className="relative mt-20 h-[calc(100svh-5rem)] min-h-[28rem] w-full overflow-hidden">
-        <HeroCarousel />
+    <PrincipalRemarksSection />
 
-      </section>
+    <SchoolStructureSection />
 
-      {/* Highlights Section - Green cards */}
-      <HighlightsSection />
+    <SchoolInformationPosters sections={["mission-vision"]} />
 
-      <StatsCounters />
+    <SchoolCommunitySection />
 
-      {/* Departments Section */}
-      <DepartmentsSection />
+    <AdmissionsSection />
 
-      {/* Clubs Section */}
-      <ClubsSection />
-
-      {/* Remarks Section */}
-      <RemarksSection />
-
-      <TestimonialsSlider />
-
-      {/* Features Section */}
-      <FeaturesSection />
-
-      {/* Admissions Section */}
-      <AdmissionsSection />
-
-      {/* Quick Links Section */}
-      <section className="py-20 bg-secondary/50">
-        <div className="container mx-auto px-4">
-          <h2 className="font-heading text-3xl font-bold text-foreground text-center mb-12">
-            Quick Access
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 perspective-1500">
-            {quickLinks.map((link, index) => (
-              <Link
-                key={index}
-                to={link.path}
-                className="group p-6 rounded-xl bg-card border border-border card-3d shadow-3d"
-              >
-                <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center mb-4 icon-3d">
-                  <link.icon className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <h3 className="font-heading text-lg font-semibold text-foreground mb-1">
-                  {link.title}
-                </h3>
-                <p className="text-sm text-muted-foreground">{link.description}</p>
-              </Link>
-            ))}
+    <section className="bg-[#f3f1f5] py-16 md:py-20">
+      <div className="container mx-auto px-4">
+        <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#c51f67]">Able God College</p>
+            <h2 className="mt-2 font-serif text-3xl font-black uppercase tracking-wide text-[#18112f]">Explore the Website</h2>
           </div>
-
+          <Link to="/about" className="inline-flex items-center gap-2 font-semibold text-[#32254c] hover:text-[#c51f67]">
+            About the school <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
-      </section>
-
-      {/* Events & News Section */}
-      <section className="py-20 bg-card">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12">
-            {/* Upcoming Events */}
-            <div>
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="font-heading text-2xl font-bold text-foreground">
-                  Upcoming Events
-                </h2>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/announcements">
-                    View All <ArrowRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-              <div className="space-y-4 perspective-1500">
-                {upcomingEvents.map((event, index) => (
-                  <div
-                    key={index}
-                    className="group flex items-center gap-4 p-4 rounded-xl bg-background border border-border card-3d"
-                  >
-                    <div className="h-14 w-14 rounded-lg bg-accent flex flex-col items-center justify-center text-accent-foreground shrink-0 icon-3d">
-                      <span className="text-xs font-medium">{event.date.split(" ")[0]}</span>
-                      <span className="text-lg font-bold">{event.date.split(" ")[1]}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">{event.title}</h4>
-                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                        {event.type}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-            </div>
-
-            {/* News Highlights */}
-            <div>
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="font-heading text-2xl font-bold text-foreground">
-                  News Highlights
-                </h2>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/announcements">
-                    View All <ArrowRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-              <div className="space-y-4 perspective-1500">
-                {newsHighlights.map((news, index) => (
-                  <div
-                    key={index}
-                    className="p-5 rounded-xl bg-background border border-border card-3d cursor-pointer"
-                  >
-                    <p className="text-xs text-accent font-medium mb-2">{news.date}</p>
-                    <h4 className="font-semibold text-foreground mb-2">{news.title}</h4>
-                    <p className="text-sm text-muted-foreground">{news.excerpt}</p>
-                  </div>
-                ))}
-              </div>
-
-            </div>
-          </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {quickLinks.map((item) => (
+            <Link key={item.path} to={item.path} className="group rounded-xl border border-[#dedbe3] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#c51f67]/40 hover:shadow-lg">
+              <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#18112f] text-white transition group-hover:bg-[#c51f67]">
+                <item.icon className="h-5 w-5" />
+              </span>
+              <h3 className="text-lg font-bold text-[#18112f]">{item.title}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+            </Link>
+          ))}
         </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-32 bg-gradient-hero">
-        <p className="text-center text-xs uppercase tracking-[0.35em] text-white/60 mb-6">"Equipping & enabling learners to develop their full potential."</p>
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="font-heading text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
-            Ready to Join Our Community?
-          </h2>
-          <p className="text-primary-foreground/80 max-w-xl mx-auto mb-8">
-            Take the first step towards an exceptional education.
-            Contact us today to learn more about admissions.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link to="/contact" className="sl-btn">Contact Us</Link>
-            <Link to="/about" className="sl-btn sl-btn-gold">About Our School</Link>
-          </div>
-        </div>
-      </section>
-    </Layout>
-  );
-};
+      </div>
+    </section>
+  </Layout>
+);
 
 export default Index;

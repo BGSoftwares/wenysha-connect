@@ -2,12 +2,13 @@ from pathlib import Path
 
 from django.db.models import Q
 from django.http import FileResponse
+from django.utils import timezone
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
-from core.roles import display_name, is_admin, portal_role, teacher_class_ids
+from core.roles import display_name, is_admin, portal_role
 from parents.models import StudentParent
 from school.models import SchoolClass, Student, Teacher, TeacherSubjectClass
 from .models import (
@@ -22,6 +23,7 @@ from .serializers import (
     LearningMaterialSerializer,
     LearningAssignmentSerializer,
     LearningSubmissionSerializer,
+    LearningSubmissionReviewSerializer,
 )
 
 
@@ -60,6 +62,22 @@ class LearningMaterialViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['subject_name', 'class_name', 'visibility']
 
+    @action(detail=True, methods=['get'], url_path='file')
+    def file_download(self, request, pk=None):
+        material = self.get_object()
+        if not material.file:
+            return Response({'detail': 'This material has no uploaded file.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            response = FileResponse(
+                material.file.open('rb'),
+                as_attachment=True,
+                filename=Path(material.file.name).name,
+            )
+        except OSError:
+            return Response({'detail': 'The material file is unavailable.'}, status=status.HTTP_404_NOT_FOUND)
+        response['X-Content-Type-Options'] = 'nosniff'
+        return response
+
     def get_queryset(self):
         user = self.request.user
         if is_admin(user):
@@ -69,9 +87,21 @@ class LearningMaterialViewSet(viewsets.ModelViewSet):
         if role == 'accounts':
             return LearningMaterial.objects.filter(visibility='staff')
         if role == 'teacher':
-            class_names = SchoolClass.objects.filter(pk__in=teacher_class_ids(user)).values_list('name', flat=True)
+            class_teacher_names = SchoolClass.objects.filter(
+                class_teacher__user=user
+            ).values_list('name', flat=True)
+            assigned_pairs = TeacherSubjectClass.objects.filter(
+                teacher__user=user
+            ).select_related('school_class', 'subject')
+            pair_filter = Q(pk__in=[])
+            for allocation in assigned_pairs:
+                pair_filter |= Q(
+                    class_name=allocation.school_class.name,
+                    subject_name=allocation.subject.name,
+                )
             return LearningMaterial.objects.filter(
-                Q(visibility='class', class_name__in=class_names)
+                Q(visibility='class', class_name__in=class_teacher_names)
+                | (Q(visibility='class') & pair_filter)
                 | Q(uploaded_by_user=user, visibility='staff')
             ).distinct()
         if role == 'student':
@@ -101,6 +131,11 @@ class LearningMaterialViewSet(viewsets.ModelViewSet):
             school_class__name=class_name,
             subject__name=subject_name,
         ).exists()
+        if not allowed:
+            allowed = SchoolClass.objects.filter(
+                name=class_name,
+                class_teacher__user=self.request.user,
+            ).exists()
         if not allowed:
             raise PermissionDenied('You can only upload materials for subjects and classes assigned to you.')
 
@@ -160,6 +195,11 @@ class LearningAssignmentViewSet(viewsets.ModelViewSet):
             student = Student.objects.filter(user=user).only('school_class_id').first()
             if student:
                 return queryset.filter(school_class_id=student.school_class_id, is_published=True)
+        if role == 'parent':
+            child_class_ids = Student.objects.filter(
+                pk__in=StudentParent.objects.filter(parent__user=user).values_list('student_id', flat=True)
+            ).values_list('school_class_id', flat=True)
+            return queryset.filter(school_class_id__in=child_class_ids, is_published=True)
         return queryset.none()
 
     def _validate_teacher_allocation(self, teacher, school_class, subject):
@@ -201,6 +241,11 @@ class LearningAssignmentViewSet(viewsets.ModelViewSet):
             teacher = Teacher.objects.filter(pk=teacher_id).first() if teacher_id else None
             if not teacher:
                 raise PermissionDenied('Select the teacher responsible for this assignment.')
+            self._validate_teacher_allocation(
+                teacher,
+                serializer.validated_data['school_class'],
+                serializer.validated_data['subject'],
+            )
         else:
             raise PermissionDenied('Only teachers and administrators can create assignments.')
         serializer.save(teacher=teacher)
@@ -242,6 +287,21 @@ class LearningSubmissionViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    @action(detail=True, methods=['post'], url_path='review')
+    def review(self, request, pk=None):
+        submission = self.get_object()
+        if not is_admin(request.user) and (
+            portal_role(request.user) != 'teacher' or submission.assignment.teacher.user_id != request.user.pk
+        ):
+            raise PermissionDenied('Only the assigned teacher or an administrator can review this work.')
+        review_serializer = LearningSubmissionReviewSerializer(data=request.data)
+        review_serializer.is_valid(raise_exception=True)
+        for field, value in review_serializer.validated_data.items():
+            setattr(submission, field, value)
+        submission.reviewed_at = timezone.now()
+        submission.save(update_fields=[*review_serializer.validated_data.keys(), 'reviewed_at'])
+        return Response(self.get_serializer(submission).data)
+
     @action(detail=True, methods=['get'], url_path='attachment')
     def attachment_download(self, request, pk=None):
         submission = self.get_object()
@@ -267,6 +327,9 @@ class LearningSubmissionViewSet(viewsets.ModelViewSet):
             visible = queryset.filter(assignment__teacher__user=user)
         elif portal_role(user) == 'student':
             visible = queryset.filter(student__user=user)
+        elif portal_role(user) == 'parent':
+            linked_student_ids = StudentParent.objects.filter(parent__user=user).values_list('student_id', flat=True)
+            visible = queryset.filter(student_id__in=linked_student_ids)
         else:
             return queryset.none()
         assignment_id = self.request.query_params.get('assignment')
@@ -294,7 +357,7 @@ class LearningSubmissionViewSet(viewsets.ModelViewSet):
         if assignment.school_class_id != submission.student.school_class_id or not assignment.is_published:
             raise PermissionDenied('You can only submit work for assignments published to your class.')
         old_file = submission.attachment
-        updated = serializer.save(assignment=assignment)
+        updated = serializer.save(assignment=assignment, teacher_feedback='', score=None, reviewed_at=None)
         if old_file and old_file.name and old_file.name != getattr(updated.attachment, 'name', ''):
             old_file.delete(save=False)
 

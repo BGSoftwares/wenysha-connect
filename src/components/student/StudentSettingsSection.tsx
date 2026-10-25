@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,38 +19,196 @@ import {
   Palette
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { api, getErrorMessage, getStoredUser } from "@/lib/api";
+import { fetchAllPages, type Student } from "@/lib/hooks";
+
+type CurrentUserProfile = {
+  username: string;
+  email: string;
+  full_name: string;
+  phone: string;
+  preferences: Record<string, unknown>;
+};
+
+type NotificationPreferences = {
+  email: boolean;
+  sms: boolean;
+  results: boolean;
+  announcements: boolean;
+  fees: boolean;
+  assignments: boolean;
+};
+
+type AppearancePreferences = {
+  dark_mode: boolean;
+  compact_view: boolean;
+  animations: boolean;
+};
+
+const defaultNotifications: NotificationPreferences = {
+  email: true,
+  sms: false,
+  results: true,
+  announcements: true,
+  fees: true,
+  assignments: true,
+};
+
+const defaultAppearance: AppearancePreferences = {
+  dark_mode: false,
+  compact_view: false,
+  animations: true,
+};
 
 const StudentSettingsSection = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
-  const [notifications, setNotifications] = useState({
-    email: true,
-    sms: false,
-    results: true,
-    announcements: true,
-    fees: true,
-    assignments: true
+  const [notifications, setNotifications] = useState<NotificationPreferences>(defaultNotifications);
+  const [appearance, setAppearance] = useState<AppearancePreferences>(defaultAppearance);
+  const [profileDraft, setProfileDraft] = useState({ full_name: "", email: "", address: "" });
+  const [passwordDraft, setPasswordDraft] = useState({ current: "", next: "", confirm: "" });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+  const profileQuery = useQuery({
+    queryKey: ["student-settings-profile"],
+    queryFn: () => api.get<CurrentUserProfile>("/auth/me/"),
   });
+  const studentQuery = useQuery({
+    queryKey: ["student-settings-record"],
+    queryFn: async () => (await fetchAllPages<Student>("/school/students/"))[0] ?? null,
+  });
+  const profile = profileQuery.data;
+  const student = studentQuery.data;
 
-  const handleSaveProfile = () => {
-    toast({
-      title: "Profile Updated",
-      description: "Your profile information has been saved successfully.",
-    });
+  useEffect(() => {
+    if (profile) {
+      setProfileDraft({
+        full_name: profile.full_name || "",
+        email: profile.email || "",
+        address: student?.address || "",
+      });
+      const saved = profile.preferences?.notifications;
+      if (saved && typeof saved === "object") {
+        setNotifications({ ...defaultNotifications, ...saved } as NotificationPreferences);
+      }
+      const savedAppearance = profile.preferences?.appearance;
+      const nextAppearance = savedAppearance && typeof savedAppearance === "object"
+        ? { ...defaultAppearance, ...savedAppearance } as AppearancePreferences
+        : defaultAppearance;
+      setAppearance(nextAppearance);
+      document.documentElement.classList.toggle("dark", nextAppearance.dark_mode);
+      document.documentElement.classList.toggle("compact-view", nextAppearance.compact_view);
+      document.documentElement.classList.toggle("reduce-motion", !nextAppearance.animations);
+    }
+  }, [profile, student]);
+
+  const handleSaveProfile = async () => {
+    if (!profileDraft.full_name.trim()) {
+      toast({ title: "Name is required", variant: "destructive" });
+      return;
+    }
+    setIsSavingProfile(true);
+    try {
+      await api.patch("/auth/me/", {
+        username: profile?.username || getStoredUser()?.username || "",
+        full_name: profileDraft.full_name.trim(),
+        email: profileDraft.email.trim(),
+        address: profileDraft.address.trim(),
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["student-settings-profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["student-settings-record"] }),
+        queryClient.invalidateQueries({ queryKey: ["student-profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["students"] }),
+      ]);
+      toast({ title: "Profile updated", description: "Your name, email, and address were saved." });
+    } catch (error) {
+      toast({ title: "Could not update profile", description: getErrorMessage(error), variant: "destructive" });
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
-  const handleSavePassword = () => {
-    toast({
-      title: "Password Changed",
-      description: "Your password has been updated successfully.",
-    });
+  const handleSavePassword = async () => {
+    if (!passwordDraft.current || !passwordDraft.next) {
+      toast({ title: "Enter your current and new passwords", variant: "destructive" });
+      return;
+    }
+    if (passwordDraft.next.length < 8) {
+      toast({ title: "New password is too short", description: "Use at least 8 characters.", variant: "destructive" });
+      return;
+    }
+    if (passwordDraft.next !== passwordDraft.confirm) {
+      toast({ title: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+    setIsSavingPassword(true);
+    try {
+      await api.post("/auth/change-password/", {
+        current_password: passwordDraft.current,
+        new_password: passwordDraft.next,
+      });
+      setPasswordDraft({ current: "", next: "", confirm: "" });
+      toast({ title: "Password changed", description: "Your new password is ready to use." });
+    } catch (error) {
+      toast({ title: "Could not change password", description: getErrorMessage(error), variant: "destructive" });
+    } finally {
+      setIsSavingPassword(false);
+    }
   };
 
-  const handleSaveNotifications = () => {
-    toast({
-      title: "Preferences Saved",
-      description: "Your notification preferences have been updated.",
-    });
+  const handleSaveNotifications = async () => {
+    if (!profile) {
+      toast({ title: "Could not load your account", description: "Refresh the page and try again.", variant: "destructive" });
+      return;
+    }
+    setIsSavingNotifications(true);
+    try {
+      await api.patch("/auth/me/", {
+        username: profile.username,
+        full_name: profile.full_name,
+        email: profile.email || "",
+        preferences: { ...profile.preferences, notifications },
+      });
+      await queryClient.invalidateQueries({ queryKey: ["student-settings-profile"] });
+      toast({ title: "Preferences saved", description: "Your notification preferences are stored with your student account." });
+    } catch (error) {
+      toast({ title: "Could not save preferences", description: getErrorMessage(error), variant: "destructive" });
+    } finally {
+      setIsSavingNotifications(false);
+    }
+  };
+
+  const updateAppearance = async (key: keyof AppearancePreferences, value: boolean) => {
+    if (!profile) {
+      toast({ title: "Could not load your account", description: "Refresh the page and try again.", variant: "destructive" });
+      return;
+    }
+    const previous = appearance;
+    const next = { ...appearance, [key]: value };
+    setAppearance(next);
+    document.documentElement.classList.toggle("dark", next.dark_mode);
+    document.documentElement.classList.toggle("compact-view", next.compact_view);
+    document.documentElement.classList.toggle("reduce-motion", !next.animations);
+    try {
+      const result = await api.patch<{ preferences: Record<string, unknown> }>("/auth/me/", {
+        username: profile.username,
+        full_name: profile.full_name,
+        email: profile.email || "",
+        preferences: { ...profile.preferences, appearance: next },
+      });
+      queryClient.setQueryData<CurrentUserProfile>(["student-settings-profile"], current => current
+        ? { ...current, preferences: result.preferences }
+        : current);
+    } catch (error) {
+      setAppearance(previous);
+      document.documentElement.classList.toggle("dark", previous.dark_mode);
+      document.documentElement.classList.toggle("compact-view", previous.compact_view);
+      document.documentElement.classList.toggle("reduce-motion", !previous.animations);
+      toast({ title: "Could not save appearance", description: getErrorMessage(error), variant: "destructive" });
+    }
   };
 
   return (
@@ -77,17 +236,9 @@ const StudentSettingsSection = () => {
               <CardDescription>Update your personal details and contact information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" defaultValue="Tatenda" disabled className="bg-secondary/50" />
-                  <p className="text-xs text-muted-foreground">Contact admin to change</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" defaultValue="Moyo" disabled className="bg-secondary/50" />
-                  <p className="text-xs text-muted-foreground">Contact admin to change</p>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input id="fullName" value={profileDraft.full_name} onChange={event => setProfileDraft({ ...profileDraft, full_name: event.target.value })} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -95,31 +246,31 @@ const StudentSettingsSection = () => {
                   <Label htmlFor="email">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" type="email" defaultValue="tatenda.moyo@student.ablegodcollege.edu.zw" className="pl-10" />
+                    <Input id="email" type="email" value={profileDraft.email} onChange={event => setProfileDraft({ ...profileDraft, email: event.target.value })} className="pl-10" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
                     <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="phone" type="tel" defaultValue="+263 77 123 4567" className="pl-10" />
+                    <Input id="phone" type="tel" value={student?.next_of_kin?.[0]?.phone || ""} disabled className="pl-10 bg-secondary/50" />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="address">Home Address</Label>
-                <Input id="address" defaultValue="123 Main Street, Masvingo" />
+                <Input id="address" value={profileDraft.address} onChange={event => setProfileDraft({ ...profileDraft, address: event.target.value })} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="emergency">Emergency Contact</Label>
-                <Input id="emergency" defaultValue="+263 77 987 6543 (Parent/Guardian)" />
+                <Input id="emergency" value={student?.next_of_kin?.[0] ? `${student.next_of_kin[0].name}${student.next_of_kin[0].relationship ? ` · ${student.next_of_kin[0].relationship}` : ""}` : "No next of kin recorded"} disabled className="bg-secondary/50" />
               </div>
 
-              <Button onClick={handleSaveProfile} variant="gold">
+              <Button onClick={() => void handleSaveProfile()} variant="gold" disabled={isSavingProfile || profileQuery.isLoading}>
                 <Save className="h-4 w-4 mr-2" />
-                Save Changes
+                {isSavingProfile ? "Saving…" : "Save Changes"}
               </Button>
             </CardContent>
           </Card>
@@ -186,9 +337,9 @@ const StudentSettingsSection = () => {
                 ))}
               </div>
 
-              <Button onClick={handleSaveNotifications} variant="gold">
+              <Button onClick={() => void handleSaveNotifications()} variant="gold" disabled={isSavingNotifications || profileQuery.isLoading}>
                 <Save className="h-4 w-4 mr-2" />
-                Save Preferences
+                {isSavingNotifications ? "Saving…" : "Save Preferences"}
               </Button>
             </CardContent>
           </Card>
@@ -212,6 +363,9 @@ const StudentSettingsSection = () => {
                       id="currentPassword" 
                       type={showPassword ? "text" : "password"} 
                       placeholder="Enter current password"
+                      autoComplete="current-password"
+                      value={passwordDraft.current}
+                      onChange={event => setPasswordDraft({ ...passwordDraft, current: event.target.value })}
                     />
                     <button 
                       type="button"
@@ -225,37 +379,19 @@ const StudentSettingsSection = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="newPassword">New Password</Label>
-                  <Input id="newPassword" type="password" placeholder="Enter new password" />
+                  <Input id="newPassword" type="password" autoComplete="new-password" placeholder="Enter new password" value={passwordDraft.next} onChange={event => setPasswordDraft({ ...passwordDraft, next: event.target.value })} />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Input id="confirmPassword" type="password" placeholder="Confirm new password" />
+                  <Input id="confirmPassword" type="password" autoComplete="new-password" placeholder="Confirm new password" value={passwordDraft.confirm} onChange={event => setPasswordDraft({ ...passwordDraft, confirm: event.target.value })} />
                 </div>
               </div>
 
-              <Button onClick={handleSavePassword} variant="gold">
+              <Button onClick={() => void handleSavePassword()} variant="gold" disabled={isSavingPassword}>
                 <Shield className="h-4 w-4 mr-2" />
-                Update Password
+                {isSavingPassword ? "Updating…" : "Update Password"}
               </Button>
-
-              <div className="pt-6 border-t border-border">
-                <h4 className="font-medium text-foreground mb-3">Login History</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between p-2 rounded bg-secondary/50">
-                    <span>Today, 8:45 AM</span>
-                    <span className="text-muted-foreground">Chrome • Windows</span>
-                  </div>
-                  <div className="flex justify-between p-2 rounded bg-secondary/50">
-                    <span>Yesterday, 3:20 PM</span>
-                    <span className="text-muted-foreground">Safari • iPhone</span>
-                  </div>
-                  <div className="flex justify-between p-2 rounded bg-secondary/50">
-                    <span>Feb 1, 2024, 9:00 AM</span>
-                    <span className="text-muted-foreground">Chrome • Windows</span>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -276,7 +412,7 @@ const StudentSettingsSection = () => {
                     <p className="font-medium">Dark Mode</p>
                     <p className="text-sm text-muted-foreground">Use dark theme for the interface</p>
                   </div>
-                  <Switch />
+                  <Switch checked={appearance.dark_mode} onCheckedChange={checked => void updateAppearance("dark_mode", checked)} />
                 </div>
 
                 <div className="flex items-center justify-between p-4 rounded-lg border border-border">
@@ -284,7 +420,7 @@ const StudentSettingsSection = () => {
                     <p className="font-medium">Compact View</p>
                     <p className="text-sm text-muted-foreground">Show more content with less spacing</p>
                   </div>
-                  <Switch />
+                  <Switch checked={appearance.compact_view} onCheckedChange={checked => void updateAppearance("compact_view", checked)} />
                 </div>
 
                 <div className="flex items-center justify-between p-4 rounded-lg border border-border">
@@ -292,7 +428,7 @@ const StudentSettingsSection = () => {
                     <p className="font-medium">Animations</p>
                     <p className="text-sm text-muted-foreground">Enable smooth transitions and effects</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch checked={appearance.animations} onCheckedChange={checked => void updateAppearance("animations", checked)} />
                 </div>
               </div>
             </CardContent>

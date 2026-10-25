@@ -138,10 +138,9 @@ const ELearningSection = ({ className }: { className: string }) => {
                 : materialsError ? <p className="py-6 text-center text-sm text-destructive">Could not load class materials: {getErrorMessage(materialsError)}</p>
                   : filteredMaterials.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No materials have been shared with your class yet.</p>
                     : filteredMaterials.map(material => {
-                      const isVideo = material.file_type === "VIDEO";
                       return <div key={material.id} className="flex flex-col justify-between gap-3 rounded-lg border p-3 sm:flex-row sm:items-center">
                         <div className="flex min-w-0 items-center gap-3"><div className="rounded-lg bg-primary/10 p-2"><FileText className="h-5 w-5 text-primary" /></div><div className="min-w-0"><p className="break-words font-medium">{material.title}</p><p className="text-sm text-muted-foreground">{material.subject_name} · {material.file_type}{material.file_name ? ` · ${material.file_name}` : ""}</p></div></div>
-                        <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end"><span className="flex items-center gap-1 text-xs text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{new Date(material.created_at).toLocaleDateString()}</span>{material.file_url && <a href={material.file_url} target="_blank" rel="noreferrer" download={!isVideo}><Button variant="outline" size="sm"><Download className="mr-1 h-4 w-4" />{isVideo ? "Watch" : "Download"}</Button></a>}</div>
+                        <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end"><span className="flex items-center gap-1 text-xs text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{new Date(material.created_at).toLocaleDateString()}</span>{material.file_url && <Button variant="outline" size="sm" onClick={() => void downloadAuthenticatedFile(material.file_url, material.file_name || material.title).catch(error => toast.error(getErrorMessage(error)))}><Download className="mr-1 h-4 w-4" />Download</Button>}</div>
                       </div>;
                     })}
             </CardContent>

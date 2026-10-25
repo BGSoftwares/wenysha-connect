@@ -2,17 +2,22 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from school.models import SchoolClass, Subject, AcademicYear, Term, Assessment, Student
+from core.models import Role, UserProfile
+from school.models import Teacher
 from datetime import date
 
 class GradesAPITests(TestCase):
     def setUp(self):
-        self.cls = SchoolClass.objects.create(name='API Grade Class')
+        role = Role.objects.get(name='Class Teacher')
+        self.user = User.objects.create_user(username='grade_user', password='pwd')
+        UserProfile.objects.create(user=self.user, role=role, full_name='Grade Teacher')
+        teacher = Teacher.objects.create(user=self.user, name='Grade Teacher')
+        self.cls = SchoolClass.objects.create(name='API Grade Class', class_teacher=teacher)
         self.subj = Subject.objects.create(name='Biology', code='BIO')
         self.year = AcademicYear.objects.create(name='2026', start_date=date(2026,1,1), end_date=date(2026,12,31))
         self.term = Term.objects.create(name='Term 1', academic_year=self.year, start_date=date(2026,1,1), end_date=date(2026,4,30))
         self.assessment = Assessment.objects.create(name='Quiz 1', assessment_type='Quiz', subject=self.subj, school_class=self.cls, term=self.term, total_marks=100)
         self.student = Student.objects.create(student_id='GAPI01', name='Grade API Student', school_class=self.cls)
-        self.user = User.objects.create_user(username='grade_user', password='pwd')
         self.client = APIClient()
 
     def test_grade_crud_and_unique_constraint_via_api(self):

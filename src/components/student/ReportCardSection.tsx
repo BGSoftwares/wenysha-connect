@@ -5,7 +5,8 @@ import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
 import { calculateGrade } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
-import { EXAM_REPORT_TYPES, useAttendanceRecords, useExamMarks, useExamRanking, useExams, useStudentFees, useStudentProfile, type ExamReportType } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useAttendanceRecords, useExamMarks, useExamRanking, useExams, useInvoices, useStudentProfile, type ExamReportType } from "@/lib/hooks";
+import { formatMoney, type FinanceCurrency } from "@/lib/finance";
 import { getPrincipalComment, getTeacherComment } from "@/lib/reportComments";
 
 interface SubjectResult {
@@ -37,7 +38,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const reportCardRef = useRef<HTMLDivElement>(null);
 
   const { data: profile } = useStudentProfile();
-  const { data: fees = [] } = useStudentFees({ student: studentId });
+  const { data: invoices = [] } = useInvoices({ student: studentId });
   const { data: allMarks = [], isLoading: isLoadingMarks } = useExamMarks({ student: studentId });
   const { data: attendanceRecords = [] } = useAttendanceRecords({ student: studentId });
   const { data: exams = [], isLoading: isLoadingExams } = useExams();
@@ -119,8 +120,15 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     return results.filter(result => getPercentage(result) >= 40).length;
   };
 
-  const outstandingBalance = fees.reduce((sum, fee) => sum + (Number(fee.amount_due) - Number(fee.amount_paid)), 0);
-  const resultsBlocked = outstandingBalance > 0;
+  const outstandingBalances = invoices.reduce<Record<string, number>>((totals, invoice) => {
+    totals[invoice.currency] = (totals[invoice.currency] || 0) + Math.max(0, Number(invoice.amount) - Number(invoice.paid));
+    return totals;
+  }, {});
+  const outstandingBalanceLabel = Object.entries(outstandingBalances)
+    .filter(([, balance]) => balance > 0)
+    .map(([currency, balance]) => formatMoney(balance, currency as FinanceCurrency))
+    .join(" · ");
+  const resultsBlocked = Object.values(outstandingBalances).some(balance => balance > 0);
 
   const averagePercentage = results.length
     ? results.reduce((sum, result) => sum + getPercentage(result), 0) / results.length
@@ -143,7 +151,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
           </div>
           <h3 className="font-heading text-2xl font-bold text-foreground mb-2">Results Locked</h3>
           <p className="text-muted-foreground mb-4">
-            This student portal is currently restricted because the account has an outstanding balance of ${outstandingBalance.toFixed(2)}. Results and report cards are hidden until the balance is cleared.
+            This student portal is currently restricted because the account has an outstanding balance of {outstandingBalanceLabel}. Results and report cards are hidden until the balance is cleared.
           </p>
           <p className="text-sm text-muted-foreground">Please contact the school accounts office to clear the balance.</p>
         </div>
