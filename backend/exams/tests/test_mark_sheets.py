@@ -120,6 +120,7 @@ class ReportTypeIsolationTests(APITestCase):
         self.assertEqual(ExamMark.objects.filter(student=self.student).count(), 5)
         for index, exam in enumerate(self.exams, start=1):
             self.assertEqual(ExamMark.objects.get(exam=exam, student=self.student).scored, 50 + index)
+            self.assertEqual(ExamMark.objects.get(exam=exam, student=self.student).comment, f'Report {index}')
 
         invalid_sheet = self.client.post('/api/exams/mark-sheets/', {
             'exam': self.exams[0].pk,

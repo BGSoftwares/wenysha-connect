@@ -18,11 +18,13 @@ interface Props {
   classId: number;
   className: string;
   teacherName: string;
+  teacherComments: Record<number, string>;
+  onTeacherCommentChange: (studentId: number, comment: string) => void;
 }
 
 type Row = { score: string; comment: string };
 
-const MarkSheetSection = ({ students, marks, examId, examName, reportType, subjectId, subjectName, classId, className, teacherName }: Props) => {
+const MarkSheetSection = ({ students, marks, examId, examName, reportType, subjectId, subjectName, classId, className, teacherName, teacherComments, onTeacherCommentChange }: Props) => {
   const saveMarkSheet = useSaveExamMarkSheet();
   const [rows, setRows] = useState<Record<number, Row>>({});
   const [busy, setBusy] = useState(false);
@@ -36,7 +38,10 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
     setRows(next);
   }, [students, marks, subjectId]);
 
-  const update = (id: number, patch: Partial<Row>) => setRows((r) => ({ ...r, [id]: { ...r[id], ...patch } }));
+  const update = (id: number, patch: Partial<Row>) => {
+    setRows((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
+    if (patch.comment !== undefined) onTeacherCommentChange(id, patch.comment);
+  };
 
   const entered = students.filter((s) => rows[s.id]?.score?.trim());
 
@@ -55,7 +60,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
           student: student.id,
           total_marks: 100,
           scored: Number(rows[student.id].score),
-          comment: rows[student.id].comment.trim(),
+          comment: teacherComments[student.id]?.trim() || rows[student.id].comment.trim(),
         })),
       });
       toast.success(`Saved marks for ${entered.length} learners`);
@@ -84,7 +89,8 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
     header();
     students.forEach((s, i) => {
       const r = rows[s.id] ?? { score: "", comment: "" };
-      const lines = doc.splitTextToSize(r.comment || "-", w - 142) as string[];
+      const comment = teacherComments[s.id]?.trim() || r.comment.trim();
+      const lines = doc.splitTextToSize(comment || "-", w - 142) as string[];
       if (y + lines.length * 5 > 280) { doc.addPage(); y = 20; header(); }
       doc.text(String(i + 1), 14, y);
       doc.text(doc.splitTextToSize(s.name, 66)[0], 22, y);
@@ -169,7 +175,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
                     <td className="px-3 py-2 font-medium text-foreground">{s.name}</td>
                     <td className="px-3 py-2"><input aria-label={`Mark for ${s.name}`} type="number" min={0} max={100} step={1} value={r.score} onChange={(e) => update(s.id, { score: e.target.value })} className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-center" /></td>
                     <td className="px-3 py-2 text-center font-semibold">{r.score ? calculateGrade(Number(r.score)).grade : "—"}</td>
-                    <td className="px-3 py-2"><input aria-label={`Comment for ${s.name}`} value={r.comment} maxLength={500} onChange={(e) => update(s.id, { comment: e.target.value })} placeholder="Comment for report card" className="w-full px-2 py-1.5 rounded-md border border-border bg-background" /></td>
+                    <td className="px-3 py-2"><input aria-label={`Comment for ${s.name}`} value={teacherComments[s.id] ?? r.comment} maxLength={500} onChange={(e) => update(s.id, { comment: e.target.value })} placeholder="Comment for report card" className="w-full px-2 py-1.5 rounded-md border border-border bg-background" /></td>
                   </tr>
                 );
               })}

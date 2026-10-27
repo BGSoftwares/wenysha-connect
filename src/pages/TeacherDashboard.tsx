@@ -187,6 +187,11 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     setGradeInputs(Object.fromEntries(examMarks.map(mark => [mark.student, String(mark.scored)])));
+    setClassTeacherComments(Object.fromEntries(
+      examMarks
+        .filter(mark => mark.comment?.trim())
+        .map(mark => [mark.student, mark.comment]),
+    ));
   }, [examMarks]);
 
   const currentStudent = subjectStudents.find(student => student.id === selectedStudentId) ?? subjectStudents[0] ?? null;
@@ -530,6 +535,8 @@ const TeacherDashboard = () => {
             classId={selectedClassId}
             className={uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"}
             teacherName={teacher?.name || "Teacher"}
+            teacherComments={classTeacherComments}
+            onTeacherCommentChange={(studentId, comment) => setClassTeacherComments(current => ({ ...current, [studentId]: comment }))}
           />
 
           {isClassTeacherForSelectedClass && classStudents.length > 0 && (
