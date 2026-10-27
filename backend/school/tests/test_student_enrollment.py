@@ -21,6 +21,7 @@ class StudentEnrollmentTests(TestCase):
         data = {
             'name': 'Learner One',
             'school_class': self.school_class.pk,
+            'stream': 'A',
             'gender': 'Female',
             'status': 'Active',
             'next_of_kin_details': {
@@ -40,10 +41,17 @@ class StudentEnrollmentTests(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         student = Student.objects.get(pk=response.data['id'])
         self.assertEqual(student.student_id, 'AbleGodStudent00001')
-        self.assertEqual(student.user.username, student.student_id)
+        self.assertEqual(student.user.profile.preferences.get('student_stream'), 'A')
+        self.assertEqual(response.data['stream'], 'A', response.data)
+        self.assertEqual(student.user.username, 'learner')
         self.assertEqual(student.user.profile.role.name, 'Student')
         self.assertTrue(student.user.check_password(response.data['portal_credentials']['temporary_password']))
-        self.assertEqual(response.data['portal_credentials']['username'], student.student_id)
+        credentials = response.data['portal_credentials']
+        self.assertEqual(credentials['username'], 'learner')
+        self.assertGreaterEqual(len(credentials['temporary_password']), 16)
+        self.assertNotEqual(credentials['temporary_password'], 'learner123')
+        self.assertNotEqual(student.user.password, credentials['temporary_password'])
+        self.assertTrue(student.user.profile.preferences['must_change_password'])
 
         link = StudentParent.objects.select_related('parent').get(student=student)
         self.assertEqual(link.relationship, 'Mother')
@@ -51,11 +59,25 @@ class StudentEnrollmentTests(TestCase):
         self.assertEqual(link.parent.phone, '+263771234567')
 
         login = self.client.post('/api/auth/login/', {
-            'email': student.student_id,
+            'email': 'learner',
             'password': response.data['portal_credentials']['temporary_password'],
         }, format='json')
         self.assertEqual(login.status_code, 200, login.data)
         self.assertEqual(login.data['user']['role'], 'Student')
+        self.assertTrue(login.data['user']['must_change_password'])
+
+    def test_student_signal_creates_one_unique_portal_account_for_direct_record_creation(self):
+        first = Student.objects.create(name='Tendai Moyo', school_class=self.school_class)
+        second = Student.objects.create(name='Tendai Ncube', school_class=self.school_class)
+
+        self.assertEqual(first.user.username, 'tendai')
+        self.assertEqual(second.user.username, 'tendai2')
+        self.assertTrue(first.user.check_password(first._portal_temporary_password))
+        self.assertTrue(second.user.check_password(second._portal_temporary_password))
+        self.assertNotEqual(first._portal_temporary_password, 'tendai123')
+        self.assertNotEqual(second._portal_temporary_password, 'tendai2123')
+        self.assertTrue(first.user.profile.preferences['must_change_password'])
+        self.assertEqual(User.objects.filter(username__startswith='tendai').count(), 2)
 
     def test_teacher_cannot_enroll_without_next_of_kin(self):
         response = self.client.post('/api/school/students/', {

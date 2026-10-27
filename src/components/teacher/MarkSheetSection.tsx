@@ -5,7 +5,7 @@ import { Download, Send, Save, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api, getErrorMessage } from "@/lib/api";
 import { calculateGrade } from "@/lib/grading";
-import { EXAM_REPORT_TYPES, useSaveExamMark, type ExamMark, type ExamReportType } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useSaveExamMarkSheet, type ExamMark, type ExamReportType } from "@/lib/hooks";
 
 interface Props {
   students: { id: number; name: string; student_id?: string }[];
@@ -23,7 +23,7 @@ interface Props {
 type Row = { score: string; comment: string };
 
 const MarkSheetSection = ({ students, marks, examId, examName, reportType, subjectId, subjectName, classId, className, teacherName }: Props) => {
-  const saveMark = useSaveExamMark();
+  const saveMarkSheet = useSaveExamMarkSheet();
   const [rows, setRows] = useState<Record<number, Row>>({});
   const [busy, setBusy] = useState(false);
 
@@ -47,9 +47,17 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
     if (bad) return toast.error(`Mark for ${bad.name} must be between 0 and 100.`);
     setBusy(true);
     try {
-      for (const s of entered) {
-        await saveMark.mutateAsync({ exam: examId, student: s.id, subject: subjectId, total_marks: 100, scored: Number(rows[s.id].score), comment: rows[s.id].comment.trim() });
-      }
+      await saveMarkSheet.mutateAsync({
+        exam: examId,
+        school_class: classId,
+        subject: subjectId,
+        marks: entered.map(student => ({
+          student: student.id,
+          total_marks: 100,
+          scored: Number(rows[student.id].score),
+          comment: rows[student.id].comment.trim(),
+        })),
+      });
       toast.success(`Saved marks for ${entered.length} learners`);
       return true;
     } catch (e) {

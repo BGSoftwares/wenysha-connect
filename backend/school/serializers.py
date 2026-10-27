@@ -258,12 +258,13 @@ class StudentSerializer(serializers.ModelSerializer):
     account_username = serializers.CharField(source='user.username', read_only=True, allow_null=True)
     next_of_kin = serializers.SerializerMethodField()
     next_of_kin_details = NextOfKinInputSerializer(write_only=True, required=False)
+    stream = serializers.CharField(required=False, allow_blank=True, max_length=64)
 
     class Meta:
         model = Student
         fields = [
             'id', 'user', 'account_email', 'account_username', 'next_of_kin', 'next_of_kin_details',
-            'student_id', 'name', 'school_class', 'class_name', 'gender', 'status', 'date_of_birth', 'address'
+            'student_id', 'name', 'school_class', 'class_name', 'stream', 'gender', 'status', 'date_of_birth', 'address'
         ]
         read_only_fields = ['student_id']
 
@@ -295,6 +296,19 @@ class StudentSerializer(serializers.ModelSerializer):
             for link in links
         ]
 
+    def get_stream(self, obj):
+        if hasattr(obj, '_student_stream'):
+            return obj._student_stream
+        try:
+            return obj.user.profile.preferences.get('student_stream', '')
+        except AttributeError:
+            return ''
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['stream'] = self.get_stream(instance)
+        return data
+
     @staticmethod
     def _link_next_of_kin(student, details):
         if not details:
@@ -303,13 +317,15 @@ class StudentSerializer(serializers.ModelSerializer):
         from django.db.models import Q
         from parents.models import Parent, StudentParent
 
+        parent = None
+        if details.get('email'):
+            parent = Parent.objects.filter(email__iexact=details['email']).order_by('id').first()
         matching_contact = Q()
         if details.get('email'):
             matching_contact |= Q(email__iexact=details['email'])
         if details.get('phone'):
             matching_contact |= Q(phone=details['phone'])
-        parent = None
-        if matching_contact:
+        if parent is None and matching_contact:
             parent = Parent.objects.filter(name__iexact=details['name']).filter(matching_contact).order_by('id').first()
         if parent is None:
             parent = Parent.objects.create(
@@ -337,55 +353,35 @@ class StudentSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         kin_details = validated_data.pop('next_of_kin_details', None)
-        from core.models import Role, UserProfile
-        from .models import generate_next_student_id
+        stream = validated_data.pop('stream', '').strip()
+        student = super().create(validated_data)
+        self._save_student_stream(student, stream)
+        self._link_next_of_kin(student, kin_details)
+        return student
 
-        linked_user = validated_data.get('user')
-        if linked_user:
-            student_id = generate_next_student_id()
-            student = super().create({**validated_data, 'student_id': student_id})
-            self._link_next_of_kin(student, kin_details)
-            return student
+    @staticmethod
+    def _save_student_stream(student, stream):
+        if not student.user_id:
+            return
+        from core.models import UserProfile
 
-        for attempt in range(10):
-            student_id = generate_next_student_id()
-            temporary_password = User.objects.make_random_password(length=12)
-            try:
-                with transaction.atomic():
-                    if User.objects.filter(username=student_id).exists():
-                        continue
-                    student_user = User.objects.create_user(
-                        username=student_id,
-                        password=temporary_password,
-                    )
-                    student_role, _ = Role.objects.get_or_create(
-                        name='Student',
-                        defaults={'description': 'Student portal access'},
-                    )
-                    UserProfile.objects.create(
-                        user=student_user,
-                        role=student_role,
-                        full_name=validated_data['name'].strip(),
-                    )
-                    student = super().create({
-                        **validated_data,
-                        'user': student_user,
-                        'student_id': student_id,
-                    })
-                    self._link_next_of_kin(student, kin_details)
-                student._portal_temporary_password = temporary_password
-                return student
-            except IntegrityError:
-                if (Student.objects.filter(student_id=student_id).exists()
-                        or User.objects.filter(username=student_id).exists()):
-                    continue
-                raise
-        raise serializers.ValidationError({'student_id': 'Could not reserve a unique student ID. Please try again.'})
+        profile, _ = UserProfile.objects.get_or_create(user=student.user)
+        preferences = dict(profile.preferences or {})
+        if stream:
+            preferences['student_stream'] = stream
+        else:
+            preferences.pop('student_stream', None)
+        profile.preferences = preferences
+        profile.save(update_fields=['preferences'])
+        student._student_stream = stream
 
     @transaction.atomic
     def update(self, instance, validated_data):
         kin_details = validated_data.pop('next_of_kin_details', None)
+        stream = validated_data.pop('stream', serializers.empty)
         student = super().update(instance, validated_data)
+        if stream is not serializers.empty:
+            self._save_student_stream(student, stream.strip())
         if kin_details:
             self._link_next_of_kin(student, kin_details)
         if student.user_id:
@@ -428,18 +424,38 @@ class AssessmentSerializer(serializers.ModelSerializer):
             'total_marks', 'due_date'
         ]
 
+    def validate_total_marks(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('Total marks must be greater than zero.')
+        return value
+
 
 class GradeSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.name', read_only=True)
     assessment_name = serializers.CharField(source='assessment.name', read_only=True)
     subject_name = serializers.CharField(source='assessment.subject.name', read_only=True)
+    assessment_total_marks = serializers.DecimalField(
+        source='assessment.total_marks', max_digits=5, decimal_places=2, read_only=True
+    )
+    assessment_term_name = serializers.CharField(source='assessment.term.name', read_only=True)
+    academic_year_name = serializers.CharField(source='assessment.term.academic_year.name', read_only=True)
 
     class Meta:
         model = Grade
         fields = [
             'id', 'student', 'student_name', 'assessment', 'assessment_name', 
-            'subject_name', 'score', 'remarks', 'date_recorded'
+            'subject_name', 'assessment_total_marks', 'assessment_term_name', 'academic_year_name',
+            'score', 'remarks', 'date_recorded'
         ]
+
+    def validate(self, attrs):
+        assessment = attrs.get('assessment', getattr(self.instance, 'assessment', None))
+        score = attrs.get('score', getattr(self.instance, 'score', None))
+        if score is not None and score < 0:
+            raise serializers.ValidationError({'score': 'Score cannot be negative.'})
+        if assessment is not None and score is not None and score > assessment.total_marks:
+            raise serializers.ValidationError({'score': 'Score cannot exceed the assessment total.'})
+        return attrs
 
 
 class FeeStructureSerializer(serializers.ModelSerializer):

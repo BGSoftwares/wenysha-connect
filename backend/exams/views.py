@@ -2,13 +2,17 @@ import re
 from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import Exam, ExamSchedule, ExamMark, MarkSubmission
-from .serializers import ExamSerializer, ExamScheduleSerializer, ExamMarkSerializer, MarkSubmissionSerializer
+from .serializers import (
+    ExamSerializer, ExamScheduleSerializer, ExamMarkSerializer,
+    ExamMarkSheetSerializer, MarkSubmissionSerializer,
+)
 from core.roles import display_name, is_admin, portal_role
 from school.models import SchoolClass, Student, Teacher, TeacherSubjectClass
 
@@ -199,6 +203,33 @@ class ExamMarkViewSet(viewsets.ModelViewSet):
         if not is_admin(request.user):
             raise PermissionDenied('Only administrators can delete examination marks.')
         return super().destroy(request, *args, **kwargs)
+
+
+class ExamMarkSheetView(APIView):
+    """Validate and save one class/subject/exam sheet as a single transaction."""
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = ExamMarkSheetSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        values = serializer.validated_data
+        saved_marks = []
+        for row in values['marks']:
+            mark, _ = ExamMark.objects.update_or_create(
+                exam=values['exam'],
+                student=row['student'],
+                subject=values['subject'],
+                defaults={
+                    'total_marks': row['total_marks'],
+                    'scored': row['scored'],
+                    'comment': row['comment'],
+                },
+            )
+            saved_marks.append(mark)
+        return Response(
+            ExamMarkSerializer(saved_marks, many=True, context={'request': request}).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class ExamRankingView(APIView):

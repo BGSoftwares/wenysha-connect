@@ -8,6 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from school.models import Student
+from core.roles import portal_role
 from .models import Book, Borrowing
 from .serializers import BookSerializer, BorrowingSerializer
 
@@ -17,12 +18,7 @@ STAFF_ROLES = {'admin', 'teacher', 'librarian', 'accounts'}
 
 
 def user_role(user):
-    if user.is_superuser or user.is_staff:
-        return 'admin'
-    profile = getattr(user, 'profile', None)
-    if profile and profile.role:
-        return profile.role.name.lower()
-    return ''
+    return portal_role(user)
 
 
 def is_library_staff(user):

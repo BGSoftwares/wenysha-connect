@@ -241,6 +241,13 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
         </div>
       </div>
 
+      {(!selectedExam || results.length === 0) && (
+        <div role="status" className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
+          <p className="font-semibold text-foreground">No results are available yet for this report.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Choose another report type or check back after the school publishes results.</p>
+        </div>
+      )}
+
       <div
         id="report-card-content"
         ref={reportCardRef}

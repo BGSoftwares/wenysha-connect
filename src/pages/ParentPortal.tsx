@@ -25,6 +25,7 @@ import {
 import { getStoredUser } from "@/lib/api";
 import { api, getErrorMessage } from "@/lib/api";
 import { formatMoney, formatSchoolDate } from "@/lib/finance";
+import { calculatePercentageFromScore } from "@/lib/grading";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -35,7 +36,7 @@ import ProfileSection from "@/components/admin/ProfileSection";
 import ParentELearningSection from "@/components/parent/ParentELearningSection";
 
 const ParentPortal = () => {
-    const { data: parentProfile, isLoading: isLoadingParent } = useParentProfile();
+    const { data: parentProfile, isLoading: isLoadingParent, error: parentProfileError, refetch: refetchParentProfile } = useParentProfile();
     const isParent = !!parentProfile; // A user is a parent if parentProfile exists
 
     const { data: parentLinks } = useStudentParentLinks(
@@ -102,7 +103,7 @@ const ParentPortal = () => {
     // Summary calculations
     const averageScore = useMemo(() => {
         if (!grades || grades.length === 0) return 0;
-        return grades.reduce((acc, g) => acc + Number(g.score), 0) / grades.length;
+        return grades.reduce((acc, grade) => acc + calculatePercentageFromScore(grade.score, grade.assessment_total_marks), 0) / grades.length;
     }, [grades]);
 
     const attendanceRate = useMemo(() => {
@@ -117,6 +118,12 @@ const ParentPortal = () => {
     }, {}), [invoices]);
     const hasPendingFees = Object.values(pendingBalances).some(amount => amount > 0);
 
+    if (isLoadingParent) {
+        return <Layout><div className="min-h-[60vh] flex items-center justify-center text-muted-foreground" aria-live="polite">Loading parent portal…</div></Layout>;
+    }
+    if (!parentProfile && parentProfileError) {
+        return <Layout><div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 p-4 text-center"><p className="text-destructive">Could not load your parent profile: {getErrorMessage(parentProfileError)}</p><Button variant="gold" onClick={() => void refetchParentProfile()}>Try again</Button></div></Layout>;
+    }
     if (!isParent) {
         return (
             <Layout>
@@ -306,8 +313,8 @@ const ParentPortal = () => {
                                                                         <td className="px-6 py-4 font-bold text-foreground">{g.subject_name}</td>
                                                                         <td className="px-6 py-4 text-sm text-muted-foreground">{g.assessment_name}</td>
                                                                         <td className="px-6 py-4">
-                                                                            <Badge className={Number(g.score) >= 70 ? "bg-green-100 text-green-700" : Number(g.score) >= 50 ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"}>
-                                                                                {g.score}%
+                                                                            <Badge className={calculatePercentageFromScore(g.score, g.assessment_total_marks) >= 70 ? "bg-green-100 text-green-700" : calculatePercentageFromScore(g.score, g.assessment_total_marks) >= 50 ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"}>
+                                                                                {calculatePercentageFromScore(g.score, g.assessment_total_marks).toFixed(1)}%
                                                                             </Badge>
                                                                         </td>
                                                                         <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(g.date_recorded).toLocaleDateString()}</td>

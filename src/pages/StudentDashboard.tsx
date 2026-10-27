@@ -25,7 +25,7 @@ import ELearningSection from "@/components/student/ELearningSection";
 import StudentLibrarySection from "@/components/student/StudentLibrarySection";
 import ProfileSection from "@/components/admin/ProfileSection";
 import NotificationsFeed from "@/components/dashboard/NotificationsFeed";
-import { calculateGrade } from "@/lib/grading";
+import { calculateGrade, calculatePercentageFromScore } from "@/lib/grading";
 import {
   useStudentProfile,
   useGrades,
@@ -69,7 +69,7 @@ const StudentDashboard = () => {
 
   const averageGrade = useMemo(() => {
     if (!grades.length) return 0;
-    return (grades.reduce((acc, g) => acc + Number(g.score), 0) / grades.length).toFixed(1);
+    return (grades.reduce((acc, grade) => acc + calculatePercentageFromScore(grade.score, grade.assessment_total_marks), 0) / grades.length).toFixed(1);
   }, [grades]);
 
   const attendanceRate = useMemo(() => {

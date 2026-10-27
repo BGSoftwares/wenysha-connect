@@ -1,19 +1,21 @@
 import { useState } from "react";
-import { calculateGrade, getGradeColorClasses } from "@/lib/grading";
+import { calculateGrade, calculatePercentageFromScore, getGradeColorClasses } from "@/lib/grading";
 import { useGrades, useStudentProfile } from "@/lib/hooks";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Download, TrendingUp, TrendingDown, Minus, Award } from "lucide-react";
+import { FileText, Download, TrendingUp, Award } from "lucide-react";
+import { toast } from "sonner";
+import { toCsv } from "@/lib/csv";
 
 export interface ResultsSectionProps {
   studentId: number;
 }
 
 const ResultsSection = ({ studentId }: ResultsSectionProps) => {
-  const [selectedTerm, setSelectedTerm] = useState("Term 1 2024");
+  const [selectedTerm, setSelectedTerm] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: profile } = useStudentProfile();
@@ -33,16 +35,45 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
     );
   }
 
-  // Placeholder for summary calculations based on `grades`
-  const currentTermGrades = grades.filter(g => g.assessment_name?.includes("Term 1")); // Example filtering
-  const averageScore = currentTermGrades.length > 0
-    ? (currentTermGrades.reduce((sum, g) => sum + g.score, 0) / currentTermGrades.length).toFixed(1)
-    : "N/A";
-  const bestSubject = currentTermGrades.reduce((best, current) => (best.score > current.score ? best : current), { score: -1, subject_name: "N/A" }).subject_name;
+  const termLabel = (grade: typeof grades[number]) => `${grade.assessment_term_name} ${grade.academic_year_name}`.trim();
+  const termOptions = Array.from(new Set(grades.map((grade) => termLabel(grade)))).filter(Boolean).sort().reverse();
+  const currentTermGrades = selectedTerm === "All" ? grades : grades.filter((grade) => termLabel(grade) === selectedTerm);
+  const percentageFor = (grade: typeof grades[number]) =>
+    calculatePercentageFromScore(grade.score, grade.assessment_total_marks);
+  const averageScore = currentTermGrades.length
+    ? currentTermGrades.reduce((sum, grade) => sum + percentageFor(grade), 0) / currentTermGrades.length
+    : null;
+  const bestSubject = [...currentTermGrades].sort((a, b) => percentageFor(b) - percentageFor(a))[0]?.subject_name ?? "N/A";
   // Rank and totalStudents would typically come from a separate API or be calculated with more context
   const rank = "N/A";
   const totalStudents = "N/A";
   const improvement = "N/A"; // Requires previous term data
+
+  const exportResults = () => {
+    if (filteredResults.length === 0) {
+      toast.info("There are no results to export.");
+      return;
+    }
+
+    const csv = toCsv(
+      ["Subject", "Assessment", "Score (%)", "Grade", "Remarks", "Date"],
+      filteredResults.map((result) => [
+        result.subject_name,
+        result.assessment_name,
+        percentageFor(result).toFixed(1),
+        calculateGrade(percentageFor(result)).grade,
+        result.remarks || "",
+        new Date(result.date_recorded).toLocaleDateString(),
+      ]),
+    );
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `able-god-results-${studentId}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Results exported.");
+  };
 
   return (
     <div className="space-y-6">
@@ -51,7 +82,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
           <h2 className="font-heading text-2xl font-bold text-foreground">My Results</h2>
           <p className="text-muted-foreground">View your examination results and performance trends</p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={exportResults}>
           <Download className="h-4 w-4 mr-2" />
           Export Results
         </Button>
@@ -67,7 +98,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Average Score</p>
-                <p className="text-2xl font-bold text-foreground">{averageScore}%</p>
+                <p className="text-2xl font-bold text-foreground">{averageScore === null ? "N/A" : `${averageScore.toFixed(1)}%`}</p>
               </div>
             </div>
           </CardContent>
@@ -124,11 +155,22 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Mid-Term Examinations</CardTitle> {/* Placeholder */}
-                  <p className="text-sm text-muted-foreground mt-1">Term 1 2024</p> {/* Placeholder */}
+                  <CardTitle>Assessment results</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedTerm === "All" ? "All assessment periods" : selectedTerm}
+                  </p>
                 </div>
+                <select
+                  aria-label="Filter results by term"
+                  className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  value={selectedTerm}
+                  onChange={(event) => setSelectedTerm(event.target.value)}
+                >
+                  <option value="All">All terms</option>
+                  {termOptions.map((term) => <option key={term} value={term}>{term}</option>)}
+                </select>
                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                  Grade A- {/* Placeholder */}
+                  {averageScore === null ? "No results" : `Grade ${calculateGrade(averageScore).grade}`}
                 </Badge>
               </div>
             </CardHeader>
@@ -140,39 +182,26 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Subject</th>
                       <th className="text-center py-3 px-4 font-medium text-muted-foreground">Score</th>
                       <th className="text-center py-3 px-4 font-medium text-muted-foreground">Grade</th>
-                      <th className="text-center py-3 px-4 font-medium text-muted-foreground">Trend</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Assessment</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Teacher Comment</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {/* This section needs to be updated to use `currentTermGrades` or similar filtered data */}
                     {currentTermGrades.map((subject, index) => {
-                      const gradeInfo = calculateGrade(subject.score);
-                      // Assuming 'previousScore' is available or can be fetched/calculated
-                      const previousScore = 0; // Placeholder
-                      const trendIcon = subject.score > previousScore ? <TrendingUp className="h-4 w-4 text-green-600" /> :
-                        subject.score < previousScore ? <TrendingDown className="h-4 w-4 text-red-500" /> :
-                          <Minus className="h-4 w-4 text-muted-foreground" />;
-                      const scoreDifference = subject.score - previousScore;
+                      const percentage = percentageFor(subject);
+                      const gradeInfo = calculateGrade(percentage);
 
                       return (
                         <tr key={index} className="border-b border-border/50 hover:bg-secondary/30">
                           <td className="py-3 px-4 font-medium text-foreground">{subject.subject_name}</td>
                           <td className="py-3 px-4 text-center">
-                            <span className="font-semibold text-foreground">{subject.score}%</span>
-                            <span className="text-xs text-muted-foreground ml-1">({previousScore}%)</span>
+                            <span className="font-semibold text-foreground">{percentage.toFixed(1)}%</span>
+                            <span className="text-xs text-muted-foreground ml-1">({subject.score} / {subject.assessment_total_marks})</span>
                           </td>
                           <td className="py-3 px-4 text-center">
                             <Badge className={`${getGradeColorClasses(gradeInfo.grade).color} ${getGradeColorClasses(gradeInfo.grade).bgColor}`}>{gradeInfo.grade}</Badge>
                           </td>
-                          <td className="py-3 px-4 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              {trendIcon}
-                              <span className={`text-xs ${scoreDifference > 0 ? 'text-green-600' : scoreDifference < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                                {scoreDifference > 0 ? '+' : ''}{scoreDifference}
-                              </span>
-                            </div>
-                          </td>
+                          <td className="py-3 px-4 text-sm text-muted-foreground">{subject.assessment_name}</td>
                           <td className="py-3 px-4 text-sm text-muted-foreground">{subject.remarks || "No comment"}</td>
                         </tr>
                       );
@@ -204,7 +233,8 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredResults.map((result, idx) => {
-                    const gradeInfo = calculateGrade(result.score);
+                    const percentage = percentageFor(result);
+                    const gradeInfo = calculateGrade(percentage);
                     return (
                       <tr key={idx} className="hover:bg-secondary/30 transition-colors">
                         <td className="px-4 py-4">
@@ -212,8 +242,8 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                           <div className="text-xs text-muted-foreground">{result.assessment_name}</div>
                         </td>
                         <td className="px-4 py-4 text-center">
-                          <div className="text-sm font-bold text-foreground">{result.score}%</div>
-                          <div className="text-[10px] text-muted-foreground">out of 100</div>
+                          <div className="text-sm font-bold text-foreground">{percentage.toFixed(1)}%</div>
+                          <div className="text-[10px] text-muted-foreground">{result.score} / {result.assessment_total_marks}</div>
                         </td>
                         <td className="px-4 py-4 text-center">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${gradeInfo.bgColor} ${gradeInfo.color}`}>

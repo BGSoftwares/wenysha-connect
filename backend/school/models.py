@@ -121,6 +121,7 @@ class Student(models.Model):
     class Meta:
         ordering = ['student_id']
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
         if not self.student_id or not self.student_id.strip():
             for attempt in range(10):

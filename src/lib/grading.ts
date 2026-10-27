@@ -37,8 +37,15 @@ export const calculateGrade = (percentage: number): GradeInfo => {
  * Calculate grade from raw score and total marks
  */
 export const calculateGradeFromScore = (scored: number, totalMarks: number): GradeInfo => {
-  const percentage = (scored / totalMarks) * 100;
-  return calculateGrade(percentage);
+  return calculateGrade(calculatePercentageFromScore(scored, totalMarks));
+};
+
+/** Convert a raw score to a percentage, returning zero for missing or invalid totals. */
+export const calculatePercentageFromScore = (scored: number | string, totalMarks: number | string): number => {
+  const score = Number(scored);
+  const total = Number(totalMarks);
+  if (!Number.isFinite(score) || !Number.isFinite(total) || total <= 0 || score < 0 || score > total) return 0;
+  return (score / total) * 100;
 };
 
 /**

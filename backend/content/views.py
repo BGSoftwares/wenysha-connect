@@ -9,6 +9,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from core.roles import display_name, is_admin, portal_role
+from core.permissions import IsAdminOrReadOnly, IsPortalAdmin
 from parents.models import StudentParent
 from school.models import SchoolClass, Student, Teacher, TeacherSubjectClass
 from .models import (
@@ -31,12 +32,14 @@ class GalleryItemViewSet(viewsets.ModelViewSet):
     queryset = GalleryItem.objects.all()
     serializer_class = GalleryItemSerializer
     filterset_fields = ['category', 'item_type']
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
     filterset_fields = ['category', 'important']
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class ContactMessageViewSet(viewsets.ModelViewSet):
@@ -48,12 +51,13 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == 'create':
             return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+        return [IsPortalAdmin()]
 
 
 class StaffMemberViewSet(viewsets.ModelViewSet):
-    queryset = StaffMember.objects.all()
+    queryset = StaffMember.objects.all().order_by('id')
     serializer_class = StaffMemberSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class LearningMaterialViewSet(viewsets.ModelViewSet):

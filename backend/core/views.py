@@ -4,11 +4,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
+import logging
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
 from .models import Role, UserProfile, PendingApproval
 from .roles import is_admin, normalize_role_name, portal_role
+from .permissions import IsPortalAdmin
 from school.models import Student, SchoolClass
 from .serializers import (
     RoleSerializer,
@@ -19,6 +21,8 @@ from .serializers import (
     PendingApprovalActionSerializer,
     AdminAccountSerializer,
 )
+
+logger = logging.getLogger('ablegod.accounts')
 
 
 def get_tokens_for_user(user):
@@ -60,15 +64,6 @@ def get_portal_profile(user):
     return role, full_name
 
 
-class IsPortalAdmin(permissions.BasePermission):
-    """Allow Django staff and accounts assigned the Admin portal role."""
-
-    message = 'Administrator access is required.'
-
-    def has_permission(self, request, view):
-        return is_admin(request.user)
-
-
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -95,6 +90,10 @@ class LoginView(APIView):
         tokens = get_tokens_for_user(user)
         tokens['user']['role'] = role
         tokens['user']['full_name'] = full_name
+        try:
+            tokens['user']['must_change_password'] = bool(user.profile.preferences.get('must_change_password'))
+        except UserProfile.DoesNotExist:
+            tokens['user']['must_change_password'] = False
         return Response(tokens)
 
 
@@ -124,6 +123,7 @@ class CurrentUserView(APIView):
             'full_name': full_name,
             'phone': phone or '',
             'preferences': preferences,
+            'must_change_password': bool(preferences.get('must_change_password')),
         })
 
     @transaction.atomic
@@ -175,16 +175,37 @@ class CurrentUserView(APIView):
 class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request):
         current = request.data.get('current_password', '')
         new = request.data.get('new_password', '')
-        if not request.user.check_password(current):
+        confirm = request.data.get('confirm_password', new)
+        try:
+            profile = request.user.profile
+            must_change = bool(profile.preferences.get('must_change_password'))
+        except UserProfile.DoesNotExist:
+            profile = None
+            must_change = False
+        if not must_change and not request.user.check_password(current):
             return Response({'current_password': ['Current password is incorrect.']}, status=status.HTTP_400_BAD_REQUEST)
         if len(new) < 8:
             return Response({'new_password': ['Use at least 8 characters.']}, status=status.HTTP_400_BAD_REQUEST)
+        if new != confirm:
+            return Response({'confirm_password': ['Passwords do not match.']}, status=status.HTTP_400_BAD_REQUEST)
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            validate_password(new, user=request.user)
+        except DjangoValidationError as error:
+            return Response({'new_password': list(error.messages)}, status=status.HTTP_400_BAD_REQUEST)
         request.user.set_password(new)
         request.user.save(update_fields=['password'])
-        return Response({'detail': 'Password changed. Please sign in again.'})
+        if profile and must_change:
+            preferences = dict(profile.preferences or {})
+            preferences.pop('must_change_password', None)
+            profile.preferences = preferences
+            profile.save(update_fields=['preferences'])
+        return Response({'detail': 'Password changed.', 'must_change_password': False})
 
 
 class SignUpView(APIView):
@@ -227,12 +248,49 @@ class AdminAccountViewSet(ModelViewSet):
             queryset = queryset.filter(teacher_roles)
         return queryset
 
+    def perform_create(self, serializer):
+        self.created_account = serializer.save()
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        account = getattr(self, 'created_account', None)
+        password = getattr(account, '_portal_temporary_password', None)
+        if account and password:
+            response.data['portal_credentials'] = {
+                'username': account.username,
+                'temporary_password': password,
+            }
+        return response
+
     def destroy(self, request, *args, **kwargs):
         account = self.get_object()
         if account.pk == request.user.pk:
             return Response({'detail': 'You cannot deactivate the account currently in use.'}, status=status.HTTP_400_BAD_REQUEST)
         account.is_active = False
         account.save(update_fields=['is_active'])
+        logger.info('Account deactivated actor=%s target=%s', request.user.pk, account.pk)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['delete'], url_path='permanent-delete')
+    def permanent_delete(self, request, pk=None):
+        account = self.get_object()
+        if account.pk == request.user.pk or account.is_superuser:
+            return Response({'detail': 'This administrator account cannot be permanently deleted.'}, status=status.HTTP_400_BAD_REQUEST)
+        from parents.models import Parent
+        from school.models import Student, Teacher
+        if (
+            Student.objects.filter(user=account).exists()
+            or Teacher.objects.filter(user=account).exists()
+            or Parent.objects.filter(user=account).exists()
+        ):
+            return Response(
+                {'detail': 'This account is linked to school records. Deactivate it to preserve those records.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        target_id = account.pk
+        username = account.username
+        account.delete()
+        logger.warning('Account permanently deleted actor=%s target=%s username=%s', request.user.pk, target_id, username)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

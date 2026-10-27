@@ -8,7 +8,12 @@ from school.models import SchoolClass, Teacher
 class ClassTeacherAssignmentApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.client.force_authenticate(user=User.objects.create_user(username='class_teacher_admin'))
+        admin = User.objects.create_superuser(
+            username='class_teacher_admin',
+            email='class-teacher-admin@example.test',
+            password='test-admin-password',
+        )
+        self.client.force_authenticate(user=admin)
         self.teacher = Teacher.objects.create(name='Class Teacher', department='Science')
         self.school_class = SchoolClass.objects.create(name='Form 2A')
 

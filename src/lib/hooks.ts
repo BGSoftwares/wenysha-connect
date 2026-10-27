@@ -500,6 +500,9 @@ export interface Grade {
     assessment: number;
     assessment_name: string;
     subject_name: string;
+    assessment_total_marks: number | string;
+    assessment_term_name: string;
+    academic_year_name: string;
     score: number;
     remarks: string;
     date_recorded: string;
@@ -528,11 +531,11 @@ export interface StudentFee {
 // --- Exams ---
 
 export const EXAM_REPORT_TYPES = [
-    { value: "fortnightly_tests", label: "Fortnightly Tests" },
     { value: "monthly_report_card", label: "Monthly Report Card" },
-    { value: "end_of_1st_term", label: "End of 1st Term" },
-    { value: "end_of_2nd_term", label: "End of 2nd Term" },
-    { value: "end_of_3rd_term", label: "End of 3rd Term" },
+    { value: "fortnightly_tests", label: "Fortnightly Report" },
+    { value: "end_of_1st_term", label: "End of Term 1" },
+    { value: "end_of_2nd_term", label: "End of Term 2" },
+    { value: "end_of_3rd_term", label: "End of Term 3" },
 ] as const;
 
 export type ExamReportType = typeof EXAM_REPORT_TYPES[number]["value"];
@@ -695,6 +698,19 @@ export const useSaveExamMark = () => {
             return api.post<ExamMark>("/exams/exam-marks/", data);
         },
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["exam-marks"] }),
+    });
+};
+
+export const useSaveExamMarkSheet = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (data: {
+            exam: number;
+            school_class: number;
+            subject: number;
+            marks: Array<{ student: number; total_marks: number; scored: number; comment: string }>;
+        }) => api.post<ExamMark[]>('/exams/mark-sheets/', data),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['exam-marks'] }),
     });
 };
 

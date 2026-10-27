@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     'django_filters',
     'corsheaders',
     'core',
-    'school',
+    'school.apps.SchoolConfig',
     'finance',
     'library',
     'hostel',
@@ -178,7 +178,7 @@ if not DEBUG:
 # REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'core.authentication.PasswordChangeRequiredJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -186,6 +186,21 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
+}
+
+# Admin account lifecycle events are emitted without credential values; the
+# deployment's process supervisor can collect these console records.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'ablegod_console': {'class': 'logging.StreamHandler'}},
+    'loggers': {
+        'ablegod.accounts': {
+            'handlers': ['ablegod_console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
 }
 
 # JWT

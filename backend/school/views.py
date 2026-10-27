@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from core.roles import is_admin, portal_role, teacher_class_ids
+from core.permissions import IsAuthenticatedAdminOrReadOnly, IsFinanceStaffOrReadOnly
 from parents.models import StudentParent
 from .models import (
     SchoolClass, Teacher, Subject, Student, TeacherSubjectClass,
@@ -23,6 +24,7 @@ from .serializers import (
 class SchoolClassViewSet(viewsets.ModelViewSet):
     queryset = SchoolClass.objects.select_related('class_teacher').all().order_by('id')
     serializer_class = SchoolClassSerializer
+    permission_classes = [IsAuthenticatedAdminOrReadOnly]
 
     def destroy(self, request, *args, **kwargs):
         school_class = self.get_object()
@@ -69,6 +71,7 @@ class TeacherViewSet(viewsets.ModelViewSet):
 class SubjectViewSet(viewsets.ModelViewSet):
     queryset = Subject.objects.all().order_by('id')
     serializer_class = SubjectSerializer
+    permission_classes = [IsAuthenticatedAdminOrReadOnly]
 
     def destroy(self, request, *args, **kwargs):
         subject = self.get_object()
@@ -78,7 +81,7 @@ class SubjectViewSet(viewsets.ModelViewSet):
 
 
 class StudentViewSet(viewsets.ModelViewSet):
-    queryset = Student.objects.select_related('school_class', 'user').all().order_by('id')
+    queryset = Student.objects.select_related('school_class', 'user', 'user__profile').all().order_by('id')
     serializer_class = StudentSerializer
     search_fields = ['student_id', 'name']
     filterset_fields = ['school_class', 'status']
@@ -218,16 +221,19 @@ class AcademicYearViewSet(viewsets.ModelViewSet):
     queryset = AcademicYear.objects.all().order_by('id')
     serializer_class = AcademicYearSerializer
     filterset_fields = ['is_current']
+    permission_classes = [IsAuthenticatedAdminOrReadOnly]
 
 class TermViewSet(viewsets.ModelViewSet):
     queryset = Term.objects.select_related('academic_year').all().order_by('id')
     serializer_class = TermSerializer
     filterset_fields = ['academic_year', 'is_active']
+    permission_classes = [IsAuthenticatedAdminOrReadOnly]
 
 class AssessmentViewSet(viewsets.ModelViewSet):
     queryset = Assessment.objects.select_related('subject', 'school_class', 'term').all().order_by('id')
     serializer_class = AssessmentSerializer
     filterset_fields = ['school_class', 'subject', 'term', 'assessment_type']
+    permission_classes = [IsAuthenticatedAdminOrReadOnly]
 
 class GradeViewSet(viewsets.ModelViewSet):
     queryset = Grade.objects.select_related('student', 'assessment__subject').all().order_by('id')
@@ -297,6 +303,7 @@ class FeeStructureViewSet(viewsets.ModelViewSet):
     queryset = FeeStructure.objects.select_related('term').all().order_by('id')
     serializer_class = FeeStructureSerializer
     filterset_fields = ['term']
+    permission_classes = [IsFinanceStaffOrReadOnly]
 
 class StudentFeeViewSet(viewsets.ModelViewSet):
     queryset = StudentFee.objects.select_related('student', 'fee_structure').all().order_by('id')
@@ -336,6 +343,22 @@ class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.select_related('student_fee__student', 'student_fee__fee_structure').all().order_by('id')
     serializer_class = PaymentSerializer
     filterset_fields = ['student_fee']
+    permission_classes = [IsFinanceStaffOrReadOnly]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        role = portal_role(user)
+        if role in {'admin', 'accounts'}:
+            return queryset
+        if role == 'student':
+            return queryset.filter(student_fee__student__user=user)
+        if role == 'parent':
+            linked_student_ids = StudentParent.objects.filter(
+                parent__user=user
+            ).values_list('student_id', flat=True)
+            return queryset.filter(student_fee__student_id__in=linked_student_ids)
+        return queryset.none()
 
 # --- Operations Views ---
 

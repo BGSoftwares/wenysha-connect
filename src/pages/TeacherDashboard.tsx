@@ -48,7 +48,6 @@ import {
   useExams,
   useExamMarks,
   useSaveExamMark,
-  useUpdateExam,
   EXAM_REPORT_TYPES,
   useAttendanceRecords,
   useUpdateAttendance,
@@ -80,6 +79,7 @@ const TeacherDashboard = () => {
   const [activeNav, setActiveNav] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [selectedReportType, setSelectedReportType] = useState<ExamReportType | "">("");
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
@@ -101,14 +101,12 @@ const TeacherDashboard = () => {
 
   const { data: exams = [] } = useExams();
   const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
-  const { data: selectedExamMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId } : undefined);
   const { data: attendanceRecords = [] } = useAttendanceRecords({
     date: attendanceDate
   });
 
   const updateAttendanceMutation = useUpdateAttendance();
   const saveExamMarkMutation = useSaveExamMark();
-  const updateExamMutation = useUpdateExam();
 
   const allocatedClasses = allocations.map((allocation) => ({ id: allocation.school_class, name: allocation.class_name }));
   const classTeacherClasses = classes
@@ -128,17 +126,17 @@ const TeacherDashboard = () => {
   ];
 
   const matchingExams = useMemo(() => exams.filter(exam =>
-    !!selectedClassId && !!selectedSubjectId &&
+    !!selectedReportType && !!selectedClassId && !!selectedSubjectId && exam.report_type === selectedReportType &&
     exam.classes.includes(selectedClassId) && exam.subjects.includes(selectedSubjectId),
-  ), [exams, selectedClassId, selectedSubjectId]);
+  ), [exams, selectedReportType, selectedClassId, selectedSubjectId]);
 
   const classStudents = students.filter(student => student.school_class === selectedClassId);
 
   useEffect(() => {
-    if (uniqueClasses.length > 0 && selectedClassId === null) {
+    if (selectedReportType && uniqueClasses.length > 0 && selectedClassId === null) {
       setSelectedClassId(uniqueClasses[0].id);
     }
-  }, [uniqueClasses, selectedClassId]);
+  }, [selectedReportType, uniqueClasses, selectedClassId]);
 
   useEffect(() => {
     if (matchingExams.length === 0) {
@@ -151,11 +149,12 @@ const TeacherDashboard = () => {
   }, [matchingExams, selectedExamId]);
 
   useEffect(() => {
+    if (!selectedReportType) return;
     const allocatedSubject = allocations.find(allocation => allocation.school_class === selectedClassId)?.subject;
     if (allocatedSubject && !allocations.some(allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId)) {
       setSelectedSubjectId(allocatedSubject);
     }
-  }, [allocations, selectedClassId, selectedSubjectId]);
+  }, [allocations, selectedReportType, selectedClassId, selectedSubjectId]);
 
   const subjectStudents = selectedClassId && selectedSubjectId
     ? classStudents.filter(student => allocations.some(allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId))
@@ -484,54 +483,51 @@ const TeacherDashboard = () => {
         <h2 className="font-heading text-xl font-bold text-foreground">Grading</h2>
         <div className="flex flex-wrap gap-3">
           <select
+            aria-label="Select report type before entering marks"
+            value={selectedReportType}
+            onChange={event => {
+              setSelectedReportType(event.target.value as ExamReportType | "");
+              setSelectedExamId(null);
+            }}
+            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+          >
+            <option value="">Select report type first</option>
+            {EXAM_REPORT_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
+          </select>
+          <select
             value={selectedClassId || ""}
             onChange={(e) => setSelectedClassId(Number(e.target.value))}
+            disabled={!selectedReportType}
             className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
           >
             <option value="">Select Class</option>
             {uniqueClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <select value={selectedSubjectId || ""} onChange={e => setSelectedSubjectId(Number(e.target.value))} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
+          <select value={selectedSubjectId || ""} onChange={e => setSelectedSubjectId(Number(e.target.value))} disabled={!selectedReportType || !selectedClassId} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">Select Subject</option>
             {allocations.filter(allocation => allocation.school_class === selectedClassId).map(allocation => <option key={allocation.subject} value={allocation.subject}>{allocation.subject_name}</option>)}
           </select>
-          <select value={selectedExamId || ""} onChange={e => setSelectedExamId(Number(e.target.value))} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
-            <option value="">Select Exam</option>
+          <select value={selectedExamId || ""} onChange={e => setSelectedExamId(Number(e.target.value))} disabled={!selectedReportType || !selectedClassId || !selectedSubjectId || matchingExams.length === 0} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
+            <option value="">{matchingExams.length ? "Select exam" : "No exam for this report"}</option>
             {matchingExams.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>
-          <select
-            aria-label="Report card type"
-            value={exams.find(exam => exam.id === selectedExamId)?.report_type ?? "fortnightly_tests"}
-            disabled={!selectedExamId || !!exams.find(exam => exam.id === selectedExamId)?.results_published || selectedExamMarks.length > 0 || updateExamMutation.isPending}
-            onChange={async event => {
-              if (!selectedExamId) return;
-              const reportType = event.target.value as ExamReportType;
-              try {
-                await updateExamMutation.mutateAsync({ id: selectedExamId, data: { report_type: reportType } });
-                toast.success("Report card type saved");
-              } catch (error) {
-                toast.error(getErrorMessage(error));
-              }
-            }}
-            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
-          >
-            {EXAM_REPORT_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
-          </select>
-          <Button variant="outline" onClick={generateReportCardPreview}>Generate Report Card</Button>
+          <Button variant="outline" onClick={generateReportCardPreview} disabled={!selectedExamId}>Generate Report Card</Button>
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Choose the report card type before entering marks. The type locks after marks are saved or an administrator publishes the results.
+        Select a report type first, then choose an allocated class, subject and prepared exam. Marks are stored under that exam and report type.
       </p>
 
-      {selectedClassId && selectedSubjectId && (
+      {!selectedReportType ? <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">Choose a report type to begin mark entry.</p>
+        : selectedClassId && selectedSubjectId && !selectedExamId ? <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">No prepared exam is available for this report, class and subject. Please contact an administrator.</p>
+        : selectedClassId && selectedSubjectId && selectedExamId && (
         <div className="space-y-4">
           <MarkSheetSection
             students={classStudents}
             marks={examMarks}
             examId={selectedExamId}
             examName={exams.find(e => e.id === selectedExamId)?.name || ""}
-            reportType={exams.find(e => e.id === selectedExamId)?.report_type ?? "fortnightly_tests"}
+            reportType={selectedReportType}
             subjectId={selectedSubjectId}
             subjectName={uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Subject"}
             classId={selectedClassId}

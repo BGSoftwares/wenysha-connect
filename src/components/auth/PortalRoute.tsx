@@ -3,14 +3,16 @@ import type { ReactElement } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { api, clearAuth, getErrorMessage, getStoredUser, getToken } from "@/lib/api";
 import { dashboardPathForRole } from "@/lib/portalRoles";
+import { FirstLoginPasswordChange } from "@/components/auth/FirstLoginPasswordChange";
 
 interface AuthenticatedUser {
   role?: string | null;
+  must_change_password?: boolean;
 }
 
 export function PortalRoute({ role, children }: { role: string; children: ReactElement }) {
   const location = useLocation();
-  const [status, setStatus] = useState<"checking" | "allowed" | "redirect" | "unauthenticated" | "error">("checking");
+  const [status, setStatus] = useState<"checking" | "allowed" | "password-change" | "redirect" | "unauthenticated" | "error">("checking");
   const [destination, setDestination] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const [errorMessage, setErrorMessage] = useState("We couldn’t verify your portal access. Check your connection and try again.");
@@ -30,7 +32,7 @@ export function PortalRoute({ role, children }: { role: string; children: ReactE
         clearAuth();
         setStatus("unauthenticated");
       } else if (userDashboard === requestedDashboard) {
-        setStatus("allowed");
+        setStatus(user.must_change_password ? "password-change" : "allowed");
       } else {
         setDestination(userDashboard);
         setStatus("redirect");
@@ -72,6 +74,7 @@ export function PortalRoute({ role, children }: { role: string; children: ReactE
     return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
   }
   if (status === "redirect" && destination) return <Navigate to={destination} replace />;
+  if (status === "password-change") return <FirstLoginPasswordChange onComplete={() => setStatus("allowed")} />;
   if (status === "error") {
     return <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
       <p className="text-foreground">{errorMessage}</p>

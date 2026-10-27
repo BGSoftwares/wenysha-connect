@@ -19,7 +19,7 @@ class LearningMaterialUploadTests(TestCase):
         self.addCleanup(media_override.disable)
         self.client = APIClient()
         self.user = User.objects.create_user(username='teacher1', password='pass12345')
-        accounts = Role.objects.create(name='Accounts')
+        accounts, _ = Role.objects.get_or_create(name='Accounts')
         UserProfile.objects.create(user=self.user, role=accounts)
         self.client.force_authenticate(user=self.user)
 

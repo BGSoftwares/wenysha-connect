@@ -1,7 +1,8 @@
 from datetime import date
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
-from school.models import SchoolClass, Subject, Student, Teacher
+from school.models import SchoolClass, Subject, Student, Teacher, TeacherSubjectClass
+from core.models import Role, UserProfile
 from exams.models import Exam, ExamMark, MarkSubmission
 
 
@@ -22,6 +23,40 @@ class MarkSheetTests(APITestCase):
         self.assertEqual(r.status_code, 201, r.content)
         self.assertEqual(ExamMark.objects.get().comment, 'Good effort')
 
+    def test_zero_mark_is_valid_and_marks_cannot_exceed_the_total(self):
+        zero_mark = self.client.post('/api/exams/exam-marks/', {
+            'exam': self.exam.id,
+            'student': self.student.id,
+            'subject': self.subject.id,
+            'total_marks': 100,
+            'scored': 0,
+        }, format='json')
+        self.assertEqual(zero_mark.status_code, 201, zero_mark.data)
+
+        other_student = Student.objects.create(
+            student_id='S2', name='Second Learner', school_class=self.cls
+        )
+        over_total = self.client.post('/api/exams/exam-marks/', {
+            'exam': self.exam.id,
+            'student': other_student.id,
+            'subject': self.subject.id,
+            'total_marks': 100,
+            'scored': 101,
+        }, format='json')
+        self.assertEqual(over_total.status_code, 400, over_total.data)
+
+        third_student = Student.objects.create(
+            student_id='S3', name='Third Learner', school_class=self.cls
+        )
+        zero_total = self.client.post('/api/exams/exam-marks/', {
+            'exam': self.exam.id,
+            'student': third_student.id,
+            'subject': self.subject.id,
+            'total_marks': 0,
+            'scored': 0,
+        }, format='json')
+        self.assertEqual(zero_total.status_code, 400, zero_total.data)
+
     def test_teacher_can_submit_mark_sheet(self):
         r = self.client.post('/api/exams/mark-submissions/', {'exam': self.exam.id, 'subject': self.subject.id, 'school_class': self.cls.id, 'teacher_name': 'Mr Moyo'}, format='json')
         self.assertEqual(r.status_code, 201, r.content)
@@ -38,3 +73,124 @@ class MarkSheetTests(APITestCase):
         self.assertEqual(r.status_code, 201, r.content)
         r = self.client.get(f'/api/school/allocations/?teacher={self.teacher.id}')
         self.assertEqual(r.status_code, 200)
+
+
+class ReportTypeIsolationTests(APITestCase):
+    def setUp(self):
+        teacher_role, _ = Role.objects.get_or_create(name='Teacher')
+        self.teacher_user = User.objects.create_user('report-teacher', password='teacher-pass-123')
+        UserProfile.objects.create(user=self.teacher_user, role=teacher_role, full_name='Report Teacher')
+        self.teacher = Teacher.objects.create(user=self.teacher_user, name='Report Teacher', department='Sciences')
+        self.school_class = SchoolClass.objects.create(name='Form 4 Sciences')
+        self.subject = Subject.objects.create(name='Mathematics', department='Sciences')
+        TeacherSubjectClass.objects.create(
+            teacher=self.teacher, subject=self.subject, school_class=self.school_class,
+        )
+        self.student = Student.objects.create(name='Tendai Moyo', school_class=self.school_class)
+        self.other_student = Student.objects.create(name='Tendai Ncube', school_class=self.school_class)
+        self.report_types = [
+            'monthly_report_card',
+            'fortnightly_tests',
+            'end_of_1st_term',
+            'end_of_2nd_term',
+            'end_of_3rd_term',
+        ]
+        self.exams = []
+        for index, report_type in enumerate(self.report_types, start=1):
+            exam = Exam.objects.create(
+                name=f'Report {index}', report_type=report_type, term=str(index), year='2026',
+                start_date=date.today(), end_date=date.today(), status='ongoing',
+            )
+            exam.classes.add(self.school_class)
+            exam.subjects.add(self.subject)
+            self.exams.append(exam)
+
+    def test_teacher_saves_each_report_type_separately_and_student_sees_only_own_published_marks(self):
+        self.client.force_authenticate(user=self.teacher_user)
+        for index, exam in enumerate(self.exams, start=1):
+            response = self.client.post('/api/exams/mark-sheets/', {
+                'exam': exam.pk, 'school_class': self.school_class.pk, 'subject': self.subject.pk,
+                'marks': [{
+                    'student': self.student.pk, 'total_marks': 100,
+                    'scored': 50 + index, 'comment': f'Report {index}',
+                }],
+            }, format='json')
+            self.assertEqual(response.status_code, 200, response.data)
+
+        self.assertEqual(ExamMark.objects.filter(student=self.student).count(), 5)
+        for index, exam in enumerate(self.exams, start=1):
+            self.assertEqual(ExamMark.objects.get(exam=exam, student=self.student).scored, 50 + index)
+
+        invalid_sheet = self.client.post('/api/exams/mark-sheets/', {
+            'exam': self.exams[0].pk,
+            'school_class': self.school_class.pk,
+            'subject': self.subject.pk,
+            'marks': [
+                {'student': self.student.pk, 'total_marks': 100, 'scored': 10},
+                {'student': self.other_student.pk, 'total_marks': 10, 'scored': 11},
+            ],
+        }, format='json')
+        self.assertEqual(invalid_sheet.status_code, 400, invalid_sheet.data)
+        self.assertEqual(ExamMark.objects.get(exam=self.exams[0], student=self.student).scored, 51)
+
+        teacher_exams = self.client.get('/api/exams/exams/')
+        self.assertEqual(teacher_exams.status_code, 200, teacher_exams.data)
+        self.assertEqual(len(teacher_exams.data['results']), 5)
+
+        # The teacher cannot write marks for an unallocated subject, even in an assigned class.
+        other_subject = Subject.objects.create(name='History', department='Arts')
+        unallocated_exam = Exam.objects.create(
+            name='Unallocated subject report', report_type='monthly_report_card', term='6', year='2026',
+            start_date=date.today(), end_date=date.today(), status='ongoing',
+        )
+        unallocated_exam.classes.add(self.school_class)
+        unallocated_exam.subjects.add(other_subject)
+        denied = self.client.post('/api/exams/exam-marks/', {
+            'exam': unallocated_exam.pk, 'student': self.student.pk, 'subject': other_subject.pk,
+            'total_marks': 100, 'scored': 80,
+        }, format='json')
+        self.assertEqual(denied.status_code, 400, denied.data)
+        denied_sheet = self.client.post('/api/exams/mark-sheets/', {
+            'exam': unallocated_exam.pk,
+            'school_class': self.school_class.pk,
+            'subject': other_subject.pk,
+            'marks': [{'student': self.student.pk, 'total_marks': 100, 'scored': 80}],
+        }, format='json')
+        self.assertEqual(denied_sheet.status_code, 400, denied_sheet.data)
+
+        for exam in self.exams:
+            exam.status = 'completed'
+            exam.results_published = True
+            exam.save(update_fields=['status', 'results_published'])
+        ExamMark.objects.create(
+            exam=self.exams[0], student=self.other_student, subject=self.subject,
+            total_marks=100, scored=100,
+        )
+
+        self.client.force_authenticate(user=self.student.user)
+        marks_response = self.client.get('/api/exams/exam-marks/')
+        self.assertEqual(marks_response.status_code, 200, marks_response.data)
+        marks = marks_response.data['results']
+        self.assertEqual(len(marks), 5)
+        self.assertTrue(all(mark['student'] == self.student.pk for mark in marks))
+        exams_response = self.client.get('/api/exams/exams/')
+        self.assertEqual(exams_response.status_code, 200, exams_response.data)
+        self.assertEqual(len(exams_response.data['results']), 5)
+        for report_type in self.report_types:
+            selected_report = self.client.get('/api/exams/exams/', {'report_type': report_type})
+            self.assertEqual(selected_report.status_code, 200, selected_report.data)
+            self.assertEqual(len(selected_report.data['results']), 1)
+            self.assertEqual(selected_report.data['results'][0]['report_type'], report_type)
+
+        unpublished_exam = Exam.objects.create(
+            name='Unpublished', report_type='monthly_report_card', term='6', year='2026',
+            start_date=date.today(), end_date=date.today(), status='completed', results_published=False,
+        )
+        unpublished_exam.classes.add(self.school_class)
+        unpublished_exam.subjects.add(self.subject)
+        ExamMark.objects.create(
+            exam=unpublished_exam, student=self.student, subject=self.subject,
+            total_marks=100, scored=99,
+        )
+        marks_response = self.client.get('/api/exams/exam-marks/')
+        self.assertEqual(len(marks_response.data['results']), 5)

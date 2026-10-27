@@ -11,7 +11,7 @@ class FinanceAPITests(TestCase):
         cls = SchoolClass.objects.create(name='API Form')
         self.student = Student.objects.create(student_id='API001', name='API Student', school_class=cls)
         self.user = User.objects.create_user(username='finance_user', email='fin@local', password='pwd')
-        accounts = Role.objects.create(name='Accounts')
+        accounts, _ = Role.objects.get_or_create(name='Accounts')
         UserProfile.objects.create(user=self.user, role=accounts)
         self.client = APIClient()
 
