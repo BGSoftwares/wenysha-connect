@@ -47,7 +47,6 @@ import {
   useSubjects,
   useExams,
   useExamMarks,
-  useSaveExamMark,
   EXAM_REPORT_TYPES,
   useAttendanceRecords,
   useUpdateAttendance,
@@ -99,15 +98,13 @@ const TeacherDashboard = () => {
   const { data: classes = [] } = useClasses();
   const { data: allSubjects = [] } = useSubjects();
 
-  const { data: exams = [] } = useExams();
+  const { data: exams = [], isLoading: isLoadingExams, error: examsError } = useExams();
   const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
   const { data: attendanceRecords = [] } = useAttendanceRecords({
     date: attendanceDate
   });
 
   const updateAttendanceMutation = useUpdateAttendance();
-  const saveExamMarkMutation = useSaveExamMark();
-
   const allocatedClasses = allocations.map((allocation) => ({ id: allocation.school_class, name: allocation.class_name }));
   const classTeacherClasses = classes
     .filter((schoolClass) => schoolClass.class_teacher === teacher?.id)
@@ -125,10 +122,20 @@ const TeacherDashboard = () => {
     ...managedClasses.flatMap(schoolClass => contentSubjects.map(subject => ({ class_name: schoolClass.name, subject_name: subject.name }))),
   ];
 
-  const matchingExams = useMemo(() => exams.filter(exam =>
-    !!selectedReportType && !!selectedClassId && !!selectedSubjectId && exam.report_type === selectedReportType &&
+  const examsForSelectedPair = useMemo(() => exams.filter(exam =>
+    !!selectedClassId && !!selectedSubjectId &&
     exam.classes.includes(selectedClassId) && exam.subjects.includes(selectedSubjectId),
-  ), [exams, selectedReportType, selectedClassId, selectedSubjectId]);
+  ), [exams, selectedClassId, selectedSubjectId]);
+  const writableExamsForSelectedPair = useMemo(
+    () => examsForSelectedPair.filter(exam => !exam.results_published),
+    [examsForSelectedPair],
+  );
+  const matchingExams = useMemo(() => writableExamsForSelectedPair.filter(exam =>
+    !!selectedReportType && exam.report_type === selectedReportType,
+  ), [writableExamsForSelectedPair, selectedReportType]);
+  const otherAvailableReportTypes = EXAM_REPORT_TYPES.filter(type =>
+    type.value !== selectedReportType && writableExamsForSelectedPair.some(exam => exam.report_type === type.value),
+  );
 
   const classStudents = students.filter(student => student.school_class === selectedClassId);
 
@@ -180,37 +187,6 @@ const TeacherDashboard = () => {
   useEffect(() => {
     setGradeInputs(Object.fromEntries(examMarks.map(mark => [mark.student, String(mark.scored)])));
   }, [examMarks]);
-
-  const saveGrade = async (studentId: number) => {
-    if (gradeInputs[studentId]?.trim() === "") {
-      toast.error("Enter a score before saving.");
-      return;
-    }
-    const score = Number(gradeInputs[studentId]);
-    if (!selectedExamId || !selectedSubjectId) {
-      toast.error("Select an exam and an allocated subject first.");
-      return;
-    }
-    if (!Number.isFinite(score) || score < 0 || score > 100) {
-      toast.error("Enter a score between 0 and 100.");
-      return;
-    }
-    try {
-      await saveExamMarkMutation.mutateAsync({ exam: selectedExamId, student: studentId, subject: selectedSubjectId, total_marks: 100, scored: score });
-      toast.success("Grade saved");
-    } catch {
-      toast.error("Could not save this grade");
-    }
-  };
-
-  const saveAllGrades = async () => {
-    const enteredStudentIds = classStudents.filter(student => gradeInputs[student.id] !== undefined && gradeInputs[student.id] !== "").map(student => student.id);
-    if (enteredStudentIds.length === 0) {
-      toast.error("Enter at least one grade to save.");
-      return;
-    }
-    for (const studentId of enteredStudentIds) await saveGrade(studentId);
-  };
 
   const currentStudent = subjectStudents.find(student => student.id === selectedStudentId) ?? subjectStudents[0] ?? null;
   const selectedStudentScore = currentStudent ? gradeInputs[currentStudent.id] ?? examMarks.find(mark => mark.student === currentStudent.id && mark.subject === selectedSubjectId)?.scored ?? "" : "";
@@ -518,8 +494,28 @@ const TeacherDashboard = () => {
         Select a report type first, then choose an allocated class, subject and prepared exam. Marks are stored under that exam and report type.
       </p>
 
-      {!selectedReportType ? <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">Choose a report type to begin mark entry.</p>
-        : selectedClassId && selectedSubjectId && !selectedExamId ? <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">No prepared exam is available for this report, class and subject. Please contact an administrator.</p>
+      {examsError ? <p role="alert" className="rounded-xl border border-destructive/30 p-5 text-destructive">Could not load exams: {getErrorMessage(examsError)}</p>
+        : isLoadingExams ? <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">Loading exams…</p>
+        : !selectedReportType ? <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">Choose a report type to begin mark entry.</p>
+        : selectedClassId && selectedSubjectId && !selectedExamId ? <div role="status" className="rounded-xl border border-dashed p-6 text-center">
+          {examsForSelectedPair.length === 0 ? <>
+            <p className="font-medium text-foreground">No exam is set up for this class and subject.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Ask an administrator to create an exam and include {uniqueClasses.find(item => item.id === selectedClassId)?.name} and {uniqueSubjects.find(item => item.id === selectedSubjectId)?.name}.</p>
+          </> : writableExamsForSelectedPair.length === 0 ? <>
+            <p className="font-medium text-foreground">The exams for this class and subject are already published.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Ask an administrator to unpublish the results or create a new exam before entering marks.</p>
+          </> : <>
+            <p className="font-medium text-foreground">No {EXAM_REPORT_TYPES.find(type => type.value === selectedReportType)?.label} exam is set up for this class and subject.</p>
+            {otherAvailableReportTypes.length > 0 ? <>
+              <p className="mt-2 text-sm text-muted-foreground">There are writable exams for this class and subject under another report type. Choose one to enter marks in that report.</p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {otherAvailableReportTypes.map(type => <Button key={type.value} variant="outline" onClick={() => { setSelectedReportType(type.value); setSelectedExamId(null); }}>
+                  Use {type.label} ({writableExamsForSelectedPair.filter(exam => exam.report_type === type.value).length} exams)
+                </Button>)}
+              </div>
+            </> : <p className="mt-2 text-sm text-muted-foreground">Ask an administrator to create an exam with this report type and include this class and subject.</p>}
+          </>}
+        </div>
         : selectedClassId && selectedSubjectId && selectedExamId && (
         <div className="space-y-4">
           <MarkSheetSection
@@ -703,65 +699,6 @@ const TeacherDashboard = () => {
         </div>
       )}
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="p-4 border-b border-border bg-secondary/30">
-          <h3 className="font-medium text-foreground">{uniqueClasses.find(c => c.id === selectedClassId)?.name || "Select Class"} - {uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Select Subject"}</h3>
-          <p className="text-sm text-muted-foreground">{exams.find(exam => exam.id === selectedExamId)?.name || "Select an exam"}</p>
-        </div>
-        <table className="w-full">
-          <thead className="bg-secondary/50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Student</th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Score</th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Grade</th>
-              <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {subjectStudents.map((student) => (
-              <tr key={student.id} className="border-t border-border">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="h-4 w-4 text-primary" />
-                    </div>
-                    <span className="text-sm text-foreground">{student.name}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <input
-                    type="number"
-                    className="w-16 text-center px-2 py-1 rounded border border-border bg-background text-foreground"
-                    min="0"
-                    max="100"
-                    placeholder="-"
-                    value={gradeInputs[student.id] ?? examMarks.find(mark => mark.student === student.id && mark.subject === selectedSubjectId)?.scored ?? ""}
-                    onChange={event => setGradeInputs(current => ({ ...current, [student.id]: event.target.value }))}
-                  />
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <span className="text-xs px-2 py-1 rounded font-medium bg-secondary text-muted-foreground">
-                    {gradeInputs[student.id] !== undefined && gradeInputs[student.id] !== "" ? calculateGrade(Number(gradeInputs[student.id])).grade : "-"}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Button variant="outline" size="sm" onClick={() => saveGrade(student.id)} disabled={saveExamMarkMutation.isPending || !selectedExamId || !selectedSubjectId}>Save</Button>
-                </td>
-              </tr>
-            ))}
-            {subjectStudents.length === 0 && (
-              <tr>
-                <td colSpan={4} className="p-8 text-center text-muted-foreground italic">
-                  No students found for the selected class and subject combination.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        <div className="p-4 border-t border-border flex justify-end">
-          <Button variant="gold" onClick={saveAllGrades} disabled={saveExamMarkMutation.isPending || !selectedExamId || !selectedSubjectId}>{saveExamMarkMutation.isPending ? "Saving…" : "Save All Grades"}</Button>
-        </div>
-      </div>
     </div>
   );
 
