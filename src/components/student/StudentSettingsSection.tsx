@@ -26,7 +26,7 @@ type CurrentUserProfile = {
   username: string;
   email: string;
   full_name: string;
-  phone: string;
+  phone?: string;
   preferences: Record<string, unknown>;
 };
 
@@ -60,24 +60,29 @@ const defaultAppearance: AppearancePreferences = {
   animations: true,
 };
 
-const StudentSettingsSection = () => {
+const StudentSettingsSection = ({ studentContext = true }: { studentContext?: boolean }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const userId = getStoredUser()?.id;
+  const profileQueryKey = ["portal-settings-profile", userId] as const;
+  const studentQueryKey = ["portal-settings-student", userId] as const;
   const [showPassword, setShowPassword] = useState(false);
   const [notifications, setNotifications] = useState<NotificationPreferences>(defaultNotifications);
   const [appearance, setAppearance] = useState<AppearancePreferences>(defaultAppearance);
-  const [profileDraft, setProfileDraft] = useState({ full_name: "", email: "", address: "" });
+  const [profileDraft, setProfileDraft] = useState({ full_name: "", email: "", address: "", phone: "" });
   const [passwordDraft, setPasswordDraft] = useState({ current: "", next: "", confirm: "" });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
   const profileQuery = useQuery({
-    queryKey: ["student-settings-profile"],
+    queryKey: profileQueryKey,
     queryFn: () => api.get<CurrentUserProfile>("/auth/me/"),
+    enabled: Boolean(userId),
   });
   const studentQuery = useQuery({
-    queryKey: ["student-settings-record"],
+    queryKey: studentQueryKey,
     queryFn: async () => (await fetchAllPages<Student>("/school/students/"))[0] ?? null,
+    enabled: studentContext && Boolean(userId),
   });
   const profile = profileQuery.data;
   const student = studentQuery.data;
@@ -87,7 +92,8 @@ const StudentSettingsSection = () => {
       setProfileDraft({
         full_name: profile.full_name || "",
         email: profile.email || "",
-        address: student?.address || "",
+        address: studentContext ? student?.address || "" : "",
+        phone: studentContext ? "" : profile.phone || "",
       });
       const saved = profile.preferences?.notifications;
       if (saved && typeof saved === "object") {
@@ -102,7 +108,7 @@ const StudentSettingsSection = () => {
       document.documentElement.classList.toggle("compact-view", nextAppearance.compact_view);
       document.documentElement.classList.toggle("reduce-motion", !nextAppearance.animations);
     }
-  }, [profile, student]);
+  }, [profile, student, studentContext]);
 
   const handleSaveProfile = async () => {
     if (!profileDraft.full_name.trim()) {
@@ -111,19 +117,23 @@ const StudentSettingsSection = () => {
     }
     setIsSavingProfile(true);
     try {
-      await api.patch("/auth/me/", {
+      const payload: Record<string, string> = {
         username: profile?.username || getStoredUser()?.username || "",
         full_name: profileDraft.full_name.trim(),
         email: profileDraft.email.trim(),
-        address: profileDraft.address.trim(),
-      });
+      };
+      if (studentContext) payload.address = profileDraft.address.trim();
+      else payload.phone = profileDraft.phone.trim();
+      await api.patch("/auth/me/", payload);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["student-settings-profile"] }),
-        queryClient.invalidateQueries({ queryKey: ["student-settings-record"] }),
+        queryClient.invalidateQueries({ queryKey: profileQueryKey }),
+        queryClient.invalidateQueries({ queryKey: studentQueryKey }),
         queryClient.invalidateQueries({ queryKey: ["student-profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["teacher-profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["current-user"] }),
         queryClient.invalidateQueries({ queryKey: ["students"] }),
       ]);
-      toast({ title: "Profile updated", description: "Your name, email, and address were saved." });
+      toast({ title: "Profile updated", description: studentContext ? "Your name, email, and address were saved." : "Your name, email, and phone number were saved." });
     } catch (error) {
       toast({ title: "Could not update profile", description: getErrorMessage(error), variant: "destructive" });
     } finally {
@@ -172,8 +182,8 @@ const StudentSettingsSection = () => {
         email: profile.email || "",
         preferences: { ...profile.preferences, notifications },
       });
-      await queryClient.invalidateQueries({ queryKey: ["student-settings-profile"] });
-      toast({ title: "Preferences saved", description: "Your notification preferences are stored with your student account." });
+      await queryClient.invalidateQueries({ queryKey: profileQueryKey });
+      toast({ title: "Preferences saved", description: "Your notification preferences are stored with your account." });
     } catch (error) {
       toast({ title: "Could not save preferences", description: getErrorMessage(error), variant: "destructive" });
     } finally {
@@ -199,7 +209,7 @@ const StudentSettingsSection = () => {
         email: profile.email || "",
         preferences: { ...profile.preferences, appearance: next },
       });
-      queryClient.setQueryData<CurrentUserProfile>(["student-settings-profile"], current => current
+      queryClient.setQueryData<CurrentUserProfile>(profileQueryKey, current => current
         ? { ...current, preferences: result.preferences }
         : current);
     } catch (error) {
@@ -214,9 +224,11 @@ const StudentSettingsSection = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-heading text-2xl font-bold text-foreground">Settings</h2>
+        <h2 className="font-heading text-2xl font-bold text-foreground">Account Settings</h2>
         <p className="text-muted-foreground">Manage your account preferences and security</p>
       </div>
+
+      {profileQuery.error && <p role="alert" className="rounded-xl border border-destructive/30 p-4 text-sm text-destructive">Could not load your account: {getErrorMessage(profileQuery.error)}</p>}
 
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
@@ -250,23 +262,23 @@ const StudentSettingsSection = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone">{studentContext ? "Guardian phone number" : "Phone Number"}</Label>
                   <div className="relative">
                     <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="phone" type="tel" value={student?.next_of_kin?.[0]?.phone || ""} disabled className="pl-10 bg-secondary/50" />
+                    <Input id="phone" type="tel" value={studentContext ? student?.next_of_kin?.[0]?.phone || "" : profileDraft.phone} disabled={studentContext} onChange={event => setProfileDraft({ ...profileDraft, phone: event.target.value })} className="pl-10" />
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              {studentContext && <div className="space-y-2">
                 <Label htmlFor="address">Home Address</Label>
                 <Input id="address" value={profileDraft.address} onChange={event => setProfileDraft({ ...profileDraft, address: event.target.value })} />
-              </div>
+              </div>}
 
-              <div className="space-y-2">
+              {studentContext && <div className="space-y-2">
                 <Label htmlFor="emergency">Emergency Contact</Label>
                 <Input id="emergency" value={student?.next_of_kin?.[0] ? `${student.next_of_kin[0].name}${student.next_of_kin[0].relationship ? ` · ${student.next_of_kin[0].relationship}` : ""}` : "No next of kin recorded"} disabled className="bg-secondary/50" />
-              </div>
+              </div>}
 
               <Button onClick={() => void handleSaveProfile()} variant="gold" disabled={isSavingProfile || profileQuery.isLoading}>
                 <Save className="h-4 w-4 mr-2" />

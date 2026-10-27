@@ -23,7 +23,7 @@ import StudentFeesSection from "@/components/student/StudentFeesSection";
 import ResultsSection from "@/components/student/ResultsSection";
 import ELearningSection from "@/components/student/ELearningSection";
 import StudentLibrarySection from "@/components/student/StudentLibrarySection";
-import ProfileSection from "@/components/admin/ProfileSection";
+import StudentSettingsSection from "@/components/student/StudentSettingsSection";
 import NotificationsFeed from "@/components/dashboard/NotificationsFeed";
 import { calculateGrade, calculatePercentageFromScore } from "@/lib/grading";
 import {
@@ -320,7 +320,7 @@ const StudentDashboard = () => {
       case "results": return resultsLocked ? lockedResultsMessage : <ResultsSection studentId={profile.id} />;
       case "elearning": return <ELearningSection className={profile.class_name} />;
       case "library": return <StudentLibrarySection />;
-      case "settings": return <ProfileSection />;
+      case "settings": return <StudentSettingsSection />;
       case "dashboard":
       default: return renderDashboard();
     }
@@ -404,7 +404,7 @@ const StudentDashboard = () => {
                     activeNav === "fees" ? "My Fees & Payments" :
                       `Welcome back, ${profile.name.split(' ')[0]}!`}
               </h1>
-              <p className="text-white/50 text-sm">{profile.class_name} • Term 1 2024</p>
+              <p className="text-white/50 text-sm">{profile.class_name}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
