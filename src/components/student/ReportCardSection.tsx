@@ -100,8 +100,8 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
         overallGrade: calculateGrade(averagePercentage).grade,
         passed: countPassed(),
         totalSubjects: results.length,
-        classPosition: formatPosition(ranking?.class_position, ranking?.class_total),
-        levelPosition: formatPosition(ranking?.level_position, ranking?.level_total),
+        classPosition: isReportProvisional ? "Provisional" : formatPosition(ranking?.class_position, ranking?.class_total),
+        levelPosition: isReportProvisional ? "Provisional" : formatPosition(ranking?.level_position, ranking?.level_total),
         teacherComment,
         principalComment,
         attendance: {
@@ -352,18 +352,22 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
             <div className="rounded-xl border border-[#eadde5] bg-white px-3 py-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">Class position</p>
               <p className="mt-0.5 font-serif text-lg font-bold leading-tight text-[#17244c]">
-                {isLoadingRanking ? "Calculating…" : formatPosition(ranking?.class_position, ranking?.class_total)}
+                {isReportProvisional ? "Provisional" : (isLoadingRanking ? "Calculating…" : formatPosition(ranking?.class_position, ranking?.class_total))}
               </p>
-              <p className="text-[9px] text-[#777484]">Based on this examination</p>
+              <p className="text-[9px] text-[#777484]">
+                {isReportProvisional ? "Computed when exam is finalized" : "Based on this examination"}
+              </p>
             </div>
             <div className="rounded-xl border border-[#edcfdf] bg-[#fff3f8] px-3 py-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">
                 {ranking?.level_name ? `${ranking.level_name} level position` : "Overall level position"}
               </p>
               <p className="mt-0.5 font-serif text-lg font-bold leading-tight text-[#17244c]">
-                {isLoadingRanking ? "Calculating…" : formatPosition(ranking?.level_position, ranking?.level_total)}
+                {isReportProvisional ? "Provisional" : (isLoadingRanking ? "Calculating…" : formatPosition(ranking?.level_position, ranking?.level_total))}
               </p>
-              <p className="text-[9px] text-[#777484]">Across sections at the same level</p>
+              <p className="text-[9px] text-[#777484]">
+                {isReportProvisional ? "Computed when exam is finalized" : "Across sections at the same level"}
+              </p>
             </div>
           </div>
           {isRankingError && (
