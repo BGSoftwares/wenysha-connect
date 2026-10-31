@@ -118,7 +118,10 @@ const TeacherDashboard = () => {
   const classTeacherClasses = classes
     .filter((schoolClass) => schoolClass.class_teacher === teacher?.id)
     .map((schoolClass) => ({ id: schoolClass.id, name: schoolClass.name }));
-  const managedClasses = classes.filter((schoolClass) => schoolClass.class_teacher === teacher?.id);
+  const managedClasses = classes.filter((schoolClass) =>
+    schoolClass.class_teacher === teacher?.id ||
+    (!schoolClass.class_teacher && allocations.some(a => a.school_class === schoolClass.id))
+  );
   const uniqueClasses = Array.from(
     new Map([...allocatedClasses, ...classTeacherClasses].map((schoolClass) => [schoolClass.id, schoolClass])).values(),
   );
@@ -192,7 +195,12 @@ const TeacherDashboard = () => {
   }, [examMarks]);
 
   const selectedClass = classes.find(classItem => classItem.id === selectedClassId) ?? null;
-  const isClassTeacherForSelectedClass = Boolean(teacher && selectedClass && selectedClass.class_teacher === teacher.id);
+  const isClassTeacherForSelectedClass = Boolean(
+    teacher && selectedClass && (
+      selectedClass.class_teacher === teacher.id ||
+      (!selectedClass.class_teacher && allocations.some(a => a.school_class === selectedClass.id))
+    )
+  );
   const reportPreviewExam = exams.find(exam => exam.id === selectedExamId);
   const reportPreviewType = reportPreviewExam?.report_type ?? selectedReportType;
   const reportIssuedAt = new Date();

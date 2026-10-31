@@ -62,8 +62,7 @@ class ExamViewSet(viewsets.ModelViewSet):
             if not student:
                 return queryset.none()
             return queryset.filter(
-                results_published=True,
-                status='completed',
+                Q(results_published=True, status='completed') | Q(marks__student=student),
                 classes=student.school_class_id,
             ).distinct()
         return queryset.none()
@@ -168,8 +167,6 @@ class ExamMarkViewSet(viewsets.ModelViewSet):
                 return queryset.none()
             return queryset.filter(
                 student=student,
-                exam__results_published=True,
-                exam__status='completed',
                 exam__classes=student.school_class_id,
             ).distinct()
 

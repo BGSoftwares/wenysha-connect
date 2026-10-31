@@ -193,5 +193,15 @@ class ReportTypeIsolationTests(APITestCase):
             exam=unpublished_exam, student=self.student, subject=self.subject,
             total_marks=100, scored=99,
         )
+        ExamMark.objects.create(
+            exam=unpublished_exam, student=self.other_student, subject=self.subject,
+            total_marks=100, scored=85,
+        )
         marks_response = self.client.get('/api/exams/exam-marks/')
-        self.assertEqual(len(marks_response.data['results']), 5)
+        self.assertEqual(len(marks_response.data['results']), 6)
+        self.assertTrue(all(mark['student'] == self.student.pk for mark in marks_response.data['results']))
+        rankings_response = self.client.get('/api/exams/exam-rankings/', {
+            'exam': unpublished_exam.id,
+            'student': self.student.id,
+        })
+        self.assertEqual(rankings_response.status_code, 403)
