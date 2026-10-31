@@ -56,7 +56,7 @@ const StudentDashboard = () => {
 
   const { data: profile, isLoading: isLoadingProfile } = useStudentProfile();
   const { data: grades = [] } = useGrades({ student: profile?.id });
-  const { data: attendance = [] } = useAttendanceRecords({ student: profile?.id });
+  const { data: attendance = [] } = useAttendanceRecords({ student: profile?.id ?? 0 });
   const { data: invoices = [] } = useInvoices({ student: profile?.id || 0 });
   const { data: timetable = [] } = useTimetable(profile?.school_class);
   const { data: learningAssignments = [] } = useLearningAssignments();

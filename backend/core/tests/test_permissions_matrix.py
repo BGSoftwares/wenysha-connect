@@ -48,7 +48,7 @@ class PermissionMatrixTests(TestCase):
         self.assertEqual(r4.status_code, 200)
 
     def test_finance_invoice_permissions(self):
-        payload = {'invoice_no': 'PMINV1', 'student': self.student.id, 'term': 'T1', 'amount': '120.00', 'date': date.today().isoformat()}
+        payload = {'invoice_no': 'PMINV1', 'student': self.student.id, 'term': 'T1', 'amount': '120.00', 'date': date(2026, 10, 27).isoformat()}
         # Unauthenticated blocked
         r = self.client.post('/api/finance/invoices/', payload, format='json')
         self.assertEqual(r.status_code, 401)
@@ -63,7 +63,7 @@ class PermissionMatrixTests(TestCase):
 
     def test_grades_and_attendance_auth_required(self):
         grade_payload = {'student': self.student.id, 'assessment': None, 'score': '70.0'}
-        attend_payload = {'student': self.student.id, 'date': date.today().isoformat(), 'status': 'present'}
+        attend_payload = {'student': self.student.id, 'date': date(2026, 10, 27).isoformat(), 'status': 'present'}
         # Unauthenticated blocked
         gr = self.client.post('/api/school/grades/', grade_payload, format='json')
         at = self.client.post('/api/attendance/attendance/', attend_payload, format='json')

@@ -1,7 +1,11 @@
 from pathlib import Path
+import mimetypes
+import re
+from urllib.parse import urlparse
 
 from core.roles import is_admin, portal_role
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 from .models import (
     GalleryItem, Announcement, ContactMessage, StaffMember, LearningMaterial,
     LearningAssignment, LearningSubmission,
@@ -34,9 +38,99 @@ def file_type_from_name(name: str) -> str:
 
 
 class GalleryItemSerializer(serializers.ModelSerializer):
+    image_url = serializers.CharField(max_length=512, required=False, allow_blank=True)
+    media_file = serializers.FileField(required=False, allow_null=True, write_only=True)
+
     class Meta:
         model = GalleryItem
-        fields = ['id', 'title', 'category', 'item_type', 'image_url', 'date']
+        fields = [
+            'id', 'title', 'category', 'item_type', 'image_url', 'media_file',
+            'description', 'show_on_homepage', 'display_order', 'display_mode', 'date',
+        ]
+
+    def validate_image_url(self, value):
+        if not value:
+            return value
+        parsed = urlparse(value)
+        if parsed.scheme and parsed.scheme not in {'http', 'https'}:
+            raise serializers.ValidationError('Use an http(s) URL or a local asset path.')
+        if not parsed.scheme and not value.startswith('/'):
+            raise serializers.ValidationError('Use an absolute URL or a local asset path starting with /.')
+        return value
+
+    def validate_media_file(self, value):
+        if value and value.size > 50 * 1024 * 1024:
+            raise serializers.ValidationError('Media files must be 50MB or smaller.')
+        content_type = (mimetypes.guess_type(value.name)[0] or value.content_type or '') if value else ''
+        if value and not content_type.startswith(('image/', 'video/')):
+            raise serializers.ValidationError('Upload an image or video file.')
+        return value
+
+    def validate(self, attrs):
+        uploaded_file = attrs.get('media_file')
+        existing_file = getattr(self.instance, 'media_file', None)
+        url = attrs.get('image_url', getattr(self.instance, 'image_url', ''))
+        if not uploaded_file and not existing_file and not url:
+            raise serializers.ValidationError({'image_url': 'Upload a file or provide an image URL.'})
+
+        item_type = attrs.get('item_type', getattr(self.instance, 'item_type', 'image'))
+        content_type = (mimetypes.guess_type(uploaded_file.name)[0] or uploaded_file.content_type or '') if uploaded_file else ''
+        if uploaded_file and item_type == 'image' and content_type.startswith('video/'):
+            raise serializers.ValidationError({'item_type': 'Select video for a video upload.'})
+        if uploaded_file and item_type == 'video' and content_type.startswith('image/'):
+            raise serializers.ValidationError({'item_type': 'Select image for an image upload.'})
+        return attrs
+
+    def _media_url(self, instance):
+        return reverse(
+            'galleryitem-media',
+            kwargs={'pk': instance.pk},
+            request=self.context.get('request'),
+        )
+
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        if instance.media_file:
+            instance.image_url = self._media_url(instance)
+            instance.save(update_fields=['image_url'])
+        return instance
+
+    def update(self, instance, validated_data):
+        incoming_url = validated_data.get('image_url', '')
+        current_media_route = f'/content/gallery/{instance.pk}/media/'
+        is_same_media_url = bool(instance.media_file and current_media_route in incoming_url)
+        replacing_with_url = (
+            'image_url' in validated_data
+            and 'media_file' not in validated_data
+            and incoming_url != instance.image_url
+            and not is_same_media_url
+        )
+        if replacing_with_url and instance.media_file:
+            instance.media_file.delete(save=False)
+            instance.media_file = None
+
+        instance = super().update(instance, validated_data)
+        if instance.media_file and 'media_file' in validated_data:
+            instance.image_url = self._media_url(instance)
+            instance.save(update_fields=['image_url'])
+        return instance
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.media_file:
+            data['image_url'] = self._media_url(instance)
+        elif instance.image_url:
+            # Gallery uploads made before this endpoint used the protected
+            # learning-material download route. Repoint only those legacy
+            # gallery references to its safe public image/video route.
+            match = re.search(r'/materials/(\d+)/file/?(?:\?.*)?$', instance.image_url)
+            if match:
+                data['image_url'] = reverse(
+                    'learningmaterial-public-file',
+                    kwargs={'pk': match.group(1)},
+                    request=self.context.get('request'),
+                )
+        return data
 
 
 class AnnouncementSerializer(serializers.ModelSerializer):

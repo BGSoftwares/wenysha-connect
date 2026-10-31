@@ -7,12 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, X, Clock, Calendar, Search, Users, TrendingUp, AlertCircle, Share2 } from "lucide-react";
 import { buildAttendancePdf, sharePdfToWhatsApp } from "@/lib/pdfExport";
+import { formatLocalDateKey, getSchoolDateStatus, ZIMBABWE_2026_PUBLIC_HOLIDAYS, ZIMBABWE_2026_TERMS } from "@/lib/zimbabweSchoolCalendar";
+
+const formatCalendarDate = (dateKey: string) => new Date(`${dateKey}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
 const AttendanceSection = () => {
   const { data: students = [] } = useStudents();
   const { data: classes = [] } = useClasses();
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(formatLocalDateKey(new Date()));
   const [searchQuery, setSearchQuery] = useState("");
 
   // Set initial class when data loads
@@ -28,22 +31,29 @@ const AttendanceSection = () => {
   const updateAttendanceMutation = useUpdateAttendance();
 
   const selectedClass = classes.find(c => c.id === selectedClassId) || classes[0];
+  const attendanceByStudent = new Map(attendanceRecords.map((record) => [record.student, record]));
 
   const attendanceData = students
     .filter(s => s.school_class === selectedClassId)
     .map(student => {
-      const record = attendanceRecords.find(r => r.student === student.id);
+      const record = attendanceByStudent.get(student.id);
       return {
         ...student,
-        status: record?.status || "present"
+        status: record?.status || "unmarked"
       };
     });
+
+  const attendanceDateStatus = getSchoolDateStatus(selectedDate);
 
   const filteredStudents = attendanceData.filter(student =>
     student.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleUpdateAttendance = async (studentId: number, status: "present" | "absent" | "late") => {
+    if (!attendanceDateStatus.isSchoolDay) {
+      toast.error(attendanceDateStatus.reason || "Attendance cannot be recorded on this date.");
+      return;
+    }
     try {
       await updateAttendanceMutation.mutateAsync({
         student: studentId,
@@ -59,8 +69,10 @@ const AttendanceSection = () => {
   const presentCount = attendanceData.filter(s => s.status === "present").length;
   const absentCount = attendanceData.filter(s => s.status === "absent").length;
   const lateCount = attendanceData.filter(s => s.status === "late").length;
-  const totalCount = attendanceData.length;
-  const avgAttendance = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(0) : "0";
+  const markedCount = presentCount + absentCount + lateCount;
+  const unmarkedCount = Math.max(0, attendanceData.length - markedCount);
+  const anyAttendanceMarked = markedCount > 0;
+  const avgAttendance = markedCount > 0 ? (((presentCount + lateCount) / markedCount) * 100).toFixed(0) : "0";
 
   const attendancePdf = () => buildAttendancePdf({
     className: selectedClass?.name || "Class",
@@ -70,13 +82,17 @@ const AttendanceSection = () => {
   });
 
   const exportAttendance = () => {
+    if (!attendanceDateStatus.isSchoolDay || !anyAttendanceMarked) {
+      toast.error(attendanceDateStatus.reason || "Mark at least one learner before exporting attendance.");
+      return;
+    }
     attendancePdf().save(`${selectedClass?.name || "class"}-attendance-${selectedDate}.pdf`.replace(/\s+/g, "_"));
     toast.success("Attendance PDF downloaded");
   };
 
   const shareAttendance = async () => {
-    if (!selectedClass || attendanceData.length === 0) {
-      toast.error("Select a class with attendance records first.");
+    if (!selectedClass || !attendanceDateStatus.isSchoolDay || !anyAttendanceMarked) {
+      toast.error(attendanceDateStatus.reason || "Select a class and mark at least one learner first.");
       return;
     }
     try {
@@ -100,10 +116,10 @@ const AttendanceSection = () => {
           <p className="text-sm text-muted-foreground">Track and manage student attendance</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="gold" onClick={exportAttendance} disabled={isLoadingAttendance || attendanceData.length === 0}>
+          <Button variant="gold" onClick={exportAttendance} disabled={isLoadingAttendance || !attendanceDateStatus.isSchoolDay || !anyAttendanceMarked}>
             <Calendar className="h-4 w-4 mr-2" />Download PDF
           </Button>
-          <Button variant="outline" onClick={() => void shareAttendance()} disabled={isLoadingAttendance || attendanceData.length === 0}>
+          <Button variant="outline" onClick={() => void shareAttendance()} disabled={isLoadingAttendance || !attendanceDateStatus.isSchoolDay || !anyAttendanceMarked}>
             <Share2 className="mr-2 h-4 w-4" />Share PDF to WhatsApp
           </Button>
         </div>
@@ -118,7 +134,7 @@ const AttendanceSection = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{presentCount}</p>
-                <p className="text-xs text-muted-foreground">Present Today</p>
+                <p className="text-xs text-muted-foreground">Present on selected date</p>
               </div>
             </div>
           </CardContent>
@@ -131,7 +147,7 @@ const AttendanceSection = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{absentCount}</p>
-                <p className="text-xs text-muted-foreground">Absent Today</p>
+                <p className="text-xs text-muted-foreground">Absent on selected date</p>
               </div>
             </div>
           </CardContent>
@@ -144,7 +160,7 @@ const AttendanceSection = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{lateCount}</p>
-                <p className="text-xs text-muted-foreground">Late Today</p>
+                <p className="text-xs text-muted-foreground">Late on selected date</p>
               </div>
             </div>
           </CardContent>
@@ -157,7 +173,7 @@ const AttendanceSection = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{avgAttendance}%</p>
-                <p className="text-xs text-muted-foreground">Avg Attendance</p>
+                <p className="text-xs text-muted-foreground">Rate of marked learners</p>
               </div>
             </div>
           </CardContent>
@@ -168,6 +184,7 @@ const AttendanceSection = () => {
         <TabsList>
           <TabsTrigger value="mark">Mark Attendance</TabsTrigger>
           <TabsTrigger value="history">Absence History</TabsTrigger>
+          <TabsTrigger value="calendar">2026 School Sessions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mark" className="space-y-4 mt-4">
@@ -185,6 +202,7 @@ const AttendanceSection = () => {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
+              aria-label="Attendance date"
               className="w-auto"
             />
             <div className="relative flex-1 max-w-md">
@@ -197,6 +215,15 @@ const AttendanceSection = () => {
               />
             </div>
           </div>
+
+          {!attendanceDateStatus.isSchoolDay && (
+            <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              {attendanceDateStatus.reason} Attendance controls are disabled for this date.
+            </p>
+          )}
+          {attendanceDateStatus.isSchoolDay && attendanceDateStatus.sessionLabel && (
+            <p className="text-xs text-muted-foreground">{attendanceDateStatus.sessionLabel}</p>
+          )}
 
           <div className="flex items-center gap-6 p-4 bg-secondary/50 rounded-lg">
             <div className="flex items-center gap-2">
@@ -215,6 +242,10 @@ const AttendanceSection = () => {
               <span className="flex items-center gap-1 text-sm">
                 <span className="h-2 w-2 rounded-full bg-amber-500" />
                 Late: {lateCount}
+              </span>
+              <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                Unmarked: {unmarkedCount}
               </span>
             </div>
           </div>
@@ -244,15 +275,17 @@ const AttendanceSection = () => {
                     <td className="px-4 py-3 text-center">
                       <span className={`text-xs px-3 py-1 rounded-full ${student.status === "present" ? "bg-green-100 text-green-700" :
                           student.status === "absent" ? "bg-red-100 text-red-700" :
-                            "bg-amber-100 text-amber-700"
+                            student.status === "late" ? "bg-amber-100 text-amber-700" : "bg-secondary text-muted-foreground"
                         }`}>
-                        {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
+                        {student.status === "unmarked" ? "Not marked" : student.status.charAt(0).toUpperCase() + student.status.slice(1)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleUpdateAttendance(student.id as number, "present")}
+                          disabled={!attendanceDateStatus.isSchoolDay || updateAttendanceMutation.isPending}
+                          aria-label={`Mark ${student.name} present`}
                           className={`p-2 rounded-lg transition-colors ${student.status === "present"
                               ? "bg-green-500 text-white"
                               : "bg-secondary hover:bg-green-100 text-muted-foreground hover:text-green-600"
@@ -262,6 +295,8 @@ const AttendanceSection = () => {
                         </button>
                         <button
                           onClick={() => handleUpdateAttendance(student.id as number, "absent")}
+                          disabled={!attendanceDateStatus.isSchoolDay || updateAttendanceMutation.isPending}
+                          aria-label={`Mark ${student.name} absent`}
                           className={`p-2 rounded-lg transition-colors ${student.status === "absent"
                               ? "bg-destructive text-white"
                               : "bg-secondary hover:bg-red-100 text-muted-foreground hover:text-red-600"
@@ -271,6 +306,8 @@ const AttendanceSection = () => {
                         </button>
                         <button
                           onClick={() => handleUpdateAttendance(student.id as number, "late")}
+                          disabled={!attendanceDateStatus.isSchoolDay || updateAttendanceMutation.isPending}
+                          aria-label={`Mark ${student.name} late`}
                           className={`p-2 rounded-lg transition-colors ${student.status === "late"
                               ? "bg-amber-500 text-white"
                               : "bg-secondary hover:bg-amber-100 text-muted-foreground hover:text-amber-600"
@@ -287,8 +324,37 @@ const AttendanceSection = () => {
           </div>
 
           <div className="flex justify-end">
-            <span className="text-sm text-muted-foreground">Changes save immediately when you select a status.</span>
+            <span className="text-sm text-muted-foreground">Changes save immediately. Unmarked learners are not counted as present.</span>
           </div>
+        </TabsContent>
+
+        <TabsContent value="calendar" className="space-y-4 mt-4">
+          <Card>
+            <CardContent className="space-y-5 p-5">
+              <div>
+                <h3 className="font-semibold text-foreground">Zimbabwe school sessions · 2026</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Attendance is counted Monday to Friday inside each session, excluding gazetted public holidays.</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                {ZIMBABWE_2026_TERMS.map((term) => {
+                  const holidays = ZIMBABWE_2026_PUBLIC_HOLIDAYS.filter((holiday) => holiday.date >= term.startDate && holiday.date <= term.endDate);
+                  return (
+                    <article key={term.term} className="rounded-xl border border-border bg-secondary/20 p-4">
+                      <h4 className="font-semibold text-foreground">Term {term.term}</h4>
+                      <p className="mt-2 text-sm text-muted-foreground">{formatCalendarDate(term.startDate)} – {formatCalendarDate(term.endDate)}, 2026</p>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Gazetted holidays in session</p>
+                      {holidays.length ? (
+                        <ul className="mt-1 space-y-1 text-sm text-foreground">
+                          {holidays.map((holiday) => <li key={holiday.date}>{holiday.name} · {formatCalendarDate(holiday.date)}</li>)}
+                        </ul>
+                      ) : <p className="mt-1 text-sm text-foreground">None</p>}
+                    </article>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">Weekends, term breaks, and public holidays cannot be used to enter attendance for 2026.</p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4 mt-4">

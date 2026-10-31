@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CreditCard, Loader2, Smartphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useOnlinePaymentConfig, useRefreshOnlinePayment, useStartOnlinePayment, type Invoice, type OnlinePayment } from "@/lib/hooks";
+import { useOnlinePaymentConfig, useOnlinePayments, useRefreshOnlinePayment, useStartOnlinePayment, type Invoice, type OnlinePayment } from "@/lib/hooks";
 import { formatMoney } from "@/lib/finance";
+import { getErrorMessage } from "@/lib/api";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -22,19 +23,53 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
   const [error, setError] = useState("");
   const { data: config, isLoading: loadingConfig } = useOnlinePaymentConfig();
   const startPayment = useStartOnlinePayment();
-  const { data: paymentStatus } = useRefreshOnlinePayment(clientReference, Boolean(clientReference) && isOpen);
+  const {
+    data: existingPayments,
+    isLoading: checkingPendingPayment,
+    isError: pendingPaymentCheckFailed,
+    error: pendingPaymentCheckError,
+    refetch: refetchPendingPayments,
+  } = useOnlinePayments(invoice ? { invoice: invoice.id, status: "pending" } : undefined, isOpen && !!invoice);
+  const { data: paymentStatus, isLoading: checkingPaymentStatus } = useRefreshOnlinePayment(clientReference, Boolean(clientReference) && isOpen);
   const balance = invoice ? Math.max(0, Number(invoice.amount) - Number(invoice.paid)) : 0;
+  const invoiceId = invoice?.id;
+  const initializedInvoiceId = useRef<number | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setAmount(balance.toFixed(2));
-      setProvider(null);
-      setPhone("");
-      setClientReference("");
-      setCheckout(null);
-      setError("");
+    if (!isOpen || invoiceId === undefined || initializedInvoiceId.current === invoiceId) return;
+    initializedInvoiceId.current = invoiceId;
+    setAmount(balance.toFixed(2));
+    setProvider(null);
+    setPhone("");
+    setClientReference("");
+    setCheckout(null);
+    setError("");
+  }, [isOpen, invoiceId, balance]);
+
+  useEffect(() => {
+    if (!isOpen || invoiceId === undefined || checkingPendingPayment || pendingPaymentCheckFailed || !existingPayments?.length) return;
+    const pending = existingPayments.find((payment) => payment.invoice === invoiceId && payment.status === "pending");
+    if (!pending) return;
+    if (clientReference && clientReference !== pending.client_reference) return;
+
+    setProvider(pending.provider);
+    if (!clientReference) setClientReference(pending.client_reference);
+    if (
+      pending.provider === "zimswitch"
+      && pending.checkout_id
+      && config?.providers.zimswitch.widget_url
+      && checkout?.checkout_id !== pending.checkout_id
+    ) {
+      const shopperResultUrl = new URL("/payment/return", window.location.origin);
+      shopperResultUrl.searchParams.set("ref", pending.client_reference);
+      setCheckout({
+        ...pending,
+        widget_url: config.providers.zimswitch.widget_url,
+        brands: config.providers.zimswitch.brands,
+        shopper_result_url: shopperResultUrl.toString(),
+      });
     }
-  }, [isOpen, invoice?.id, balance]);
+  }, [isOpen, invoiceId, checkingPendingPayment, pendingPaymentCheckFailed, existingPayments, clientReference, config, checkout?.checkout_id]);
 
   useEffect(() => {
     if (!checkout?.checkout_id || !checkout.widget_url) return;
@@ -71,8 +106,15 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
       setClientReference(result.client_reference);
       if (provider === "zimswitch") setCheckout(result);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "We could not start checkout. Please try again or contact Accounts.");
+      setError(getErrorMessage(caught));
     }
+  };
+
+  const retryPayment = () => {
+    setClientReference("");
+    setCheckout(null);
+    setProvider(null);
+    setError("");
   };
 
   const currentStatus = paymentStatus?.status || checkout?.status;
@@ -98,9 +140,20 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
             </div>
           </div>
 
+          {checkingPendingPayment && <p className="text-sm text-muted-foreground" aria-live="polite">Checking for a payment already awaiting confirmation…</p>}
+          {pendingPaymentCheckFailed && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">
+            <p>We couldn’t check whether this invoice already has a pending payment: {getErrorMessage(pendingPaymentCheckError)}</p>
+            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => void refetchPendingPayments()}>Try again</Button>
+          </div>}
+
           {currentStatus === "paid" ? (
             <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">
               <p className="font-semibold">Payment confirmed</p><p className="mt-1">Your invoice is being updated with the verified payment.</p>
+            </div>
+          ) : currentStatus === "failed" ? (
+            <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              <p>Payment was not confirmed. Check your details and try again or contact Accounts.</p>
+              <Button type="button" variant="outline" onClick={retryPayment}>Try another payment</Button>
             </div>
           ) : checkout?.checkout_id && provider === "zimswitch" ? (
             <div className="space-y-3">
@@ -122,7 +175,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
                   {methodOptions.map(({ id, name, description, Icon }) => {
                     const available = providerAllowed(id);
                     return (
-                      <button type="button" key={id} disabled={!available || loadingConfig || Boolean(clientReference)} onClick={() => setProvider(id)} className={`rounded-lg border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${provider === id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
+                      <button type="button" key={id} disabled={!available || loadingConfig || Boolean(clientReference) || checkingPendingPayment || pendingPaymentCheckFailed} onClick={() => setProvider(id)} className={`rounded-lg border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${provider === id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
                         <span className="flex items-center gap-2 font-medium"><Icon className="h-4 w-4 text-primary" />{name}</span>
                         <span className="mt-1 block text-xs text-muted-foreground">{available ? description : loadingConfig ? "Checking availability…" : `Not enabled for ${invoice.currency}; ask Accounts.`}</span>
                       </button>
@@ -139,6 +192,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
                 </div>
               )}
 
+              {clientReference && !paymentStatus && checkingPaymentStatus && <p className="text-sm text-muted-foreground" aria-live="polite">Checking the existing payment status…</p>}
               {currentStatus === "pending" && clientReference && (
                 <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Payment request sent. Approve it on your phone; the invoice changes only after provider confirmation. Reference: {clientReference}</div>
               )}
@@ -146,12 +200,11 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
           )}
 
           {error && <p role="alert" className="text-center text-sm text-destructive">{error}</p>}
-          {currentStatus === "failed" && <p role="alert" className="text-center text-sm text-destructive">Payment was not confirmed. Check your details and try again or contact Accounts.</p>}
 
           <footer className="flex gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Close</Button>
-            {!checkout?.checkout_id && currentStatus !== "paid" && (
-              <Button type="button" className="flex-1" disabled={!provider || !providerAllowed(provider) || startPayment.isPending || Boolean(clientReference)} onClick={() => void handlePayment()}>
+            {!checkout?.checkout_id && currentStatus !== "paid" && currentStatus !== "failed" && (
+              <Button type="button" className="flex-1" disabled={!provider || !providerAllowed(provider) || startPayment.isPending || Boolean(clientReference) || checkingPendingPayment || pendingPaymentCheckFailed} onClick={() => void handlePayment()}>
                 {startPayment.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Starting…</> : `Continue · ${formatMoney(Number(amount) || 0, invoice.currency)}`}
               </Button>
             )}

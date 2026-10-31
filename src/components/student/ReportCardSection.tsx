@@ -8,6 +8,7 @@ import { exportReportCardPdf } from "@/lib/pdfExport";
 import { EXAM_REPORT_TYPES, useAttendanceRecords, useExamMarks, useExamRanking, useExams, useInvoices, useStudentProfile, type ExamReportType } from "@/lib/hooks";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
 import { getPrincipalComment, getTeacherComment } from "@/lib/reportComments";
+import { getReportSchoolDays, isScheduledSchoolDay } from "@/lib/zimbabweSchoolCalendar";
 
 interface SubjectResult {
   subject: string;
@@ -41,9 +42,9 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const { data: invoices = [] } = useInvoices({ student: studentId });
   const { data: allMarks = [], isLoading: isLoadingMarks } = useExamMarks({ student: studentId });
   const { data: attendanceRecords = [] } = useAttendanceRecords({ student: studentId });
-  const { data: exams = [], isLoading: isLoadingExams } = useExams();
+  const { data: exams = [], isLoading: isLoadingExams } = useExams(undefined, { refetchInterval: 30000 });
   const availableExams = exams
-    .filter(exam => exam.status === "completed" && exam.results_published && allMarks.some(mark => mark.exam === exam.id))
+    .filter(exam => allMarks.some(mark => mark.exam === exam.id))
     .sort((first, second) => second.start_date.localeCompare(first.start_date));
   const activeReportType = selectedReportType ?? availableExams[0]?.report_type ?? EXAM_REPORT_TYPES[0].value;
   const currentPeriod = availableExams[0]
@@ -54,12 +55,25 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     return exam.report_type === activeReportType && (reportCategory === "current" ? isCurrent : !isCurrent);
   });
   const selectedExam = visibleExams.find(exam => exam.id === selectedExamId) || visibleExams[0];
+  const issuedAt = new Date();
+  const issuedDate = issuedAt.toLocaleDateString("en-GB");
+  const issueMonthYear = issuedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const selectedTypeLabel = EXAM_REPORT_TYPES.find(type => type.value === activeReportType)?.label ?? "Report card";
+  const reportHeading = activeReportType === "monthly_report_card"
+    ? "End-of-month Examination Report Card"
+    : activeReportType === "fortnightly_tests"
+      ? "Fortnightly Test Report Card"
+      : "End-of-term Report Card";
+  const reportPeriod = activeReportType === "monthly_report_card"
+    ? issueMonthYear
+    : selectedExam ? `${selectedExam.term} ${selectedExam.year}` : "";
+  const isReportProvisional = !!selectedExam && (selectedExam.status !== "completed" || !selectedExam.results_published);
   const selectedTerm = selectedExam
-    ? `${EXAM_REPORT_TYPES.find(type => type.value === selectedExam.report_type)?.label ?? "Report card"} · ${selectedExam.name} · ${selectedExam.term} ${selectedExam.year}`
+    ? `${isReportProvisional ? "PROVISIONAL · " : ""}${selectedTypeLabel} · ${selectedExam.name} · ${selectedExam.term} ${selectedExam.year}`
     : "No examination selected";
   const marks = allMarks.filter(mark => mark.exam === selectedExam?.id);
   const { data: ranking, isLoading: isLoadingRanking, isError: isRankingError } =
-    useExamRanking(selectedExam?.id, studentId);
+    useExamRanking(isReportProvisional ? undefined : selectedExam?.id, studentId);
 
   const results: SubjectResult[] = marks.map(m => ({
     subject: m.subject_name,
@@ -71,13 +85,17 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     setIsExporting(true);
     try {
       if (!selectedExam) return;
+      const generatedAt = new Date();
+      const generatedMonthYear = generatedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
       await exportReportCardPdf({
         studentName: profile?.name || "Student",
         studentId: profile?.student_id || "",
         className: profile?.class_name || "—",
         examName: selectedExam.name,
-        termLabel: `${EXAM_REPORT_TYPES.find(type => type.value === selectedExam.report_type)?.label ?? "Report card"} · ${selectedExam.term} ${selectedExam.year}`,
-        issuedDate: new Date().toLocaleDateString("en-GB"),
+        termLabel: `${isReportProvisional ? "Provisional · " : ""}${EXAM_REPORT_TYPES.find(type => type.value === selectedExam.report_type)?.label ?? "Report card"} · ${selectedExam.term} ${selectedExam.year}`,
+        reportHeading,
+        reportPeriod: selectedExam.report_type === "monthly_report_card" ? generatedMonthYear : `${selectedExam.term} ${selectedExam.year}`,
+        issuedDate: generatedAt.toLocaleDateString("en-GB"),
         average: averagePercentage,
         overallGrade: calculateGrade(averagePercentage).grade,
         passed: countPassed(),
@@ -87,9 +105,12 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
         teacherComment,
         principalComment,
         attendance: {
-          totalDays: attendanceRecords.length,
-          present: attendanceRecords.filter(record => record.status.toLowerCase() === "present").length,
-          absent: attendanceRecords.filter(record => record.status.toLowerCase() === "absent").length,
+          totalDays: attendance.totalDays,
+          present: attendance.present,
+          absent: attendance.absent,
+          late: attendance.late,
+          unrecorded: attendance.unrecorded,
+          calendarLabel: attendancePeriod?.isOfficialTerm ? "Term school days" : "Weekdays in report period",
         },
         results: results.map(result => ({
           ...result,
@@ -136,10 +157,19 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
 
   const teacherComment = getTeacherComment(averagePercentage);
   const principalComment = getPrincipalComment(averagePercentage);
+  const attendancePeriod = selectedExam ? getReportSchoolDays(selectedExam, issuedAt) : null;
+  const attendanceInPeriod = attendanceRecords.filter(record =>
+    attendancePeriod &&
+    record.date >= attendancePeriod.startDate &&
+    record.date <= attendancePeriod.throughDate &&
+    isScheduledSchoolDay(record.date, attendancePeriod)
+  );
   const attendance = {
-    totalDays: attendanceRecords.length,
-    present: attendanceRecords.filter(record => record.status.toLowerCase() === "present").length,
-    absent: attendanceRecords.filter(record => record.status.toLowerCase() === "absent").length,
+    totalDays: attendancePeriod?.totalDays ?? 0,
+    present: attendanceInPeriod.filter(record => record.status.toLowerCase() === "present").length,
+    absent: attendanceInPeriod.filter(record => record.status.toLowerCase() === "absent").length,
+    late: attendanceInPeriod.filter(record => record.status.toLowerCase() === "late").length,
+    unrecorded: Math.max(0, (attendancePeriod?.totalDays ?? 0) - attendanceInPeriod.length),
   };
 
   if (resultsBlocked) {
@@ -244,7 +274,13 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
       {(!selectedExam || results.length === 0) && (
         <div role="status" className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
           <p className="font-semibold text-foreground">No results are available yet for this report.</p>
-          <p className="mt-1 text-sm text-muted-foreground">Choose another report type or check back after the school publishes results.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Saved marks for your selected report type appear here automatically. This page checks for updates every 30 seconds.</p>
+        </div>
+      )}
+
+      {selectedExam && results.length > 0 && isReportProvisional && (
+        <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <span className="font-semibold">Provisional results.</span> Your teacher&apos;s saved marks are shown here and will refresh automatically. The final report is available after the school completes and publishes it.
         </div>
       )}
 
@@ -276,10 +312,10 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
         <div className="px-4 pb-4 pt-3 sm:px-6">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h1 className="font-serif text-base font-bold tracking-wide text-[#14234f] sm:text-lg">
-              STUDENT ONLINE REPORT CARD
+              {reportHeading.toUpperCase()}
             </h1>
             <p className="text-[10px] text-[#747386]">
-              Issued {new Date().toLocaleDateString("en-GB")}
+              {activeReportType === "monthly_report_card" ? `${issueMonthYear} · ` : ""}Issued {issuedDate}
             </p>
           </div>
 
@@ -434,17 +470,32 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
           </div>
 
           <div className="mt-2 rounded-xl border border-[#eadde5] bg-white px-3 py-2">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Attendance</p>
-                <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.totalDays ? `${attendance.present} / ${attendance.totalDays} days` : "No attendance recorded"}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Attendance this term</p>
+                <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.present} present / {attendance.totalDays} school days</p>
+                <p className="mt-0.5 text-[9px] text-[#777484]">
+                  {attendancePeriod?.isOfficialTerm
+                    ? `Zimbabwe 2026 ${selectedExam?.term} calendar · Monday to Friday, public holidays excluded`
+                    : `Weekdays in ${selectedExam?.term || "the exam"} report period · weekends excluded`}
+                </p>
                 <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#e6e9e8]">
                   <div className="h-full rounded-full bg-[#17874f]" style={{ width: `${attendance.totalDays ? (attendance.present / attendance.totalDays) * 100 : 0}%` }} />
                 </div>
               </div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Absent</p>
-                <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.absent} days</p>
+              <div className="grid grid-cols-3 gap-4 sm:min-w-[270px]">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Absent</p>
+                  <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.absent} days</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Late</p>
+                  <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.late} days</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Unmarked</p>
+                  <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.unrecorded} days</p>
+                </div>
               </div>
             </div>
           </div>

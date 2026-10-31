@@ -1,7 +1,10 @@
 from pathlib import Path
+import mimetypes
 
+from django.db import transaction
 from django.db.models import Q
 from django.http import FileResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
@@ -13,7 +16,7 @@ from core.permissions import IsAdminOrReadOnly, IsPortalAdmin
 from parents.models import StudentParent
 from school.models import SchoolClass, Student, Teacher, TeacherSubjectClass
 from .models import (
-    GalleryItem, Announcement, ContactMessage, StaffMember, LearningMaterial,
+    GalleryItem, HeroCarouselConfig, Announcement, ContactMessage, StaffMember, LearningMaterial,
     LearningAssignment, LearningSubmission,
 )
 from .serializers import (
@@ -31,8 +34,83 @@ from .serializers import (
 class GalleryItemViewSet(viewsets.ModelViewSet):
     queryset = GalleryItem.objects.all()
     serializer_class = GalleryItemSerializer
-    filterset_fields = ['category', 'item_type']
+    filterset_fields = ['category', 'item_type', 'show_on_homepage']
     permission_classes = [IsAdminOrReadOnly]
+
+    def perform_create(self, serializer):
+        item = serializer.save()
+        if item.show_on_homepage:
+            HeroCarouselConfig.objects.update_or_create(pk=1, defaults={'initialized': True})
+
+    def perform_update(self, serializer):
+        item = serializer.save()
+        if item.show_on_homepage:
+            HeroCarouselConfig.objects.update_or_create(pk=1, defaults={'initialized': True})
+
+    def perform_destroy(self, instance):
+        if instance.media_file:
+            instance.media_file.delete(save=False)
+        instance.delete()
+
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
+    def carousel(self, request):
+        slides = GalleryItem.objects.filter(show_on_homepage=True).order_by('display_order', 'id')
+        config = HeroCarouselConfig.objects.filter(pk=1).first()
+        return Response({
+            'managed': bool((config and config.initialized) or slides.exists()),
+            'slides': self.get_serializer(slides, many=True).data,
+        })
+
+    @action(detail=False, methods=['post'], url_path='initialize-carousel')
+    def initialize_carousel(self, request):
+        if not is_admin(request.user):
+            raise PermissionDenied('Only administrators can initialize the homepage carousel.')
+
+        default_slides = request.data.get('slides', []) if isinstance(request.data, dict) else None
+        if (
+            not isinstance(default_slides, list)
+            or not default_slides
+            or len(default_slides) > 40
+            or any(not isinstance(slide, dict) for slide in default_slides)
+        ):
+            return Response({'detail': 'Provide up to 40 default carousel images.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            config, _ = HeroCarouselConfig.objects.get_or_create(pk=1)
+            config = HeroCarouselConfig.objects.select_for_update().get(pk=config.pk)
+            if not config.initialized:
+                for index, slide in enumerate(default_slides):
+                    serializer = self.get_serializer(data={
+                        'title': slide.get('title', ''),
+                        'category': 'Hero Carousel',
+                        'item_type': 'image',
+                        'image_url': slide.get('image_url', ''),
+                        'description': slide.get('description', ''),
+                        'show_on_homepage': True,
+                        'display_order': index,
+                        'display_mode': slide.get('display_mode', 'cover'),
+                    })
+                    serializer.is_valid(raise_exception=True)
+                    serializer.save()
+                config.initialized = True
+                config.save(update_fields=['initialized'])
+
+        return self.carousel(request)
+
+    @action(detail=True, methods=['get'], url_path='media', permission_classes=[permissions.AllowAny])
+    def media(self, request, pk=None):
+        item = self.get_object()
+        if not item.media_file:
+            return Response({'detail': 'No uploaded media is attached to this gallery item.'}, status=status.HTTP_404_NOT_FOUND)
+        content_type = mimetypes.guess_type(item.media_file.name)[0] or 'application/octet-stream'
+        response = FileResponse(
+            item.media_file.open('rb'),
+            as_attachment=False,
+            filename=Path(item.media_file.name).name,
+            content_type=content_type,
+        )
+        response['X-Content-Type-Options'] = 'nosniff'
+        return response
 
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
@@ -79,6 +157,29 @@ class LearningMaterialViewSet(viewsets.ModelViewSet):
             )
         except OSError:
             return Response({'detail': 'The material file is unavailable.'}, status=status.HTTP_404_NOT_FOUND)
+        response['X-Content-Type-Options'] = 'nosniff'
+        return response
+
+    @action(detail=True, methods=['get'], url_path='public-file', permission_classes=[permissions.AllowAny])
+    def public_file(self, request, pk=None):
+        # Older gallery uploads were stored as learning materials. Expose only
+        # image/video files explicitly linked from a public GalleryItem.
+        material = get_object_or_404(LearningMaterial, pk=pk, subject_name='School Gallery')
+        is_linked_from_gallery = GalleryItem.objects.filter(
+            image_url__contains=f'/materials/{material.pk}/file'
+        ).exists()
+        if not is_linked_from_gallery or not material.file:
+            return Response({'detail': 'The public gallery file is unavailable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        content_type = mimetypes.guess_type(material.file.name)[0] or 'application/octet-stream'
+        if not content_type.startswith(('image/', 'video/')):
+            return Response({'detail': 'The public gallery file is unavailable.'}, status=status.HTTP_404_NOT_FOUND)
+        response = FileResponse(
+            material.file.open('rb'),
+            as_attachment=False,
+            filename=Path(material.file.name).name,
+            content_type=content_type,
+        )
         response['X-Content-Type-Options'] = 'nosniff'
         return response
 

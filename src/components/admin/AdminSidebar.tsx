@@ -103,6 +103,7 @@ const navigation: NavItem[] = [
   { name: "Communications", icon: MessageSquare, id: "notice" },
   { name: "Message", icon: MessageSquare, id: "message" },
   { name: "Report Cards", icon: FileText, id: "report-cards" },
+  { name: "Hero Carousel", icon: Image, id: "hero-carousel" },
   { name: "Gallery", icon: Image, id: "gallery" },
   { name: "Map", icon: MapPin, id: "map" },
   {

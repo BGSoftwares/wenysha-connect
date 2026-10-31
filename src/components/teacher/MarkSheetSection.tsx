@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { api, getErrorMessage } from "@/lib/api";
 import { calculateGrade } from "@/lib/grading";
 import { EXAM_REPORT_TYPES, useSaveExamMarkSheet, type ExamMark, type ExamReportType } from "@/lib/hooks";
+import { drawSchoolLetterhead, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
 
 interface Props {
   students: { id: number; name: string; student_id?: string }[];
@@ -20,11 +21,12 @@ interface Props {
   teacherName: string;
   teacherComments: Record<number, string>;
   onTeacherCommentChange: (studentId: number, comment: string) => void;
+  onGradeChange: (studentId: number, score: string) => void;
 }
 
 type Row = { score: string; comment: string };
 
-const MarkSheetSection = ({ students, marks, examId, examName, reportType, subjectId, subjectName, classId, className, teacherName, teacherComments, onTeacherCommentChange }: Props) => {
+const MarkSheetSection = ({ students, marks, examId, examName, reportType, subjectId, subjectName, classId, className, teacherName, teacherComments, onTeacherCommentChange, onGradeChange }: Props) => {
   const saveMarkSheet = useSaveExamMarkSheet();
   const [rows, setRows] = useState<Record<number, Row>>({});
   const [busy, setBusy] = useState(false);
@@ -41,6 +43,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
   const update = (id: number, patch: Partial<Row>) => {
     setRows((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
     if (patch.comment !== undefined) onTeacherCommentChange(id, patch.comment);
+    if (patch.score !== undefined) onGradeChange(id, patch.score);
   };
 
   const entered = students.filter((s) => rows[s.id]?.score?.trim());
@@ -71,46 +74,135 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
     } finally { setBusy(false); }
   };
 
-  const buildPdf = () => {
-    const doc = new jsPDF();
-    const w = doc.internal.pageSize.getWidth();
-    doc.setFontSize(16); doc.text("Class Mark Sheet", w / 2, 16, { align: "center" });
-    doc.setFontSize(10);
+  const buildPdf = async () => {
+    const doc = new jsPDF("p", "mm", "a4");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const left = 14;
+    const right = pageWidth - left;
+    const width = right - left;
     const reportTypeLabel = EXAM_REPORT_TYPES.find(type => type.value === reportType)?.label ?? "Report card";
-    doc.text(`Class: ${className}    Subject: ${subjectName}    Exam: ${examName}`, 14, 26);
-    doc.text(`Report type: ${reportTypeLabel}`, 14, 32);
-    doc.text(`Teacher: ${teacherName}    Date: ${new Date().toLocaleDateString()}`, 14, 38);
-    let y = 48;
-    const header = () => {
+    const issuedAt = new Date();
+    const issuedDate = issuedAt.toLocaleDateString("en-GB");
+    const issueStamp = reportType === "monthly_report_card"
+      ? `${issuedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" })} · ${issuedDate}`
+      : issuedDate;
+    const schoolLogo = await loadSchoolLogoDataUrl();
+
+    const drawTableHeader = (y: number) => {
+      doc.setFillColor(20, 35, 79);
+      doc.roundedRect(left, y, width, 8, 1.2, 1.2, "F");
+      doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.text("#", 14, y); doc.text("Learner", 22, y); doc.text("Mark", 92, y); doc.text("Grade", 110, y); doc.text("Comment", 128, y);
-      doc.setFont("helvetica", "normal"); doc.line(14, y + 2, w - 14, y + 2); y += 8;
+      doc.setFontSize(8);
+      doc.text("#", left + 5, y + 5.2, { align: "center" });
+      doc.text("Learner", left + 12, y + 5.2);
+      doc.text("Mark", left + 84, y + 5.2, { align: "center" });
+      doc.text("Grade", left + 105, y + 5.2, { align: "center" });
+      doc.text("Teacher comment", left + 114, y + 5.2);
+      return y + 8;
     };
-    header();
-    students.forEach((s, i) => {
-      const r = rows[s.id] ?? { score: "", comment: "" };
-      const comment = teacherComments[s.id]?.trim() || r.comment.trim();
-      const lines = doc.splitTextToSize(comment || "-", w - 142) as string[];
-      if (y + lines.length * 5 > 280) { doc.addPage(); y = 20; header(); }
-      doc.text(String(i + 1), 14, y);
-      doc.text(doc.splitTextToSize(s.name, 66)[0], 22, y);
-      doc.text(r.score ? `${r.score}%` : "-", 92, y);
-      doc.text(r.score ? calculateGrade(Number(r.score)).grade : "-", 110, y);
-      doc.text(lines, 128, y);
-      y += Math.max(1, lines.length) * 5 + 2;
+
+    const drawPageHeader = () => {
+      drawSchoolLetterhead(doc, schoolLogo, "Class Mark Sheet", `${reportTypeLabel} · Issued ${issueStamp}`);
+      const metaTop = 43;
+      const metaHeight = 22;
+      const gap = 1.5;
+      const cellWidth = (width - gap) / 2;
+      const cells = [
+        { label: "Class", value: className, x: left, y: metaTop },
+        { label: "Subject", value: subjectName, x: left + cellWidth + gap, y: metaTop },
+        { label: "Examination", value: examName || "—", x: left, y: metaTop + metaHeight / 2 },
+        { label: "Teacher", value: teacherName, x: left + cellWidth + gap, y: metaTop + metaHeight / 2 },
+      ];
+
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(234, 221, 229);
+      doc.roundedRect(left, metaTop, width, metaHeight, 2, 2, "FD");
+      doc.line(left, metaTop + metaHeight / 2, right, metaTop + metaHeight / 2);
+      doc.line(left + cellWidth + gap / 2, metaTop, left + cellWidth + gap / 2, metaTop + metaHeight);
+      cells.forEach((cell) => {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(126, 120, 136);
+        doc.text(cell.label.toUpperCase(), cell.x + 3, cell.y + 3.5);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(23, 36, 76);
+        doc.text(doc.splitTextToSize(cell.value, cellWidth - 6)[0], cell.x + 3, cell.y + 8.5);
+      });
+
+      return drawTableHeader(metaTop + metaHeight + 4);
+    };
+
+    let y = drawPageHeader();
+    students.forEach((student, index) => {
+      const r = rows[student.id] ?? { score: "", comment: "" };
+      const comment = teacherComments[student.id]?.trim() || r.comment.trim();
+      const commentLines = doc.splitTextToSize(comment || "—", 64) as string[];
+      const learnerLines = doc.splitTextToSize(student.name, 56) as string[];
+      const lineCount = Math.max(commentLines.length, learnerLines.length, 1);
+      const rowHeight = Math.max(8, lineCount * 4.2 + 3);
+
+      if (y + rowHeight > pageHeight - 18) {
+        doc.addPage();
+        y = drawPageHeader();
+      }
+
+      doc.setFillColor(255, index % 2 === 0 ? 255 : 243, index % 2 === 0 ? 255 : 248);
+      doc.rect(left, y, width, rowHeight, "F");
+      doc.setDrawColor(234, 221, 229);
+      doc.line(left, y + rowHeight, right, y + rowHeight);
+      doc.setTextColor(23, 36, 76);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      const baseline = y + 5.2;
+      doc.text(String(index + 1), left + 5, baseline, { align: "center" });
+      doc.text(learnerLines, left + 12, baseline);
+      doc.text(r.score.trim() ? `${r.score}%` : "—", left + 84, baseline, { align: "center" });
+      doc.setFont("helvetica", "bold");
+      doc.text(r.score.trim() ? calculateGrade(Number(r.score)).grade : "—", left + 105, baseline, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(87, 82, 102);
+      doc.text(commentLines, left + 114, baseline);
+      y += rowHeight;
     });
+
     const scored = entered.map((s) => Number(rows[s.id].score));
     if (scored.length) {
+      if (y + 18 > pageHeight - 18) {
+        doc.addPage();
+        y = drawPageHeader();
+      }
       y += 4;
+      doc.setFillColor(253, 234, 243);
+      doc.setDrawColor(237, 207, 223);
+      doc.roundedRect(left, y, width, 14, 2, 2, "FD");
+      doc.setTextColor(23, 36, 76);
       doc.setFont("helvetica", "bold");
-      doc.text(`Class average: ${(scored.reduce((a, b) => a + b, 0) / scored.length).toFixed(1)}%   Pass rate: ${Math.round((scored.filter((n) => n >= 40).length / scored.length) * 100)}%`, 14, y);
+      doc.setFontSize(9);
+      doc.text(`Class average: ${(scored.reduce((a, b) => a + b, 0) / scored.length).toFixed(1)}%`, left + 4, y + 8.5);
+      doc.setTextColor(179, 22, 105);
+      doc.text(`Pass rate: ${Math.round((scored.filter((n) => n >= 40).length / scored.length) * 100)}%`, right - 4, y + 8.5, { align: "right" });
+    }
+
+    const pageCount = doc.getNumberOfPages();
+    for (let page = 1; page <= pageCount; page += 1) {
+      doc.setPage(page);
+      doc.setDrawColor(234, 221, 229);
+      doc.line(left, pageHeight - 13, right, pageHeight - 13);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 130);
+      doc.text(`Issued ${issueStamp} · ${teacherName}`, left, pageHeight - 7, { maxWidth: width - 22 });
+      doc.text(`Page ${page} of ${pageCount}`, right, pageHeight - 7, { align: "right" });
     }
     return doc;
   };
 
   const fileName = `${className}-${subjectName}-${examName}.pdf`.replace(/\s+/g, "_");
 
-  const download = () => buildPdf().save(fileName);
+  const download = async () => (await buildPdf()).save(fileName);
 
   const submitToAdmin = async () => {
     if (!examId) return toast.error("Select an exam first.");
@@ -118,13 +210,13 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
     if (!ok) return;
     try {
       await api.post("/exams/mark-submissions/", { exam: examId, subject: subjectId, school_class: classId, teacher_name: teacherName, note: `${entered.length} of ${students.length} learners marked` });
-      download();
+      await download();
       toast.success("Mark sheet submitted to admin");
     } catch (e) { toast.error(getErrorMessage(e)); }
   };
 
   const shareWhatsApp = async () => {
-    const blob = buildPdf().output("blob");
+    const blob = (await buildPdf()).output("blob");
     const file = new File([blob], fileName, { type: "application/pdf" });
     const text = `${className} ${subjectName} results (${examName}) from ${teacherName}.`;
     const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
@@ -132,7 +224,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
       try { await nav.share({ files: [file], title: fileName, text }); return; } catch { /* cancelled */ return; }
     }
     // Desktop fallback: download the PDF, then open WhatsApp so it can be attached to the parents' group.
-    download();
+    await download();
     window.open(`https://wa.me/?text=${encodeURIComponent(text + " The mark sheet PDF is attached.")}`, "_blank");
     toast.info("PDF downloaded — attach it in the WhatsApp chat that just opened.");
   };
@@ -147,7 +239,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => void saveAll()} disabled={busy}><Save className="h-4 w-4 mr-1" />Save marks</Button>
-          <Button size="sm" variant="outline" onClick={download}><Download className="h-4 w-4 mr-1" />PDF</Button>
+          <Button size="sm" variant="outline" onClick={() => void download()}><Download className="h-4 w-4 mr-1" />PDF</Button>
           <Button size="sm" variant="gold" onClick={() => void submitToAdmin()} disabled={busy}><Send className="h-4 w-4 mr-1" />Submit to admin</Button>
           <Button size="sm" variant="outline" onClick={() => void shareWhatsApp()}><Share2 className="h-4 w-4 mr-1" />WhatsApp</Button>
         </div>

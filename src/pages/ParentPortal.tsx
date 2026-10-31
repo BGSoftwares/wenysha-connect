@@ -83,9 +83,7 @@ const ParentPortal = () => {
     const { data: grades = [] } = useGrades(
         selectedChildId ? { student: selectedChildId } : undefined
     );
-    const { data: attendance = [] } = useAttendanceRecords(
-        selectedChildId ? { student: selectedChildId } : undefined
-    );
+    const { data: attendance = [] } = useAttendanceRecords({ student: selectedChildId ?? 0 });
     const { data: invoices = [] } = useInvoices(
         { student: selectedChildId || 0 }
     );

@@ -7,6 +7,15 @@ class GalleryItem(models.Model):
     category = models.CharField(max_length=64)  # Sports, Academics, Arts, Events, Campus
     item_type = models.CharField(max_length=16, default='image')  # image, video
     image_url = models.URLField(max_length=512, blank=True)
+    media_file = models.FileField(upload_to='gallery/', blank=True, null=True)
+    description = models.CharField(max_length=512, blank=True)
+    show_on_homepage = models.BooleanField(default=False)
+    display_order = models.PositiveIntegerField(default=0)
+    display_mode = models.CharField(
+        max_length=8,
+        choices=[('cover', 'Cover'), ('contain', 'Contain')],
+        default='cover',
+    )
     date = models.DateField(null=True, blank=True)
 
     class Meta:
@@ -14,6 +23,13 @@ class GalleryItem(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class HeroCarouselConfig(models.Model):
+    """Tracks whether an administrator has initialized the managed carousel."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    initialized = models.BooleanField(default=False)
 
 
 class Announcement(models.Model):

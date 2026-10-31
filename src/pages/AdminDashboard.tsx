@@ -16,6 +16,7 @@ import ClassesSection from "@/components/admin/ClassesSection";
 import SubjectsSection from "@/components/admin/SubjectsSection";
 import AllocationsSection from "@/components/admin/AllocationsSection";
 import GallerySection from "@/components/admin/GallerySection";
+import HeroCarouselSection from "@/components/admin/HeroCarouselSection";
 import TimetableSection from "@/components/admin/TimetableSection";
 import StudentDirectorySection from "@/components/admin/StudentDirectorySection";
 import { StudentPortalCredentialsDialog, type StudentPortalCredentials } from "@/components/admin/StudentPortalCredentials";
@@ -342,6 +343,7 @@ const AdminDashboard = () => {
       notice: "Communications",
       message: "Messages",
       gallery: "Gallery",
+      "hero-carousel": "Hero Carousel",
       map: "Map",
       "report-cards": "Report Cards",
       directory: "School Directory",
@@ -426,6 +428,7 @@ const AdminDashboard = () => {
       case "gallery": return (
         <GallerySection />
       );
+      case "hero-carousel": return <HeroCarouselSection />;
       case "timetable": return <TimetableSection classes={classes || []} />;
       case "users-roles":
       case "roles": return <UsersRolesSection activeSubNav={activeNav} />;

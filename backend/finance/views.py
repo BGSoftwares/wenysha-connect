@@ -156,6 +156,7 @@ def _online_payment_payload(intent):
         'currency': intent.currency,
         'client_reference': intent.client_reference,
         'provider_reference': intent.provider_reference,
+        'checkout_id': intent.checkout_id,
         'created_at': intent.created_at.isoformat(),
         'updated_at': intent.updated_at.isoformat(),
     }
@@ -236,6 +237,16 @@ class OnlinePaymentListCreateView(APIView):
         role = portal_role(request.user)
         if role not in {'admin', 'accounts'}:
             queryset = queryset.filter(invoice__student_id__in=_student_ids_for_user(request.user))
+        invoice_id = request.query_params.get('invoice')
+        if invoice_id:
+            try:
+                invoice_id = int(invoice_id)
+            except (TypeError, ValueError):
+                return Response({'detail': 'Select a valid school invoice.'}, status=status.HTTP_400_BAD_REQUEST)
+            queryset = queryset.filter(invoice_id=invoice_id)
+        payment_status = request.query_params.get('status')
+        if payment_status:
+            queryset = queryset.filter(status=payment_status)
         return Response([_online_payment_payload(item) for item in queryset[:200]])
 
     def post(self, request):

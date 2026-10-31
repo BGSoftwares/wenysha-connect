@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { schoolContact } from "@/lib/schoolContact";
 import { api, getErrorMessage } from "@/lib/api";
 
+const campusMapLabel = "Able God College Arts Campus";
+
 const Contact = () => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
@@ -180,8 +182,12 @@ const Contact = () => {
               </div>
 
               <div className="overflow-hidden rounded-xl border border-border bg-secondary">
+                <div className="border-b border-border bg-card px-4 py-3">
+                  <h3 className="font-semibold text-foreground">{campusMapLabel}</h3>
+                  <p className="text-sm text-muted-foreground">{schoolContact.address}</p>
+                </div>
                 <iframe
-                  title={`Map to ${schoolContact.name}`}
+                  title={`Map to ${campusMapLabel}`}
                   src={`https://maps.google.com/maps?q=${encodeURIComponent(schoolContact.address)}&output=embed`}
                   className="aspect-video w-full border-0"
                   loading="lazy"
@@ -193,7 +199,7 @@ const Contact = () => {
                   rel="noreferrer"
                   className="block px-4 py-3 text-sm font-medium text-primary hover:underline"
                 >
-                  Open {schoolContact.address} in Google Maps
+                  Open {campusMapLabel} in Google Maps
                 </a>
               </div>
             </div>

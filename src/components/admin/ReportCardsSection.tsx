@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Download, FileSpreadsheet, Loader2, Printer } from "lucide-react";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
-import { useExamMarks, useExams, useStudents, type Exam, type ExamMark, type SchoolClass, type Student } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useExamMarks, useExams, useStudents, useSubjects, type Exam, type ExamMark, type SchoolClass, type Student } from "@/lib/hooks";
 import { calculateGrade } from "@/lib/grading";
 import { getErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
@@ -18,7 +18,20 @@ interface StudentReport {
 }
 
 const getPeriodKey = (exam: Exam) => `${exam.year.trim()}-${exam.term.trim().toLowerCase()}`;
-const getExamLabel = (exam: Exam) => `${exam.name} · ${exam.term} ${exam.year}`;
+const getReportTypeLabel = (exam: Exam) => EXAM_REPORT_TYPES.find((type) => type.value === exam.report_type)?.label ?? "Report card";
+const getReportHeading = (exam: Exam) => exam.report_type === "monthly_report_card"
+  ? "End-of-month Examination Report Card"
+  : exam.report_type === "fortnightly_tests"
+    ? "Fortnightly Test Report Card"
+    : "End-of-term Report Card";
+const getIssueStamp = (exam: Exam) => {
+  const now = new Date();
+  const date = now.toLocaleDateString("en-GB");
+  return exam.report_type === "monthly_report_card"
+    ? `${now.toLocaleDateString("en-GB", { month: "long", year: "numeric" })} · ${date}`
+    : date;
+};
+const getExamLabel = (exam: Exam) => `${getReportTypeLabel(exam)} · ${exam.name} · ${exam.term} ${exam.year}`;
 const safeFilePart = (value: string) => value.trim().replace(/[^a-z0-9-_]+/gi, "_").replace(/^_+|_+$/g, "") || "Report";
 const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
 
@@ -27,7 +40,7 @@ const AdminReportCard = ({ report, exam, className }: { report: StudentReport; e
     <header className="admin-report-header">
       <div>
         <p className="admin-report-school">ABLE GOD COLLEGE</p>
-        <h2>Student Report Card</h2>
+        <h2>{getReportHeading(exam)}</h2>
       </div>
       <span className="admin-report-badge">Student Portal Copy</span>
     </header>
@@ -37,7 +50,8 @@ const AdminReportCard = ({ report, exam, className }: { report: StudentReport; e
       <div><span>Student ID</span><strong>{report.student.student_id || "—"}</strong></div>
       <div><span>Class</span><strong>{className}</strong></div>
       <div><span>Term</span><strong>{exam.term} {exam.year}</strong></div>
-      <div className="admin-report-exam"><span>Examination</span><strong>{exam.name}</strong></div>
+      <div className="admin-report-exam"><span>Examination</span><strong>{getReportTypeLabel(exam)} · {exam.name}</strong></div>
+      {report.marks[0] && <div><span>Subject</span><strong>{report.marks[0].subject_name}</strong></div>}
     </section>
 
     <table className="admin-report-table">
@@ -74,15 +88,18 @@ const AdminReportCard = ({ report, exam, className }: { report: StudentReport; e
         ))}
       </section>
     )}
-    <footer className="admin-report-footer">Generated from the school portal · {new Date().toLocaleDateString("en-GB")}</footer>
+    <footer className="admin-report-footer">Issued {getIssueStamp(exam)} · Generated from the school portal</footer>
   </article>
 );
 
 const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const { data: students = [], isLoading: loadingStudents, error: studentsError } = useStudents();
   const { data: exams = [], isLoading: loadingExams, error: examsError } = useExams();
+  const { data: subjects = [], isLoading: loadingSubjects } = useSubjects();
   const [category, setCategory] = useState<ReportCategory>("current");
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("pdf");
   const [isExporting, setIsExporting] = useState(false);
   const [printStudentIds, setPrintStudentIds] = useState<number[]>([]);
@@ -99,17 +116,28 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   });
   const selectedExam = visibleExams.find((exam) => exam.id === selectedExamId) ?? visibleExams[0];
   const { data: marks = [], isLoading: loadingMarks, error: marksError } = useExamMarks({ exam: selectedExam?.id });
+  const classOptions = classes.filter((schoolClass) => selectedExam?.classes.includes(schoolClass.id));
+  const activeClassId = classOptions.some((schoolClass) => schoolClass.id === selectedClassId)
+    ? selectedClassId
+    : classOptions[0]?.id ?? null;
+  const subjectOptions = subjects.filter((subject) => selectedExam?.subjects.includes(subject.id));
+  const activeSubjectId = subjectOptions.some((subject) => subject.id === selectedSubjectId)
+    ? selectedSubjectId
+    : subjectOptions[0]?.id ?? null;
 
   const reports = useMemo<StudentReport[]>(() => {
     const marksByStudent = new Map<number, ExamMark[]>();
-    marks.forEach((mark) => {
+    const classStudentIds = new Set(students
+      .filter((student) => student.school_class === activeClassId)
+      .map((student) => student.id));
+    marks.filter((mark) => classStudentIds.has(mark.student) && mark.subject === activeSubjectId).forEach((mark) => {
       const studentMarks = marksByStudent.get(mark.student) ?? [];
       studentMarks.push(mark);
       marksByStudent.set(mark.student, studentMarks);
     });
 
     return students
-      .filter((student) => marksByStudent.has(student.id))
+      .filter((student) => student.school_class === activeClassId && marksByStudent.has(student.id))
       .map((student) => {
         const studentMarks = (marksByStudent.get(student.id) ?? []).sort((a, b) => a.subject_name.localeCompare(b.subject_name));
         const percentages = studentMarks.map((mark) => mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0);
@@ -120,7 +148,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name));
-  }, [marks, students]);
+  }, [activeClassId, activeSubjectId, marks, students]);
 
   const changeCategory = (nextCategory: ReportCategory) => {
     setCategory(nextCategory);
@@ -147,18 +175,18 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
 
   const downloadCsv = () => {
     if (!selectedExam || reports.length === 0) return;
-    const headers = ["Student", "Student ID", "Class", "Term", "Year", "Examination", "Subject", "Score", "Out of", "Percentage", "Grade", "Teacher Comment"];
+    const headers = ["Report Type", "Student", "Student ID", "Class", "Term", "Year", "Examination", "Subject", "Score", "Out of", "Percentage", "Grade", "Teacher Comment"];
     const rows = reports.flatMap((report) => report.marks.map((mark) => {
       const percentage = mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0;
       const className = report.student.class_name || classes.find((schoolClass) => schoolClass.id === report.student.school_class)?.name || "";
-      return [report.student.name, report.student.student_id, className, selectedExam.term, selectedExam.year, selectedExam.name, mark.subject_name, mark.scored, mark.total_marks, `${percentage.toFixed(1)}%`, calculateGrade(percentage).grade, mark.comment || ""];
+      return [getReportTypeLabel(selectedExam), report.student.name, report.student.student_id, className, selectedExam.term, selectedExam.year, selectedExam.name, mark.subject_name, mark.scored, mark.total_marks, `${percentage.toFixed(1)}%`, calculateGrade(percentage).grade, mark.comment || ""];
     }));
     const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
     const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${safeFilePart(selectedExam.term)}_${selectedExam.year}_Report_Cards.csv`;
+    anchor.download = `${safeFilePart(selectedExam.term)}_${selectedExam.year}_${safeFilePart(classOptions.find((schoolClass) => schoolClass.id === activeClassId)?.name ?? "Class")}_${safeFilePart(subjectOptions.find((subject) => subject.id === activeSubjectId)?.name ?? "Subject")}_Report_Cards.csv`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -180,19 +208,23 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       pdf.setFontSize(17);
       pdf.text("ABLE GOD COLLEGE", pageWidth / 2, 18, { align: "center" });
       pdf.setFontSize(12);
-      pdf.text("STUDENT REPORT CARD", pageWidth / 2, 26, { align: "center" });
+      pdf.text(getReportHeading(selectedExam).toUpperCase(), pageWidth / 2, 26, { align: "center" });
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      pdf.text(`${getReportTypeLabel(selectedExam)} · ${selectedExam.name}`, pageWidth / 2, 32, { align: "center", maxWidth: right - left });
       pdf.setDrawColor(185, 30, 100);
-      pdf.line(left, 31, right, 31);
+      pdf.line(left, 35, right, 35);
 
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "normal");
-      pdf.text(`Student: ${report.student.name}`, left, 40);
-      pdf.text(`Student ID: ${report.student.student_id || "—"}`, left, 47);
-      pdf.text(`Class: ${report.student.class_name || classes.find((schoolClass) => schoolClass.id === report.student.school_class)?.name || "—"}`, left, 54);
-      pdf.text(`Term: ${selectedExam.term} ${selectedExam.year}`, right, 40, { align: "right" });
-      pdf.text(`Examination: ${selectedExam.name}`, right, 47, { align: "right" });
+      pdf.text(`Student: ${report.student.name}`, left, 44);
+      pdf.text(`Student ID: ${report.student.student_id || "—"}`, left, 51);
+      pdf.text(`Class: ${report.student.class_name || classes.find((schoolClass) => schoolClass.id === report.student.school_class)?.name || "—"}`, left, 58);
+      pdf.text(`Term: ${selectedExam.term} ${selectedExam.year}`, right, 44, { align: "right" });
+      pdf.text(`Exam: ${selectedExam.name}`, right, 51, { align: "right" });
+      pdf.text(`Subject: ${report.marks[0]?.subject_name ?? "—"}`, right, 58, { align: "right" });
 
-      let y = 65;
+      let y = 66;
       pdf.setFillColor(20, 43, 86);
       pdf.rect(left, y, right - left, 8, "F");
       pdf.setTextColor(255, 255, 255);
@@ -246,10 +278,10 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       }
       pdf.setFontSize(9);
       pdf.setTextColor(110, 110, 120);
-      pdf.text(`Generated ${new Date().toLocaleDateString("en-GB")} · Available in the student portal`, left, pageHeight - 12);
+      pdf.text(`Issued ${getIssueStamp(selectedExam)} · Available in the student portal`, left, pageHeight - 12);
     });
 
-    pdf.save(`${safeFilePart(selectedExam.term)}_${selectedExam.year}_Report_Cards.pdf`);
+    pdf.save(`${safeFilePart(selectedExam.term)}_${selectedExam.year}_${safeFilePart(classOptions.find((schoolClass) => schoolClass.id === activeClassId)?.name ?? "Class")}_${safeFilePart(subjectOptions.find((subject) => subject.id === activeSubjectId)?.name ?? "Subject")}_Report_Cards.pdf`);
   };
 
   const generateReport = async () => {
@@ -274,7 +306,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Results are delivered through the student portal</p>
             <h2 className="mt-1 font-heading text-2xl font-bold text-foreground">Report Cards</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Only completed exams appear here. Completing an exam publishes its approved results to student dashboards.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Review marks for one class and subject at a time. Teacher submissions are grouped by their exam, class, and subject.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select
@@ -295,6 +327,26 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
             >
               {visibleExams.length === 0 && <option value="">No reports in this category</option>}
               {visibleExams.map((exam) => <option key={exam.id} value={exam.id}>{getExamLabel(exam)}</option>)}
+            </select>
+            <select
+              aria-label="Report card class"
+              value={activeClassId ?? ""}
+              onChange={(event) => setSelectedClassId(event.target.value ? Number(event.target.value) : null)}
+              disabled={!selectedExam || classOptions.length === 0}
+              className="min-h-10 max-w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground disabled:opacity-60"
+            >
+              {classOptions.length === 0 && <option value="">No classes</option>}
+              {classOptions.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>)}
+            </select>
+            <select
+              aria-label="Report card subject"
+              value={activeSubjectId ?? ""}
+              onChange={(event) => setSelectedSubjectId(event.target.value ? Number(event.target.value) : null)}
+              disabled={!selectedExam || subjectOptions.length === 0}
+              className="min-h-10 max-w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground disabled:opacity-60"
+            >
+              {subjectOptions.length === 0 && <option value="">No subjects</option>}
+              {subjectOptions.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
             </select>
           </div>
         </div>
@@ -317,26 +369,30 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
           <Button variant="outline" onClick={() => startPrint(reports.map((report) => report.student.id))} disabled={reports.length === 0 || loadingMarks}>
             <Printer className="mr-2 h-4 w-4" /> Print All ({reports.length})
           </Button>
-          <span className="ml-auto text-sm text-muted-foreground">Portal published · {reports.length} student{reports.length === 1 ? "" : "s"}</span>
+          <span className="ml-auto text-sm text-muted-foreground">Selected class and subject · {reports.length} learner{reports.length === 1 ? "" : "s"}</span>
         </div>
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-elegant sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="font-semibold text-foreground">{selectedExam ? getExamLabel(selectedExam) : "Published report cards"}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Each printed report card starts on a separate page.</p>
+            <h3 className="font-semibold text-foreground">
+              {selectedExam
+                ? `${getExamLabel(selectedExam)} · ${classOptions.find((schoolClass) => schoolClass.id === activeClassId)?.name ?? "Select class"} · ${subjectOptions.find((subject) => subject.id === activeSubjectId)?.name ?? "Select subject"}`
+                : "Report cards by class and subject"}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">This view contains marks for the selected class and subject. Printed learner reports start on separate pages.</p>
           </div>
         </div>
 
-        {(loadingStudents || loadingExams || loadingMarks) ? (
+        {(loadingStudents || loadingExams || loadingMarks || loadingSubjects) ? (
           <div className="flex items-center justify-center gap-3 py-12 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Loading published report cards…</div>
         ) : (studentsError || examsError || marksError) ? (
           <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">Could not load report cards: {getErrorMessage(studentsError || examsError || marksError)}</div>
         ) : !selectedExam ? (
           <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">There are no completed exams yet. Complete and approve an exam to publish results to student portals.</div>
         ) : reports.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">No marks have been recorded for this exam yet.</div>
+          <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">No marks have been recorded for this class and subject yet.</div>
         ) : (
           <div className="space-y-3">
             {reports.map((report) => (

@@ -16,7 +16,7 @@ class AttendanceAPITests(TestCase):
         self.client = APIClient()
 
     def test_attendance_crud_and_permission(self):
-        payload = {'student': self.student.id, 'date': date.today().isoformat(), 'status': 'present'}
+        payload = {'student': self.student.id, 'date': date(2026, 10, 27).isoformat(), 'status': 'present'}
         # unauthenticated blocked
         r = self.client.post('/api/attendance/attendance/', payload, format='json')
         self.assertEqual(r.status_code, 401)
@@ -37,3 +37,20 @@ class AttendanceAPITests(TestCase):
         # delete
         del_r = self.client.delete(f'/api/attendance/attendance/{aid}/')
         self.assertIn(del_r.status_code, (204, 200))
+
+    def test_attendance_rejects_weekends_public_holidays_and_term_breaks(self):
+        self.client.force_authenticate(user=self.user)
+        dates = (
+            ('2026-09-12', 400),  # Saturday
+            ('2026-05-25', 400),  # Africa Day
+            ('2026-08-07', 400),  # August school break
+            ('2026-09-09', 201),  # Term 3 school day
+        )
+        for date_value, expected_status in dates:
+            with self.subTest(date=date_value):
+                response = self.client.post('/api/attendance/attendance/', {
+                    'student': self.student.id,
+                    'date': date_value,
+                    'status': 'present',
+                }, format='json')
+                self.assertEqual(response.status_code, expected_status)

@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,6 +6,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import ErrorBoundary from "./components/ErrorBoundary";
 import React, { Suspense, lazy } from "react";
 import { PortalRoute } from "./components/auth/PortalRoute";
+import { queryClient } from "./lib/queryClient";
+import { useInactivityLogout } from "./hooks/useInactivityLogout";
+
+const InactivityLogout = () => {
+  useInactivityLogout();
+  return null;
+};
 
 // Lazy loaded components for optimized performance
 const Index = lazy(() => import("./pages/Index"));
@@ -25,6 +32,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const PaymentReturn = lazy(() => import("./pages/PaymentReturn"));
+const SignUp = lazy(() => import("./pages/SignUp"));
 
 // Loading Component
 const PageLoader = () => (
@@ -48,8 +56,6 @@ const PageLoader = () => (
   </div>
 );
 
-const queryClient = new QueryClient();
-
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -57,10 +63,12 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <InactivityLogout />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/signup" element={<SignUp />} />
               <Route path="/payment/return" element={<PaymentReturn />} />
               <Route path="/portal" element={<Portal />} />
               <Route path="/admin/*" element={<PortalRoute role="admin"><AdminDashboard /></PortalRoute>} />

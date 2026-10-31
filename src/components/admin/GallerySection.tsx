@@ -12,6 +12,10 @@ type GalleryImage = {
   category: string;
   item_type: string;
   image_url: string;
+  description?: string;
+  show_on_homepage?: boolean;
+  display_order?: number;
+  display_mode?: "cover" | "contain";
   date: string | null;
 };
 
@@ -31,7 +35,7 @@ const GallerySection = () => {
 
   const { data = [], isLoading, error } = useQuery({
     queryKey: ["admin-gallery"],
-    queryFn: async () => getRows(await api.get<GalleryImage[] | { results?: GalleryImage[] }>(path)),
+    queryFn: async () => getRows(await api.get<GalleryImage[] | { results?: GalleryImage[] }>(`${path}?show_on_homepage=false`)),
   });
 
   const [open, setOpen] = useState(false);
@@ -87,18 +91,6 @@ const GallerySection = () => {
     }
   };
 
-  const uploadFileToMedia = async (file: File, title: string, category: string): Promise<string> => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("title", title || file.name);
-    formData.append("subject_name", "School Gallery");
-    formData.append("class_name", category);
-    formData.append("uploaded_by", "Admin");
-
-    const res = await api.postForm<{ file_url: string }>("/content/materials/", formData);
-    return res.file_url;
-  };
-
   const handleAddSubmit = async () => {
     if (!draft.title.trim()) {
       toast.error("Please enter a title");
@@ -117,24 +109,30 @@ const GallerySection = () => {
 
     setIsSubmitting(true);
     try {
-      let finalUrl = draft.image_url.trim();
       let itemType = draft.item_type;
 
       if (uploadMode === "device" && selectedFile) {
-        toast.info("Uploading media from device...");
-        finalUrl = await uploadFileToMedia(selectedFile, draft.title, draft.category);
+        toast.info("Uploading media to the gallery...");
         itemType = selectedFile.type.startsWith("video/") ? "video" : "image";
+        const formData = new FormData();
+        formData.append("title", draft.title.trim());
+        formData.append("category", draft.category);
+        formData.append("item_type", itemType);
+        formData.append("date", draft.date);
+        formData.append("media_file", selectedFile);
+        await api.postForm(path, formData);
+      } else {
+        await api.post(path, {
+          title: draft.title.trim(),
+          category: draft.category,
+          image_url: draft.image_url.trim(),
+          item_type: itemType,
+          date: draft.date,
+        });
       }
 
-      await api.post(path, {
-        title: draft.title.trim(),
-        category: draft.category,
-        image_url: finalUrl,
-        item_type: itemType,
-        date: draft.date,
-      });
-
       void refresh();
+      void queryClient.invalidateQueries({ queryKey: ["public-gallery"] });
       setOpen(false);
       setSelectedFile(null);
       setFilePreview(null);
@@ -162,22 +160,28 @@ const GallerySection = () => {
 
     setIsSubmitting(true);
     try {
-      let finalUrl = editingItem.image_url;
       let itemType = editingItem.item_type;
 
       if (editMode === "device" && editFile) {
-        toast.info("Uploading replacement media from device...");
-        finalUrl = await uploadFileToMedia(editFile, editingItem.title, editingItem.category);
+        toast.info("Uploading replacement media to the gallery...");
         itemType = editFile.type.startsWith("video/") ? "video" : "image";
+        const formData = new FormData();
+        formData.append("title", editingItem.title.trim());
+        formData.append("category", editingItem.category);
+        formData.append("item_type", itemType);
+        formData.append("date", editingItem.date ?? "");
+        formData.append("media_file", editFile);
+        await api.patchForm(`${path}${editingItem.id}/`, formData);
+      } else {
+        await api.patch(`${path}${editingItem.id}/`, {
+          ...editingItem,
+          image_url: editingItem.image_url,
+          item_type: itemType,
+        });
       }
 
-      await api.patch(`${path}${editingItem.id}/`, {
-        ...editingItem,
-        image_url: finalUrl,
-        item_type: itemType,
-      });
-
       void refresh();
+      void queryClient.invalidateQueries({ queryKey: ["public-gallery"] });
       setEditingItem(null);
       setEditFile(null);
       setEditFilePreview(null);
@@ -193,6 +197,7 @@ const GallerySection = () => {
     mutationFn: (id: number) => api.delete(`${path}${id}/`),
     onSuccess: () => {
       void refresh();
+      void queryClient.invalidateQueries({ queryKey: ["public-gallery"] });
       toast.success("Gallery item removed");
     },
     onError: (e) => toast.error(getErrorMessage(e)),
@@ -405,7 +410,7 @@ const GallerySection = () => {
                   value={draft.category}
                   onChange={(e) => setDraft({ ...draft, category: e.target.value })}
                 >
-                  {["Events", "Academic", "Sports", "Campus", "Arts"].map((category) => (
+                  {["School Photos", "School Posters & Designs", "Events", "Academic", "Sports", "Campus", "Arts"].map((category) => (
                     <option key={category}>{category}</option>
                   ))}
                 </select>
@@ -543,7 +548,7 @@ const GallerySection = () => {
                   value={editingItem.category}
                   onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
                 >
-                  {["Events", "Academic", "Sports", "Campus", "Arts"].map((category) => (
+                  {["School Photos", "School Posters & Designs", "Events", "Academic", "Sports", "Campus", "Arts"].map((category) => (
                     <option key={category}>{category}</option>
                   ))}
                 </select>

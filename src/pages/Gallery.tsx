@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import g1 from "@/assets/IMG_6134.jpg";
 import g2 from "@/assets/IMG_6135.jpg";
@@ -25,6 +26,7 @@ import communityCelebration from "@/assets/new-school-media/school-community-cel
 import novemberExams from "@/assets/new-school-media/november-2026-exams-poster.jpeg";
 import { Layout } from "@/components/layout/Layout";
 import { Image, X } from "lucide-react";
+import { api } from "@/lib/api";
 
 type GalleryCategory = "School Photos" | "School Posters & Designs";
 type GalleryItem = {
@@ -35,6 +37,18 @@ type GalleryItem = {
   alt: string;
   isPoster?: boolean;
 };
+
+type PublishedGalleryItem = {
+  id: number;
+  title: string;
+  category: string;
+  item_type: string;
+  image_url: string;
+  description?: string;
+};
+
+const getRows = (response: PublishedGalleryItem[] | { results?: PublishedGalleryItem[] }) =>
+  Array.isArray(response) ? response : response.results ?? [];
 
 const categories = ["All", "School Photos", "School Posters & Designs"];
 
@@ -130,12 +144,36 @@ const galleryItems: GalleryItem[] = [
 const Gallery = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
+  const { data: uploadedItems = [] } = useQuery({
+    queryKey: ["public-gallery"],
+    queryFn: async () => getRows(await api.get<PublishedGalleryItem[] | { results?: PublishedGalleryItem[] }>("/content/gallery/", {
+      show_on_homepage: "false",
+      item_type: "image",
+    })),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const visibleItems: GalleryItem[] = [
+    ...uploadedItems.map((item) => {
+      const isPoster = item.category === "School Posters & Designs" || /poster|flyer|design/i.test(`${item.category} ${item.title}`);
+      return {
+        id: -item.id,
+        src: item.image_url,
+        category: isPoster ? "School Posters & Designs" as const : "School Photos" as const,
+        title: item.title,
+        alt: item.description || item.title,
+        isPoster,
+      };
+    }),
+    ...galleryItems,
+  ];
 
   const filteredItems = activeCategory === "All"
-    ? galleryItems
-    : galleryItems.filter(item => item.category === activeCategory);
+    ? visibleItems
+    : visibleItems.filter(item => item.category === activeCategory);
   const pos = filteredItems.findIndex(i => i.id === selectedImage);
-  const selectedItem = galleryItems.find((item) => item.id === selectedImage);
+  const selectedItem = visibleItems.find((item) => item.id === selectedImage);
   const step = (d: number) => {
     if (pos < 0) return;
     setSelectedImage(filteredItems[(pos + d + filteredItems.length) % filteredItems.length].id);

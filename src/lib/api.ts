@@ -3,6 +3,8 @@
  * Uses VITE_API_BASE_URL and JWT stored in localStorage.
  */
 
+import { queryClient } from "./queryClient";
+
 const getApiBaseUrl = (): string => {
   const url = import.meta.env.VITE_API_BASE_URL;
   if (!url) {
@@ -11,12 +13,21 @@ const getApiBaseUrl = (): string => {
   return url.replace(/\/$/, "");
 };
 
-const TOKEN_KEY = "ablegodcollege_access_token";
+export const ACCESS_TOKEN_KEY = "ablegodcollege_access_token";
 const REFRESH_KEY = "ablegodcollege_refresh_token";
 const USER_KEY = "ablegodcollege_user";
+export const SESSION_ACTIVITY_KEY = "ablegodcollege_last_activity";
+export const INACTIVITY_LOGOUT_KEY = "ablegodcollege_inactivity_logout_at";
+export const AUTH_STATE_EVENT = "ablegodcollege:auth-state-changed";
+
+function dispatchAuthStateChange(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(AUTH_STATE_EVENT));
+  }
+}
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
 export function getRefreshToken(): string | null {
@@ -24,17 +35,26 @@ export function getRefreshToken(): string | null {
 }
 
 export function setTokens(access: string, refresh: string, user?: { id: number; email: string; username: string; role?: string; full_name?: string }): void {
-  localStorage.setItem(TOKEN_KEY, access);
+  // A new login may belong to a different person on this browser. Drop cached
+  // portal responses before the new identity starts issuing queries.
+  queryClient.clear();
+  localStorage.setItem(ACCESS_TOKEN_KEY, access);
   localStorage.setItem(REFRESH_KEY, refresh);
+  localStorage.setItem(SESSION_ACTIVITY_KEY, String(Date.now()));
+  localStorage.removeItem(INACTIVITY_LOGOUT_KEY);
   if (user) {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   }
+  dispatchAuthStateChange();
 }
 
 export function clearAuth(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  queryClient.clear();
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(SESSION_ACTIVITY_KEY);
+  dispatchAuthStateChange();
 }
 
 export function getStoredUser(): { id: number; email: string; username: string; role?: string; full_name?: string } | null {
@@ -235,7 +255,7 @@ export async function refreshAccessToken(): Promise<string> {
   const tokens = data as { access?: string; refresh?: string };
   if (!tokens.access) throw new Error("Refresh response did not include an access token");
   const access = tokens.access;
-  localStorage.setItem(TOKEN_KEY, access);
+  localStorage.setItem(ACCESS_TOKEN_KEY, access);
   // Simple JWT can rotate the refresh token. Persist it so a later renewal
   // does not reuse an expired token.
   if (tokens.refresh) localStorage.setItem(REFRESH_KEY, tokens.refresh);

@@ -1,4 +1,6 @@
 import jsPDF from "jspdf";
+import { formatLocalDateKey } from "@/lib/zimbabweSchoolCalendar";
+import { drawSchoolLetterhead, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
 
 export interface ReportCardPdfData {
   studentName: string;
@@ -61,6 +63,8 @@ export interface StudentReportCardPdfData {
   className: string;
   examName: string;
   termLabel: string;
+  reportHeading: string;
+  reportPeriod: string;
   issuedDate: string;
   average: number;
   overallGrade: string;
@@ -70,7 +74,7 @@ export interface StudentReportCardPdfData {
   levelPosition: string;
   teacherComment: string;
   principalComment: string;
-  attendance: { totalDays: number; present: number; absent: number };
+  attendance: { totalDays: number; present: number; absent: number; late: number; unrecorded: number; calendarLabel: string };
   results: Array<{ subject: string; marks: number; scored: number; percentage: number; grade: string }>;
 }
 
@@ -82,17 +86,8 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   const right = pageWidth - left;
   const width = right - left;
 
-  pdf.setFillColor(20, 36, 79);
-  pdf.rect(0, 0, pageWidth, 34, "F");
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(18);
-  pdf.text("ABLE GOD COLLEGE", pageWidth / 2, 14, { align: "center" });
-  pdf.setFontSize(11);
-  pdf.text("STUDENT REPORT CARD", pageWidth / 2, 23, { align: "center" });
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(9);
-  pdf.text(data.examName, pageWidth / 2, 30, { align: "center", maxWidth: width });
+  const schoolLogo = await loadSchoolLogoDataUrl();
+  drawSchoolLetterhead(pdf, schoolLogo, data.reportHeading, `${data.reportPeriod} · ${data.examName}`);
 
   pdf.setTextColor(35, 39, 60);
   pdf.setFont("helvetica", "bold");
@@ -177,7 +172,12 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
   pdf.text(`Level position: ${data.levelPosition}`, left, y);
-  pdf.text(`Attendance: ${data.attendance.present}/${data.attendance.totalDays} days present · ${data.attendance.absent} absent`, right, y, { align: "right", maxWidth: 112 });
+  pdf.text(
+    `${data.attendance.calendarLabel}: ${data.attendance.present}/${data.attendance.totalDays} present · ${data.attendance.absent} absent · ${data.attendance.late} late · ${data.attendance.unrecorded} unmarked`,
+    right,
+    y,
+    { align: "right", maxWidth: 120 },
+  );
   y += 8;
 
   const comments = [
@@ -209,8 +209,9 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   pdf.setFontSize(8);
   pdf.setTextColor(120, 120, 130);
   pdf.text(`Issued ${data.issuedDate} · Available in the student portal`, left, pageHeight - 9);
+
   const safeName = data.studentName.trim().replace(/[^a-z0-9-_]+/gi, "_") || "Student";
-  pdf.save(`Report_Card_${safeName}_${new Date().toISOString().split("T")[0]}.pdf`);
+  pdf.save(`Report_Card_${safeName}_${formatLocalDateKey(new Date())}.pdf`);
 };
 
 export const exportFeeStatementPdf = async (data: FeeStatementPdfData) => {
@@ -338,7 +339,7 @@ export const buildAttendancePdf = (opts: {
   pdf.text("ABLE GOD COLLEGE", pageWidth / 2, y, { align: "center" });
   y += 8;
   pdf.setFontSize(13);
-  pdf.text("Marked Class Attendance", pageWidth / 2, y, { align: "center" });
+  pdf.text("Class Attendance Register", pageWidth / 2, y, { align: "center" });
   y += 10;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10);
@@ -351,8 +352,9 @@ export const buildAttendancePdf = (opts: {
   const present = opts.rows.filter((row) => row.status === "present").length;
   const absent = opts.rows.filter((row) => row.status === "absent").length;
   const late = opts.rows.filter((row) => row.status === "late").length;
+  const unmarked = opts.rows.filter((row) => row.status === "unmarked").length;
   pdf.setFont("helvetica", "bold");
-  pdf.text(`Present: ${present}    Absent: ${absent}    Late: ${late}    Total: ${opts.rows.length}`, 14, y);
+  pdf.text(`Present: ${present}    Absent: ${absent}    Late: ${late}    Unmarked: ${unmarked}    Total: ${opts.rows.length}`, 14, y, { maxWidth: pageWidth - 28 });
   y += 8;
 
   pdf.text("#", 14, y);

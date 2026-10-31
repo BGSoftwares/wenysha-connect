@@ -616,20 +616,21 @@ export interface AdmissionApplication {
 export const useGrades = (params?: { student?: number; assessment?: number }) => {
     return useQuery({
         queryKey: ["grades", params],
-        queryFn: async () => {
-            const response = await api.get<unknown>("/school/grades/", toQueryParams(params));
-            return extractArray<Grade>(response);
-        },
+        queryFn: () => fetchAllPages<Grade>("/school/grades/", toQueryParams(params)),
         enabled: !!params?.student,
-        refetchInterval: 15000,
+        refetchInterval: 60000,
     });
 };
 
 // Exam Hooks
-export const useExams = (params?: { term?: string; year?: string; status?: string }) => {
+export const useExams = (
+    params?: { term?: string; year?: string; status?: string },
+    options?: { refetchInterval?: number | false },
+) => {
     return useQuery({
         queryKey: ["exams", params],
         queryFn: () => fetchAllPages<Exam>("/exams/exams/", toQueryParams(params)),
+        refetchInterval: options?.refetchInterval,
     });
 };
 
@@ -670,6 +671,7 @@ export const useExamMarks = (params?: { exam?: number; student?: number; subject
         queryKey: ["exam-marks", params],
         queryFn: () => fetchAllPages<ExamMark>("/exams/exam-marks/", toQueryParams(params)),
         enabled: !!params?.student || !!params?.exam,
+        refetchInterval: params?.student ? 30000 : false,
     });
 };
 
@@ -730,12 +732,9 @@ export const useUpdateExamMark = () => {
 export const useAttendanceRecords = (params?: { student?: number; date?: string; status?: string }) => {
     return useQuery({
         queryKey: ["attendance-records", params],
-        queryFn: async () => {
-            const response = await api.get<unknown>("/attendance/attendance/", toQueryParams(params));
-            return extractArray<AttendanceRecord>(response);
-        },
-        enabled: !params?.student ? true : !!params.student,
-        refetchInterval: 15000,
+        queryFn: () => fetchAllPages<AttendanceRecord>("/attendance/attendance/", toQueryParams(params)),
+        enabled: params?.student === undefined || !!params.student,
+        refetchInterval: 60000,
     });
 };
 
@@ -1021,10 +1020,19 @@ export const useOnlinePaymentConfig = () => useQuery({
     queryFn: () => api.get<OnlinePaymentConfig>("/finance/online-payments/config/"),
 });
 
-export const useOnlinePayments = () => useQuery({
-    queryKey: ["online-payments"],
-    queryFn: async () => extractArray<OnlinePayment>(await api.get<unknown>("/finance/online-payments/")),
-  refetchInterval: 15000,
+export const useOnlinePayments = (
+    params?: { invoice?: number; status?: OnlinePayment["status"] },
+    enabled = true,
+) => useQuery({
+    queryKey: ["online-payments", params],
+    queryFn: async () => {
+        const cleanParams: Record<string, string> = {};
+        if (params?.invoice) cleanParams.invoice = String(params.invoice);
+        if (params?.status) cleanParams.status = params.status;
+        return extractArray<OnlinePayment>(await api.get<unknown>("/finance/online-payments/", cleanParams));
+    },
+    enabled,
+    refetchInterval: params ? false : 15000,
 });
 
 export const useStartOnlinePayment = () => {

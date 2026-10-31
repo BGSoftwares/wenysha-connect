@@ -36,4 +36,7 @@ __pycache__/
 # Uploaded learning materials
 backend/media/
 
+# One-time student portal credentials
+output/
+
 
