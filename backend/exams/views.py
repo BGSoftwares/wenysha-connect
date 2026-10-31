@@ -278,12 +278,25 @@ class ExamRankingView(APIView):
         if not level_class_ids:
             level_class_ids = class_ids
 
+        def get_symbol(pct):
+            if pct >= 70:
+                return 'A'
+            if pct >= 60:
+                return 'B'
+            if pct >= 50:
+                return 'C'
+            if pct >= 45:
+                return 'D'
+            if pct >= 40:
+                return 'E'
+            return 'U'
+
         def calculate_positions(class_ids_for_ranking):
             active_students = Student.objects.filter(
                 status='Active',
                 school_class_id__in=class_ids_for_ranking,
             )
-            totals = defaultdict(lambda: [Decimal('0'), 0])
+            totals = defaultdict(lambda: [Decimal('0'), 0, Decimal('0'), defaultdict(int)])
             marks = ExamMark.objects.filter(
                 exam=exam,
                 student__status='Active',
@@ -298,17 +311,36 @@ class ExamRankingView(APIView):
                 )
                 totals[mark['student_id']][0] += percentage
                 totals[mark['student_id']][1] += 1
+                totals[mark['student_id']][2] += Decimal(mark['scored'])
+                totals[mark['student_id']][3][get_symbol(percentage)] += 1
 
-            averages = {
-                candidate_id: (total / count).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                for candidate_id, (total, count) in totals.items()
-                if count
-            }
-            target_average = averages.get(student.id)
-            if target_average is None:
+            # Candidate ranking key compares:
+            # 1. Average percentage
+            # 2. Number of 'A' symbols
+            # 3. Number of 'B' symbols
+            # 4. Number of 'C' symbols
+            # 5. Number of 'D' symbols
+            # 6. Number of 'E' symbols
+            # 7. Total scored marks
+            candidate_keys = {}
+            for candidate_id, (total_pct, count, total_scored, symbols) in totals.items():
+                if count:
+                    avg = (total_pct / count).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    candidate_keys[candidate_id] = (
+                        avg,
+                        symbols['A'],
+                        symbols['B'],
+                        symbols['C'],
+                        symbols['D'],
+                        symbols['E'],
+                        total_scored,
+                    )
+
+            target_key = candidate_keys.get(student.id)
+            if target_key is None:
                 return None, active_students.count()
 
-            position = 1 + sum(average > target_average for average in averages.values())
+            position = 1 + sum(key > target_key for key in candidate_keys.values())
             return position, active_students.count()
 
         class_position, class_total = calculate_positions(class_ids)

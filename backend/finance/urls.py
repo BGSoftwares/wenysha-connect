@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     FeeStructureViewSet, InvoiceViewSet, PaymentViewSet, DiscountViewSet, BalancesViewSet,
-    OnlinePaymentConfigView, OnlinePaymentListCreateView, OnlinePaymentRefreshView,
+    OnlinePaymentConfigView, OnlinePaymentListCreateView, OnlinePaymentRefreshView, OnlinePaymentConfirmView,
 )
 
 router = DefaultRouter()
@@ -16,5 +16,6 @@ urlpatterns = [
     path('online-payments/config/', OnlinePaymentConfigView.as_view(), name='online-payment-config'),
     path('online-payments/', OnlinePaymentListCreateView.as_view(), name='online-payment-list-create'),
     path('online-payments/by-reference/<str:client_reference>/', OnlinePaymentRefreshView.as_view(), name='online-payment-refresh'),
+    path('online-payments/by-reference/<str:client_reference>/confirm/', OnlinePaymentConfirmView.as_view(), name='online-payment-confirm'),
     path('', include(router.urls)),
 ]

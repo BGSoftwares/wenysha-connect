@@ -852,7 +852,7 @@ export interface OnlinePayment {
     invoice: number;
     invoice_no: string;
     student_name: string;
-    provider: "ecocash" | "zimswitch";
+    provider: "ecocash" | "zimswitch" | "bank_transfer";
     status: "pending" | "paid" | "failed" | "cancelled";
     amount: string;
     currency: FinanceCurrency;
@@ -867,6 +867,13 @@ export interface OnlinePayment {
     shopper_result_url?: string;
 }
 
+export interface BankAccountDetails {
+    account_name: string;
+    account_number: string;
+    bank: string;
+    branch: string;
+}
+
 export interface OnlinePaymentConfig {
     currencies: FinanceCurrency[];
     providers: {
@@ -877,7 +884,12 @@ export interface OnlinePaymentConfig {
             widget_url: string;
             brands: string;
         };
+        bank_transfer?: {
+            enabled: boolean;
+            currencies: FinanceCurrency[];
+        };
     };
+    bank_account?: BankAccountDetails;
 }
 
 export const useFeeStructures = () => {
@@ -1038,8 +1050,24 @@ export const useOnlinePayments = (
 export const useStartOnlinePayment = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: { invoice: number; amount: number; provider: OnlinePayment["provider"]; phone?: string }) =>
+        mutationFn: (data: { invoice: number; amount: number; provider: OnlinePayment["provider"]; phone?: string; reference?: string }) =>
             api.post<OnlinePayment>("/finance/online-payments/", data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["online-payments"] });
+            queryClient.invalidateQueries({ queryKey: ["payments"] });
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            queryClient.invalidateQueries({ queryKey: ["student-balances"] });
+        },
+    });
+};
+
+export const useConfirmOnlinePayment = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ clientReference, providerReference }: { clientReference: string; providerReference?: string }) =>
+            api.post<OnlinePayment>(`/finance/online-payments/by-reference/${encodeURIComponent(clientReference)}/confirm/`, {
+                provider_reference: providerReference,
+            }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["online-payments"] });
             queryClient.invalidateQueries({ queryKey: ["payments"] });

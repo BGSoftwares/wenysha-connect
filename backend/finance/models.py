@@ -131,7 +131,7 @@ class Discount(models.Model):
 
 
 class OnlinePayment(models.Model):
-    PROVIDER_CHOICES = [('ecocash', 'EcoCash'), ('zimswitch', 'ZimSwitch')]
+    PROVIDER_CHOICES = [('ecocash', 'EcoCash'), ('zimswitch', 'ZimSwitch'), ('bank_transfer', 'NBS Bank Transfer')]
     STATUS_CHOICES = [
         ('pending', 'Pending'), ('paid', 'Paid'), ('failed', 'Failed'), ('cancelled', 'Cancelled')
     ]

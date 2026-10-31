@@ -94,3 +94,17 @@ class ExamRankingApiTests(TestCase):
         response = self.client.get('/api/exams/exam-rankings/')
 
         self.assertEqual(response.status_code, 400)
+    def test_tie_broken_by_number_of_best_symbols(self):
+        sub2 = Subject.objects.create(name='Science')
+        self.exam.subjects.add(sub2)
+        # target gets 60 (B) in Science -> average 70.0%, 1 A, 1 B
+        ExamMark.objects.create(exam=self.exam, student=self.target, subject=sub2, total_marks=100, scored=60)
+        # class_peer gets 70 (A) and 70 (A) -> average 70.0%, 2 As, 0 Bs
+        self.add_mark(self.class_peer, 70)
+        ExamMark.objects.create(exam=self.exam, student=self.class_peer, subject=sub2, total_marks=100, scored=70)
+
+        r_peer = self.client.get('/api/exams/exam-rankings/', {'exam': self.exam.id, 'student': self.class_peer.id})
+        r_target = self.client.get('/api/exams/exam-rankings/', {'exam': self.exam.id, 'student': self.target.id})
+        self.assertEqual(r_peer.data['class_position'], 1)
+        self.assertEqual(r_target.data['class_position'], 2)
+

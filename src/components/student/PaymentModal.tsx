@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CreditCard, Loader2, Smartphone, X } from "lucide-react";
+import { CreditCard, Landmark, Loader2, Smartphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOnlinePaymentConfig, useOnlinePayments, useRefreshOnlinePayment, useStartOnlinePayment, type Invoice, type OnlinePayment } from "@/lib/hooks";
 import { formatMoney } from "@/lib/finance";
@@ -84,6 +84,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
   if (!isOpen || !invoice) return null;
 
   const providerAllowed = (method: Provider) => {
+    if (method === "bank_transfer") return true;
     const methodConfig = config?.providers[method];
     return Boolean(methodConfig?.enabled && methodConfig.currencies.includes(invoice.currency));
   };
@@ -102,7 +103,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
 
     setError("");
     try {
-      const result = await startPayment.mutateAsync({ invoice: invoice.id, amount: value, provider, ...(provider === "ecocash" ? { phone } : {}) });
+      const result = await startPayment.mutateAsync({ invoice: invoice.id, amount: value, provider, ...(provider === "ecocash" ? { phone } : {}), ...(provider === "bank_transfer" ? { reference: phone } : {}) });
       setClientReference(result.client_reference);
       if (provider === "zimswitch") setCheckout(result);
     } catch (caught) {
@@ -121,6 +122,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
   const methodOptions: { id: Provider; name: string; description: string; Icon: typeof Smartphone }[] = [
     { id: "ecocash", name: "EcoCash", description: "Approve a wallet prompt on your Zimbabwe mobile number.", Icon: Smartphone },
     { id: "zimswitch", name: "ZimSwitch", description: "Pay securely in the hosted card checkout.", Icon: CreditCard },
+    { id: "bank_transfer", name: "NBS Bank Transfer", description: "Direct deposit or transfer to the school NBS account.", Icon: Landmark },
   ];
 
   return (
@@ -192,9 +194,35 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
                 </div>
               )}
 
+              {provider === "bank_transfer" && (
+                <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
+                  <p className="font-semibold text-primary">School NBS Bank Account Details</p>
+                  <div className="grid gap-2 text-xs">
+                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Account Name:</span><span className="font-bold">ABLE GOD COLLEGE</span></div>
+                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Account Number:</span><span className="font-mono font-bold text-primary">3252015253451</span></div>
+                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Bank:</span><span className="font-semibold">NBS (National Building Society)</span></div>
+                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Branch:</span><span className="font-semibold">MASVINGO</span></div>
+                    <div className="flex justify-between pt-0.5"><span className="text-muted-foreground">Reference:</span><span className="font-mono font-semibold">{invoice.invoice_no}</span></div>
+                  </div>
+                  <div>
+                    <label htmlFor="bank-transfer-ref" className="mt-2 mb-1 block text-xs font-medium">Bank Transaction / Deposit Slip Reference</label>
+                    <input id="bank-transfer-ref" type="text" value={phone} onChange={(event) => setPhone(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground" placeholder="e.g. NBS-TXN-12345 or Teller Slip No." />
+                    <p className="mt-1 text-[11px] text-muted-foreground">Enter your transaction or deposit slip number. Once verified by Accounts, it will immediately reflect in your portal.</p>
+                  </div>
+                </div>
+              )}
+
               {clientReference && !paymentStatus && checkingPaymentStatus && <p className="text-sm text-muted-foreground" aria-live="polite">Checking the existing payment status…</p>}
               {currentStatus === "pending" && clientReference && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Payment request sent. Approve it on your phone; the invoice changes only after provider confirmation. Reference: {clientReference}</div>
+                <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950">
+                  <p className="font-semibold">{provider === "bank_transfer" ? "NBS Bank Transfer recorded" : "Payment request sent"}</p>
+                  <p className="mt-1 text-xs">Reference: <span className="font-mono font-semibold">{clientReference}</span></p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {provider === "bank_transfer"
+                      ? "Pay into ABLE GOD COLLEGE, NBS Masvingo Branch (Acc: 3252015253451). Accounts will verify your deposit and credit your invoice."
+                      : "Approve the prompt on your phone; the invoice changes after provider confirmation."}
+                  </p>
+                </div>
               )}
             </>
           )}

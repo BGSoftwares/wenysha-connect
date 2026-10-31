@@ -193,7 +193,7 @@ def _record_verified_online_payment(intent, provider_reference=''):
         receipt_no=receipt_no,
         invoice=invoice,
         amount=intent.amount,
-        method='EcoCash Online' if intent.provider == 'ecocash' else 'ZimSwitch Online',
+        method='NBS Bank Transfer' if intent.provider == 'bank_transfer' else ('EcoCash Online' if intent.provider == 'ecocash' else 'ZimSwitch Online'),
         reference=(provider_reference or intent.client_reference)[:64],
         date=timezone.localdate(),
         recorded_by=intent.created_by,
@@ -258,7 +258,7 @@ class OnlinePaymentListCreateView(APIView):
             return Response({'detail': 'You cannot pay this student invoice.'}, status=status.HTTP_403_FORBIDDEN)
 
         provider = str(request.data.get('provider', '')).strip().lower()
-        if provider not in {'ecocash', 'zimswitch'}:
+        if provider not in {'ecocash', 'zimswitch', 'bank_transfer'}:
             return Response({'detail': 'Choose EcoCash or ZimSwitch Online.'}, status=status.HTTP_400_BAD_REQUEST)
         provider_config = online_payment_config()['providers'][provider]
         if not provider_config['enabled']:
@@ -286,12 +286,23 @@ class OnlinePaymentListCreateView(APIView):
                 return Response({'detail': 'Enter a Zimbabwe mobile number such as 077 123 4567.'}, status=status.HTTP_400_BAD_REQUEST)
             phone = raw_phone
 
-        reference = f"AGC-{uuid.uuid4().hex[:20].upper()}"
+        reference = f"NBS-{uuid.uuid4().hex[:16].upper()}" if provider == 'bank_transfer' else f"AGC-{uuid.uuid4().hex[:20].upper()}"
         try:
             intent = _reserve_invoice_payment(invoice.pk, provider, amount, reference, phone, request.user)
         except ValueError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_409_CONFLICT)
         try:
+            if provider == 'bank_transfer':
+                bank_ref = str(request.data.get('reference', '')).strip()[:64]
+                if bank_ref:
+                    intent.provider_reference = bank_ref
+                    intent.save(update_fields=['provider_reference', 'updated_at'])
+                return Response({
+                    **_online_payment_payload(intent),
+                    'message': 'NBS bank transfer recorded. Once verified by Accounts, your fee ledger and receipts will update automatically.',
+                    'bank_account': online_payment_config().get('bank_account'),
+                }, status=status.HTTP_201_CREATED)
+
             if provider == 'ecocash':
                 result = start_ecocash_payment(intent, phone)
                 if result['status'] == 'paid':
@@ -342,3 +353,24 @@ class OnlinePaymentRefreshView(APIView):
             return Response({'detail': 'You cannot view this online payment.'}, status=status.HTTP_403_FORBIDDEN)
         intent, message = _refresh_intent(intent)
         return Response({**_online_payment_payload(intent), 'message': message})
+
+
+class OnlinePaymentConfirmView(APIView):
+    """Allows Accounts or Admin to confirm an online payment or bank transfer."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, client_reference):
+        if portal_role(request.user) not in {'admin', 'accounts'}:
+            raise PermissionDenied('Only Accounts or Admin can confirm payments.')
+        try:
+            intent = OnlinePayment.objects.select_related('invoice__student').get(client_reference=client_reference)
+        except OnlinePayment.DoesNotExist:
+            return Response({'detail': 'Payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if intent.status == 'paid':
+            return Response({**_online_payment_payload(intent), 'message': 'Payment already confirmed.'})
+        ref = request.data.get('provider_reference') or intent.provider_reference or intent.client_reference
+        intent = _record_verified_online_payment(intent, provider_reference=ref)
+        return Response({
+            **_online_payment_payload(intent),
+            'message': 'Payment confirmed and credited to student fee ledger.',
+        })

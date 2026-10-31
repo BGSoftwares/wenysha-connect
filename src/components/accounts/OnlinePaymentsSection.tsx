@@ -1,18 +1,19 @@
 import { useState } from "react";
-import { Loader2, RefreshCw, Smartphone, CreditCard, CircleCheck, CircleX, Clock3 } from "lucide-react";
+import { Loader2, RefreshCw, Smartphone, CreditCard, Landmark, Check, CircleCheck, CircleX, Clock3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useOnlinePaymentConfig, useOnlinePayments, useRefreshOnlinePayment } from "@/lib/hooks";
+import { useOnlinePaymentConfig, useOnlinePayments, useRefreshOnlinePayment, useConfirmOnlinePayment } from "@/lib/hooks";
 import { formatMoney, formatSchoolDate } from "@/lib/finance";
 
-const providerLabels = { ecocash: "EcoCash", zimswitch: "ZimSwitch" } as const;
+const providerLabels = { ecocash: "EcoCash", zimswitch: "ZimSwitch", bank_transfer: "NBS Bank Transfer" } as const;
 
 const OnlinePaymentsSection = () => {
   const { data: config, isLoading: loadingConfig } = useOnlinePaymentConfig();
   const { data: payments = [], isLoading: loadingPayments, refetch } = useOnlinePayments();
   const [refreshReference, setRefreshReference] = useState("");
   const refreshQuery = useRefreshOnlinePayment(refreshReference, Boolean(refreshReference));
+  const confirmPayment = useConfirmOnlinePayment();
 
   const refreshPayment = async (reference: string) => {
     await refetch();
@@ -33,6 +34,25 @@ const OnlinePaymentsSection = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
+        <Card className="border-primary/30 bg-primary/5 shadow-elegant md:col-span-2">
+          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5">
+            <div className="flex gap-3">
+              <div className="rounded-xl bg-primary/10 p-3 text-primary"><Landmark className="h-6 w-6" /></div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-foreground">Official NBS Bank Account (Direct Transfers)</h3>
+                  <Badge className="bg-emerald-100 text-emerald-800">Active</Badge>
+                </div>
+                <div className="mt-1 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
+                  <div><span className="text-muted-foreground">Account Name:</span> <span className="font-semibold">ABLE GOD COLLEGE</span></div>
+                  <div><span className="text-muted-foreground">Account Number:</span> <span className="font-mono font-bold text-primary">3252015253451</span></div>
+                  <div><span className="text-muted-foreground">Bank:</span> <span className="font-semibold">NBS (National Building Society)</span></div>
+                  <div><span className="text-muted-foreground">Branch:</span> <span className="font-semibold">MASVINGO</span></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         {([
           { key: "ecocash", name: "EcoCash", Icon: Smartphone, hint: "Mobile wallet prompt to the payer's Zimbabwe number." },
           { key: "zimswitch", name: "ZimSwitch", Icon: CreditCard, hint: "Secure hosted checkout for ZimSwitch enabled bank cards." },
@@ -108,9 +128,14 @@ const OnlinePaymentsSection = () => {
                       <td className={`px-4 py-3 capitalize ${statusClass}`}><span className="inline-flex items-center gap-1"><Icon className="h-4 w-4" />{payment.status}</span></td>
                       <td className="px-4 py-3 text-right">
                         {payment.status === "pending" && (
-                          <Button variant="ghost" size="sm" onClick={() => void refreshPayment(payment.client_reference)} disabled={refreshQuery.isFetching && refreshReference === payment.client_reference}>
-                            <RefreshCw className={`mr-1 h-4 w-4 ${refreshQuery.isFetching && refreshReference === payment.client_reference ? "animate-spin" : ""}`} />Check
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => void refreshPayment(payment.client_reference)} disabled={refreshQuery.isFetching && refreshReference === payment.client_reference}>
+                              <RefreshCw className={`mr-1 h-3.5 w-3.5 ${refreshQuery.isFetching && refreshReference === payment.client_reference ? "animate-spin" : ""}`} />Check
+                            </Button>
+                            <Button variant="default" size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs text-white" onClick={() => void confirmPayment.mutateAsync({ clientReference: payment.client_reference, providerReference: payment.provider_reference })} disabled={confirmPayment.isPending}>
+                              <Check className="mr-1 h-3.5 w-3.5" />Confirm &amp; Credit
+                            </Button>
+                          </div>
                         )}
                       </td>
                     </tr>
