@@ -74,7 +74,21 @@ export interface StudentReportCardPdfData {
   levelPosition: string;
   teacherComment: string;
   principalComment: string;
-  attendance: { totalDays: number; present: number; absent: number; late: number; unrecorded: number; calendarLabel: string };
+  attendance: {
+    totalDays: number;
+    schoolDays: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused?: number;
+    sickBay?: number;
+    suspended?: number;
+    unrecorded: number;
+    absentDates: string[];
+    throughDate: string;
+    calendarLabel: string;
+    isOutOfDate?: boolean;
+  };
   results: Array<{ subject: string; marks: number; scored: number; percentage: number; grade: string }>;
 }
 
@@ -172,13 +186,24 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
   pdf.text(`Level position: ${data.levelPosition}`, left, y);
-  pdf.text(
-    `${data.attendance.calendarLabel}: ${data.attendance.present}/${data.attendance.totalDays} present · ${data.attendance.absent} absent · ${data.attendance.late} late · ${data.attendance.unrecorded} unmarked`,
-    right,
-    y,
-    { align: "right", maxWidth: 120 },
+  const attendanceLines = pdf.splitTextToSize(
+    `${data.attendance.calendarLabel} through ${data.attendance.throughDate}: ${data.attendance.totalDays} marked days · ${data.attendance.present} present · ${data.attendance.absent} unexcused absent · ${data.attendance.excused ?? 0} excused · ${data.attendance.late} late · ${data.attendance.sickBay ?? 0} sick bay · ${data.attendance.suspended ?? 0} suspended · ${data.attendance.unrecorded} unmarked of ${data.attendance.schoolDays} scheduled school days${data.attendance.isOutOfDate ? " · OUT OF DATE" : ""}`,
+    width,
   );
-  y += 8;
+  pdf.text(attendanceLines, left, y);
+  y += attendanceLines.length * 4 + 3;
+  const absentDatesText = data.attendance.absentDates.length
+    ? `Absent dates: ${data.attendance.absentDates.join(", ")}`
+    : "Absent dates: none recorded";
+  const absentDateLines = pdf.splitTextToSize(absentDatesText, width);
+  if (y + absentDateLines.length * 4 > pageHeight - 20) {
+    pdf.addPage();
+    y = 20;
+  }
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  pdf.text(absentDateLines, left, y);
+  y += absentDateLines.length * 4 + 4;
 
   const comments = [
     ["TEACHER COMMENT", data.teacherComment],

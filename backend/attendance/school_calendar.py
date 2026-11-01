@@ -1,4 +1,7 @@
 from datetime import date
+from django.utils import timezone
+
+from .models import SchoolCalendarDay
 
 
 ZIMBABWE_2026_TERMS = (
@@ -27,6 +30,15 @@ ZIMBABWE_2026_PUBLIC_HOLIDAYS = {
 
 def attendance_date_error(attendance_date):
     """Return a validation message when an attendance date is not a school day."""
+    if attendance_date > timezone.localdate():
+        return "Attendance cannot be recorded for a future date."
+
+    configured_day = SchoolCalendarDay.objects.filter(date=attendance_date).first()
+    if configured_day:
+        if configured_day.day_type != 'school_day':
+            return configured_day.note or f"This date is marked as {configured_day.get_day_type_display().lower()}."
+        return None
+
     if attendance_date.weekday() >= 5:
         return "Attendance cannot be recorded on weekends."
 

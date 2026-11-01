@@ -52,7 +52,7 @@ INSTALLED_APPS = [
     'hostel',
     'transport',
     'exams',
-    'attendance',
+    'attendance.apps.AttendanceConfig',
     'notices',
     'parents',
     'content',

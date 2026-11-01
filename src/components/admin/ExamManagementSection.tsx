@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { calculateGrade, GRADING_SCALE } from "@/lib/grading";
 import { useExams, useExamSchedules, useExamMarks, useSaveExamMark, useCreateExam, useUpdateExam, useClasses, useSubjects, useStudents, EXAM_REPORT_TYPES, Exam } from "@/lib/hooks";
 import { api, getErrorMessage } from "@/lib/api";
+import { buildExamName, getExamDisplayName } from "@/lib/examDisplay";
 import { useQueryClient } from "@tanstack/react-query";
 
 const ExamManagementSection = () => {
@@ -37,9 +38,8 @@ const ExamManagementSection = () => {
 
   // Form states
   const [newExam, setNewExam] = useState({
-    name: "",
     term: "Term 1",
-    year: "2024",
+    year: String(new Date().getFullYear()),
     report_type: "fortnightly_tests" as Exam["report_type"],
     startDate: "",
     endDate: "",
@@ -65,12 +65,12 @@ const ExamManagementSection = () => {
 
   const handleCreateExam = async () => {
     try {
-      if (!newExam.name || !newExam.startDate || !newExam.endDate || newExam.classes.length === 0) {
+      if (!newExam.startDate || !newExam.endDate || newExam.classes.length === 0) {
         toast.error("Please fill all required fields");
         return;
       }
       await createExamMutation.mutateAsync({
-        name: newExam.name,
+        name: buildExamName(newExam.report_type, newExam.year, newExam.term),
         report_type: newExam.report_type,
         term: newExam.term,
         year: newExam.year,
@@ -81,7 +81,7 @@ const ExamManagementSection = () => {
       });
       toast.success("Exam created successfully");
       setShowCreateModal(false);
-      setNewExam({ name: "", term: "Term 1", year: "2024", report_type: "fortnightly_tests", startDate: "", endDate: "", classes: [], subjects: [] });
+      setNewExam({ term: "Term 1", year: String(new Date().getFullYear()), report_type: "fortnightly_tests", startDate: "", endDate: "", classes: [], subjects: [] });
     } catch (error) {
       toast.error("Failed to create exam");
     }
@@ -120,7 +120,7 @@ const ExamManagementSection = () => {
 
   const handlePublishResults = async (exam: Exam) => {
     const resultsPublished = !exam.results_published;
-    if (resultsPublished && !window.confirm(`Unlock and publish ${exam.name} report cards to students?`)) return;
+    if (resultsPublished && !window.confirm(`Unlock and publish ${getExamDisplayName(exam)} report cards to students?`)) return;
     try {
       await updateExamMutation.mutateAsync({
         id: exam.id,
@@ -136,7 +136,7 @@ const ExamManagementSection = () => {
   };
 
   const handleDeleteExam = async (exam: Exam) => {
-    if (!window.confirm(`Delete “${exam.name}” and its schedules and marks?`)) return;
+    if (!window.confirm(`Delete “${getExamDisplayName(exam)}” and its schedules and marks?`)) return;
     try { await api.delete(`/exams/exams/${exam.id}/`); await queryClient.invalidateQueries({ queryKey: ["exams"] }); toast.success("Exam deleted"); }
     catch (error) { toast.error(getErrorMessage(error)); }
   };
@@ -174,7 +174,7 @@ const ExamManagementSection = () => {
   };
 
   const filteredExams = (exams || []).filter(exam =>
-    exam.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    getExamDisplayName(exam).toLowerCase().includes(searchTerm.toLowerCase()) ||
     exam.term.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -287,7 +287,7 @@ const ExamManagementSection = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-foreground">{exam.name}</h3>
+                      <h3 className="font-semibold text-foreground">{getExamDisplayName(exam)}</h3>
                       {getStatusBadge(exam.status)}
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${exam.results_published ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>
                         {exam.results_published ? "Unlocked" : "Locked"}
@@ -337,10 +337,10 @@ const ExamManagementSection = () => {
                       <FileText className="h-4 w-4 mr-1" />
                       Marks
                     </Button>
-                    <Button variant="outline" size="sm" aria-label={`Edit ${exam.name}`} onClick={() => handleEditExam(exam)}>
+                    <Button variant="outline" size="sm" aria-label={`Edit ${getExamDisplayName(exam)}`} onClick={() => handleEditExam(exam)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" aria-label={`Delete ${exam.name}`} onClick={() => void handleDeleteExam(exam)}>
+                    <Button variant="outline" size="sm" aria-label={`Delete ${getExamDisplayName(exam)}`} onClick={() => void handleDeleteExam(exam)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
@@ -406,7 +406,7 @@ const ExamManagementSection = () => {
                 onClick={() => openMarks(exam.id)}
                 className="p-4 rounded-lg border border-border hover:border-primary bg-background text-left transition-colors"
               >
-                <h4 className="font-medium text-foreground mb-1">{exam.name}</h4>
+                <h4 className="font-medium text-foreground mb-1">{getExamDisplayName(exam)}</h4>
                 <p className="text-sm text-muted-foreground">{exam.term} {exam.year}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
@@ -425,17 +425,6 @@ const ExamManagementSection = () => {
             <h3 className="font-heading text-xl font-bold text-foreground mb-6">Create New Exam</h3>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Exam Name *</label>
-                <input
-                  type="text"
-                  value={newExam.name}
-                  onChange={(e) => setNewExam(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., End of Term 1 Examinations"
-                  className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground"
-                />
-              </div>
-
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Term *</label>
@@ -449,6 +438,9 @@ const ExamManagementSection = () => {
                     <option>Term 3</option>
                   </select>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  Exam name: <span className="font-medium text-foreground">{buildExamName(newExam.report_type, newExam.year, newExam.term)}</span>
+                </p>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Year *</label>
                   <select
@@ -547,7 +539,7 @@ const ExamManagementSection = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowMarksModal(false)}>
           <div className="bg-card rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="font-heading text-xl font-bold text-foreground mb-2">Enter Marks</h3>
-            <p className="text-sm text-muted-foreground mb-6">{selectedExam.name}</p>
+            <p className="text-sm text-muted-foreground mb-6">{getExamDisplayName(selectedExam)}</p>
 
             <div className="flex gap-4 mb-6">
               <select value={marksClassId} onChange={e => setMarksClassId(e.target.value)} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">

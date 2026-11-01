@@ -128,7 +128,11 @@ const countSchoolDays = (startDate: string, endDate: string, holidays: string[])
   return count;
 };
 
-export const getReportSchoolDays = (exam: Exam, issuedAt = new Date()): ReportSchoolDays => {
+export const getReportSchoolDays = (
+  exam: Exam,
+  issuedAt = new Date(),
+  reportThroughDate?: string,
+): ReportSchoolDays => {
   const officialTerm = getZimbabweSchoolTerm(exam.year, exam.term, exam.report_type);
   const period: SchoolTermCalendar = officialTerm ?? {
     year: Number(exam.year),
@@ -140,9 +144,12 @@ export const getReportSchoolDays = (exam: Exam, issuedAt = new Date()): ReportSc
   };
   const today = formatLocalDateKey(issuedAt);
   const isEndOfTermReport = !!REPORT_TYPE_TERM[exam.report_type];
-  const throughDate = !isEndOfTermReport && period.year === issuedAt.getFullYear() && today < period.endDate
+  const defaultThroughDate = !isEndOfTermReport && period.year === issuedAt.getFullYear() && today < period.endDate
     ? today
     : period.endDate;
+  const throughDate = reportThroughDate
+    ? (reportThroughDate < period.endDate ? reportThroughDate : period.endDate)
+    : defaultThroughDate;
   const boundedEnd = throughDate < period.startDate ? period.startDate : throughDate;
 
   return {

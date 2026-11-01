@@ -8,9 +8,10 @@ class ExamSerializer(serializers.ModelSerializer):
     class Meta:
         model = Exam
         fields = [
-            'id', 'name', 'report_type', 'results_published', 'term', 'year', 'start_date', 'end_date', 'status', 'created_at',
+            'id', 'name', 'report_type', 'results_published', 'results_published_at', 'term', 'year', 'start_date', 'end_date', 'status', 'created_at',
             'classes', 'subjects'
         ]
+        read_only_fields = ['results_published_at']
 
 
 class ExamScheduleSerializer(serializers.ModelSerializer):

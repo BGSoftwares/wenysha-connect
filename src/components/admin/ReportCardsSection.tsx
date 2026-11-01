@@ -4,9 +4,11 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { Download, FileSpreadsheet, Loader2, LockKeyhole, Printer, UnlockKeyhole } from "lucide-react";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
-import { EXAM_REPORT_TYPES, useExamMarks, useExams, useStudents, useSubjects, useUpdateExam, type Exam, type ExamMark, type SchoolClass, type Student } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useAttendanceRecords, useAttendanceReportSnapshots, useExamMarks, useExams, useRegenerateAttendanceSnapshot, useStudents, useSubjects, useUpdateExam, type Exam, type ExamMark, type SchoolClass, type Student } from "@/lib/hooks";
 import { calculateGrade } from "@/lib/grading";
 import { getErrorMessage } from "@/lib/api";
+import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
+import { getReportAttendance, mapAttendanceSnapshot, type ReportAttendanceSummary } from "@/lib/reportAttendance";
 import { toast } from "sonner";
 
 type ReportCategory = "current" | "past";
@@ -17,6 +19,8 @@ interface StudentReport {
   student: Student;
   marks: ExamMark[];
   average: number;
+  attendance: ReportAttendanceSummary;
+  attendanceSnapshotId?: number;
 }
 
 const getPeriodKey = (exam: Exam) => `${exam.year.trim()}-${exam.term.trim().toLowerCase()}`;
@@ -29,11 +33,11 @@ const getReportHeading = (exam: Exam) => exam.report_type === "monthly_report_ca
 const getIssueStamp = (exam: Exam) => {
   const now = new Date();
   const date = now.toLocaleDateString("en-GB");
-  return exam.report_type === "monthly_report_card"
-    ? `${now.toLocaleDateString("en-GB", { month: "long", year: "numeric" })} · ${date}`
+  return exam.report_type === "monthly_report_card" || exam.report_type === "fortnightly_tests"
+    ? formatLocalDateTime(now)
     : date;
 };
-const getExamLabel = (exam: Exam) => `${getReportTypeLabel(exam)} · ${exam.name} · ${exam.term} ${exam.year}`;
+const getExamLabel = (exam: Exam) => `${getReportTypeLabel(exam)} · ${getExamDisplayName(exam)} · ${exam.term} ${exam.year}`;
 const safeFilePart = (value: string) => value.trim().replace(/[^a-z0-9-_]+/gi, "_").replace(/^_+|_+$/g, "") || "Report";
 const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
 
@@ -52,7 +56,7 @@ const AdminReportCard = ({ report, exam, className }: { report: StudentReport; e
       <div><span>Student ID</span><strong>{report.student.student_id || "—"}</strong></div>
       <div><span>Class</span><strong>{className}</strong></div>
       <div><span>Term</span><strong>{exam.term} {exam.year}</strong></div>
-      <div className="admin-report-exam"><span>Examination</span><strong>{getReportTypeLabel(exam)} · {exam.name}</strong></div>
+      <div className="admin-report-exam"><span>Examination</span><strong>{getReportTypeLabel(exam)} · {getExamDisplayName(exam)}</strong></div>
       {report.marks[0] && <div><span>{report.marks.length === 1 ? "Subject" : "Subjects"}</span><strong>{report.marks.length === 1 ? report.marks[0].subject_name : `${report.marks.length} subjects`}</strong></div>}
     </section>
 
@@ -82,6 +86,15 @@ const AdminReportCard = ({ report, exam, className }: { report: StudentReport; e
       <span>Overall grade</span>
       <strong>{calculateGrade(report.average).grade}</strong>
     </div>
+    <section className="admin-report-comments">
+      <h3>Attendance through {report.attendance.throughDate}</h3>
+      <p>
+        {report.attendance.totalDays} marked days · {report.attendance.present} present · {report.attendance.absent} unexcused absent · {report.attendance.excused} excused · {report.attendance.late} late
+        {" · "}{report.attendance.unrecorded} unmarked of {report.attendance.schoolDays} scheduled school days
+      </p>
+      <p>Absent dates: {report.attendance.absentDates.length ? report.attendance.absentDates.join(", ") : "None recorded"}</p>
+      {report.attendance.isOutOfDate && <p className="font-semibold text-amber-700">Attendance snapshot is out of date.</p>}
+    </section>
     {report.marks.some((mark) => mark.comment?.trim()) && (
       <section className="admin-report-comments">
         <h3>Teacher comments</h3>
@@ -99,6 +112,7 @@ const AdminReportCard = ({ report, exam, className }: { report: StudentReport; e
 const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const { data: students = [], isLoading: loadingStudents, error: studentsError } = useStudents();
   const { data: exams = [], isLoading: loadingExams, error: examsError } = useExams();
+  const { data: attendanceRecords = [] } = useAttendanceRecords();
   const { data: subjects = [], isLoading: loadingSubjects } = useSubjects();
   const [category, setCategory] = useState<ReportCategory>("current");
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
@@ -109,6 +123,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [printStudentIds, setPrintStudentIds] = useState<number[]>([]);
   const updateExam = useUpdateExam();
+  const regenerateSnapshot = useRegenerateAttendanceSnapshot();
 
   const reportExams = useMemo(
     () => exams.slice().sort((a, b) => b.start_date.localeCompare(a.start_date)),
@@ -120,6 +135,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
     return category === "current" ? isCurrent : !isCurrent;
   });
   const selectedExam = visibleExams.find((exam) => exam.id === selectedExamId) ?? visibleExams[0];
+  const { data: attendanceSnapshots = [] } = useAttendanceReportSnapshots(selectedExam?.id);
   const { data: marks = [], isLoading: loadingMarks, error: marksError } = useExamMarks({ exam: selectedExam?.id });
   const classOptions = classes.filter((schoolClass) => selectedExam?.classes.includes(schoolClass.id));
   const activeClassId = classOptions.some((schoolClass) => schoolClass.id === selectedClassId)
@@ -131,6 +147,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
     : subjectOptions[0]?.id ?? null;
 
   const reports = useMemo<StudentReport[]>(() => {
+    const snapshotByStudent = new Map(attendanceSnapshots.map((snapshot) => [snapshot.student, snapshot]));
     const marksByStudent = new Map<number, ExamMark[]>();
     const classStudentIds = new Set(students
       .filter((student) => Number(student.school_class) === activeClassId)
@@ -149,14 +166,35 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       .map((student) => {
         const studentMarks = (marksByStudent.get(student.id) ?? []).sort((a, b) => a.subject_name.localeCompare(b.subject_name));
         const percentages = studentMarks.map((mark) => mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0);
+        const snapshot = snapshotByStudent.get(student.id);
         return {
           student,
           marks: studentMarks,
           average: percentages.length ? percentages.reduce((sum, percentage) => sum + percentage, 0) / percentages.length : 0,
+          attendance: snapshot
+            ? mapAttendanceSnapshot(snapshot.summary, snapshot.is_out_of_date)
+            : selectedExam
+              ? getReportAttendance(selectedExam, student.id, attendanceRecords)
+            : {
+              totalDays: 0,
+              schoolDays: 0,
+              present: 0,
+              absent: 0,
+              late: 0,
+              excused: 0,
+              sickBay: 0,
+              suspended: 0,
+              unrecorded: 0,
+              absentDates: [],
+              throughDate: "",
+              calendarLabel: "Report-period attendance",
+              isOutOfDate: false,
+            },
+          attendanceSnapshotId: snapshot?.id,
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name));
-  }, [activeClassId, activeSubjectId, marks, students, viewMode]);
+  }, [activeClassId, activeSubjectId, attendanceRecords, attendanceSnapshots, marks, selectedExam, students, viewMode]);
 
   const analysis = useMemo(() => {
     const grades = new Map<string, number>();
@@ -235,11 +273,11 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
 
   const downloadCsv = () => {
     if (!selectedExam || reports.length === 0) return;
-    const headers = ["Report Type", "Student", "Student ID", "Class", "Term", "Year", "Examination", "Subject", "Score", "Out of", "Percentage", "Grade", "Teacher Comment"];
+    const headers = ["Report Type", "Student", "Student ID", "Class", "Term", "Year", "Examination", "Subject", "Score", "Out of", "Percentage", "Grade", "Teacher Comment", "Attendance marked days", "Present", "Unexcused absent", "Excused", "Late", "Sick bay", "Suspended", "Absent dates"];
     const rows = reports.flatMap((report) => report.marks.map((mark) => {
       const percentage = mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0;
       const className = report.student.class_name || classes.find((schoolClass) => schoolClass.id === report.student.school_class)?.name || "";
-      return [getReportTypeLabel(selectedExam), report.student.name, report.student.student_id, className, selectedExam.term, selectedExam.year, selectedExam.name, mark.subject_name, mark.scored, mark.total_marks, `${percentage.toFixed(1)}%`, calculateGrade(percentage).grade, mark.comment || ""];
+      return [getReportTypeLabel(selectedExam), report.student.name, report.student.student_id, className, selectedExam.term, selectedExam.year, getExamDisplayName(selectedExam), mark.subject_name, mark.scored, mark.total_marks, `${percentage.toFixed(1)}%`, calculateGrade(percentage).grade, mark.comment || "", report.attendance.totalDays, report.attendance.present, report.attendance.absent, report.attendance.excused, report.attendance.late, report.attendance.sickBay, report.attendance.suspended, report.attendance.absentDates.join(", ")];
     }));
     const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
     const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
@@ -274,7 +312,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       pdf.text(getReportHeading(selectedExam).toUpperCase(), pageWidth / 2, 26, { align: "center" });
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
-      pdf.text(`${getReportTypeLabel(selectedExam)} · ${selectedExam.name}`, pageWidth / 2, 32, { align: "center", maxWidth: right - left });
+      pdf.text(`${getReportTypeLabel(selectedExam)} · ${getExamDisplayName(selectedExam)}`, pageWidth / 2, 32, { align: "center", maxWidth: right - left });
       pdf.setDrawColor(185, 30, 100);
       pdf.line(left, 35, right, 35);
 
@@ -284,7 +322,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       pdf.text(`Student ID: ${report.student.student_id || "—"}`, left, 51);
       pdf.text(`Class: ${report.student.class_name || classes.find((schoolClass) => schoolClass.id === report.student.school_class)?.name || "—"}`, left, 58);
       pdf.text(`Term: ${selectedExam.term} ${selectedExam.year}`, right, 44, { align: "right" });
-      pdf.text(`Exam: ${selectedExam.name}`, right, 51, { align: "right" });
+      pdf.text(`Exam: ${getExamDisplayName(selectedExam)}`, right, 51, { align: "right" });
       pdf.text(`Subjects: ${report.marks.length}`, right, 58, { align: "right" });
 
       let y = 66;
@@ -325,6 +363,17 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       pdf.text(`Average: ${report.average.toFixed(1)}%`, left, y);
       pdf.text(`Overall grade: ${calculateGrade(report.average).grade}`, right, y, { align: "right" });
       y += 10;
+      const attendanceLines = pdf.splitTextToSize(
+        `Attendance through ${report.attendance.throughDate}: ${report.attendance.totalDays} marked days · ${report.attendance.present} present · ${report.attendance.absent} unexcused absent · ${report.attendance.excused} excused · ${report.attendance.late} late · ${report.attendance.unrecorded} unmarked of ${report.attendance.schoolDays} scheduled school days${report.attendance.isOutOfDate ? " · OUT OF DATE" : ""}`,
+        right - left,
+      );
+      pdf.setFontSize(8);
+      pdf.text(attendanceLines, left, y);
+      y += attendanceLines.length * 4 + 2;
+      const absentDatesText = `Absent dates: ${report.attendance.absentDates.length ? report.attendance.absentDates.join(", ") : "none recorded"}`;
+      const absentDateLines = pdf.splitTextToSize(absentDatesText, right - left);
+      pdf.text(absentDateLines, left, y);
+      y += absentDateLines.length * 4 + 4;
       const comments = report.marks.filter((mark) => mark.comment?.trim());
       if (comments.length && y < pageHeight - 30) {
         pdf.setFontSize(9);
@@ -566,11 +615,35 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{report.student.name}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{report.student.student_id || "No student ID"} · {report.student.class_name || classes.find((schoolClass) => schoolClass.id === report.student.school_class)?.name || "Class not set"} · Average {report.average.toFixed(1)}%</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Available in the student portal</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Available in the student portal
+                    {report.attendance.isOutOfDate ? " · Attendance snapshot needs regeneration" : ""}
+                  </p>
                 </div>
-                <Button variant="outline" size="sm" className="shrink-0" onClick={() => startPrint([report.student.id])}>
-                  <Printer className="mr-2 h-4 w-4" /> Print this student
-                </Button>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {report.attendance.isOutOfDate && report.attendanceSnapshotId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={regenerateSnapshot.isPending}
+                      onClick={async () => {
+                        try {
+                          if (report.attendanceSnapshotId === undefined) return;
+                          await regenerateSnapshot.mutateAsync(report.attendanceSnapshotId);
+                          toast.success(`Attendance refreshed for ${report.student.name}`);
+                        } catch (error) {
+                          toast.error(getErrorMessage(error));
+                        }
+                      }}
+                    >
+                      {regenerateSnapshot.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Regenerate attendance
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => startPrint([report.student.id])}>
+                    <Printer className="mr-2 h-4 w-4" /> Print this student
+                  </Button>
+                </div>
               </article>
             ))}
           </div>

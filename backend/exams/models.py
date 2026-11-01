@@ -19,6 +19,7 @@ class Exam(models.Model):
     name = models.CharField(max_length=255)
     report_type = models.CharField(max_length=32, choices=REPORT_TYPE_CHOICES, default='fortnightly_tests')
     results_published = models.BooleanField(default=False)
+    results_published_at = models.DateTimeField(null=True, blank=True)
     term = models.CharField(max_length=32)
     year = models.CharField(max_length=8)
     start_date = models.DateField()
@@ -30,6 +31,19 @@ class Exam(models.Model):
 
     class Meta:
         ordering = ['-start_date']
+
+    def save(self, *args, **kwargs):
+        term_number = {
+            'end_of_1st_term': 1,
+            'end_of_2nd_term': 2,
+            'end_of_3rd_term': 3,
+        }.get(self.report_type)
+        if term_number:
+            self.name = f'{self.year} End of Term {term_number} exam'
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                kwargs['update_fields'] = set(update_fields) | {'name'}
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

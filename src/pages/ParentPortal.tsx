@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type FormEvent } from "react";
 import { Layout } from "@/components/layout/Layout";
 import {
     Calendar,
@@ -19,6 +19,12 @@ import {
     useStudents,
     useGrades,
     useAttendanceRecords,
+    useAttendanceExcuses,
+    useAttendanceTermSummaries,
+    useSubmitAttendanceExcuse,
+    useAttendanceNotifications,
+    useMarkAttendanceNotificationRead,
+    useAttendanceSettings,
     useInvoices,
     usePayments,
 } from "@/lib/hooks";
@@ -34,6 +40,7 @@ import { Progress } from "@/components/ui/progress";
 import NotificationsFeed from "@/components/dashboard/NotificationsFeed";
 import ProfileSection from "@/components/admin/ProfileSection";
 import ParentELearningSection from "@/components/parent/ParentELearningSection";
+import { formatLocalDateKey } from "@/lib/zimbabweSchoolCalendar";
 
 const ParentPortal = () => {
     const { data: parentProfile, isLoading: isLoadingParent, error: parentProfileError, refetch: refetchParentProfile } = useParentProfile();
@@ -48,6 +55,10 @@ const ParentPortal = () => {
     const [selectedChildId, setSelectedChildId] = useState<number | null>(null);
     const [message, setMessage] = useState("");
     const [sendingMessage, setSendingMessage] = useState(false);
+    const [excuseDate, setExcuseDate] = useState(formatLocalDateKey(new Date()));
+    const [excuseReason, setExcuseReason] = useState("sick");
+    const [excuseNote, setExcuseNote] = useState("");
+    const [excuseAttachment, setExcuseAttachment] = useState<File | undefined>();
     const user = getStoredUser();
 
     const sendMessage = async () => {
@@ -84,6 +95,12 @@ const ParentPortal = () => {
         selectedChildId ? { student: selectedChildId } : undefined
     );
     const { data: attendance = [] } = useAttendanceRecords({ student: selectedChildId ?? 0 });
+    const { data: attendanceExcuses = [] } = useAttendanceExcuses({ student: selectedChildId ?? 0 });
+    const { data: attendanceSummaries = [] } = useAttendanceTermSummaries({ student: selectedChildId ?? undefined });
+    const submitAttendanceExcuse = useSubmitAttendanceExcuse();
+    const { data: attendanceNotifications = [] } = useAttendanceNotifications();
+    const markAttendanceNotificationRead = useMarkAttendanceNotificationRead();
+    const { data: attendanceSettings } = useAttendanceSettings();
     const { data: invoices = [] } = useInvoices(
         { student: selectedChildId || 0 }
     );
@@ -105,10 +122,45 @@ const ParentPortal = () => {
     }, [grades]);
 
     const attendanceRate = useMemo(() => {
-        if (!attendance || attendance.length === 0) return 0;
-        const present = attendance.filter(a => a.status === 'present').length;
-        return (present / attendance.length) * 100;
-    }, [attendance]);
+        const scheduledDays = attendanceSummaries.reduce((total, summary) => total + summary.total_school_days, 0);
+        const attendedDays = attendanceSummaries.reduce((total, summary) => total + summary.days_present + summary.days_late, 0);
+        if (scheduledDays > 0) return (attendedDays / scheduledDays) * 100;
+        const dayStatuses = new Map<string, string[]>();
+        attendance.forEach(record => {
+            const statuses = dayStatuses.get(record.date) ?? [];
+            statuses.push(record.status);
+            dayStatuses.set(record.date, statuses);
+        });
+        if (!dayStatuses.size) return 0;
+        const daysAttended = Array.from(dayStatuses.values()).filter(statuses => statuses.some(status => status === "present" || status === "late")).length;
+        return (daysAttended / dayStatuses.size) * 100;
+    }, [attendance, attendanceSummaries]);
+    const todayDate = formatLocalDateKey(new Date());
+    const todayAttendanceAlerts = attendance.filter(record =>
+        record.date === todayDate && (record.status === "absent" || record.status === "late"),
+    );
+
+    const submitExcuse = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!selectedChildId) {
+            toast.error("Select a child before submitting an absence excuse.");
+            return;
+        }
+        try {
+            await submitAttendanceExcuse.mutateAsync({
+                student: selectedChildId,
+                date: excuseDate,
+                reason: excuseReason,
+                note: excuseNote.trim(),
+                attachment: excuseAttachment,
+            });
+            setExcuseNote("");
+            setExcuseAttachment(undefined);
+            toast.success("Absence excuse submitted to the school for review.");
+        } catch (error) {
+            toast.error(getErrorMessage(error));
+        }
+    };
 
     const pendingBalances = useMemo(() => invoices.reduce<Record<string, number>>((totals, invoice) => {
         totals[invoice.currency] = (totals[invoice.currency] || 0) + Math.max(0, Number(invoice.amount) - Number(invoice.paid));
@@ -332,6 +384,42 @@ const ParentPortal = () => {
                                         </TabsContent>
 
                                         <TabsContent value="attendance">
+                                            {attendanceNotifications.length > 0 && (
+                                                <Card className="mb-5 border-primary/20">
+                                                    <CardHeader>
+                                                        <CardTitle>Attendance notifications</CardTitle>
+                                                        <CardDescription>Same-day register updates and term attendance follow-ups</CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent className="space-y-2">
+                                                        {attendanceNotifications.slice(0, 10).map(notification => (
+                                                            <article key={notification.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 ${notification.read_at ? "border-border bg-background" : "border-primary/30 bg-primary/5"}`}>
+                                                                <div>
+                                                                    <p className="text-sm font-medium">{notification.message}</p>
+                                                                    <p className="mt-1 text-xs text-muted-foreground">{new Date(notification.created_at).toLocaleString()}</p>
+                                                                </div>
+                                                                {!notification.read_at && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        disabled={markAttendanceNotificationRead.isPending}
+                                                                        onClick={() => markAttendanceNotificationRead.mutate(notification.id)}
+                                                                    >
+                                                                        Mark read
+                                                                    </Button>
+                                                                )}
+                                                            </article>
+                                                        ))}
+                                                    </CardContent>
+                                                </Card>
+                                            )}
+                                            {todayAttendanceAlerts.length > 0 && (
+                                                <Card role="status" className="mb-5 border-amber-300 bg-amber-50">
+                                                    <CardContent className="p-4">
+                                                        <p className="font-semibold text-amber-900">Attendance update for {selectedChild?.student_name ?? "your child"}</p>
+                                                        {todayAttendanceAlerts.map(record => <p key={record.id} className="mt-1 text-sm text-amber-800">{record.session}: marked {record.status}</p>)}
+                                                    </CardContent>
+                                                </Card>
+                                            )}
                                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                                 <Card className="rounded-3xl border-border shadow-md">
                                                     <CardHeader>
@@ -340,27 +428,28 @@ const ParentPortal = () => {
                                                     </CardHeader>
                                                     <CardContent>
                                                         <div className="space-y-4">
-                                                            {attendance?.slice(0, 10).map(a => (
+                                                            {attendance?.slice(0, 50).map(a => (
                                                                 <div key={a.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-background hover:border-accent/30 transition-all">
                                                                     <div className="flex items-center gap-4">
                                                                         <div className={`h-10 w-10 rounded-full flex items-center justify-center ${a.status === 'present' ? 'bg-green-100 text-green-600' :
-                                                                            a.status === 'absent' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                                                                            a.status === 'absent' ? 'bg-red-100 text-red-600' : a.status === 'late' ? 'bg-amber-100 text-amber-600' : 'bg-secondary text-muted-foreground'
                                                                             }`}>
                                                                             {a.status === 'present' ? <CheckCircle2 className="h-5 w-5" /> : a.status === 'absent' ? <AlertCircle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
                                                                         </div>
                                                                         <div>
                                                                             <p className="font-bold text-foreground">{new Date(a.date).toLocaleDateString()}</p>
-                                                                            <p className="text-xs text-muted-foreground">{"No remarks"}</p>
+                                                                            <p className="text-xs text-muted-foreground">{a.session} session{a.excuse_reason ? ` · ${a.excuse_reason.replaceAll("_", " ")}` : ""}{a.excuse_note ? ` · ${a.excuse_note}` : ""}</p>
                                                                         </div>
                                                                     </div>
                                                                     <Badge variant="outline" className={
                                                                         a.status === 'present' ? 'text-green-600 border-green-200' :
-                                                                            a.status === 'absent' ? 'text-red-600 border-red-200' : 'text-amber-600 border-amber-200'
+                                                                            a.status === 'absent' ? 'text-red-600 border-red-200' : a.status === 'late' ? 'text-amber-600 border-amber-200' : ''
                                                                     }>
                                                                         {a.status}
                                                                     </Badge>
                                                                 </div>
                                                             ))}
+                                                            {attendance.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No attendance records have been marked yet.</p>}
                                                         </div>
                                                     </CardContent>
                                                 </Card>
@@ -381,6 +470,76 @@ const ParentPortal = () => {
                                                             className="w-full h-32 p-4 rounded-2xl border border-border bg-background outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none"
                                                         />
                                                         <Button variant="gold" className="w-full rounded-xl" onClick={sendMessage} disabled={sendingMessage || !message.trim()}>{sendingMessage ? "Sending…" : "Send Message"}</Button>
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                                                <Card className="rounded-3xl border-border shadow-md">
+                                                    <CardHeader>
+                                                        <CardTitle>Attendance by term</CardTitle>
+                                                        <CardDescription>Official term summaries from the school register</CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent className="space-y-3">
+                                                        {attendanceSummaries.map(summary => (
+                                                            <div key={summary.id} className="rounded-xl border border-border p-3">
+                                                                <div className="flex justify-between gap-3 text-sm">
+                                                                    <strong>{summary.academic_year} · {summary.term_name}</strong>
+                                                                    <span>{Number(summary.attendance_percentage).toFixed(1)}%</span>
+                                                                </div>
+                                                                <Progress value={Number(summary.attendance_percentage)} className="mt-2 h-2" />
+                                                                <p className="mt-2 text-xs text-muted-foreground">
+                                                                    {summary.days_present} present · {summary.days_absent} absent · {summary.days_excused} excused · {summary.days_late} late of {summary.total_school_days} scheduled days
+                                                                </p>
+                                                                {Number(summary.attendance_percentage) < Number(attendanceSettings?.at_risk_percentage ?? 85) && <p className="mt-1 text-xs font-semibold text-amber-700">Attendance is below the school follow-up threshold.</p>}
+                                                            </div>
+                                                        ))}
+                                                        {attendanceSummaries.length === 0 && <p className="text-sm text-muted-foreground">Term summaries will appear as register data is recorded.</p>}
+                                                    </CardContent>
+                                                </Card>
+                                                <Card className="rounded-3xl border-border shadow-md">
+                                                    <CardHeader>
+                                                        <CardTitle>Submit an absence excuse</CardTitle>
+                                                        <CardDescription>Optional supporting document: JPEG, PNG, or PDF up to 8 MB.</CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        <form className="space-y-3" onSubmit={submitExcuse}>
+                                                            <label className="grid gap-1 text-sm font-medium">
+                                                                Child
+                                                                <select value={selectedChildId ?? ""} onChange={event => setSelectedChildId(Number(event.target.value))} className="rounded-lg border border-border bg-background px-3 py-2">
+                                                                    {parentLinks?.map(link => <option key={link.student} value={link.student}>{link.student_name}</option>)}
+                                                                </select>
+                                                            </label>
+                                                            <label className="grid gap-1 text-sm font-medium">
+                                                                Absence date
+                                                                <input required type="date" value={excuseDate} max={formatLocalDateKey(new Date())} onChange={event => setExcuseDate(event.target.value)} className="rounded-lg border border-border bg-background px-3 py-2" />
+                                                            </label>
+                                                            <label className="grid gap-1 text-sm font-medium">
+                                                                Reason
+                                                                <select value={excuseReason} onChange={event => setExcuseReason(event.target.value)} className="rounded-lg border border-border bg-background px-3 py-2">
+                                                                    <option value="sick">Sick</option>
+                                                                    <option value="funeral">Funeral</option>
+                                                                    <option value="family_emergency">Family emergency</option>
+                                                                    <option value="school_trip">School trip or sports</option>
+                                                                    <option value="fees_related">Fees-related</option>
+                                                                    <option value="other">Other</option>
+                                                                </select>
+                                                            </label>
+                                                            <textarea value={excuseNote} onChange={event => setExcuseNote(event.target.value)} maxLength={1000} placeholder="Details for the school (optional)" className="min-h-20 w-full rounded-lg border border-border bg-background p-3 text-sm" />
+                                                            <input type="file" accept="image/jpeg,image/png,application/pdf" onChange={event => setExcuseAttachment(event.target.files?.[0])} className="w-full text-sm" aria-label="Optional supporting document" />
+                                                            <Button type="submit" variant="gold" disabled={submitAttendanceExcuse.isPending || !selectedChildId} className="w-full">
+                                                                {submitAttendanceExcuse.isPending ? "Submitting…" : "Submit excuse"}
+                                                            </Button>
+                                                        </form>
+                                                        <div className="mt-5 space-y-2 border-t border-border pt-4">
+                                                            <p className="text-sm font-semibold">Submitted excuses</p>
+                                                            {attendanceExcuses.slice(0, 8).map(excuse => (
+                                                                <div key={excuse.id} className="flex flex-wrap justify-between gap-2 text-xs">
+                                                                    <span>{excuse.date} · {excuse.reason.replaceAll("_", " ")}</span>
+                                                                    <Badge variant="outline">{excuse.status}</Badge>
+                                                                </div>
+                                                            ))}
+                                                            {attendanceExcuses.length === 0 && <p className="text-xs text-muted-foreground">No excuses submitted.</p>}
+                                                        </div>
                                                     </CardContent>
                                                 </Card>
                                             </div>

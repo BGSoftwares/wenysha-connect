@@ -5,10 +5,11 @@ import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
 import { calculateGrade } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
-import { EXAM_REPORT_TYPES, useAttendanceRecords, useExamMarks, useExamRanking, useExams, useInvoices, useStudentProfile, type ExamReportType } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useAttendanceRecords, useAttendanceReportSnapshot, useAttendanceTermSummaries, useExamMarks, useExamRanking, useExams, useInvoices, useStudentProfile, type ExamReportType } from "@/lib/hooks";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
 import { getPrincipalComment, getTeacherComment } from "@/lib/reportComments";
-import { getReportSchoolDays, isScheduledSchoolDay } from "@/lib/zimbabweSchoolCalendar";
+import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
+import { getReportAttendance, mapAttendanceSnapshot } from "@/lib/reportAttendance";
 
 interface SubjectResult {
   subject: string;
@@ -56,8 +57,15 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     return exam.report_type === activeReportType && (reportCategory === "current" ? isCurrent : !isCurrent);
   });
   const selectedExam = visibleExams.find(exam => exam.id === selectedExamId) || visibleExams[0];
+  const { data: attendanceSnapshot } = useAttendanceReportSnapshot(selectedExam?.id, studentId);
+  const { data: attendanceSummaries = [] } = useAttendanceTermSummaries({
+    student: studentId,
+    year: selectedExam?.year,
+  });
   const issuedAt = new Date();
-  const issuedDate = issuedAt.toLocaleDateString("en-GB");
+  const issuedDate = selectedExam?.report_type === "monthly_report_card" || selectedExam?.report_type === "fortnightly_tests"
+    ? formatLocalDateTime(issuedAt)
+    : issuedAt.toLocaleDateString("en-GB");
   const issueMonthYear = issuedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const selectedTypeLabel = EXAM_REPORT_TYPES.find(type => type.value === activeReportType)?.label ?? "Report card";
   const reportHeading = activeReportType === "monthly_report_card"
@@ -70,7 +78,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     : selectedExam ? `${selectedExam.term} ${selectedExam.year}` : "";
   const isReportProvisional = !!selectedExam && (selectedExam.status !== "completed" || !selectedExam.results_published);
   const selectedTerm = selectedExam
-    ? `${isReportProvisional ? "PROVISIONAL · " : ""}${selectedTypeLabel} · ${selectedExam.name} · ${selectedExam.term} ${selectedExam.year}`
+    ? `${isReportProvisional ? "PROVISIONAL · " : ""}${selectedTypeLabel} · ${getExamDisplayName(selectedExam)} · ${selectedExam.term} ${selectedExam.year}`
     : "No examination selected";
   const marks = allMarks.filter(mark => mark.exam === selectedExam?.id);
   const { data: ranking, isLoading: isLoadingRanking, isError: isRankingError } =
@@ -88,16 +96,18 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     try {
       if (!selectedExam) return;
       const generatedAt = new Date();
-      const generatedMonthYear = generatedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+      const generatedMonthYear = generatedAt.toLocaleDateString(undefined, { month: "long", year: "numeric" });
       await exportReportCardPdf({
         studentName: profile?.name || "Student",
         studentId: profile?.student_id || "",
         className: profile?.class_name || "—",
-        examName: selectedExam.name,
+        examName: getExamDisplayName(selectedExam),
         termLabel: `${isReportProvisional ? "Provisional · " : ""}${EXAM_REPORT_TYPES.find(type => type.value === selectedExam.report_type)?.label ?? "Report card"} · ${selectedExam.term} ${selectedExam.year}`,
         reportHeading,
         reportPeriod: selectedExam.report_type === "monthly_report_card" ? generatedMonthYear : `${selectedExam.term} ${selectedExam.year}`,
-        issuedDate: generatedAt.toLocaleDateString("en-GB"),
+        issuedDate: selectedExam.report_type === "monthly_report_card" || selectedExam.report_type === "fortnightly_tests"
+          ? formatLocalDateTime(generatedAt)
+          : generatedAt.toLocaleDateString("en-GB"),
         average: averagePercentage,
         overallGrade: calculateGrade(averagePercentage).grade,
         passed: countPassed(),
@@ -106,14 +116,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
         levelPosition: isReportProvisional ? "Provisional" : formatPosition(ranking?.level_position, ranking?.level_total),
         teacherComment,
         principalComment,
-        attendance: {
-          totalDays: attendance.totalDays,
-          present: attendance.present,
-          absent: attendance.absent,
-          late: attendance.late,
-          unrecorded: attendance.unrecorded,
-          calendarLabel: attendancePeriod?.isOfficialTerm ? "Term school days" : "Weekdays in report period",
-        },
+        attendance: publishedAttendance,
         results: results.map(result => ({
           ...result,
           percentage: getPercentage(result),
@@ -163,20 +166,26 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     .join(" · ");
   const teacherComment = subjectComments || getTeacherComment(averagePercentage);
   const principalComment = getPrincipalComment(averagePercentage);
-  const attendancePeriod = selectedExam ? getReportSchoolDays(selectedExam, issuedAt) : null;
-  const attendanceInPeriod = attendanceRecords.filter(record =>
-    attendancePeriod &&
-    record.date >= attendancePeriod.startDate &&
-    record.date <= attendancePeriod.throughDate &&
-    isScheduledSchoolDay(record.date, attendancePeriod)
-  );
-  const attendance = {
-    totalDays: attendancePeriod?.totalDays ?? 0,
-    present: attendanceInPeriod.filter(record => record.status.toLowerCase() === "present").length,
-    absent: attendanceInPeriod.filter(record => record.status.toLowerCase() === "absent").length,
-    late: attendanceInPeriod.filter(record => record.status.toLowerCase() === "late").length,
-    unrecorded: Math.max(0, (attendancePeriod?.totalDays ?? 0) - attendanceInPeriod.length),
-  };
+  const attendance = selectedExam
+    ? getReportAttendance(selectedExam, studentId, attendanceRecords, issuedAt)
+    : {
+      totalDays: 0,
+      schoolDays: 0,
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      sickBay: 0,
+      suspended: 0,
+      unrecorded: 0,
+      absentDates: [],
+      throughDate: "",
+      calendarLabel: "Report-period attendance",
+      isOutOfDate: false,
+    };
+  const publishedAttendance = attendanceSnapshot
+    ? mapAttendanceSnapshot(attendanceSnapshot.summary, attendanceSnapshot.is_out_of_date)
+    : attendance;
 
   if (resultsBlocked) {
     return (
@@ -235,10 +244,17 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
             onChange={(event) => {
               const nextType = event.target.value as ExamReportType;
               setSelectedReportType(nextType);
-              const nextExam = availableExams.find(exam => {
+              const isCurrentPeriod = (exam: typeof availableExams[number]) => {
                 const isCurrent = `${exam.year.trim()}-${exam.term.trim().toLowerCase()}` === currentPeriod;
-                return exam.report_type === nextType && (reportCategory === "current" ? isCurrent : !isCurrent);
-              });
+                return isCurrent;
+              };
+              const nextExam = availableExams.find(exam =>
+                exam.report_type === nextType &&
+                (reportCategory === "current" ? isCurrentPeriod(exam) : !isCurrentPeriod(exam)),
+              ) ?? availableExams.find(exam => exam.report_type === nextType);
+              if (nextExam) {
+                setReportCategory(isCurrentPeriod(nextExam) ? "current" : "past");
+              }
               setSelectedExamId(nextExam?.id ?? null);
             }}
             className="px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
@@ -255,7 +271,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
             {visibleExams.length === 0 && <option value="">No exam results</option>}
             {visibleExams.map(exam => (
               <option key={exam.id} value={exam.id}>
-                {exam.name} · {exam.term} {exam.year}
+                {getExamDisplayName(exam)} · {exam.term} {exam.year}
               </option>
             ))}
           </select>
@@ -492,33 +508,66 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
           <div className="mt-2 rounded-xl border border-[#eadde5] bg-white px-3 py-2">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Attendance this term</p>
-                <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.present} present / {attendance.totalDays} school days</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">{publishedAttendance.calendarLabel} through {publishedAttendance.throughDate || "report period"}</p>
+                <p className="mt-0.5 text-xs font-bold text-[#17244c]">{publishedAttendance.totalDays} marked days · {publishedAttendance.present} present · {publishedAttendance.absent} unexcused absent · {publishedAttendance.excused} excused · {publishedAttendance.late} late</p>
                 <p className="mt-0.5 text-[9px] text-[#777484]">
-                  {attendancePeriod?.isOfficialTerm
-                    ? `Zimbabwe 2026 ${selectedExam?.term} calendar · Monday to Friday, public holidays excluded`
-                    : `Weekdays in ${selectedExam?.term || "the exam"} report period · weekends excluded`}
+                  {publishedAttendance.schoolDays} scheduled school days in the report period · {publishedAttendance.unrecorded} unmarked · {publishedAttendance.sickBay} sick bay · {publishedAttendance.suspended} suspended
                 </p>
                 <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#e6e9e8]">
-                  <div className="h-full rounded-full bg-[#17874f]" style={{ width: `${attendance.totalDays ? (attendance.present / attendance.totalDays) * 100 : 0}%` }} />
+                  <div className="h-full rounded-full bg-[#17874f]" style={{ width: `${publishedAttendance.schoolDays ? Math.min(100, ((publishedAttendance.present + publishedAttendance.late) / publishedAttendance.schoolDays) * 100) : 0}%` }} />
                 </div>
+                <p className="mt-1 text-[9px] text-[#777484]">
+                  Unexcused absence dates: {publishedAttendance.absentDates.length ? publishedAttendance.absentDates.join(", ") : "None recorded"}
+                </p>
+                {publishedAttendance.isOutOfDate && (
+                  <p role="status" className="mt-1 text-[9px] font-semibold text-amber-700">
+                    Attendance has changed since this report was generated. The school must regenerate the report to update this snapshot.
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-3 gap-4 sm:min-w-[270px]">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Absent</p>
-                  <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.absent} days</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Unexcused</p>
+                  <p className="mt-0.5 text-xs font-bold text-[#17244c]">{publishedAttendance.absent} days</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Excused</p>
+                  <p className="mt-0.5 text-xs font-bold text-[#17244c]">{publishedAttendance.excused} days</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Late</p>
-                  <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.late} days</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Unmarked</p>
-                  <p className="mt-0.5 text-xs font-bold text-[#17244c]">{attendance.unrecorded} days</p>
+                  <p className="mt-0.5 text-xs font-bold text-[#17244c]">{publishedAttendance.late} days</p>
                 </div>
               </div>
             </div>
           </div>
+          {attendanceSummaries.length > 0 && (
+            <section aria-label="Term attendance comparison" className="mt-2 rounded-xl border border-[#eadde5] bg-white px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#85808e]">Attendance by term · {selectedExam?.year}</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                {attendanceSummaries
+                  .slice()
+                  .sort((first, second) => first.term_name.localeCompare(second.term_name, undefined, { numeric: true }))
+                  .map(summary => (
+                    <div key={summary.id} className="text-[9px] text-[#777484]">
+                      <div className="flex justify-between gap-2">
+                        <span className="font-semibold text-[#17244c]">{summary.term_name}</span>
+                        <span>{Number(summary.attendance_percentage).toFixed(1)}%</span>
+                      </div>
+                      <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#e6e9e8]">
+                        <div className="h-full rounded-full bg-[#b31669]" style={{ width: `${Math.min(100, Math.max(0, Number(summary.attendance_percentage)))}%` }} />
+                      </div>
+                      <p className="mt-1">{summary.days_present} present · {summary.days_absent} absent · {summary.total_school_days} school days{summary.is_out_of_date ? " · needs refresh" : ""}</p>
+                    </div>
+                  ))}
+              </div>
+              {selectedExam?.term.toLowerCase().includes("term 3") && (
+                <p className="mt-2 text-[9px] font-semibold text-[#17244c]">
+                  Year to date: {attendanceSummaries.reduce((total, summary) => total + summary.days_present + summary.days_late, 0)} present/late days from {attendanceSummaries.reduce((total, summary) => total + summary.total_school_days, 0)} scheduled school days.
+                </p>
+              )}
+            </section>
+          )}
 
           <div className="mt-4 grid grid-cols-2 gap-8 px-3">
             <div className="border-t border-[#a8a1ad] pt-1 text-[9px] uppercase tracking-[0.12em] text-[#777484]">Class teacher</div>

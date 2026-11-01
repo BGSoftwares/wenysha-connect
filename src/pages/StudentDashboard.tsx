@@ -24,12 +24,14 @@ import ResultsSection from "@/components/student/ResultsSection";
 import ELearningSection from "@/components/student/ELearningSection";
 import StudentLibrarySection from "@/components/student/StudentLibrarySection";
 import StudentSettingsSection from "@/components/student/StudentSettingsSection";
+import StudentAttendanceSection from "@/components/student/StudentAttendanceSection";
 import NotificationsFeed from "@/components/dashboard/NotificationsFeed";
 import { calculateGrade, calculatePercentageFromScore } from "@/lib/grading";
 import {
   useStudentProfile,
   useGrades,
   useAttendanceRecords,
+  useAttendanceTermSummaries,
   useInvoices,
   useTimetable,
   useLearningAssignments,
@@ -42,6 +44,7 @@ const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
   { name: "My Results", icon: FileText, id: "results" },
   { name: "Report Card", icon: Award, id: "report-card" },
+  { name: "Attendance", icon: Calendar, id: "attendance" },
   { name: "E-Learning", icon: BookOpen, id: "elearning" },
   { name: "Library", icon: BookOpen, id: "library" },
   { name: "Fees", icon: DollarSign, id: "fees" },
@@ -57,6 +60,7 @@ const StudentDashboard = () => {
   const { data: profile, isLoading: isLoadingProfile } = useStudentProfile();
   const { data: grades = [] } = useGrades({ student: profile?.id });
   const { data: attendance = [] } = useAttendanceRecords({ student: profile?.id ?? 0 });
+  const { data: attendanceSummaries = [] } = useAttendanceTermSummaries({ student: profile?.id });
   const { data: invoices = [] } = useInvoices({ student: profile?.id || 0 });
   const { data: timetable = [] } = useTimetable(profile?.school_class);
   const { data: learningAssignments = [] } = useLearningAssignments();
@@ -73,10 +77,21 @@ const StudentDashboard = () => {
   }, [grades]);
 
   const attendanceRate = useMemo(() => {
+    const schoolDays = attendanceSummaries.reduce((total, summary) => total + summary.total_school_days, 0);
+    if (schoolDays) {
+      const attended = attendanceSummaries.reduce((total, summary) => total + summary.days_present + summary.days_late, 0);
+      return Math.round((attended / schoolDays) * 100);
+    }
     if (!attendance.length) return 100;
-    const presentCount = attendance.filter(a => a.status === 'present').length;
-    return ((presentCount / attendance.length) * 100).toFixed(0);
-  }, [attendance]);
+    const dailyStatus = new Map<string, string[]>();
+    attendance.forEach(record => {
+      const statuses = dailyStatus.get(record.date) ?? [];
+      statuses.push(record.status);
+      dailyStatus.set(record.date, statuses);
+    });
+    const attendedDays = Array.from(dailyStatus.values()).filter(statuses => statuses.some(status => status === "present" || status === "late")).length;
+    return Math.round((attendedDays / dailyStatus.size) * 100);
+  }, [attendance, attendanceSummaries]);
 
   const financeTotals = useMemo(() => invoices.reduce<Record<string, { billed: number; paid: number; balance: number }>>((totals, invoice) => {
     const currency = invoice.currency;
@@ -316,6 +331,7 @@ const StudentDashboard = () => {
     switch (activeNav) {
       case "timetable": return renderTimetable();
       case "report-card": return resultsLocked ? lockedResultsMessage : <ReportCardSection studentId={profile.id} />;
+      case "attendance": return <StudentAttendanceSection studentId={profile.id} records={attendance} />;
       case "fees": return <StudentFeesSection studentId={profile.id} />;
       case "results": return resultsLocked ? lockedResultsMessage : <ResultsSection studentId={profile.id} />;
       case "elearning": return <ELearningSection className={profile.class_name} />;

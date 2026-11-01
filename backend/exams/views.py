@@ -4,6 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -113,6 +114,21 @@ class ExamViewSet(viewsets.ModelViewSet):
         if not is_admin(request.user):
             raise PermissionDenied('Only administrators can delete exams.')
         return super().destroy(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        exam = serializer.instance
+        was_published = exam.results_published
+        is_publishing = self._is_publish_request(self.request.data.get('results_published'))
+        if is_publishing and not exam.results_published and not exam.results_published_at:
+            updated_exam = serializer.save(results_published_at=timezone.now())
+        else:
+            updated_exam = serializer.save()
+        if is_publishing and not was_published:
+            from attendance.services import create_report_attendance_snapshots
+            create_report_attendance_snapshots(
+                updated_exam,
+                through_date=timezone.localdate(updated_exam.results_published_at),
+            )
 
 
 class ExamScheduleViewSet(viewsets.ModelViewSet):

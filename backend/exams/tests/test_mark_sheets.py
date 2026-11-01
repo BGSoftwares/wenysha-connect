@@ -245,6 +245,23 @@ class ReportTypeIsolationTests(APITestCase):
             format='json',
         )
         self.assertEqual(publish_response.status_code, 200, publish_response.data)
+        published_at = unpublished_exam.__class__.objects.get(pk=unpublished_exam.pk).results_published_at
+        self.assertIsNotNone(published_at)
+        self.client.patch(
+            f'/api/exams/exams/{unpublished_exam.pk}/',
+            {'results_published': False},
+            format='json',
+        )
+        republish_response = self.client.patch(
+            f'/api/exams/exams/{unpublished_exam.pk}/',
+            {'results_published': True},
+            format='json',
+        )
+        self.assertEqual(republish_response.status_code, 200, republish_response.data)
+        self.assertEqual(
+            unpublished_exam.__class__.objects.get(pk=unpublished_exam.pk).results_published_at,
+            published_at,
+        )
         self.client.force_authenticate(user=self.student.user)
         unlocked_response = self.client.get('/api/exams/exam-marks/')
         self.assertEqual(len(unlocked_response.data['results']), 6)
@@ -318,3 +335,14 @@ class ReportTypeIsolationTests(APITestCase):
         })
         self.assertEqual(student_ranking.status_code, 200, student_ranking.data)
         self.assertEqual(student_ranking.data['class_position'], 1)
+
+    def test_end_of_term_exam_name_is_canonical(self):
+        exam = Exam.objects.create(
+            name='Custom title',
+            report_type='end_of_3rd_term',
+            term='Term 3',
+            year='2026',
+            start_date=date.today(),
+            end_date=date.today(),
+        )
+        self.assertEqual(exam.name, '2026 End of Term 3 exam')

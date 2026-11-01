@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { api, getErrorMessage } from "@/lib/api";
 import { calculateGrade } from "@/lib/grading";
 import { EXAM_REPORT_TYPES, useSaveExamMarkSheet, type ExamMark, type ExamReportType } from "@/lib/hooks";
+import { formatLocalDateTime } from "@/lib/examDisplay";
 import { drawSchoolLetterhead, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
 
 interface Props {
@@ -86,8 +87,8 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
     const reportTypeLabel = EXAM_REPORT_TYPES.find(type => type.value === reportType)?.label ?? "Report card";
     const issuedAt = new Date();
     const issuedDate = issuedAt.toLocaleDateString("en-GB");
-    const issueStamp = reportType === "monthly_report_card"
-      ? `${issuedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" })} · ${issuedDate}`
+    const issueStamp = reportType === "monthly_report_card" || reportType === "fortnightly_tests"
+      ? formatLocalDateTime(issuedAt)
       : issuedDate;
     const schoolLogo = await loadSchoolLogoDataUrl();
 

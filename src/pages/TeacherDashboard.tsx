@@ -51,6 +51,9 @@ import {
   EXAM_REPORT_TYPES,
   useAttendanceRecords,
   useUpdateAttendance,
+  useBulkUpdateAttendance,
+  useSchoolCalendarDays,
+  useAttendanceSettings,
   useTimetable,
   useBooks,
 } from "@/lib/hooks";
@@ -60,6 +63,7 @@ import { buildAttendancePdf, sharePdfToWhatsApp } from "@/lib/pdfExport";
 import { calculateGrade } from "@/lib/grading";
 import { getPrincipalComment, getTeacherComment, TEACHER_COMMENT_LIBRARY } from "@/lib/reportComments";
 import { formatLocalDateKey, getSchoolDateStatus } from "@/lib/zimbabweSchoolCalendar";
+import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
@@ -96,6 +100,15 @@ const TeacherDashboard = () => {
     comment: string;
   }>>([]);
   const [attendanceDate, setAttendanceDate] = useState(formatLocalDateKey(new Date()));
+  const [attendanceSession, setAttendanceSession] = useState<"morning" | "afternoon" | "evening">("morning");
+  const [attendanceDrafts, setAttendanceDrafts] = useState<Array<{
+    student: number;
+    date: string;
+    status: "present" | "absent" | "late";
+    session: "morning" | "afternoon" | "evening";
+    reason?: string;
+  }>>([]);
+  const [attendanceDraftKeyLoaded, setAttendanceDraftKeyLoaded] = useState<string | null>(null);
 
   // Data Hooks
   const { data: teacher, isLoading: isLoadingProfile } = useTeacherProfile();
@@ -112,10 +125,14 @@ const TeacherDashboard = () => {
   const { data: exams = [], isLoading: isLoadingExams, error: examsError } = useExams();
   const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
   const { data: attendanceRecords = [] } = useAttendanceRecords({
-    date: attendanceDate
+    date: attendanceDate,
+    session: attendanceSession,
   });
+  const { data: calendarOverrides = [] } = useSchoolCalendarDays({ date: attendanceDate });
+  const { data: attendanceSettings } = useAttendanceSettings();
 
   const updateAttendanceMutation = useUpdateAttendance();
+  const bulkAttendanceMutation = useBulkUpdateAttendance();
   const allocatedClasses = allocations.map((allocation) => ({ id: allocation.school_class, name: allocation.class_name }));
   const classTeacherClasses = classes
     .filter((schoolClass) => schoolClass.class_teacher === teacher?.id)
@@ -206,7 +223,9 @@ const TeacherDashboard = () => {
   const reportPreviewExam = exams.find(exam => exam.id === selectedExamId);
   const reportPreviewType = reportPreviewExam?.report_type ?? selectedReportType;
   const reportIssuedAt = new Date();
-  const reportIssuedDate = reportIssuedAt.toLocaleDateString("en-GB");
+  const reportIssuedDate = reportPreviewType === "monthly_report_card" || reportPreviewType === "fortnightly_tests"
+    ? formatLocalDateTime(reportIssuedAt)
+    : reportIssuedAt.toLocaleDateString("en-GB");
   const reportIssueMonthYear = reportIssuedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const reportCardHeading = reportPreviewType === "monthly_report_card"
     ? "End-of-month Examination Report Card"
@@ -275,13 +294,116 @@ const TeacherDashboard = () => {
 
   const teacherName = teacher?.name || "Teacher";
   const department = teacher?.department || "General";
-  const attendanceDateStatus = getSchoolDateStatus(attendanceDate);
+  const calendarOverride = calendarOverrides.find(day => day.date === attendanceDate);
+  const defaultAttendanceDateStatus = getSchoolDateStatus(attendanceDate);
+  const attendanceDateStatus = calendarOverride
+    ? {
+      isSchoolDay: calendarOverride.day_type === "school_day" && attendanceDate <= formatLocalDateKey(new Date()),
+      reason: calendarOverride.day_type === "school_day" ? undefined : calendarOverride.note || `This date is marked as ${calendarOverride.day_type.replace("_", " ")}.`,
+    }
+    : defaultAttendanceDateStatus;
+  const attendanceDraftKey = `attendance-drafts:${teacher?.id ?? "teacher"}:${selectedClassId ?? "class"}:${attendanceDate}:${attendanceSession}`;
+  const syncAttendanceDrafts = bulkAttendanceMutation.mutateAsync;
   const attendanceByStudent = new Map(attendanceRecords.map((record) => [record.student, record]));
+  const attendanceDraftByStudent = new Map(attendanceDrafts.map(draft => [draft.student, draft]));
   const classAttendance = classStudents.map(student => ({
     student,
-    status: attendanceByStudent.get(student.id)?.status || "unmarked",
+    status: attendanceDraftByStudent.get(student.id)?.status || attendanceByStudent.get(student.id)?.status || "unmarked",
   }));
   const anyAttendanceMarked = classAttendance.some(({ status }) => status !== "unmarked");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(attendanceDraftKey);
+      const parsed: unknown = saved ? JSON.parse(saved) : [];
+      const validDrafts = Array.isArray(parsed) ? parsed.filter(item =>
+        item && typeof item.student === "number" &&
+        item.date === attendanceDate &&
+        item.session === attendanceSession &&
+        ["present", "absent", "late"].includes(item.status),
+      ) : [];
+      setAttendanceDrafts(validDrafts);
+    } catch (error) {
+      console.error("Could not read saved attendance drafts.", error);
+      setAttendanceDrafts([]);
+    }
+    setAttendanceDraftKeyLoaded(attendanceDraftKey);
+  }, [attendanceDate, attendanceDraftKey, attendanceSession]);
+
+  useEffect(() => {
+    if (attendanceDraftKeyLoaded !== attendanceDraftKey) return;
+    if (attendanceDrafts.length) localStorage.setItem(attendanceDraftKey, JSON.stringify(attendanceDrafts));
+    else localStorage.removeItem(attendanceDraftKey);
+  }, [attendanceDraftKey, attendanceDraftKeyLoaded, attendanceDrafts]);
+
+  useEffect(() => {
+    if (!attendanceDrafts.length || !attendanceDateStatus.isSchoolDay) return;
+    const syncDrafts = async () => {
+      if (!navigator.onLine) return;
+      try {
+        await syncAttendanceDrafts(attendanceDrafts);
+        setAttendanceDrafts([]);
+        toast.success("Offline attendance drafts synced.");
+      } catch (error) {
+        toast.error(`Attendance drafts could not sync: ${getErrorMessage(error)}`);
+      }
+    };
+    window.addEventListener("online", syncDrafts);
+    if (navigator.onLine) void syncDrafts();
+    return () => window.removeEventListener("online", syncDrafts);
+  }, [attendanceDateStatus.isSchoolDay, attendanceDrafts, syncAttendanceDrafts]);
+
+  const saveAttendanceStatus = async (studentId: number, status: "present" | "absent" | "late") => {
+    if (!attendanceDateStatus.isSchoolDay) return;
+    const existing = attendanceByStudent.get(studentId);
+    const cutoffHours = Number(attendanceSettings?.edit_cutoff_hours ?? 24);
+    const isPastCutoff = existing && Date.now() - new Date(existing.marked_at).getTime() > cutoffHours * 60 * 60 * 1000;
+    const reason = isPastCutoff ? window.prompt("This attendance entry is past the edit cutoff. Enter a reason for the correction:")?.trim() : undefined;
+    if (isPastCutoff && !reason) return;
+    const draft = { student: studentId, date: attendanceDate, session: attendanceSession, status, ...(reason ? { reason } : {}) };
+    try {
+      await updateAttendanceMutation.mutateAsync(draft);
+      setAttendanceDrafts(current => current.filter(item => item.student !== studentId));
+    } catch (error) {
+      if (!navigator.onLine) {
+        setAttendanceDrafts(current => [...current.filter(item => item.student !== studentId), draft]);
+        toast.warning("No connection. Attendance saved as an offline draft.");
+      } else {
+        toast.error(getErrorMessage(error));
+      }
+    }
+  };
+
+  const markClassPresent = async () => {
+    if (!attendanceDateStatus.isSchoolDay || classStudents.length === 0) return;
+    const drafts = classStudents.map(student => ({
+      student: student.id,
+      date: attendanceDate,
+      session: attendanceSession,
+      status: "present" as const,
+    }));
+    const cutoffHours = Number(attendanceSettings?.edit_cutoff_hours ?? 24);
+    const hasPastCutoffCorrection = classStudents.some(student => {
+      const existing = attendanceByStudent.get(student.id);
+      return existing && existing.status !== "present" &&
+        Date.now() - new Date(existing.marked_at).getTime() > cutoffHours * 60 * 60 * 1000;
+    });
+    const reason = hasPastCutoffCorrection
+      ? window.prompt("Some entries are past the edit cutoff. Enter a reason for marking this register:")?.trim()
+      : undefined;
+    if (hasPastCutoffCorrection && !reason) return;
+    const updates = drafts.map(draft => ({ ...draft, ...(reason ? { reason } : {}) }));
+    try {
+      await bulkAttendanceMutation.mutateAsync(updates);
+      setAttendanceDrafts([]);
+      toast.success(`Marked ${classStudents.length} learners present.`);
+    } catch (error) {
+      if (!navigator.onLine) {
+        setAttendanceDrafts(drafts);
+        toast.warning("No connection. The class register is saved as an offline draft.");
+      } else toast.error(getErrorMessage(error));
+    }
+  };
   const buildClassAttendancePdf = () => buildAttendancePdf({
     className: selectedClass?.name || "Class",
     date: attendanceDate,
@@ -411,7 +533,7 @@ const TeacherDashboard = () => {
             {exams.map((exam) => (
               <div key={exam.id} className="p-4 rounded-lg bg-secondary/30">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-foreground">{exam.name}</h4>
+                  <h4 className="font-medium text-foreground">{getExamDisplayName(exam)}</h4>
                   <span className="text-xs text-amber-600">{exam.status}</span>
                 </div>
                 <p className="text-xs text-muted-foreground mb-2">{exam.term} {exam.year}</p>
@@ -519,7 +641,7 @@ const TeacherDashboard = () => {
           </select>
           <select value={selectedExamId || ""} onChange={e => { setSelectedExamId(Number(e.target.value)); setReportCardRows([]); }} disabled={!selectedReportType || !selectedClassId || !selectedSubjectId || matchingExams.length === 0} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">{matchingExams.length ? "Select exam" : "No exam for this report"}</option>
-            {matchingExams.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+            {matchingExams.map(e => <option key={e.id} value={e.id}>{getExamDisplayName(e)}</option>)}
           </select>
           <Button variant="outline" onClick={generateReportCardPreview} disabled={!selectedExamId}>Generate Report Card</Button>
         </div>
@@ -663,7 +785,7 @@ const TeacherDashboard = () => {
             {[
               ["Learners", `${reportCardRows.length} in class`],
               ["Class", uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"],
-              ["Exam", reportPreviewExam?.name || "Selected exam"],
+              ["Exam", reportPreviewExam ? getExamDisplayName(reportPreviewExam) : "Selected exam"],
               ["Subject", uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Subject"],
               ["Report type", EXAM_REPORT_TYPES.find(type => type.value === reportPreviewType)?.label || "Report card"],
               ["Passed", `${classReportScoredRows.filter(row => (row.percentage ?? 0) >= 40).length} of ${classReportScoredRows.length}`],
@@ -765,6 +887,16 @@ const TeacherDashboard = () => {
             aria-label="Attendance date"
             className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
           />
+          <select
+            value={attendanceSession}
+            onChange={(event) => setAttendanceSession(event.target.value as typeof attendanceSession)}
+            aria-label="Attendance session"
+            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+          >
+            <option value="morning">Morning</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="evening">Evening</option>
+          </select>
         </div>
       </div>
 
@@ -773,6 +905,14 @@ const TeacherDashboard = () => {
           <div>
             <h3 className="font-medium text-foreground">{uniqueClasses.find(c => c.id === selectedClassId)?.name || "Select Class"} - Attendance</h3>
             <p className="text-sm text-muted-foreground">{new Date(`${attendanceDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <p className="text-xs text-muted-foreground">
+              {attendanceDrafts.length ? `${attendanceDrafts.length} offline draft${attendanceDrafts.length === 1 ? "" : "s"} saved on this device.` : "Register changes save immediately."}
+            </p>
+            <Button size="sm" onClick={() => void markClassPresent()} disabled={!attendanceDateStatus.isSchoolDay || !classStudents.length || bulkAttendanceMutation.isPending}>
+              {bulkAttendanceMutation.isPending ? "Saving…" : "Mark all present"}
+            </Button>
           </div>
           <div className="flex gap-4 text-sm">
             <span className="text-green-600">Present: {classAttendance.filter(item => item.status === "present").length}</span>
@@ -799,7 +939,7 @@ const TeacherDashboard = () => {
           </thead>
           <tbody>
             {classStudents.map((student) => {
-              const status = attendanceByStudent.get(student.id)?.status || "unmarked";
+              const status = attendanceDraftByStudent.get(student.id)?.status || attendanceByStudent.get(student.id)?.status || "unmarked";
 
               return (
                 <tr key={student.id} className="border-t border-border">
@@ -817,13 +957,7 @@ const TeacherDashboard = () => {
                         {status === "unmarked" ? "Not marked" : status.charAt(0).toUpperCase() + status.slice(1)}
                       </span>
                       <button
-                        onClick={async () => {
-                          if (!attendanceDateStatus.isSchoolDay) return;
-                          try {
-                            await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "present" });
-                            toast.success(`Marked ${student.name} as present`);
-                          } catch (e) { toast.error("Failed to update attendance"); }
-                        }}
+                        onClick={() => void saveAttendanceStatus(student.id, "present")}
                         disabled={!attendanceDateStatus.isSchoolDay || updateAttendanceMutation.isPending}
                         aria-label={`Mark ${student.name} present`}
                         className={`p-1.5 rounded-lg transition-colors ${status === "present" ? "bg-green-500 text-white" : "bg-secondary text-muted-foreground hover:bg-green-100"}`}
@@ -831,13 +965,7 @@ const TeacherDashboard = () => {
                         <Check className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={async () => {
-                          if (!attendanceDateStatus.isSchoolDay) return;
-                          try {
-                            await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "absent" });
-                            toast.success(`Marked ${student.name} as absent`);
-                          } catch (e) { toast.error("Failed to update attendance"); }
-                        }}
+                        onClick={() => void saveAttendanceStatus(student.id, "absent")}
                         disabled={!attendanceDateStatus.isSchoolDay || updateAttendanceMutation.isPending}
                         aria-label={`Mark ${student.name} absent`}
                         className={`p-1.5 rounded-lg transition-colors ${status === "absent" ? "bg-destructive text-white" : "bg-secondary text-muted-foreground hover:bg-red-100"}`}
@@ -845,13 +973,7 @@ const TeacherDashboard = () => {
                         <X className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={async () => {
-                          if (!attendanceDateStatus.isSchoolDay) return;
-                          try {
-                            await updateAttendanceMutation.mutateAsync({ student: student.id as number, date: attendanceDate, status: "late" });
-                            toast.success(`Marked ${student.name} as late`);
-                          } catch (e) { toast.error("Failed to update attendance"); }
-                        }}
+                        onClick={() => void saveAttendanceStatus(student.id, "late")}
                         disabled={!attendanceDateStatus.isSchoolDay || updateAttendanceMutation.isPending}
                         aria-label={`Mark ${student.name} late`}
                         className={`p-1.5 rounded-lg transition-colors ${status === "late" ? "bg-amber-500 text-white" : "bg-secondary text-muted-foreground hover:bg-amber-100"}`}

@@ -30,6 +30,35 @@ Configure a local administrator using Django's `createsuperuser` command or the 
 
 4. Open: **http://127.0.0.1:8000/admin** and log in with your configured administrator account.
 
+## Attendance module
+
+Attendance uses the existing `school.AcademicYear` and `school.Term` records. Its additive migrations add session-aware attendance, calendar overrides, policy settings, parent excuses, audit history, per-learner term summaries, report snapshots, and in-portal parent alerts for same-day absence/lateness and low term attendance.
+
+After backing up the configured database, apply the attendance migrations from the **backend** folder:
+
+```powershell
+python manage.py migrate attendance
+```
+
+Check migration state with:
+
+```powershell
+python manage.py showmigrations attendance
+python manage.py test attendance.tests
+```
+
+Existing attendance rows are retained and associated with a configured term when their date is within that term. Rows that cannot be matched remain available with a null term. New sessions default to morning. Admins can manage calendar overrides, policy thresholds, excuses, and audit history. Teachers can mark whole classes and retain offline register drafts in their browser; parents can submit supported absence documents and receive attendance alerts; students have read-only attendance history and term summaries.
+
+An optional notification adapter can be configured with the dotted import path `ATTENDANCE_NOTIFICATION_PROVIDER`. The configured callable receives a dictionary containing `kind`, `message`, `student_id`, `term_id`, and `created_at` after the database transaction commits. Leave it unset for in-portal notifications only. Provider credentials and vendor setup belong in environment-specific configuration, not source control.
+
+Rollback is schema-changing. Back up the database first and obtain explicit approval before running it: reversing migrations `0006` through `0002` drops notifications, snapshots, summaries, settings, excuses, audit records, and the added columns on attendance records. The original attendance rows remain, but data entered only into the added fields or tables is lost. For a database that has applied later migrations, reverse one migration at a time in dependency order and inspect `showmigrations` before proceeding:
+
+```powershell
+python manage.py migrate attendance 0001
+```
+
+Do not roll back production or a shared database without a verified backup and an approved maintenance window.
+
 ## GitHub
 
 Repo: **https://github.com/BGSoftwares/AbleGodCollegeELibrary.git**
