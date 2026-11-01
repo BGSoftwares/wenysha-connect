@@ -279,8 +279,14 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
 
       {(!selectedExam || results.length === 0) && (
         <div role="status" className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
-          <p className="font-semibold text-foreground">No results are available yet for this report.</p>
-          <p className="mt-1 text-sm text-muted-foreground">Saved marks for your selected report type appear here automatically. This page checks for updates every 30 seconds.</p>
+          <p className="font-semibold text-foreground">
+            {isLoadingMarks || isLoadingExams
+              ? "Checking for unlocked report results…"
+              : "No results are available yet for this report."}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Teacher-saved marks appear here as soon as the administrator completes and unlocks the report. This page checks for updates every 5 seconds.
+          </p>
         </div>
       )}
 

@@ -110,12 +110,12 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const [printStudentIds, setPrintStudentIds] = useState<number[]>([]);
   const updateExam = useUpdateExam();
 
-  const publishedExams = useMemo(
-    () => exams.filter((exam) => exam.status === "completed").sort((a, b) => b.start_date.localeCompare(a.start_date)),
+  const reportExams = useMemo(
+    () => exams.slice().sort((a, b) => b.start_date.localeCompare(a.start_date)),
     [exams],
   );
-  const currentPeriodKey = publishedExams[0] ? getPeriodKey(publishedExams[0]) : null;
-  const visibleExams = publishedExams.filter((exam) => {
+  const currentPeriodKey = reportExams[0] ? getPeriodKey(reportExams[0]) : null;
+  const visibleExams = reportExams.filter((exam) => {
     const isCurrent = getPeriodKey(exam) === currentPeriodKey;
     return category === "current" ? isCurrent : !isCurrent;
   });
@@ -194,7 +194,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
 
   const changeCategory = (nextCategory: ReportCategory) => {
     setCategory(nextCategory);
-    const nextExam = publishedExams.find((exam) => nextCategory === "current"
+    const nextExam = reportExams.find((exam) => nextCategory === "current"
       ? getPeriodKey(exam) === currentPeriodKey
       : getPeriodKey(exam) !== currentPeriodKey);
     setSelectedExamId(nextExam?.id ?? null);
@@ -207,7 +207,10 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
     try {
       await updateExam.mutateAsync({
         id: selectedExam.id,
-        data: { results_published: publish },
+        data: {
+          results_published: publish,
+          ...(publish ? { status: "completed" as const } : {}),
+        },
       });
       toast.success(publish ? "Report cards unlocked for students" : "Report cards locked from students");
     } catch (error) {
@@ -432,7 +435,9 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
           {selectedExam && (
             <div className="flex flex-wrap items-center gap-2">
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${selectedExam.results_published ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>
-                {selectedExam.results_published ? "Unlocked · visible to students" : "Locked · hidden from students"}
+                {selectedExam.results_published
+                  ? "Unlocked · visible to students"
+                  : `Locked · ${selectedExam.status === "completed" ? "verified, ready to publish" : `exam ${selectedExam.status}; unlock will complete it`}`}
               </span>
               <Button
                 size="sm"

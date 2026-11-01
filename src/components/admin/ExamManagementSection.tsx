@@ -124,7 +124,10 @@ const ExamManagementSection = () => {
     try {
       await updateExamMutation.mutateAsync({
         id: exam.id,
-        data: { results_published: resultsPublished },
+        data: {
+          results_published: resultsPublished,
+          ...(resultsPublished ? { status: "completed" as const } : {}),
+        },
       });
       toast.success(resultsPublished ? "Report cards unlocked for students" : "Report cards locked from students");
     } catch (error) {
@@ -319,7 +322,7 @@ const ExamManagementSection = () => {
                       variant={exam.results_published ? "outline" : "gold"}
                       size="sm"
                       onClick={() => void handlePublishResults(exam)}
-                      disabled={updateExamMutation.isPending || (!exam.results_published && exam.status !== "completed")}
+                      disabled={updateExamMutation.isPending}
                     >
                       {exam.results_published
                         ? <LockKeyhole className="h-4 w-4 mr-1" />
