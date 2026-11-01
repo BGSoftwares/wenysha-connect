@@ -32,13 +32,15 @@ class ExamViewSet(viewsets.ModelViewSet):
         return value is True or str(value).lower() in {'true', '1'}
 
     @staticmethod
-    def _validate_publish_request(exam, value):
+    def _validate_publish_request(exam, value, status_value=None):
         if value is None or not ExamViewSet._is_publish_request(value):
             return
-        if exam.status != 'completed':
-            raise ValidationError({'results_published': 'Complete the exam before sending results to student portals.'})
+        if status_value is None:
+            status_value = exam.status
+        if status_value != 'completed':
+            raise ValidationError({'results_published': 'Complete and verify the exam before publishing results to student portals.'})
         if not exam.marks.exists():
-            raise ValidationError({'results_published': 'Enter marks before sending results to student portals.'})
+            raise ValidationError({'results_published': 'Enter marks before unlocking and publishing results to student portals.'})
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -62,7 +64,8 @@ class ExamViewSet(viewsets.ModelViewSet):
             if not student:
                 return queryset.none()
             return queryset.filter(
-                Q(results_published=True, status='completed') | Q(marks__student=student),
+                results_published=True,
+                status='completed',
                 classes=student.school_class_id,
             ).distinct()
         return queryset.none()
@@ -78,13 +81,21 @@ class ExamViewSet(viewsets.ModelViewSet):
         if not is_admin(request.user):
             raise PermissionDenied('Only administrators can edit exam details.')
         exam = self.get_object()
-        self._validate_publish_request(exam, request.data.get('results_published'))
+        self._validate_publish_request(
+            exam,
+            request.data.get('results_published'),
+            request.data.get('status', exam.status),
+        )
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
         if is_admin(request.user):
             exam = self.get_object()
-            self._validate_publish_request(exam, request.data.get('results_published'))
+            self._validate_publish_request(
+                exam,
+                request.data.get('results_published'),
+                request.data.get('status', exam.status),
+            )
             return super().partial_update(request, *args, **kwargs)
         if portal_role(request.user) != 'teacher':
             raise PermissionDenied('Your account cannot edit this exam.')
@@ -157,6 +168,13 @@ class ExamMarkViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
+        school_class_id = self.request.query_params.get('school_class')
+        if school_class_id is not None:
+            try:
+                school_class_id = int(school_class_id)
+            except (TypeError, ValueError):
+                raise ValidationError({'school_class': 'Enter a valid class ID.'})
+            queryset = queryset.filter(student__school_class_id=school_class_id)
         if is_admin(user):
             return queryset
 
@@ -167,6 +185,8 @@ class ExamMarkViewSet(viewsets.ModelViewSet):
                 return queryset.none()
             return queryset.filter(
                 student=student,
+                exam__results_published=True,
+                exam__status='completed',
                 exam__classes=student.school_class_id,
             ).distinct()
 

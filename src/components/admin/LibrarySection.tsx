@@ -28,8 +28,9 @@ const LibrarySection = ({ classes = [], subjects = [] }: Props) => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [loanFilter, setLoanFilter] = useState("active");
   const [editing, setEditing] = useState<Partial<BookT> | null>(null);
+  const [digitalFile, setDigitalFile] = useState<File | null>(null);
 
-  const { data: books = [], isLoading } = useBooks({ search: searchQuery || undefined });
+  const { data: books = [], isLoading, error: booksError } = useBooks({ search: searchQuery || undefined });
   const { data: loans = [] } = useBorrowings();
   const save = useSaveBook();
   const del = useDeleteBook();
@@ -51,9 +52,10 @@ const LibrarySection = ({ classes = [], subjects = [] }: Props) => {
   const onSave = async () => {
     if (!editing?.title || !editing?.author) return toast.error("Title and author are required");
     try {
-      await save.mutateAsync({ ...editing, copies: Number(editing.copies) || 1 });
+      await save.mutateAsync({ ...editing, copies: Number(editing.copies) || 1, digital_file: digitalFile });
       toast.success(editing.id ? "Book updated" : "Book added");
       setEditing(null);
+      setDigitalFile(null);
     } catch (e) { toast.error(getErrorMessage(e)); }
   };
   const onDelete = async (b: BookT) => {
@@ -71,7 +73,7 @@ const LibrarySection = ({ classes = [], subjects = [] }: Props) => {
           <h2 className="font-heading text-xl font-bold text-foreground">Library Management</h2>
           <p className="text-sm text-muted-foreground">Manage book inventory and student borrowings</p>
         </div>
-        <Button variant="gold" onClick={() => setEditing({ ...empty })}>
+        <Button variant="gold" onClick={() => { setEditing({ ...empty }); setDigitalFile(null); }}>
           <Plus className="h-4 w-4 mr-2" /> Add Book
         </Button>
       </div>
@@ -106,11 +108,12 @@ const LibrarySection = ({ classes = [], subjects = [] }: Props) => {
           <Card><CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-left">
-                <tr><th className="p-3">Title</th><th className="p-3">Author</th><th className="p-3">ISBN</th><th className="p-3">Category</th><th className="p-3">Available</th><th className="p-3 text-right">Actions</th></tr>
+                <tr><th className="p-3">Title</th><th className="p-3">Author</th><th className="p-3">ISBN</th><th className="p-3">Category</th><th className="p-3">Available</th><th className="p-3">Digital copy</th><th className="p-3 text-right">Actions</th></tr>
               </thead>
               <tbody>
-                {isLoading && <tr><td colSpan={6} className="p-4 text-muted-foreground">Loading…</td></tr>}
-                {!isLoading && filteredBooks.length === 0 && <tr><td colSpan={6} className="p-4 text-muted-foreground">No books yet. Add your first book.</td></tr>}
+                {isLoading && <tr><td colSpan={7} className="p-4 text-muted-foreground">Loading…</td></tr>}
+                {booksError && <tr><td colSpan={7} role="alert" className="p-4 text-destructive">Could not load library books: {getErrorMessage(booksError)}</td></tr>}
+                {!isLoading && !booksError && filteredBooks.length === 0 && <tr><td colSpan={7} className="p-4 text-muted-foreground">No books yet. Add your first book.</td></tr>}
                 {filteredBooks.map((b) => (
                   <tr key={b.id} className="border-t border-border">
                     <td className="p-3 font-medium">{b.title}</td>
@@ -118,8 +121,13 @@ const LibrarySection = ({ classes = [], subjects = [] }: Props) => {
                     <td className="p-3 text-muted-foreground">{b.isbn}</td>
                     <td className="p-3">{b.category}</td>
                     <td className="p-3"><Badge variant={b.available > 0 ? "outline" : "destructive"}>{b.available}/{b.copies}</Badge></td>
+                    <td className="p-3">
+                      {b.digital_file_url
+                        ? <a className="text-primary underline underline-offset-2" href={b.digital_file_url} target="_blank" rel="noreferrer">Open book</a>
+                        : <span className="text-muted-foreground">Not uploaded</span>}
+                    </td>
                     <td className="p-3 text-right whitespace-nowrap">
-                      <Button size="icon" variant="ghost" aria-label="Edit" onClick={() => setEditing(b)}><Edit className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" aria-label="Edit" onClick={() => { setEditing(b); setDigitalFile(null); }}><Edit className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" aria-label="Delete" onClick={() => onDelete(b)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </td>
                   </tr>
@@ -196,10 +204,22 @@ const LibrarySection = ({ classes = [], subjects = [] }: Props) => {
                 <Label>Total copies</Label>
                 <Input type="number" min={1} value={editing.copies ?? 1} onChange={(e) => setEditing({ ...editing, copies: Number(e.target.value) })} />
               </div>
+              <div className="grid gap-1">
+                <Label htmlFor="book-digital-file">Digital book file (PDF, EPUB, DOCX; max 20 MB)</Label>
+                {editing.digital_file_url && !digitalFile && (
+                  <a className="text-sm text-primary underline underline-offset-2" href={editing.digital_file_url} target="_blank" rel="noreferrer">Current digital copy</a>
+                )}
+                <Input
+                  id="book-digital-file"
+                  type="file"
+                  accept=".pdf,.epub,.docx,application/pdf,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(event) => setDigitalFile(event.target.files?.[0] ?? null)}
+                />
+              </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setEditing(null); setDigitalFile(null); }}>Cancel</Button>
             <Button variant="gold" onClick={onSave} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save"}</Button>
           </DialogFooter>
         </DialogContent>

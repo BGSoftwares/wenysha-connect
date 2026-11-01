@@ -21,7 +21,7 @@ const DueBadge = ({ loan }: { loan: Borrowing }) => {
 
 const StudentLibrarySection = () => {
   const [search, setSearch] = useState("");
-  const { data: books = [], isLoading } = useBooks({ search: search || undefined });
+  const { data: books = [], isLoading, error: booksError } = useBooks({ search: search || undefined });
   const { data: loans = [] } = useMyBorrowings();
   const borrow = useBorrowBook();
   const renew = useRenewBook();
@@ -95,7 +95,8 @@ const StudentLibrarySection = () => {
         </CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-3">
           {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-          {!isLoading && books.length === 0 && <p className="text-sm text-muted-foreground">No books found.</p>}
+          {booksError && <p role="alert" className="text-sm text-destructive">Could not load library books: {getErrorMessage(booksError)}</p>}
+          {!isLoading && !booksError && books.length === 0 && <p className="text-sm text-muted-foreground">No books found.</p>}
           {books.map((b) => (
             <div key={b.id} className="p-4 rounded-lg border border-border flex flex-col gap-2">
               <div className="flex justify-between gap-2">
@@ -105,6 +106,11 @@ const StudentLibrarySection = () => {
                 </div>
                 <Badge variant={b.available > 0 ? "outline" : "destructive"}>{b.available}/{b.copies}</Badge>
               </div>
+              {b.digital_file_url && (
+                <a className="text-sm text-primary underline underline-offset-2" href={b.digital_file_url} target="_blank" rel="noreferrer">
+                  Open or download digital book
+                </a>
+              )}
               <Button size="sm" disabled={b.available < 1 || heldIds.has(b.id) || borrow.isPending} onClick={() => onBorrow(b.id, b.title)}>
                 {heldIds.has(b.id) ? "Already borrowed" : b.available < 1 ? "Unavailable" : "Borrow"}
               </Button>

@@ -1,12 +1,34 @@
+from pathlib import Path
+
 from rest_framework import serializers
 from .models import Book, Borrowing
 
 
 class BookSerializer(serializers.ModelSerializer):
+    digital_file = serializers.FileField(required=False, allow_null=True, write_only=True)
+    digital_file_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Book
-        fields = ['id', 'title', 'author', 'isbn', 'category', 'copies', 'available']
+        fields = ['id', 'title', 'author', 'isbn', 'category', 'copies', 'available', 'digital_file', 'digital_file_url']
         read_only_fields = ['available']
+
+    def get_digital_file_url(self, book):
+        if not book.digital_file:
+            return None
+        request = self.context.get('request')
+        url = book.digital_file.url
+        return request.build_absolute_uri(url) if request else url
+
+    def validate_digital_file(self, uploaded_file):
+        if uploaded_file is None:
+            return uploaded_file
+        extension = Path(uploaded_file.name).suffix.lower()
+        if extension not in {'.pdf', '.epub', '.docx'}:
+            raise serializers.ValidationError('Upload a PDF, EPUB, or DOCX book file.')
+        if uploaded_file.size > 20 * 1024 * 1024:
+            raise serializers.ValidationError('Book files must be 20 MB or smaller.')
+        return uploaded_file
 
 
 class BorrowingSerializer(serializers.ModelSerializer):

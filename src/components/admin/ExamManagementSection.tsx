@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Plus, Edit, Trash2, Search, Calendar, BookOpen, Users, CheckCircle, Clock, FileText, Send } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Calendar, BookOpen, Users, CheckCircle, Clock, FileText, LockKeyhole, UnlockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { calculateGrade, GRADING_SCALE } from "@/lib/grading";
-import { useExams, useExamSchedules, useExamMarks, useSaveExamMark, useCreateExam, useClasses, useSubjects, useStudents, EXAM_REPORT_TYPES, Exam } from "@/lib/hooks";
+import { useExams, useExamSchedules, useExamMarks, useSaveExamMark, useCreateExam, useUpdateExam, useClasses, useSubjects, useStudents, EXAM_REPORT_TYPES, Exam } from "@/lib/hooks";
 import { api, getErrorMessage } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -29,6 +29,7 @@ const ExamManagementSection = () => {
   const { data: existingMarks = [] } = useExamMarks({ exam: selectedExamId ?? undefined });
 
   const createExamMutation = useCreateExam();
+  const updateExamMutation = useUpdateExam();
   const saveExamMark = useSaveExamMark();
 
   const selectedExam = exams.find(e => e.id === selectedExamId);
@@ -119,10 +120,13 @@ const ExamManagementSection = () => {
 
   const handlePublishResults = async (exam: Exam) => {
     const resultsPublished = !exam.results_published;
+    if (resultsPublished && !window.confirm(`Unlock and publish ${exam.name} report cards to students?`)) return;
     try {
-      await api.patch(`/exams/exams/${exam.id}/`, { results_published: resultsPublished });
-      await queryClient.invalidateQueries({ queryKey: ["exams"] });
-      toast.success(resultsPublished ? "Results sent to student portals" : "Results hidden from student portals");
+      await updateExamMutation.mutateAsync({
+        id: exam.id,
+        data: { results_published: resultsPublished },
+      });
+      toast.success(resultsPublished ? "Report cards unlocked for students" : "Report cards locked from students");
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
@@ -282,6 +286,9 @@ const ExamManagementSection = () => {
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold text-foreground">{exam.name}</h3>
                       {getStatusBadge(exam.status)}
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${exam.results_published ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>
+                        {exam.results_published ? "Unlocked" : "Locked"}
+                      </span>
                     </div>
                     <p className="text-sm text-muted-foreground">{exam.term} {exam.year}</p>
                     <p className="text-xs font-medium text-primary mt-1">{EXAM_REPORT_TYPES.find(type => type.value === exam.report_type)?.label ?? "Report card"}</p>
@@ -312,10 +319,12 @@ const ExamManagementSection = () => {
                       variant={exam.results_published ? "outline" : "gold"}
                       size="sm"
                       onClick={() => void handlePublishResults(exam)}
-                      disabled={!exam.results_published && exam.status !== "completed"}
+                      disabled={updateExamMutation.isPending || (!exam.results_published && exam.status !== "completed")}
                     >
-                      <Send className="h-4 w-4 mr-1" />
-                      {exam.results_published ? "Hide from Students" : "Send to Students"}
+                      {exam.results_published
+                        ? <LockKeyhole className="h-4 w-4 mr-1" />
+                        : <UnlockKeyhole className="h-4 w-4 mr-1" />}
+                      {exam.results_published ? "Lock Report Cards" : "Unlock & Publish"}
                     </Button>
                     <Button
                       variant="outline"

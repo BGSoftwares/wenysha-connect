@@ -1,14 +1,16 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, FileSpreadsheet, Loader2, Printer } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Download, FileSpreadsheet, Loader2, LockKeyhole, Printer, UnlockKeyhole } from "lucide-react";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
-import { EXAM_REPORT_TYPES, useExamMarks, useExams, useStudents, useSubjects, type Exam, type ExamMark, type SchoolClass, type Student } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useExamMarks, useExams, useStudents, useSubjects, useUpdateExam, type Exam, type ExamMark, type SchoolClass, type Student } from "@/lib/hooks";
 import { calculateGrade } from "@/lib/grading";
 import { getErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 
 type ReportCategory = "current" | "past";
+type ReportViewMode = "class" | "subject";
 type ExportFormat = "pdf" | "csv";
 
 interface StudentReport {
@@ -42,7 +44,7 @@ const AdminReportCard = ({ report, exam, className }: { report: StudentReport; e
         <p className="admin-report-school">ABLE GOD COLLEGE</p>
         <h2>{getReportHeading(exam)}</h2>
       </div>
-      <span className="admin-report-badge">Student Portal Copy</span>
+      <span className="admin-report-badge">{exam.results_published ? "Official Report Card" : "Admin Verification Copy"}</span>
     </header>
 
     <section className="admin-report-meta">
@@ -51,7 +53,7 @@ const AdminReportCard = ({ report, exam, className }: { report: StudentReport; e
       <div><span>Class</span><strong>{className}</strong></div>
       <div><span>Term</span><strong>{exam.term} {exam.year}</strong></div>
       <div className="admin-report-exam"><span>Examination</span><strong>{getReportTypeLabel(exam)} · {exam.name}</strong></div>
-      {report.marks[0] && <div><span>Subject</span><strong>{report.marks[0].subject_name}</strong></div>}
+      {report.marks[0] && <div><span>{report.marks.length === 1 ? "Subject" : "Subjects"}</span><strong>{report.marks.length === 1 ? report.marks[0].subject_name : `${report.marks.length} subjects`}</strong></div>}
     </section>
 
     <table className="admin-report-table">
@@ -88,7 +90,9 @@ const AdminReportCard = ({ report, exam, className }: { report: StudentReport; e
         ))}
       </section>
     )}
-    <footer className="admin-report-footer">Issued {getIssueStamp(exam)} · Generated from the school portal</footer>
+    <footer className="admin-report-footer">
+      Issued {getIssueStamp(exam)} · {exam.results_published ? "Available in the student portal" : "Not yet released to the student portal"}
+    </footer>
   </article>
 );
 
@@ -100,11 +104,12 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<ReportViewMode>("class");
   const [exportFormat, setExportFormat] = useState<ExportFormat>("pdf");
   const [isExporting, setIsExporting] = useState(false);
   const [printStudentIds, setPrintStudentIds] = useState<number[]>([]);
+  const updateExam = useUpdateExam();
 
-  // A completed exam is the approval and publication boundary: learners can view its results in their portal.
   const publishedExams = useMemo(
     () => exams.filter((exam) => exam.status === "completed").sort((a, b) => b.start_date.localeCompare(a.start_date)),
     [exams],
@@ -128,16 +133,19 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const reports = useMemo<StudentReport[]>(() => {
     const marksByStudent = new Map<number, ExamMark[]>();
     const classStudentIds = new Set(students
-      .filter((student) => student.school_class === activeClassId)
+      .filter((student) => Number(student.school_class) === activeClassId)
       .map((student) => student.id));
-    marks.filter((mark) => classStudentIds.has(mark.student) && mark.subject === activeSubjectId).forEach((mark) => {
+    marks.filter((mark) => (
+      classStudentIds.has(mark.student)
+      && (viewMode === "class" || Number(mark.subject) === activeSubjectId)
+    )).forEach((mark) => {
       const studentMarks = marksByStudent.get(mark.student) ?? [];
       studentMarks.push(mark);
       marksByStudent.set(mark.student, studentMarks);
     });
 
     return students
-      .filter((student) => student.school_class === activeClassId && marksByStudent.has(student.id))
+      .filter((student) => Number(student.school_class) === activeClassId && marksByStudent.has(student.id))
       .map((student) => {
         const studentMarks = (marksByStudent.get(student.id) ?? []).sort((a, b) => a.subject_name.localeCompare(b.subject_name));
         const percentages = studentMarks.map((mark) => mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0);
@@ -148,7 +156,41 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name));
-  }, [activeClassId, activeSubjectId, marks, students]);
+  }, [activeClassId, activeSubjectId, marks, students, viewMode]);
+
+  const analysis = useMemo(() => {
+    const grades = new Map<string, number>();
+    ["A", "B", "C", "D", "E", "U"].forEach((grade) => grades.set(grade, 0));
+    const subjectTotals = new Map<number, { name: string; total: number; count: number }>();
+    reports.forEach((report) => {
+      const grade = calculateGrade(report.average).grade;
+      grades.set(grade, (grades.get(grade) ?? 0) + 1);
+      report.marks.forEach((mark) => {
+        const entry = subjectTotals.get(mark.subject) ?? { name: mark.subject_name, total: 0, count: 0 };
+        entry.total += mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0;
+        entry.count += 1;
+        subjectTotals.set(mark.subject, entry);
+      });
+    });
+    const averages = reports.map((report) => report.average);
+    const passCount = averages.filter((average) => average >= 40).length;
+    const topScorer = reports.reduce<StudentReport | null>(
+      (top, report) => !top || report.average > top.average ? report : top,
+      null,
+    );
+    return {
+      grades: Array.from(grades, ([grade, learners]) => ({ grade, learners })),
+      subjectAverages: Array.from(subjectTotals, ([subject, result]) => ({
+        subject: result.name,
+        average: result.count ? Number((result.total / result.count).toFixed(1)) : 0,
+        id: subject,
+      })).sort((a, b) => a.subject.localeCompare(b.subject)),
+      average: averages.length ? averages.reduce((sum, average) => sum + average, 0) / averages.length : 0,
+      passRate: averages.length ? (passCount / averages.length) * 100 : 0,
+      topScorer,
+      gradedLearners: averages.length,
+    };
+  }, [reports]);
 
   const changeCategory = (nextCategory: ReportCategory) => {
     setCategory(nextCategory);
@@ -156,6 +198,21 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       ? getPeriodKey(exam) === currentPeriodKey
       : getPeriodKey(exam) !== currentPeriodKey);
     setSelectedExamId(nextExam?.id ?? null);
+  };
+
+  const togglePublication = async () => {
+    if (!selectedExam) return;
+    const publish = !selectedExam.results_published;
+    if (publish && !window.confirm("Unlock and publish these verified report cards to the student portal?")) return;
+    try {
+      await updateExam.mutateAsync({
+        id: selectedExam.id,
+        data: { results_published: publish },
+      });
+      toast.success(publish ? "Report cards unlocked for students" : "Report cards locked from students");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
   };
 
   const startPrint = (studentIds: number[]) => {
@@ -186,7 +243,10 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${safeFilePart(selectedExam.term)}_${selectedExam.year}_${safeFilePart(classOptions.find((schoolClass) => schoolClass.id === activeClassId)?.name ?? "Class")}_${safeFilePart(subjectOptions.find((subject) => subject.id === activeSubjectId)?.name ?? "Subject")}_Report_Cards.csv`;
+    const subjectLabel = viewMode === "class"
+      ? "All_Subjects"
+      : subjectOptions.find((subject) => subject.id === activeSubjectId)?.name ?? "Subject";
+    anchor.download = `${safeFilePart(selectedExam.term)}_${selectedExam.year}_${safeFilePart(classOptions.find((schoolClass) => schoolClass.id === activeClassId)?.name ?? "Class")}_${safeFilePart(subjectLabel)}_Report_Cards.csv`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -222,7 +282,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       pdf.text(`Class: ${report.student.class_name || classes.find((schoolClass) => schoolClass.id === report.student.school_class)?.name || "—"}`, left, 58);
       pdf.text(`Term: ${selectedExam.term} ${selectedExam.year}`, right, 44, { align: "right" });
       pdf.text(`Exam: ${selectedExam.name}`, right, 51, { align: "right" });
-      pdf.text(`Subject: ${report.marks[0]?.subject_name ?? "—"}`, right, 58, { align: "right" });
+      pdf.text(`Subjects: ${report.marks.length}`, right, 58, { align: "right" });
 
       let y = 66;
       pdf.setFillColor(20, 43, 86);
@@ -278,10 +338,17 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       }
       pdf.setFontSize(9);
       pdf.setTextColor(110, 110, 120);
-      pdf.text(`Issued ${getIssueStamp(selectedExam)} · Available in the student portal`, left, pageHeight - 12);
+      pdf.text(
+        `Issued ${getIssueStamp(selectedExam)} · ${selectedExam.results_published ? "Available in the student portal" : "Not yet released to the student portal"}`,
+        left,
+        pageHeight - 12,
+      );
     });
 
-    pdf.save(`${safeFilePart(selectedExam.term)}_${selectedExam.year}_${safeFilePart(classOptions.find((schoolClass) => schoolClass.id === activeClassId)?.name ?? "Class")}_${safeFilePart(subjectOptions.find((subject) => subject.id === activeSubjectId)?.name ?? "Subject")}_Report_Cards.pdf`);
+    const subjectLabel = viewMode === "class"
+      ? "All_Subjects"
+      : subjectOptions.find((subject) => subject.id === activeSubjectId)?.name ?? "Subject";
+    pdf.save(`${safeFilePart(selectedExam.term)}_${selectedExam.year}_${safeFilePart(classOptions.find((schoolClass) => schoolClass.id === activeClassId)?.name ?? "Class")}_${safeFilePart(subjectLabel)}_Report_Cards.pdf`);
   };
 
   const generateReport = async () => {
@@ -338,20 +405,48 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
               {classOptions.length === 0 && <option value="">No classes</option>}
               {classOptions.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>)}
             </select>
-            <select
-              aria-label="Report card subject"
-              value={activeSubjectId ?? ""}
-              onChange={(event) => setSelectedSubjectId(event.target.value ? Number(event.target.value) : null)}
-              disabled={!selectedExam || subjectOptions.length === 0}
-              className="min-h-10 max-w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground disabled:opacity-60"
-            >
-              {subjectOptions.length === 0 && <option value="">No subjects</option>}
-              {subjectOptions.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
-            </select>
+            {viewMode === "subject" && (
+              <select
+                aria-label="Report card subject"
+                value={activeSubjectId ?? ""}
+                onChange={(event) => setSelectedSubjectId(event.target.value ? Number(event.target.value) : null)}
+                disabled={!selectedExam || subjectOptions.length === 0}
+                className="min-h-10 max-w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground disabled:opacity-60"
+              >
+                {subjectOptions.length === 0 && <option value="">No subjects</option>}
+                {subjectOptions.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+              </select>
+            )}
           </div>
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-4">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Report card view mode">
+            <Button size="sm" variant={viewMode === "class" ? "default" : "outline"} onClick={() => setViewMode("class")}>
+              View by Class
+            </Button>
+            <Button size="sm" variant={viewMode === "subject" ? "default" : "outline"} onClick={() => setViewMode("subject")}>
+              View by Subject
+            </Button>
+          </div>
+          {selectedExam && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${selectedExam.results_published ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>
+                {selectedExam.results_published ? "Unlocked · visible to students" : "Locked · hidden from students"}
+              </span>
+              <Button
+                size="sm"
+                variant={selectedExam.results_published ? "outline" : "gold"}
+                onClick={() => void togglePublication()}
+                disabled={marks.length === 0 || loadingMarks || updateExam.isPending}
+              >
+                {selectedExam.results_published
+                  ? <LockKeyhole className="mr-2 h-4 w-4" />
+                  : <UnlockKeyhole className="mr-2 h-4 w-4" />}
+                {selectedExam.results_published ? "Lock Report Cards" : "Unlock & Publish"}
+              </Button>
+            </div>
+          )}
           <label htmlFor="report-export-format" className="text-sm font-medium text-foreground">Generate report as</label>
           <select
             id="report-export-format"
@@ -369,19 +464,85 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
           <Button variant="outline" onClick={() => startPrint(reports.map((report) => report.student.id))} disabled={reports.length === 0 || loadingMarks}>
             <Printer className="mr-2 h-4 w-4" /> Print All ({reports.length})
           </Button>
-          <span className="ml-auto text-sm text-muted-foreground">Selected class and subject · {reports.length} learner{reports.length === 1 ? "" : "s"}</span>
+          <span className="ml-auto text-sm text-muted-foreground">
+            {viewMode === "class" ? "All subjects" : "Selected subject"} · {reports.length} learner{reports.length === 1 ? "" : "s"}
+          </span>
         </div>
       </section>
+
+      {reports.length > 0 && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-elegant">
+            <h3 className="font-semibold text-foreground">Class performance</h3>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg bg-secondary/40 p-3">
+                <p className="text-xs text-muted-foreground">Class average</p>
+                <p className="text-lg font-bold">{analysis.average.toFixed(1)}%</p>
+              </div>
+              <div className="rounded-lg bg-secondary/40 p-3">
+                <p className="text-xs text-muted-foreground">Pass rate (≥ 40%)</p>
+                <p className="text-lg font-bold">{analysis.passRate.toFixed(0)}%</p>
+              </div>
+              <div className="rounded-lg bg-secondary/40 p-3">
+                <p className="text-xs text-muted-foreground">Top scorer</p>
+                <p className="truncate text-sm font-bold">{analysis.topScorer?.student.name ?? "—"}</p>
+              </div>
+              <div className="rounded-lg bg-secondary/40 p-3">
+                <p className="text-xs text-muted-foreground">Graded learners</p>
+                <p className="text-lg font-bold">{analysis.gradedLearners}</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-elegant">
+            <h3 className="font-semibold text-foreground">Grade distribution</h3>
+            <div className="mt-3 h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analysis.grades}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="grade" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="learners" name="Learners" fill="#b3126a" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {analysis.grades.map(({ grade, learners }) => (
+                <span key={grade}>{grade}: {learners} ({((learners / analysis.gradedLearners) * 100).toFixed(0)}%)</span>
+              ))}
+            </div>
+          </div>
+          {viewMode === "class" && (
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-elegant lg:col-span-2">
+              <h3 className="font-semibold text-foreground">Subject average comparison</h3>
+              <div className="mt-3 h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analysis.subjectAverages} layout="vertical" margin={{ left: 16, right: 24 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" domain={[0, 100]} unit="%" />
+                    <YAxis type="category" dataKey="subject" width={120} />
+                    <Tooltip formatter={(value) => [`${value}%`, "Average"]} />
+                    <Bar dataKey="average" name="Average" fill="#17234d" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-elegant sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="font-semibold text-foreground">
               {selectedExam
-                ? `${getExamLabel(selectedExam)} · ${classOptions.find((schoolClass) => schoolClass.id === activeClassId)?.name ?? "Select class"} · ${subjectOptions.find((subject) => subject.id === activeSubjectId)?.name ?? "Select subject"}`
+                ? `${getExamLabel(selectedExam)} · ${classOptions.find((schoolClass) => schoolClass.id === activeClassId)?.name ?? "Select class"}${viewMode === "subject" ? ` · ${subjectOptions.find((subject) => subject.id === activeSubjectId)?.name ?? "Select subject"}` : " · All subjects"}`
                 : "Report cards by class and subject"}
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground">This view contains marks for the selected class and subject. Printed learner reports start on separate pages.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {viewMode === "class" ? "Full student report cards across all exam subjects." : "Student results for the selected subject."}
+              {" "}Printed learner reports start on separate pages.
+            </p>
           </div>
         </div>
 

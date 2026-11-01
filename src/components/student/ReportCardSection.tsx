@@ -14,6 +14,7 @@ interface SubjectResult {
   subject: string;
   marks: number;
   scored: number;
+  comment: string;
 }
 
 export interface ReportCardSectionProps {
@@ -42,7 +43,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const { data: invoices = [] } = useInvoices({ student: studentId });
   const { data: allMarks = [], isLoading: isLoadingMarks } = useExamMarks({ student: studentId });
   const { data: attendanceRecords = [] } = useAttendanceRecords({ student: studentId });
-  const { data: exams = [], isLoading: isLoadingExams } = useExams(undefined, { refetchInterval: 30000 });
+  const { data: exams = [], isLoading: isLoadingExams } = useExams(undefined, { refetchInterval: 5000 });
   const availableExams = exams
     .filter(exam => allMarks.some(mark => mark.exam === exam.id))
     .sort((first, second) => second.start_date.localeCompare(first.start_date));
@@ -78,7 +79,8 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const results: SubjectResult[] = marks.map(m => ({
     subject: m.subject_name,
     marks: m.total_marks,
-    scored: Number(m.scored)
+    scored: Number(m.scored),
+    comment: m.comment?.trim() ?? "",
   })).sort((first, second) => first.subject.localeCompare(second.subject));
 
   const handleDownloadPdf = async () => {
@@ -155,7 +157,11 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     ? results.reduce((sum, result) => sum + getPercentage(result), 0) / results.length
     : 0;
 
-  const teacherComment = getTeacherComment(averagePercentage);
+  const subjectComments = results
+    .filter(result => result.comment)
+    .map(result => `${result.subject}: ${result.comment}`)
+    .join(" · ");
+  const teacherComment = subjectComments || getTeacherComment(averagePercentage);
   const principalComment = getPrincipalComment(averagePercentage);
   const attendancePeriod = selectedExam ? getReportSchoolDays(selectedExam, issuedAt) : null;
   const attendanceInPeriod = attendanceRecords.filter(record =>
@@ -423,7 +429,9 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
                           {gradeInfo.grade}
                         </span>
                       </td>
-                      <td className="px-2 py-1.5 text-[#777484]">{gradeInfo.meaning}</td>
+                      <td className="px-2 py-1.5 text-[#777484]" title={result.comment || undefined}>
+                        {result.comment || gradeInfo.meaning}
+                      </td>
                     </tr>
                   );
                 })}
@@ -464,7 +472,9 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl border border-[#eadde5] bg-white px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">Teacher&apos;s comment</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">
+                {subjectComments ? "Teacher subject comments" : "Teacher's comment"}
+              </p>
               <p className="mt-1 text-[10px] italic leading-relaxed text-[#454255]">{teacherComment}</p>
             </div>
             <div className="rounded-xl border border-[#edcfdf] bg-[#fff3f8] px-3 py-2.5">

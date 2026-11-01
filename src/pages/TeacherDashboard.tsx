@@ -52,6 +52,7 @@ import {
   useAttendanceRecords,
   useUpdateAttendance,
   useTimetable,
+  useBooks,
 } from "@/lib/hooks";
 import type { ExamReportType } from "@/lib/hooks";
 import { toast } from "sonner";
@@ -106,6 +107,7 @@ const TeacherDashboard = () => {
   const { data: students = [] } = useStudents();
   const { data: classes = [] } = useClasses();
   const { data: allSubjects = [] } = useSubjects();
+  const { data: libraryBooks = [], isLoading: isLoadingLibraryBooks, error: libraryBooksError } = useBooks();
 
   const { data: exams = [], isLoading: isLoadingExams, error: examsError } = useExams();
   const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
@@ -875,13 +877,40 @@ const TeacherDashboard = () => {
   );
 
   const renderContent = () => (
-    <LearningMaterialsSection
-      classes={uniqueClasses}
-      subjects={contentSubjects.length > 0 ? contentSubjects : [{ id: 0, name: "General" }]}
-      allowedPairs={contentPairs}
-      uploadedBy={teacher ? `Teacher ${teacher.name}` : "Teacher"}
-      emptyHint="No notes or materials have been uploaded yet. Choose a file from this computer to share with the class."
-    />
+    <div className="space-y-6">
+      <LearningMaterialsSection
+        classes={uniqueClasses}
+        subjects={contentSubjects.length > 0 ? contentSubjects : [{ id: 0, name: "General" }]}
+        allowedPairs={contentPairs}
+        uploadedBy={teacher ? `Teacher ${teacher.name}` : "Teacher"}
+        emptyHint="No notes or materials have been uploaded yet. Choose a file from this computer to share with the class."
+      />
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="font-heading text-lg font-bold text-foreground">School library books</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Browse the digital books shared by the school administrator.</p>
+        {isLoadingLibraryBooks ? (
+          <p className="mt-4 text-sm text-muted-foreground">Loading books…</p>
+        ) : libraryBooksError ? (
+          <p role="alert" className="mt-4 text-sm text-destructive">Could not load library books: {getErrorMessage(libraryBooksError)}</p>
+        ) : libraryBooks.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">No books have been added to the library yet.</p>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {libraryBooks.map((book) => (
+              <article key={book.id} className="rounded-lg border border-border p-3">
+                <p className="font-medium text-foreground">{book.title}</p>
+                <p className="text-sm text-muted-foreground">{book.author}{book.category ? ` · ${book.category}` : ""}</p>
+                {book.digital_file_url && (
+                  <a className="mt-2 inline-block text-sm text-primary underline underline-offset-2" href={book.digital_file_url} target="_blank" rel="noreferrer">
+                    Open or download digital book
+                  </a>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 
   const renderAssignments = () => <LearningAssignmentsSection allocations={allocations} />;

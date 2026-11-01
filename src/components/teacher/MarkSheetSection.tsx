@@ -63,7 +63,9 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
           student: student.id,
           total_marks: 100,
           scored: Number(rows[student.id].score),
-          comment: teacherComments[student.id]?.trim() || rows[student.id].comment.trim(),
+          comment: teacherComments[student.id] !== undefined
+            ? teacherComments[student.id].trim()
+            : rows[student.id].comment.trim(),
         })),
       });
       toast.success(`Saved marks for ${entered.length} learners`);

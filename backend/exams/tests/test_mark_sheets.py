@@ -62,6 +62,25 @@ class MarkSheetTests(APITestCase):
         self.assertEqual(r.status_code, 201, r.content)
         self.assertEqual(MarkSubmission.objects.count(), 1)
 
+    def test_admin_can_filter_marks_to_submitted_class(self):
+        other_class = SchoolClass.objects.create(name='Form 2B')
+        other_student = Student.objects.create(student_id='S2', name='Other Learner', school_class=other_class)
+        ExamMark.objects.create(exam=self.exam, student=self.student, subject=self.subject, total_marks=100, scored=72)
+        ExamMark.objects.create(exam=self.exam, student=other_student, subject=self.subject, total_marks=100, scored=85)
+
+        response = self.client.get('/api/exams/exam-marks/', {
+            'exam': self.exam.pk,
+            'subject': self.subject.pk,
+            'school_class': self.cls.pk,
+        })
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual([mark['student'] for mark in response.data['results']], [self.student.pk])
+
+    def test_invalid_mark_class_filter_is_reported(self):
+        response = self.client.get('/api/exams/exam-marks/', {'school_class': 'not-a-class'})
+        self.assertEqual(response.status_code, 400, response.data)
+
     def test_admin_assigns_class_teacher(self):
         r = self.client.patch(f'/api/school/classes/{self.cls.id}/', {'class_teacher': self.teacher.id}, format='json')
         self.assertEqual(r.status_code, 200, r.content)
@@ -185,7 +204,7 @@ class ReportTypeIsolationTests(APITestCase):
 
         unpublished_exam = Exam.objects.create(
             name='Unpublished', report_type='monthly_report_card', term='6', year='2026',
-            start_date=date.today(), end_date=date.today(), status='completed', results_published=False,
+            start_date=date.today(), end_date=date.today(), status='ongoing', results_published=False,
         )
         unpublished_exam.classes.add(self.school_class)
         unpublished_exam.subjects.add(self.subject)
@@ -197,11 +216,105 @@ class ReportTypeIsolationTests(APITestCase):
             exam=unpublished_exam, student=self.other_student, subject=self.subject,
             total_marks=100, scored=85,
         )
+        # When exam report card is locked (results_published=False), student cannot see it
         marks_response = self.client.get('/api/exams/exam-marks/')
-        self.assertEqual(len(marks_response.data['results']), 6)
-        self.assertTrue(all(mark['student'] == self.student.pk for mark in marks_response.data['results']))
-        rankings_response = self.client.get('/api/exams/exam-rankings/', {
-            'exam': unpublished_exam.id,
-            'student': self.student.id,
+        self.assertEqual(len(marks_response.data['results']), 5)
+
+        # When admin unlocks and publishes report cards, student sees their own marks
+        self.client.force_authenticate(user=self.teacher_user)
+        publish_response = self.client.patch(
+            f'/api/exams/exams/{unpublished_exam.pk}/',
+            {'results_published': True},
+            format='json',
+        )
+        self.assertEqual(publish_response.status_code, 403)
+
+        admin = User.objects.create_superuser('report-admin', 'admin@example.test', 'admin-pass-123')
+        self.client.force_authenticate(user=admin)
+        publish_response = self.client.patch(
+            f'/api/exams/exams/{unpublished_exam.pk}/',
+            {'results_published': True},
+            format='json',
+        )
+        self.assertEqual(publish_response.status_code, 400)
+        unpublished_exam.status = 'completed'
+        unpublished_exam.save(update_fields=['status'])
+        publish_response = self.client.patch(
+            f'/api/exams/exams/{unpublished_exam.pk}/',
+            {'results_published': True},
+            format='json',
+        )
+        self.assertEqual(publish_response.status_code, 200, publish_response.data)
+        self.client.force_authenticate(user=self.student.user)
+        unlocked_response = self.client.get('/api/exams/exam-marks/')
+        self.assertEqual(len(unlocked_response.data['results']), 6)
+        self.assertTrue(all(mark['student'] == self.student.pk for mark in unlocked_response.data['results']))
+
+    def test_published_student_report_includes_all_subjects_and_updated_position(self):
+        exam = self.exams[0]
+        science = Subject.objects.create(name='Science', department='Sciences')
+        exam.subjects.add(science)
+        TeacherSubjectClass.objects.create(
+            teacher=self.teacher,
+            subject=science,
+            school_class=self.school_class,
+        )
+
+        self.client.force_authenticate(user=self.teacher_user)
+        first_subject_response = self.client.post('/api/exams/mark-sheets/', {
+            'exam': exam.pk,
+            'school_class': self.school_class.pk,
+            'subject': self.subject.pk,
+            'marks': [
+                {'student': self.student.pk, 'total_marks': 100, 'scored': 60, 'comment': 'Math comment'},
+                {'student': self.other_student.pk, 'total_marks': 100, 'scored': 90, 'comment': 'Peer math'},
+            ],
+        }, format='json')
+        self.assertEqual(first_subject_response.status_code, 200, first_subject_response.data)
+
+        admin = User.objects.create_superuser('report-admin2', 'admin2@example.test', 'admin-pass-123')
+        self.client.force_authenticate(user=admin)
+        initial_ranking = self.client.get('/api/exams/exam-rankings/', {
+            'exam': exam.pk, 'student': self.student.pk,
         })
-        self.assertEqual(rankings_response.status_code, 403)
+        self.assertEqual(initial_ranking.data['class_position'], 2)
+
+        self.client.force_authenticate(user=self.teacher_user)
+        second_subject_response = self.client.post('/api/exams/mark-sheets/', {
+            'exam': exam.pk,
+            'school_class': self.school_class.pk,
+            'subject': science.pk,
+            'marks': [
+                {'student': self.student.pk, 'total_marks': 100, 'scored': 100, 'comment': 'Science comment'},
+                {'student': self.other_student.pk, 'total_marks': 100, 'scored': 10, 'comment': 'Peer science'},
+            ],
+        }, format='json')
+        self.assertEqual(second_subject_response.status_code, 200, second_subject_response.data)
+
+        self.client.force_authenticate(user=admin)
+        updated_ranking = self.client.get('/api/exams/exam-rankings/', {
+            'exam': exam.pk, 'student': self.student.pk,
+        })
+        self.assertEqual(updated_ranking.data['class_position'], 1)
+
+        unlock_response = self.client.patch(
+            f'/api/exams/exams/{exam.pk}/',
+            {'status': 'completed', 'results_published': True},
+            format='json',
+        )
+        self.assertEqual(unlock_response.status_code, 200, unlock_response.data)
+
+        self.client.force_authenticate(user=self.student.user)
+        report_marks = self.client.get('/api/exams/exam-marks/', {'exam': exam.pk})
+        self.assertEqual(report_marks.status_code, 200, report_marks.data)
+        self.assertEqual(len(report_marks.data['results']), 2)
+        self.assertEqual({mark['subject'] for mark in report_marks.data['results']}, {self.subject.pk, science.pk})
+        self.assertEqual(
+            {mark['comment'] for mark in report_marks.data['results']},
+            {'Math comment', 'Science comment'},
+        )
+        student_ranking = self.client.get('/api/exams/exam-rankings/', {
+            'exam': exam.pk, 'student': self.student.pk,
+        })
+        self.assertEqual(student_ranking.status_code, 200, student_ranking.data)
+        self.assertEqual(student_ranking.data['class_position'], 1)

@@ -356,6 +356,7 @@ export interface Book {
     category?: string;
     copies: number;
     available: number;
+    digital_file_url?: string | null;
 }
 
 export interface Borrowing {
@@ -401,8 +402,25 @@ export const useBorrowBook = () => {
 export const useSaveBook = () => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: async (book: Partial<Book>) =>
-            book.id ? api.patch<Book>(`/library/books/${book.id}/`, book) : api.post<Book>("/library/books/", book),
+        mutationFn: async (book: Partial<Book> & { digital_file?: File | null }) => {
+            const fields = { ...book };
+            const digital_file = fields.digital_file;
+            delete fields.digital_file;
+            delete fields.digital_file_url;
+            if (digital_file) {
+                const formData = new FormData();
+                Object.entries(fields).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null) formData.append(key, String(value));
+                });
+                formData.append("digital_file", digital_file);
+                return book.id
+                    ? api.patchForm<Book>(`/library/books/${book.id}/`, formData)
+                    : api.postForm<Book>("/library/books/", formData);
+            }
+            return book.id
+                ? api.patch<Book>(`/library/books/${book.id}/`, fields)
+                : api.post<Book>("/library/books/", fields);
+        },
         onSuccess: () => invalidateLibrary(qc),
     });
 };
@@ -652,7 +670,13 @@ export const useUpdateExam = () => {
         mutationFn: async ({ id, data }: { id: number; data: Partial<Exam> }) => {
             return await api.patch<Exam>(`/exams/exams/${id}/`, data);
         },
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["exams"] }),
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["exams"] }),
+                queryClient.invalidateQueries({ queryKey: ["exam-marks"] }),
+                queryClient.invalidateQueries({ queryKey: ["exam-ranking"] }),
+            ]);
+        },
     });
 };
 
@@ -666,12 +690,12 @@ export const useExamSchedules = (params?: { exam?: number; subject?: number; sch
     });
 };
 
-export const useExamMarks = (params?: { exam?: number; student?: number; subject?: number }) => {
+export const useExamMarks = (params?: { exam?: number; student?: number; subject?: number; school_class?: number }) => {
     return useQuery({
         queryKey: ["exam-marks", params],
         queryFn: () => fetchAllPages<ExamMark>("/exams/exam-marks/", toQueryParams(params)),
         enabled: !!params?.student || !!params?.exam,
-        refetchInterval: params?.student ? 30000 : false,
+        refetchInterval: params?.student ? 5000 : false,
     });
 };
 
@@ -683,6 +707,7 @@ export const useExamRanking = (exam?: number, student?: number) => {
             student: String(student),
         }),
         enabled: !!exam && !!student,
+        refetchInterval: exam && student ? 5000 : false,
     });
 };
 
@@ -699,7 +724,12 @@ export const useSaveExamMark = () => {
             if (marks[0]) return api.patch<ExamMark>(`/exams/exam-marks/${marks[0].id}/`, data);
             return api.post<ExamMark>("/exams/exam-marks/", data);
         },
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["exam-marks"] }),
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["exam-marks"] }),
+                queryClient.invalidateQueries({ queryKey: ["exam-ranking"] }),
+            ]);
+        },
     });
 };
 
@@ -712,7 +742,12 @@ export const useSaveExamMarkSheet = () => {
             subject: number;
             marks: Array<{ student: number; total_marks: number; scored: number; comment: string }>;
         }) => api.post<ExamMark[]>('/exams/mark-sheets/', data),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['exam-marks'] }),
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['exam-marks'] }),
+                queryClient.invalidateQueries({ queryKey: ['exam-ranking'] }),
+            ]);
+        },
     });
 };
 
@@ -722,8 +757,11 @@ export const useUpdateExamMark = () => {
         mutationFn: async ({ id, data }: { id: number; data: Partial<ExamMark> }) => {
             return await api.patch<ExamMark>(`/exams/exam-marks/${id}/`, data);
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["exam-marks"] });
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["exam-marks"] }),
+                queryClient.invalidateQueries({ queryKey: ["exam-ranking"] }),
+            ]);
         },
     });
 };
@@ -1344,4 +1382,3 @@ export const useReviewLearningSubmission = () => {
         },
     });
 };
-

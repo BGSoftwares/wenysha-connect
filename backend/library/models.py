@@ -9,6 +9,7 @@ class Book(models.Model):
     category = models.CharField(max_length=64, blank=True)
     copies = models.PositiveIntegerField(default=1)
     available = models.PositiveIntegerField(default=1)  # denormalized
+    digital_file = models.FileField(upload_to='library/books/', blank=True, null=True)
 
     def __str__(self):
         return self.title
