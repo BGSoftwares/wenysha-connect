@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Exam, ExamSchedule, ExamMark
+from .models import Exam, ExamSchedule, ExamMark, ReportCardReview
 
 
 @admin.register(Exam)
@@ -15,3 +15,10 @@ class ExamScheduleAdmin(admin.ModelAdmin):
 @admin.register(ExamMark)
 class ExamMarkAdmin(admin.ModelAdmin):
     list_display = ('exam', 'student', 'subject', 'scored', 'total_marks')
+
+
+@admin.register(ReportCardReview)
+class ReportCardReviewAdmin(admin.ModelAdmin):
+    list_display = ('exam', 'student', 'class_teacher_submitted_at', 'principal_reviewed_at')
+    list_filter = ('exam', 'class_teacher_submitted_at', 'principal_reviewed_at')
+    search_fields = ('student__name', 'student__student_id', 'exam__name')

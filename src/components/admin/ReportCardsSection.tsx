@@ -4,12 +4,13 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { Download, FileSpreadsheet, Loader2, LockKeyhole, Printer, UnlockKeyhole } from "lucide-react";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
-import { EXAM_REPORT_TYPES, useAttendanceRecords, useAttendanceReportSnapshots, useExamMarks, useExams, useRegenerateAttendanceSnapshot, useStudents, useSubjects, useUpdateExam, type Exam, type ExamMark, type SchoolClass, type Student } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useAttendanceRecords, useAttendanceReportSnapshots, useExamMarks, useExams, useRegenerateAttendanceSnapshot, useReportCardReviews, useStudents, useSubjects, useUpdateExam, useUpdateReportCardReview, type Exam, type ExamMark, type ReportCardReview, type SchoolClass, type Student } from "@/lib/hooks";
 import { calculateGrade } from "@/lib/grading";
 import { getErrorMessage } from "@/lib/api";
 import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
 import { getReportAttendance, mapAttendanceSnapshot, type ReportAttendanceSummary } from "@/lib/reportAttendance";
 import { toast } from "sonner";
+import { getPrincipalComment, PRINCIPAL_COMMENT_LIBRARY } from "@/lib/reportComments";
 
 type ReportCategory = "current" | "past";
 type ReportViewMode = "class" | "subject";
@@ -21,6 +22,7 @@ interface StudentReport {
   average: number;
   attendance: ReportAttendanceSummary;
   attendanceSnapshotId?: number;
+  review?: ReportCardReview;
 }
 
 const getPeriodKey = (exam: Exam) => `${exam.year.trim()}-${exam.term.trim().toLowerCase()}`;
@@ -97,10 +99,22 @@ const AdminReportCard = ({ report, exam, className }: { report: StudentReport; e
     </section>
     {report.marks.some((mark) => mark.comment?.trim()) && (
       <section className="admin-report-comments">
-        <h3>Teacher comments</h3>
+        <h3>Teacher subject comments</h3>
         {report.marks.filter((mark) => mark.comment?.trim()).map((mark) => (
           <p key={mark.id}><strong>{mark.subject_name}:</strong> {mark.comment}</p>
         ))}
+      </section>
+    )}
+    {report.review?.class_teacher_comment && (
+      <section className="admin-report-comments">
+        <h3>Class teacher comment</h3>
+        <p>{report.review.class_teacher_comment}</p>
+      </section>
+    )}
+    {report.review?.principal_comment && (
+      <section className="admin-report-comments">
+        <h3>Principal&apos;s overall comment</h3>
+        <p>{report.review.principal_comment}</p>
       </section>
     )}
     <footer className="admin-report-footer">
@@ -122,8 +136,10 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const [exportFormat, setExportFormat] = useState<ExportFormat>("pdf");
   const [isExporting, setIsExporting] = useState(false);
   const [printStudentIds, setPrintStudentIds] = useState<number[]>([]);
+  const [principalCommentDrafts, setPrincipalCommentDrafts] = useState<Record<number, string>>({});
   const updateExam = useUpdateExam();
   const regenerateSnapshot = useRegenerateAttendanceSnapshot();
+  const updateReportReview = useUpdateReportCardReview();
 
   const reportExams = useMemo(
     () => exams.slice().sort((a, b) => b.start_date.localeCompare(a.start_date)),
@@ -137,10 +153,14 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const selectedExam = visibleExams.find((exam) => exam.id === selectedExamId) ?? visibleExams[0];
   const { data: attendanceSnapshots = [] } = useAttendanceReportSnapshots(selectedExam?.id);
   const { data: marks = [], isLoading: loadingMarks, error: marksError } = useExamMarks({ exam: selectedExam?.id });
-  const classOptions = classes.filter((schoolClass) => selectedExam?.classes.includes(schoolClass.id));
+  const { data: reportReviews = [], isLoading: loadingReportReviews, error: reportReviewsError } = useReportCardReviews(selectedExam?.id);
+  const classOptions = classes;
+  const defaultClassId = classOptions.find((schoolClass) => selectedExam?.classes.includes(schoolClass.id))?.id
+    ?? classOptions[0]?.id
+    ?? null;
   const activeClassId = classOptions.some((schoolClass) => schoolClass.id === selectedClassId)
     ? selectedClassId
-    : classOptions[0]?.id ?? null;
+    : defaultClassId;
   const subjectOptions = subjects.filter((subject) => selectedExam?.subjects.includes(subject.id));
   const activeSubjectId = subjectOptions.some((subject) => subject.id === selectedSubjectId)
     ? selectedSubjectId
@@ -148,6 +168,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
 
   const reports = useMemo<StudentReport[]>(() => {
     const snapshotByStudent = new Map(attendanceSnapshots.map((snapshot) => [snapshot.student, snapshot]));
+    const reviewsByStudent = new Map(reportReviews.map((review) => [review.student, review]));
     const marksByStudent = new Map<number, ExamMark[]>();
     const classStudentIds = new Set(students
       .filter((student) => Number(student.school_class) === activeClassId)
@@ -171,10 +192,13 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
           student,
           marks: studentMarks,
           average: percentages.length ? percentages.reduce((sum, percentage) => sum + percentage, 0) / percentages.length : 0,
-          attendance: snapshot
+          attendance: snapshot && !snapshot.is_out_of_date && snapshot.summary.total_school_days > 0
             ? mapAttendanceSnapshot(snapshot.summary, snapshot.is_out_of_date)
             : selectedExam
-              ? getReportAttendance(selectedExam, student.id, attendanceRecords)
+              ? {
+                ...getReportAttendance(selectedExam, student.id, attendanceRecords),
+                isOutOfDate: Boolean(snapshot?.is_out_of_date),
+              }
             : {
               totalDays: 0,
               schoolDays: 0,
@@ -191,10 +215,11 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
               isOutOfDate: false,
             },
           attendanceSnapshotId: snapshot?.id,
+          review: reviewsByStudent.get(student.id),
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name));
-  }, [activeClassId, activeSubjectId, attendanceRecords, attendanceSnapshots, marks, selectedExam, students, viewMode]);
+  }, [activeClassId, activeSubjectId, attendanceRecords, attendanceSnapshots, marks, reportReviews, selectedExam, students, viewMode]);
 
   const analysis = useMemo(() => {
     const grades = new Map<string, number>();
@@ -242,6 +267,17 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
     if (!selectedExam) return;
     const publish = !selectedExam.results_published;
     if (publish && !window.confirm("Unlock and publish these verified report cards to the student portal?")) return;
+    if (publish && reportReviews.length > 0) {
+      const reviewsByStudent = new Map(reportReviews.map(review => [review.student, review]));
+      const learnersAwaitingReview = Array.from(new Set(marks.map(mark => mark.student))).filter(studentId => {
+        const review = reviewsByStudent.get(studentId);
+        return !review?.class_teacher_submitted_at || !review.principal_comment.trim();
+      });
+      if (learnersAwaitingReview.length > 0) {
+        toast.error(`${learnersAwaitingReview.length} marked learner report(s) still need class-teacher submission and principal comments.`);
+        return;
+      }
+    }
     try {
       await updateExam.mutateAsync({
         id: selectedExam.id,
@@ -273,11 +309,11 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
 
   const downloadCsv = () => {
     if (!selectedExam || reports.length === 0) return;
-    const headers = ["Report Type", "Student", "Student ID", "Class", "Term", "Year", "Examination", "Subject", "Score", "Out of", "Percentage", "Grade", "Teacher Comment", "Attendance marked days", "Present", "Unexcused absent", "Excused", "Late", "Sick bay", "Suspended", "Absent dates"];
+    const headers = ["Report Type", "Student", "Student ID", "Class", "Term", "Year", "Examination", "Subject", "Score", "Out of", "Percentage", "Grade", "Teacher Subject Comment", "Class Teacher Comment", "Principal Comment", "Attendance marked days", "Present", "Unexcused absent", "Excused", "Late", "Sick bay", "Suspended", "Absent dates"];
     const rows = reports.flatMap((report) => report.marks.map((mark) => {
       const percentage = mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0;
       const className = report.student.class_name || classes.find((schoolClass) => schoolClass.id === report.student.school_class)?.name || "";
-      return [getReportTypeLabel(selectedExam), report.student.name, report.student.student_id, className, selectedExam.term, selectedExam.year, getExamDisplayName(selectedExam), mark.subject_name, mark.scored, mark.total_marks, `${percentage.toFixed(1)}%`, calculateGrade(percentage).grade, mark.comment || "", report.attendance.totalDays, report.attendance.present, report.attendance.absent, report.attendance.excused, report.attendance.late, report.attendance.sickBay, report.attendance.suspended, report.attendance.absentDates.join(", ")];
+      return [getReportTypeLabel(selectedExam), report.student.name, report.student.student_id, className, selectedExam.term, selectedExam.year, getExamDisplayName(selectedExam), mark.subject_name, mark.scored, mark.total_marks, `${percentage.toFixed(1)}%`, calculateGrade(percentage).grade, mark.comment || "", report.review?.class_teacher_comment || "", report.review?.principal_comment || "", report.attendance.totalDays, report.attendance.present, report.attendance.absent, report.attendance.excused, report.attendance.late, report.attendance.sickBay, report.attendance.suspended, report.attendance.absentDates.join(", ")];
     }));
     const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
     const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
@@ -375,17 +411,22 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       pdf.text(absentDateLines, left, y);
       y += absentDateLines.length * 4 + 4;
       const comments = report.marks.filter((mark) => mark.comment?.trim());
-      if (comments.length && y < pageHeight - 30) {
+      const reportComments = [
+        ...comments.map((mark) => [`${mark.subject_name}: ${mark.comment}`, "Teacher subject comment"] as const),
+        ...(report.review?.class_teacher_comment ? [[report.review.class_teacher_comment, "Class teacher comment"] as const] : []),
+        ...(report.review?.principal_comment ? [[report.review.principal_comment, "Principal comment"] as const] : []),
+      ];
+      if (reportComments.length) {
         pdf.setFontSize(9);
-        pdf.text("Teacher comments", left, y);
-        y += 5;
-        pdf.setFont("helvetica", "normal");
-        comments.slice(0, 4).forEach((mark) => {
-          const comment = pdf.splitTextToSize(`${mark.subject_name}: ${mark.comment}`, right - left);
-          if (y + comment.length * 4 < pageHeight - 20) {
-            pdf.text(comment, left, y);
-            y += comment.length * 4 + 2;
+        reportComments.forEach(([text, label]) => {
+          const lines = pdf.splitTextToSize(`${label}: ${text}`, right - left);
+          if (y + lines.length * 4 >= pageHeight - 20) {
+            pdf.addPage();
+            y = 18;
           }
+          pdf.setFont("helvetica", "normal");
+          pdf.text(lines, left, y);
+          y += lines.length * 4 + 2;
         });
       }
       pdf.setFontSize(9);
@@ -440,7 +481,10 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
             <select
               aria-label="Report card examination"
               value={selectedExam?.id ?? ""}
-              onChange={(event) => setSelectedExamId(Number(event.target.value))}
+              onChange={(event) => {
+                setSelectedExamId(Number(event.target.value));
+                setSelectedClassId(null);
+              }}
               disabled={visibleExams.length === 0}
               className="min-h-10 max-w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground disabled:opacity-60"
             >
@@ -492,7 +536,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
                 size="sm"
                 variant={selectedExam.results_published ? "outline" : "gold"}
                 onClick={() => void togglePublication()}
-                disabled={marks.length === 0 || loadingMarks || updateExam.isPending}
+                disabled={marks.length === 0 || loadingMarks || loadingReportReviews || updateExam.isPending}
               >
                 {selectedExam.results_published
                   ? <LockKeyhole className="mr-2 h-4 w-4" />
@@ -600,25 +644,102 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
           </div>
         </div>
 
-        {(loadingStudents || loadingExams || loadingMarks || loadingSubjects) ? (
+        {(loadingStudents || loadingExams || loadingMarks || loadingSubjects || loadingReportReviews) ? (
           <div className="flex items-center justify-center gap-3 py-12 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Loading published report cards…</div>
-        ) : (studentsError || examsError || marksError) ? (
-          <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">Could not load report cards: {getErrorMessage(studentsError || examsError || marksError)}</div>
+        ) : (studentsError || examsError || marksError || reportReviewsError) ? (
+          <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">Could not load report cards: {getErrorMessage(studentsError || examsError || marksError || reportReviewsError)}</div>
         ) : !selectedExam ? (
           <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">There are no completed exams yet. Complete and approve an exam to publish results to student portals.</div>
         ) : reports.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">No marks have been recorded for this class and subject yet.</div>
         ) : (
           <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border p-3">
+              <p className="text-sm text-muted-foreground">
+                Review submitted class-teacher reports, add the principal&apos;s comment to each learner, then publish the verified report.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!reports.some(report => report.review?.class_teacher_submitted_at)}
+                onClick={() => setPrincipalCommentDrafts(current => ({
+                  ...current,
+                  ...Object.fromEntries(reports
+                    .filter(report => report.review?.class_teacher_submitted_at)
+                    .map(report => [report.student.id, getPrincipalComment(report.average)])),
+                }))}
+              >
+                Apply built-in comments
+              </Button>
+            </div>
             {reports.map((report) => (
               <article key={report.student.id} className="flex flex-col gap-3 rounded-xl border border-border bg-secondary/20 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{report.student.name}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{report.student.student_id || "No student ID"} · {report.student.class_name || classes.find((schoolClass) => schoolClass.id === report.student.school_class)?.name || "Class not set"} · Average {report.average.toFixed(1)}%</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Available in the student portal
+                    {selectedExam.results_published ? "Available in the student portal" : "Locked from the student portal"}
                     {report.attendance.isOutOfDate ? " · Attendance snapshot needs regeneration" : ""}
                   </p>
+                  {report.review?.class_teacher_comment && (
+                    <p className="mt-2 text-sm"><span className="font-medium">Class teacher:</span> {report.review.class_teacher_comment}</p>
+                  )}
+                  <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(12rem,0.65fr)_minmax(18rem,1fr)]">
+                    <select
+                      aria-label={`Built-in principal comment for ${report.student.name}`}
+                      value={principalCommentDrafts[report.student.id] ?? report.review?.principal_comment ?? ""}
+                      onChange={(event) => setPrincipalCommentDrafts(current => ({
+                        ...current,
+                        [report.student.id]: event.target.value,
+                      }))}
+                      disabled={!report.review?.class_teacher_submitted_at}
+                      className="min-h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground disabled:opacity-60"
+                    >
+                      <option value="">Choose built-in principal comment</option>
+                      {PRINCIPAL_COMMENT_LIBRARY.map((template) => (
+                        <option key={template.label} value={template.text}>{template.label}</option>
+                      ))}
+                    </select>
+                    <textarea
+                      aria-label={`Principal comment for ${report.student.name}`}
+                      value={principalCommentDrafts[report.student.id] ?? report.review?.principal_comment ?? ""}
+                      onChange={(event) => setPrincipalCommentDrafts(current => ({
+                        ...current,
+                        [report.student.id]: event.target.value,
+                      }))}
+                      placeholder="Principal's overall comment"
+                      disabled={!report.review?.class_teacher_submitted_at}
+                      className="min-h-20 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground disabled:opacity-60"
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {report.review?.principal_reviewed_at
+                        ? "Principal comment saved"
+                        : report.review?.class_teacher_submitted_at
+                          ? "Waiting for principal comment"
+                          : "Waiting for class-teacher submission"}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!report.review?.class_teacher_submitted_at || updateReportReview.isPending}
+                      onClick={async () => {
+                        if (!report.review) return;
+                        try {
+                          await updateReportReview.mutateAsync({
+                            id: report.review.id,
+                            principal_comment: principalCommentDrafts[report.student.id] ?? report.review.principal_comment,
+                          });
+                          toast.success(`Principal comment saved for ${report.student.name}`);
+                        } catch (error) {
+                          toast.error(getErrorMessage(error));
+                        }
+                      }}
+                    >
+                      Save principal comment
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
                   {report.attendance.isOutOfDate && report.attendanceSnapshotId && (

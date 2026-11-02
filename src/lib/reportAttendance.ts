@@ -35,21 +35,36 @@ export const getReportAttendance = (
     record.date >= period.startDate &&
     record.date <= period.throughDate,
   );
-  const absentDates = attendance
-    .filter(record => record.status === "absent")
-    .map(record => record.date)
+  const statusByDate = new Map<string, Set<AttendanceRecord["status"]>>();
+  attendance.forEach(record => {
+    const statuses = statusByDate.get(record.date) ?? new Set<AttendanceRecord["status"]>();
+    statuses.add(record.status);
+    statusByDate.set(record.date, statuses);
+  });
+  const dailyStatuses = Array.from(statusByDate.values(), statuses => (
+    statuses.has("present") ? "present"
+      : statuses.has("late") ? "late"
+        : statuses.has("excused") ? "excused"
+          : statuses.has("sick_bay") ? "sick_bay"
+            : statuses.has("suspended") ? "suspended"
+              : "absent"
+  ));
+  const absentDates = Array.from(statusByDate)
+    .filter(([, statuses]) => !statuses.has("present") && !statuses.has("late") &&
+      !statuses.has("excused") && !statuses.has("sick_bay") && !statuses.has("suspended"))
+    .map(([date]) => date)
     .sort();
-  const totalDays = attendance.length;
+  const totalDays = dailyStatuses.length;
 
   return {
     totalDays,
     schoolDays: period.totalDays,
-    present: attendance.filter(record => record.status === "present").length,
+    present: dailyStatuses.filter(status => status === "present").length,
     absent: absentDates.length,
-    late: attendance.filter(record => record.status === "late").length,
-    excused: attendance.filter(record => record.status === "excused").length,
-    sickBay: attendance.filter(record => record.status === "sick_bay").length,
-    suspended: attendance.filter(record => record.status === "suspended").length,
+    late: dailyStatuses.filter(status => status === "late").length,
+    excused: dailyStatuses.filter(status => status === "excused").length,
+    sickBay: dailyStatuses.filter(status => status === "sick_bay").length,
+    suspended: dailyStatuses.filter(status => status === "suspended").length,
     unrecorded: Math.max(0, period.totalDays - totalDays),
     absentDates,
     throughDate: period.throughDate,

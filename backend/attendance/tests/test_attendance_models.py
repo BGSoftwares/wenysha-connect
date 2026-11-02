@@ -5,6 +5,7 @@ from attendance.services import (
     recalculate_student_term_summary,
     refresh_report_attendance_snapshot,
     school_days_in_term,
+    term_for_exam,
 )
 from datetime import date
 from django.db import IntegrityError, transaction
@@ -65,6 +66,28 @@ class AttendanceModelTests(TestCase):
 
         SchoolCalendarDay.objects.create(date=date(2026, 5, 25), day_type='school_day')
         self.assertEqual(school_days_in_term(term), 5)
+
+    def test_end_of_term_report_resolves_term_with_academic_year_suffix(self):
+        year = AcademicYear.objects.create(
+            name='2026-2027',
+            start_date=date(2026, 1, 1),
+            end_date=date(2027, 12, 31),
+        )
+        term = Term.objects.create(
+            name='Term 3',
+            academic_year=year,
+            start_date=date(2026, 9, 8),
+            end_date=date(2026, 12, 3),
+        )
+        exam = Exam.objects.create(
+            name='Term 3 report',
+            report_type='end_of_3rd_term',
+            term='3',
+            year='2026',
+            start_date=date(2026, 11, 1),
+            end_date=date(2026, 11, 20),
+        )
+        self.assertEqual(term_for_exam(exam), term)
 
     def test_term_summary_counts_daily_status_once_and_excludes_holidays(self):
         year = AcademicYear.objects.create(

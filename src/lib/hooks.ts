@@ -600,6 +600,23 @@ export interface ExamMark {
     comment?: string;
 }
 
+export interface ReportCardReview {
+    id: number;
+    exam: number;
+    student: number;
+    student_name: string;
+    school_class: number;
+    class_name: string;
+    class_teacher_comment: string;
+    principal_comment: string;
+    class_teacher_submitted_at: string | null;
+    class_teacher_submitted_by: number | null;
+    class_teacher_name: string | null;
+    principal_reviewed_at: string | null;
+    principal_reviewed_by: number | null;
+    principal_name: string | null;
+}
+
 export interface ExamRanking {
     class_position: number | null;
     class_total: number;
@@ -890,6 +907,52 @@ export const useUpdateExamMark = () => {
                 queryClient.invalidateQueries({ queryKey: ["exam-marks"] }),
                 queryClient.invalidateQueries({ queryKey: ["exam-ranking"] }),
             ]);
+        },
+    });
+};
+
+export const useReportCardReviews = (exam?: number, student?: number) => useQuery({
+    queryKey: ["report-card-reviews", exam, student],
+    queryFn: () => fetchAllPages<ReportCardReview>("/exams/report-card-reviews/", toQueryParams({
+        exam,
+        student,
+    })),
+    enabled: !!exam,
+    refetchInterval: student ? 5000 : false,
+});
+
+export const useSaveClassReportComments = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: {
+            exam: number;
+            school_class: number;
+            comments: Array<{ student: number; comment: string }>;
+        }) => api.post<ReportCardReview[]>("/exams/report-card-reviews/save-class-comments/", data),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["report-card-reviews"] });
+        },
+    });
+};
+
+export const useSubmitClassReports = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: { exam: number; school_class: number }) =>
+            api.post<ReportCardReview[]>("/exams/report-card-reviews/submit-class/", data),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["report-card-reviews"] });
+        },
+    });
+};
+
+export const useUpdateReportCardReview = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, principal_comment }: { id: number; principal_comment: string }) =>
+            api.patch<ReportCardReview>(`/exams/report-card-reviews/${id}/`, { principal_comment }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["report-card-reviews"] });
         },
     });
 };

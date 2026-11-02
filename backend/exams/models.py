@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from school.models import SchoolClass, Subject, Student
 
 
@@ -64,6 +65,39 @@ class ExamSchedule(models.Model):
 
     def __str__(self):
         return f"{self.exam.name} - {self.subject.name} - {self.school_class.name}"
+
+
+class ReportCardReview(models.Model):
+    """Class-teacher and principal comments for one learner's exam report."""
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name='report_card_reviews')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='report_card_reviews')
+    class_teacher_comment = models.TextField(blank=True)
+    principal_comment = models.TextField(blank=True)
+    class_teacher_submitted_at = models.DateTimeField(null=True, blank=True)
+    class_teacher_submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='submitted_report_card_reviews',
+    )
+    principal_reviewed_at = models.DateTimeField(null=True, blank=True)
+    principal_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='principal_reviewed_report_cards',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['exam', 'student'], name='unique_exam_student_report_review'),
+        ]
+        ordering = ['student__name']
+
+    def __str__(self):
+        return f"{self.exam.name} - {self.student.name} review"
 
 
 class ExamMark(models.Model):

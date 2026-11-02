@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 from school.models import SchoolClass, Subject, Student, Teacher, TeacherSubjectClass
 from core.models import Role, UserProfile
-from exams.models import Exam, ExamMark, MarkSubmission
+from exams.models import Exam, ExamMark, MarkSubmission, ReportCardReview
 
 
 class MarkSheetTests(APITestCase):
@@ -346,3 +346,121 @@ class ReportTypeIsolationTests(APITestCase):
             end_date=date.today(),
         )
         self.assertEqual(exam.name, '2026 End of Term 3 exam')
+
+
+class ReportCardReviewWorkflowTests(APITestCase):
+    def setUp(self):
+        teacher_role, _ = Role.objects.get_or_create(name='Teacher')
+        self.teacher_user = User.objects.create_user('class-review-teacher', password='teacher-pass-123')
+        UserProfile.objects.create(user=self.teacher_user, role=teacher_role, full_name='Class Teacher')
+        self.teacher = Teacher.objects.create(
+            user=self.teacher_user,
+            name='Class Teacher',
+        )
+        self.school_class = SchoolClass.objects.create(
+            name='Form 3B2',
+            class_teacher=self.teacher,
+        )
+        self.subject = Subject.objects.create(name='Mathematics')
+        TeacherSubjectClass.objects.create(
+            teacher=self.teacher,
+            school_class=self.school_class,
+            subject=self.subject,
+        )
+        self.student_user = User.objects.create_user('review-student', password='student-pass-123')
+        student_role, _ = Role.objects.get_or_create(name='Student')
+        UserProfile.objects.create(user=self.student_user, role=student_role, full_name='Review Learner')
+        self.student = Student.objects.create(
+            user=self.student_user,
+            student_id='REV001',
+            name='Review Learner',
+            school_class=self.school_class,
+        )
+        self.exam = Exam.objects.create(
+            name='Term 3 Report',
+            term='Term 3',
+            year='2026',
+            start_date=date(2026, 9, 8),
+            end_date=date(2026, 12, 3),
+            status='ongoing',
+        )
+        self.exam.classes.add(self.school_class)
+        self.exam.subjects.add(self.subject)
+
+    def test_class_teacher_submits_and_admin_comments_individual_report(self):
+        self.client.force_authenticate(self.teacher_user)
+        mark_response = self.client.post('/api/exams/mark-sheets/', {
+            'exam': self.exam.pk,
+            'school_class': self.school_class.pk,
+            'subject': self.subject.pk,
+            'marks': [{
+                'student': self.student.pk,
+                'total_marks': 100,
+                'scored': 80,
+            }],
+        }, format='json')
+        self.assertEqual(mark_response.status_code, 200, mark_response.data)
+
+        save_response = self.client.post('/api/exams/report-card-reviews/save-class-comments/', {
+            'exam': self.exam.pk,
+            'school_class': self.school_class.pk,
+            'comments': [{
+                'student': self.student.pk,
+                'comment': 'A thoughtful and hardworking learner.',
+            }],
+        }, format='json')
+        self.assertEqual(save_response.status_code, 200, save_response.data)
+        review = ReportCardReview.objects.get(exam=self.exam, student=self.student)
+        self.assertEqual(review.class_teacher_comment, 'A thoughtful and hardworking learner.')
+
+        submit_response = self.client.post('/api/exams/report-card-reviews/submit-class/', {
+            'exam': self.exam.pk,
+            'school_class': self.school_class.pk,
+        }, format='json')
+        self.assertEqual(submit_response.status_code, 200, submit_response.data)
+        review.refresh_from_db()
+        self.assertIsNotNone(review.class_teacher_submitted_at)
+        self.assertEqual(review.class_teacher_submitted_by, self.teacher_user)
+
+        admin = User.objects.create_superuser('review-admin', 'review-admin@example.test', 'admin-pass-123')
+        self.client.force_authenticate(admin)
+        pending_publish = self.client.patch(
+            f'/api/exams/exams/{self.exam.pk}/',
+            {'status': 'completed', 'results_published': True},
+            format='json',
+        )
+        self.assertEqual(pending_publish.status_code, 400, pending_publish.data)
+        admin_response = self.client.patch(
+            f'/api/exams/report-card-reviews/{review.pk}/',
+            {'principal_comment': 'Excellent effort this term.'},
+            format='json',
+        )
+        self.assertEqual(admin_response.status_code, 200, admin_response.data)
+        review.refresh_from_db()
+        self.assertEqual(review.principal_comment, 'Excellent effort this term.')
+        self.assertEqual(review.principal_reviewed_by, admin)
+
+        publish_response = self.client.patch(
+            f'/api/exams/exams/{self.exam.pk}/',
+            {'status': 'completed', 'results_published': True},
+            format='json',
+        )
+        self.assertEqual(publish_response.status_code, 200, publish_response.data)
+        self.client.force_authenticate(self.student_user)
+        student_response = self.client.get('/api/exams/report-card-reviews/', {'exam': self.exam.pk})
+        self.assertEqual(student_response.status_code, 200, student_response.data)
+        self.assertEqual(student_response.data['results'][0]['class_teacher_comment'], 'A thoughtful and hardworking learner.')
+        self.assertEqual(student_response.data['results'][0]['principal_comment'], 'Excellent effort this term.')
+
+    def test_non_class_teacher_cannot_save_or_submit_comments(self):
+        other_user = User.objects.create_user('other-teacher', password='teacher-pass-123')
+        teacher_role = Role.objects.get(name='Teacher')
+        UserProfile.objects.create(user=other_user, role=teacher_role, full_name='Other Teacher')
+        Teacher.objects.create(user=other_user, name='Other Teacher')
+        self.client.force_authenticate(other_user)
+        response = self.client.post('/api/exams/report-card-reviews/save-class-comments/', {
+            'exam': self.exam.pk,
+            'school_class': self.school_class.pk,
+            'comments': [{'student': self.student.pk, 'comment': 'Unauthorized'}],
+        }, format='json')
+        self.assertEqual(response.status_code, 403, response.data)

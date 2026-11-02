@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Exam, ExamSchedule, ExamMark, MarkSubmission
+from .models import Exam, ExamSchedule, ExamMark, MarkSubmission, ReportCardReview
 from core.roles import is_admin, portal_role
 from school.models import SchoolClass, Student, Subject, TeacherSubjectClass
 
@@ -126,3 +126,65 @@ class MarkSubmissionSerializer(serializers.ModelSerializer):
         model = MarkSubmission
         fields = ['id', 'exam', 'exam_name', 'subject', 'subject_name', 'school_class', 'class_name',
                   'teacher_name', 'note', 'submitted_at']
+
+
+class ReportCardReviewSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.name', read_only=True)
+    school_class = serializers.IntegerField(source='student.school_class_id', read_only=True)
+    class_name = serializers.CharField(source='student.school_class.name', read_only=True)
+    class_teacher_name = serializers.CharField(
+        source='class_teacher_submitted_by.get_full_name',
+        read_only=True,
+        allow_null=True,
+    )
+    principal_name = serializers.CharField(
+        source='principal_reviewed_by.get_full_name',
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = ReportCardReview
+        fields = [
+            'id', 'exam', 'student', 'student_name', 'school_class', 'class_name',
+            'class_teacher_comment', 'principal_comment', 'class_teacher_submitted_at',
+            'class_teacher_submitted_by', 'class_teacher_name', 'principal_reviewed_at',
+            'principal_reviewed_by', 'principal_name',
+        ]
+        read_only_fields = [
+            'id', 'exam', 'student', 'student_name', 'school_class', 'class_name',
+            'class_teacher_submitted_at', 'class_teacher_submitted_by', 'class_teacher_name',
+            'principal_reviewed_at', 'principal_reviewed_by', 'principal_name',
+        ]
+
+
+class ReportCardCommentRowSerializer(serializers.Serializer):
+    student = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all())
+    comment = serializers.CharField(max_length=2000, allow_blank=True, trim_whitespace=True)
+
+
+class ReportCardCommentBatchSerializer(serializers.Serializer):
+    exam = serializers.PrimaryKeyRelatedField(queryset=Exam.objects.all())
+    school_class = serializers.PrimaryKeyRelatedField(queryset=SchoolClass.objects.all())
+    comments = ReportCardCommentRowSerializer(many=True, allow_empty=False)
+
+    def validate(self, attrs):
+        student_ids = [row['student'].pk for row in attrs['comments']]
+        if len(student_ids) != len(set(student_ids)):
+            raise serializers.ValidationError({'comments': 'A learner can appear only once.'})
+        school_class = attrs['school_class']
+        if any(student.school_class_id != school_class.pk for student in (row['student'] for row in attrs['comments'])):
+            raise serializers.ValidationError({'comments': 'Every learner must belong to the selected class.'})
+        if not attrs['exam'].classes.filter(pk=school_class.pk).exists():
+            raise serializers.ValidationError({'school_class': 'This class is not assigned to the selected exam.'})
+        return attrs
+
+
+class ReportCardClassSubmitSerializer(serializers.Serializer):
+    exam = serializers.PrimaryKeyRelatedField(queryset=Exam.objects.all())
+    school_class = serializers.PrimaryKeyRelatedField(queryset=SchoolClass.objects.all())
+
+    def validate(self, attrs):
+        if not attrs['exam'].classes.filter(pk=attrs['school_class'].pk).exists():
+            raise serializers.ValidationError({'school_class': 'This class is not assigned to the selected exam.'})
+        return attrs

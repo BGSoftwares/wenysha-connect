@@ -20,14 +20,12 @@ interface Props {
   classId: number;
   className: string;
   teacherName: string;
-  teacherComments: Record<number, string>;
-  onTeacherCommentChange: (studentId: number, comment: string) => void;
   onGradeChange: (studentId: number, score: string) => void;
 }
 
 type Row = { score: string; comment: string };
 
-const MarkSheetSection = ({ students, marks, examId, examName, reportType, subjectId, subjectName, classId, className, teacherName, teacherComments, onTeacherCommentChange, onGradeChange }: Props) => {
+const MarkSheetSection = ({ students, marks, examId, examName, reportType, subjectId, subjectName, classId, className, teacherName, onGradeChange }: Props) => {
   const saveMarkSheet = useSaveExamMarkSheet();
   const [rows, setRows] = useState<Record<number, Row>>({});
   const [busy, setBusy] = useState(false);
@@ -43,7 +41,6 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
 
   const update = (id: number, patch: Partial<Row>) => {
     setRows((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
-    if (patch.comment !== undefined) onTeacherCommentChange(id, patch.comment);
     if (patch.score !== undefined) onGradeChange(id, patch.score);
   };
 
@@ -64,9 +61,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
           student: student.id,
           total_marks: 100,
           scored: Number(rows[student.id].score),
-          comment: teacherComments[student.id] !== undefined
-            ? teacherComments[student.id].trim()
-            : rows[student.id].comment.trim(),
+          comment: rows[student.id].comment.trim(),
         })),
       });
       toast.success(`Saved marks for ${entered.length} learners`);
@@ -141,7 +136,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
     let y = drawPageHeader();
     students.forEach((student, index) => {
       const r = rows[student.id] ?? { score: "", comment: "" };
-      const comment = teacherComments[student.id]?.trim() || r.comment.trim();
+      const comment = r.comment.trim();
       const commentLines = doc.splitTextToSize(comment || "—", 64) as string[];
       const learnerLines = doc.splitTextToSize(student.name, 56) as string[];
       const lineCount = Math.max(commentLines.length, learnerLines.length, 1);

@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import timedelta
+import re
 
 from django.utils import timezone
 
@@ -111,6 +112,41 @@ def term_for_exam(exam):
     ).first()
     if term:
         return term
+
+    report_term_number = {
+        'end_of_1st_term': 1,
+        'end_of_2nd_term': 2,
+        'end_of_3rd_term': 3,
+    }.get(exam.report_type)
+    if report_term_number is None:
+        match = re.search(r'\b(first|second|third|1st|2nd|3rd|[1-3])\b', exam.term, re.IGNORECASE)
+        if match:
+            report_term_number = {
+                'first': 1, '1st': 1,
+                'second': 2, '2nd': 2,
+                'third': 3, '3rd': 3,
+            }.get(match.group(1).lower(), int(match.group(1)) if match.group(1).isdigit() else None)
+
+    if report_term_number:
+        year_terms = Term.objects.filter(academic_year__name=exam.year)
+        if not year_terms.exists():
+            year_terms = Term.objects.filter(academic_year__name__icontains=exam.year)
+        for candidate in year_terms:
+            name_match = re.search(
+                r'\b(first|second|third|1st|2nd|3rd|[1-3])\b',
+                candidate.name,
+                re.IGNORECASE,
+            )
+            if not name_match:
+                continue
+            number = {
+                'first': 1, '1st': 1,
+                'second': 2, '2nd': 2,
+                'third': 3, '3rd': 3,
+            }.get(name_match.group(1).lower(), int(name_match.group(1)) if name_match.group(1).isdigit() else None)
+            if number == report_term_number:
+                return candidate
+
     return Term.objects.filter(
         start_date__lte=exam.end_date,
         end_date__gte=exam.start_date,

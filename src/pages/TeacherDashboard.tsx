@@ -48,6 +48,9 @@ import {
   useSubjects,
   useExams,
   useExamMarks,
+  useReportCardReviews,
+  useSaveClassReportComments,
+  useSubmitClassReports,
   EXAM_REPORT_TYPES,
   useAttendanceRecords,
   useUpdateAttendance,
@@ -61,7 +64,7 @@ import type { ExamReportType } from "@/lib/hooks";
 import { toast } from "sonner";
 import { buildAttendancePdf, sharePdfToWhatsApp } from "@/lib/pdfExport";
 import { calculateGrade } from "@/lib/grading";
-import { getPrincipalComment, getTeacherComment, TEACHER_COMMENT_LIBRARY } from "@/lib/reportComments";
+import { getTeacherComment, TEACHER_COMMENT_LIBRARY } from "@/lib/reportComments";
 import { formatLocalDateKey, getSchoolDateStatus } from "@/lib/zimbabweSchoolCalendar";
 import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
 
@@ -124,6 +127,8 @@ const TeacherDashboard = () => {
 
   const { data: exams = [], isLoading: isLoadingExams, error: examsError } = useExams();
   const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
+  const { data: classExamMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId } : undefined);
+  const { data: reportCardReviews = [], isLoading: loadingReportCardReviews, error: reportCardReviewsError } = useReportCardReviews(selectedExamId ?? undefined);
   const { data: attendanceRecords = [] } = useAttendanceRecords({
     date: attendanceDate,
     session: attendanceSession,
@@ -133,6 +138,8 @@ const TeacherDashboard = () => {
 
   const updateAttendanceMutation = useUpdateAttendance();
   const bulkAttendanceMutation = useBulkUpdateAttendance();
+  const saveClassReportComments = useSaveClassReportComments();
+  const submitClassReports = useSubmitClassReports();
   const allocatedClasses = allocations.map((allocation) => ({ id: allocation.school_class, name: allocation.class_name }));
   const classTeacherClasses = classes
     .filter((schoolClass) => schoolClass.class_teacher === teacher?.id)
@@ -206,12 +213,12 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     setGradeInputs(Object.fromEntries(examMarks.map(mark => [mark.student, String(mark.scored)])));
-    setClassTeacherComments(Object.fromEntries(
-      examMarks
-        .filter(mark => mark.comment?.trim())
-        .map(mark => [mark.student, mark.comment]),
-    ));
   }, [examMarks]);
+  useEffect(() => {
+    setClassTeacherComments(Object.fromEntries(
+      reportCardReviews.map(review => [review.student, review.class_teacher_comment]),
+    ));
+  }, [reportCardReviews]);
 
   const selectedClass = classes.find(classItem => classItem.id === selectedClassId) ?? null;
   const isClassTeacherForSelectedClass = Boolean(
@@ -242,6 +249,76 @@ const TeacherDashboard = () => {
       ...current,
       [studentId]: getTeacherComment(percentage),
     }));
+  };
+
+  const getStudentExamAverage = (studentId: number) => {
+    const savedMarks = classExamMarks.filter(mark => mark.student === studentId);
+    if (!savedMarks.length) return 0;
+    return savedMarks.reduce((sum, mark) => (
+      sum + (mark.total_marks > 0 ? Number(mark.scored) / mark.total_marks * 100 : 0)
+    ), 0) / savedMarks.length;
+  };
+
+  const classTeacherSubmission = reportCardReviews.find(review =>
+    review.exam === selectedExamId && review.school_class === selectedClassId && review.class_teacher_submitted_at,
+  );
+  const classCommentsSaved = classStudents.every(student => classTeacherComments[student.id]?.trim());
+  const reportCardMarksComplete = classStudents.length > 0 && classStudents.every(student => {
+    const assignedSubjects = allocations
+      .filter(allocation => allocation.school_class === selectedClassId && exams.find(exam => exam.id === selectedExamId)?.subjects.includes(allocation.subject))
+      .map(allocation => allocation.subject);
+    const expectedSubjects = assignedSubjects.length
+      ? assignedSubjects
+      : exams.find(exam => exam.id === selectedExamId)?.subjects ?? [];
+    const savedSubjects = new Set(classExamMarks.filter(mark => mark.student === student.id).map(mark => mark.subject));
+    return expectedSubjects.length > 0 && expectedSubjects.every(subjectId => savedSubjects.has(subjectId));
+  });
+
+  const saveClassTeacherComments = async () => {
+    if (!selectedExamId || !selectedClassId) return;
+    if (!classCommentsSaved) {
+      toast.error("Add a class-teacher comment for every learner before saving.");
+      return;
+    }
+    try {
+      await saveClassReportComments.mutateAsync({
+        exam: selectedExamId,
+        school_class: selectedClassId,
+        comments: classStudents.map(student => ({
+          student: student.id,
+          comment: classTeacherComments[student.id].trim(),
+        })),
+      });
+      toast.success("Class-teacher comments saved.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const submitCompletedClassReports = async () => {
+    if (!selectedExamId || !selectedClassId) return;
+    if (!classCommentsSaved) {
+      toast.error("Add a class-teacher comment for every learner before submitting.");
+      return;
+    }
+    if (!reportCardMarksComplete) {
+      toast.error("Complete each learner's marks for all subjects assigned to this class first.");
+      return;
+    }
+    try {
+      await saveClassReportComments.mutateAsync({
+        exam: selectedExamId,
+        school_class: selectedClassId,
+        comments: classStudents.map(student => ({
+          student: student.id,
+          comment: classTeacherComments[student.id].trim(),
+        })),
+      });
+      await submitClassReports.mutateAsync({ exam: selectedExamId, school_class: selectedClassId });
+      toast.success("Completed class report cards sent to the principal.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
   };
 
   const validateSelectedClassComments = () => {
@@ -685,42 +762,61 @@ const TeacherDashboard = () => {
             classId={selectedClassId}
             className={uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"}
             teacherName={teacher?.name || "Teacher"}
-            teacherComments={classTeacherComments}
-            onTeacherCommentChange={(studentId, comment) => setClassTeacherComments(current => ({ ...current, [studentId]: comment }))}
             onGradeChange={(studentId, score) => setGradeInputs(current => ({ ...current, [studentId]: score }))}
           />
 
           {isClassTeacherForSelectedClass && classStudents.length > 0 && (
             <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/30 p-4 space-y-4">
+              {reportCardReviewsError && (
+                <p role="alert" className="text-sm text-destructive">
+                  Could not load saved report comments: {getErrorMessage(reportCardReviewsError)}
+                </p>
+              )}
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold text-foreground">Class Teacher Comments</p>
-                  <p className="text-xs text-muted-foreground">Required for every learner in {selectedClass?.name ?? "this class"}.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Required for every learner in {selectedClass?.name ?? "this class"}.
+                    {classTeacherSubmission ? " Submitted to the principal for review." : " Save comments, then submit completed reports to the principal."}
+                  </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    classStudents.forEach((student) => {
-                      const score = Number(gradeInputs[student.id] ?? examMarks.find(mark => mark.student === student.id && mark.subject === selectedSubjectId)?.scored ?? 0);
-                      applyClassCommentTemplate(student.id, Number.isFinite(score) ? score : 0);
-                    });
-                  }}
-                >
-                  Apply Built-in Comments
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={Boolean(classTeacherSubmission) || loadingReportCardReviews}
+                    onClick={() => classStudents.forEach((student) => applyClassCommentTemplate(student.id, getStudentExamAverage(student.id)))}
+                  >
+                    Apply Built-in Comments
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={Boolean(classTeacherSubmission) || loadingReportCardReviews || saveClassReportComments.isPending}
+                    onClick={() => void saveClassTeacherComments()}
+                  >
+                    {saveClassReportComments.isPending ? "Saving…" : "Save comments"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={Boolean(classTeacherSubmission) || loadingReportCardReviews || saveClassReportComments.isPending || submitClassReports.isPending}
+                    onClick={() => void submitCompletedClassReports()}
+                  >
+                    {submitClassReports.isPending ? "Submitting…" : "Send completed reports to admin"}
+                  </Button>
+                </div>
               </div>
 
               <div className="grid gap-3">
                 {classStudents.map((student) => {
-                  const percentage = Number(gradeInputs[student.id] ?? examMarks.find(mark => mark.student === student.id && mark.subject === selectedSubjectId)?.scored ?? 0);
                   return (
                     <div key={student.id} className="grid md:grid-cols-[1fr_2fr] gap-3 items-start rounded-lg border border-border bg-background/80 p-3">
                       <div>
                         <p className="text-sm font-medium text-foreground">{student.name}</p>
                         <select
                           className="mt-2 w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                          defaultValue=""
+                          value={TEACHER_COMMENT_LIBRARY.find(template => template.text === classTeacherComments[student.id])?.label ?? ""}
+                          disabled={Boolean(classTeacherSubmission) || loadingReportCardReviews}
                           onChange={(event) => {
                             const selectedTemplate = TEACHER_COMMENT_LIBRARY.find((template) => template.label === event.target.value);
                             if (selectedTemplate) {
@@ -746,6 +842,7 @@ const TeacherDashboard = () => {
 
                       <textarea
                         value={classTeacherComments[student.id] ?? ""}
+                        disabled={Boolean(classTeacherSubmission) || loadingReportCardReviews}
                         onChange={(event) => setClassTeacherComments((current) => ({
                           ...current,
                           [student.id]: event.target.value,
@@ -846,7 +943,7 @@ const TeacherDashboard = () => {
               </div>
               <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Principal comment</p>
-                <p className="mt-1 text-sm text-foreground italic">{getPrincipalComment(classReportAverage)}</p>
+                <p className="mt-1 text-sm text-foreground italic">Awaiting principal review after the class teacher submits completed reports.</p>
               </div>
               <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Attendance</p>

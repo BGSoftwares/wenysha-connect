@@ -59,6 +59,16 @@ python manage.py migrate attendance 0001
 
 Do not roll back production or a shared database without a verified backup and an approved maintenance window.
 
+## Report-card review workflow
+
+Apply the report-card review migration from the **backend** folder after backing up the configured database:
+
+```powershell
+python manage.py migrate exams
+```
+
+The assigned class teacher saves a comment for each learner and submits the completed class reports. An administrator then adds an individual principal comment to each submitted report. Publishing is blocked once this review workflow has started until every marked learner has a submitted class-teacher comment and a principal comment. Students can read the saved comments after results are published.
+
 ## GitHub
 
 Repo: **https://github.com/BGSoftwares/AbleGodCollegeELibrary.git**

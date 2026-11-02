@@ -1,13 +1,14 @@
 import { useState, useRef } from "react";
 import { Download, Printer, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getErrorMessage } from "@/lib/api";
 import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
 import { calculateGrade } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
-import { EXAM_REPORT_TYPES, useAttendanceRecords, useAttendanceReportSnapshot, useAttendanceTermSummaries, useExamMarks, useExamRanking, useExams, useInvoices, useStudentProfile, type ExamReportType } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useAttendanceRecords, useAttendanceReportSnapshot, useAttendanceTermSummaries, useExamMarks, useExamRanking, useExams, useInvoices, useReportCardReviews, useStudentProfile, type ExamReportType } from "@/lib/hooks";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
-import { getPrincipalComment, getTeacherComment } from "@/lib/reportComments";
+import { getTeacherComment } from "@/lib/reportComments";
 import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
 import { getReportAttendance, mapAttendanceSnapshot } from "@/lib/reportAttendance";
 
@@ -44,6 +45,8 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const { data: invoices = [] } = useInvoices({ student: studentId });
   const { data: allMarks = [], isLoading: isLoadingMarks } = useExamMarks({ student: studentId });
   const { data: attendanceRecords = [] } = useAttendanceRecords({ student: studentId });
+  const { data: reportReviews = [], error: reportReviewsError } = useReportCardReviews(selectedExam?.id, studentId);
+  const reportReview = reportReviews.find(review => review.student === studentId);
   const { data: exams = [], isLoading: isLoadingExams } = useExams(undefined, { refetchInterval: 5000 });
   const availableExams = exams
     .filter(exam => allMarks.some(mark => mark.exam === exam.id))
@@ -164,8 +167,8 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     .filter(result => result.comment)
     .map(result => `${result.subject}: ${result.comment}`)
     .join(" · ");
-  const teacherComment = subjectComments || getTeacherComment(averagePercentage);
-  const principalComment = getPrincipalComment(averagePercentage);
+  const teacherComment = reportReview?.class_teacher_comment || getTeacherComment(averagePercentage);
+  const principalComment = reportReview?.principal_comment || "";
   const attendance = selectedExam
     ? getReportAttendance(selectedExam, studentId, attendanceRecords, issuedAt)
     : {
@@ -183,9 +186,15 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
       calendarLabel: "Report-period attendance",
       isOutOfDate: false,
     };
-  const publishedAttendance = attendanceSnapshot
+  const snapshotNeedsRefresh = Boolean(
+    attendanceSnapshot && (
+      attendanceSnapshot.is_out_of_date ||
+      (attendanceSnapshot.summary.total_school_days === 0 && attendance.schoolDays > 0)
+    ),
+  );
+  const publishedAttendance = attendanceSnapshot && !snapshotNeedsRefresh
     ? mapAttendanceSnapshot(attendanceSnapshot.summary, attendanceSnapshot.is_out_of_date)
-    : attendance;
+    : { ...attendance, isOutOfDate: snapshotNeedsRefresh };
 
   if (resultsBlocked) {
     return (
@@ -304,6 +313,11 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
             Teacher-saved marks appear here as soon as the administrator completes and unlocks the report. This page checks for updates every 5 seconds.
           </p>
         </div>
+      )}
+      {reportReviewsError && selectedExam && (
+        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          Could not load this report&apos;s teacher and principal comments: {getErrorMessage(reportReviewsError)}
+        </p>
       )}
 
       {selectedExam && results.length > 0 && isReportProvisional && (
@@ -495,15 +509,21 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl border border-[#eadde5] bg-white px-3 py-2.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">
-                {subjectComments ? "Teacher subject comments" : "Teacher's comment"}
+                {reportReview?.class_teacher_comment ? "Class teacher comment" : "Teacher's comment"}
               </p>
               <p className="mt-1 text-[10px] italic leading-relaxed text-[#454255]">{teacherComment}</p>
             </div>
             <div className="rounded-xl border border-[#edcfdf] bg-[#fff3f8] px-3 py-2.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">Principal&apos;s overall comment</p>
-              <p className="mt-1 text-[10px] italic leading-relaxed text-[#454255]">{principalComment}</p>
+              <p className="mt-1 text-[10px] italic leading-relaxed text-[#454255]">{principalComment || "Awaiting principal review."}</p>
             </div>
           </div>
+          {subjectComments && (
+            <div className="mt-2 rounded-xl border border-[#eadde5] bg-white px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">Teacher subject comments</p>
+              <p className="mt-1 text-[10px] italic leading-relaxed text-[#454255]">{subjectComments}</p>
+            </div>
+          )}
 
           <div className="mt-2 rounded-xl border border-[#eadde5] bg-white px-3 py-2">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -521,7 +541,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
                 </p>
                 {publishedAttendance.isOutOfDate && (
                   <p role="status" className="mt-1 text-[9px] font-semibold text-amber-700">
-                    Attendance has changed since this report was generated. The school must regenerate the report to update this snapshot.
+                    Attendance has changed since this report was generated. The latest register records are shown while the school refreshes this snapshot.
                   </p>
                 )}
               </div>
