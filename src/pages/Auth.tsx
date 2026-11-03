@@ -7,15 +7,12 @@ import {
     Mail,
     Lock,
     ArrowRight,
-    ShieldCheck,
-    UserCheck,
     User,
     UserPlus,
     Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "/able-god-college-logo.png";
-import campusPhoto from "@/assets/slides/slide-6252.jpeg";
 import { login, signup, getErrorMessage, clearAuth } from "@/lib/api";
 import { toast } from "sonner";
 import { dashboardPathForRole } from "@/lib/portalRoles";
