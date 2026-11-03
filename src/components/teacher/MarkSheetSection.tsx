@@ -265,7 +265,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
                     <td className="px-3 py-2 font-medium text-foreground">{s.name}</td>
                     <td className="px-3 py-2"><input aria-label={`Mark for ${s.name}`} type="number" min={0} max={100} step={1} value={r.score} onChange={(e) => update(s.id, { score: e.target.value })} className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-center" /></td>
                     <td className="px-3 py-2 text-center font-semibold">{r.score ? calculateGrade(Number(r.score)).grade : "—"}</td>
-                    <td className="px-3 py-2"><input aria-label={`Comment for ${s.name}`} value={teacherComments[s.id] ?? r.comment} maxLength={500} onChange={(e) => update(s.id, { comment: e.target.value })} placeholder="Comment for report card" className="w-full px-2 py-1.5 rounded-md border border-border bg-background" /></td>
+                    <td className="px-3 py-2"><input aria-label={`Subject comment for ${s.name}`} value={r.comment} maxLength={500} onChange={(e) => update(s.id, { comment: e.target.value })} placeholder="Subject comment for report card" className="w-full px-2 py-1.5 rounded-md border border-border bg-background" /></td>
                   </tr>
                 );
               })}

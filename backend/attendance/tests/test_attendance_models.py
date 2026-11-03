@@ -153,15 +153,18 @@ class AttendanceModelTests(TestCase):
         snapshot = refresh_report_attendance_snapshot(snapshot)
         self.assertEqual(snapshot.summary['days_present'], 1)
         self.assertFalse(snapshot.is_out_of_date)
+        term_summary = self.student.attendance_term_summaries.get(term=term)
+        term_summary.is_finalized = True
+        term_summary.save(update_fields=['is_finalized'])
 
         record.status = 'absent'
         record.save()
         snapshot.refresh_from_db()
-        self.assertTrue(snapshot.is_out_of_date)
-
-        snapshot = refresh_report_attendance_snapshot(snapshot, force_summary=True)
         self.assertFalse(snapshot.is_out_of_date)
         self.assertEqual(snapshot.summary['days_absent'], 1)
+        term_summary.refresh_from_db()
+        self.assertEqual(term_summary.days_absent, 1)
+        self.assertFalse(term_summary.is_out_of_date)
 
     def test_parent_gets_one_low_term_attendance_notification(self):
         year = AcademicYear.objects.create(

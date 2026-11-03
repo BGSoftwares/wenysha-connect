@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, Printer, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getErrorMessage } from "@/lib/api";
@@ -6,11 +6,20 @@ import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
 import { calculateGrade } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
-import { EXAM_REPORT_TYPES, useAttendanceRecords, useAttendanceReportSnapshot, useAttendanceTermSummaries, useExamMarks, useExamRanking, useExams, useInvoices, useReportCardReviews, useStudentProfile, type ExamReportType } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useAcademicYears, useAttendanceRecords, useAttendanceReportSnapshot, useAttendanceTermSummaries, useExamMarks, useExamRanking, useExams, useInvoices, useReportCardReviews, useSchoolTerms, useStudentProfile, type Exam, type ExamMark, type ExamReportType, type ReportCardReview, type Student } from "@/lib/hooks";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
 import { getTeacherComment } from "@/lib/reportComments";
 import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
-import { getReportAttendance, mapAttendanceSnapshot } from "@/lib/reportAttendance";
+import { getReportAttendance, mapAttendanceSnapshot, type ReportAttendanceSummary } from "@/lib/reportAttendance";
+import {
+  getLocalSchoolPeriod,
+  getReportTermOptions,
+  getReportTypeForTerm,
+  getReportYearOptions,
+  getSchoolTermForDate,
+  getTermForReportType,
+  useLocalSchoolPeriod,
+} from "@/lib/reportPeriod";
 
 interface SubjectResult {
   subject: string;
@@ -21,6 +30,13 @@ interface SubjectResult {
 
 export interface ReportCardSectionProps {
   studentId: number;
+  adminPrintReport?: {
+    student: Student;
+    exam: Exam;
+    marks: ExamMark[];
+    attendance: ReportAttendanceSummary;
+    review?: ReportCardReview;
+  };
 }
 
 const getPercentage = ({ marks, scored }: SubjectResult) =>
@@ -34,33 +50,68 @@ const formatPosition = (position: number | null | undefined, total: number | nul
   return `${position}${suffix} of ${total}`;
 };
 
-const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
-  const [reportCategory, setReportCategory] = useState<"current" | "past">("current");
-  const [selectedReportType, setSelectedReportType] = useState<ExamReportType | null>(null);
+const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionProps) => {
+  const localCalendarPeriod = useLocalSchoolPeriod();
+  const { data: academicYears = [] } = useAcademicYears(!adminPrintReport);
+  const currentAcademicYear = academicYears.find(year => year.name.trim() === localCalendarPeriod.year);
+  const { data: currentSchoolTerms = [] } = useSchoolTerms(
+    currentAcademicYear ? { academic_year: currentAcademicYear.id } : undefined,
+    !adminPrintReport,
+  );
+  const localPeriod = {
+    ...localCalendarPeriod,
+    term: getSchoolTermForDate(currentSchoolTerms, localCalendarPeriod.date, localCalendarPeriod.term),
+  };
+  const currentLocalYear = localPeriod.year;
+  const currentLocalTerm = localPeriod.term;
+  const [selectedYear, setSelectedYear] = useState(() => getLocalSchoolPeriod().year);
+  const [selectedAcademicTerm, setSelectedAcademicTerm] = useState(() => getLocalSchoolPeriod().term);
+  const [selectedReportType, setSelectedReportType] = useState<ExamReportType>(
+    () => getReportTypeForTerm(getLocalSchoolPeriod().term),
+  );
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const reportCardRef = useRef<HTMLDivElement>(null);
+  const previousLocalPeriod = useRef(localPeriod);
 
-  const { data: profile } = useStudentProfile();
-  const { data: invoices = [] } = useInvoices({ student: studentId });
-  const { data: allMarks = [], isLoading: isLoadingMarks } = useExamMarks({ student: studentId });
-  const { data: attendanceRecords = [] } = useAttendanceRecords({ student: studentId });
-  const { data: reportReviews = [], error: reportReviewsError } = useReportCardReviews(selectedExam?.id, studentId);
-  const reportReview = reportReviews.find(review => review.student === studentId);
-  const { data: exams = [], isLoading: isLoadingExams } = useExams(undefined, { refetchInterval: 5000 });
+  const { data: profile } = useStudentProfile(!adminPrintReport);
+  const { data: invoices = [] } = useInvoices({ student: studentId }, !adminPrintReport);
+  const { data: allMarks = [], isLoading: isLoadingMarks } = useExamMarks({ student: studentId }, !adminPrintReport);
+  const { data: attendanceRecords = [] } = useAttendanceRecords({ student: studentId }, !adminPrintReport);
+  const { data: exams = [], isLoading: isLoadingExams } = useExams(undefined, {
+    refetchInterval: 5000,
+    enabled: !adminPrintReport,
+  });
   const availableExams = exams
     .filter(exam => allMarks.some(mark => mark.exam === exam.id))
     .sort((first, second) => second.start_date.localeCompare(first.start_date));
-  const activeReportType = selectedReportType ?? availableExams[0]?.report_type ?? EXAM_REPORT_TYPES[0].value;
-  const currentPeriod = availableExams[0]
-    ? `${availableExams[0].year.trim()}-${availableExams[0].term.trim().toLowerCase()}`
-    : null;
-  const visibleExams = availableExams.filter(exam => {
-    const isCurrent = `${exam.year.trim()}-${exam.term.trim().toLowerCase()}` === currentPeriod;
-    return exam.report_type === activeReportType && (reportCategory === "current" ? isCurrent : !isCurrent);
-  });
-  const selectedExam = visibleExams.find(exam => exam.id === selectedExamId) || visibleExams[0];
-  const { data: attendanceSnapshot } = useAttendanceReportSnapshot(selectedExam?.id, studentId);
+  useEffect(() => {
+    const previousPeriod = previousLocalPeriod.current;
+    if (previousPeriod.year !== currentLocalYear) {
+      setSelectedYear(current => current === previousPeriod.year ? currentLocalYear : current);
+    }
+    if (previousPeriod.term !== currentLocalTerm) {
+      setSelectedAcademicTerm(current => current === previousPeriod.term ? currentLocalTerm : current);
+      setSelectedReportType(current => (
+        current === getReportTypeForTerm(previousPeriod.term)
+          ? getReportTypeForTerm(currentLocalTerm)
+          : current
+      ));
+    }
+    previousLocalPeriod.current = { ...previousPeriod, year: currentLocalYear, term: currentLocalTerm };
+  }, [currentLocalYear, currentLocalTerm]);
+  const yearOptions = getReportYearOptions(availableExams, localPeriod.year);
+  const termOptions = getReportTermOptions(availableExams, selectedYear);
+  const activeReportType = adminPrintReport?.exam.report_type ?? selectedReportType;
+  const visibleExams = availableExams.filter(exam => (
+    exam.year.trim() === selectedYear
+    && exam.term.trim().toLowerCase() === selectedAcademicTerm.trim().toLowerCase()
+    && exam.report_type === activeReportType
+  ));
+  const selectedExam = adminPrintReport?.exam ?? visibleExams.find(exam => exam.id === selectedExamId) ?? visibleExams[0];
+  const { data: reportReviews = [], error: reportReviewsError } = useReportCardReviews(selectedExam?.id, studentId, !adminPrintReport);
+  const reportReview = adminPrintReport?.review ?? reportReviews.find(review => review.student === studentId);
+  const { data: attendanceSnapshot } = useAttendanceReportSnapshot(selectedExam?.id, studentId, !adminPrintReport);
   const { data: attendanceSummaries = [] } = useAttendanceTermSummaries({
     student: studentId,
     year: selectedExam?.year,
@@ -83,7 +134,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
   const selectedTerm = selectedExam
     ? `${isReportProvisional ? "PROVISIONAL · " : ""}${selectedTypeLabel} · ${getExamDisplayName(selectedExam)} · ${selectedExam.term} ${selectedExam.year}`
     : "No examination selected";
-  const marks = allMarks.filter(mark => mark.exam === selectedExam?.id);
+  const marks = adminPrintReport?.marks ?? allMarks.filter(mark => mark.exam === selectedExam?.id);
   const { data: ranking, isLoading: isLoadingRanking, isError: isRankingError } =
     useExamRanking(isReportProvisional ? undefined : selectedExam?.id, studentId);
 
@@ -157,19 +208,15 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     .filter(([, balance]) => balance > 0)
     .map(([currency, balance]) => formatMoney(balance, currency as FinanceCurrency))
     .join(" · ");
-  const resultsBlocked = Object.values(outstandingBalances).some(balance => balance > 0);
+  const resultsBlocked = !adminPrintReport && Object.values(outstandingBalances).some(balance => balance > 0);
 
   const averagePercentage = results.length
     ? results.reduce((sum, result) => sum + getPercentage(result), 0) / results.length
     : 0;
 
-  const subjectComments = results
-    .filter(result => result.comment)
-    .map(result => `${result.subject}: ${result.comment}`)
-    .join(" · ");
   const teacherComment = reportReview?.class_teacher_comment || getTeacherComment(averagePercentage);
   const principalComment = reportReview?.principal_comment || "";
-  const attendance = selectedExam
+  const attendance = adminPrintReport?.attendance ?? (selectedExam
     ? getReportAttendance(selectedExam, studentId, attendanceRecords, issuedAt)
     : {
       totalDays: 0,
@@ -185,14 +232,16 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
       throughDate: "",
       calendarLabel: "Report-period attendance",
       isOutOfDate: false,
-    };
+    });
   const snapshotNeedsRefresh = Boolean(
     attendanceSnapshot && (
       attendanceSnapshot.is_out_of_date ||
       (attendanceSnapshot.summary.total_school_days === 0 && attendance.schoolDays > 0)
     ),
   );
-  const publishedAttendance = attendanceSnapshot && !snapshotNeedsRefresh
+  const publishedAttendance = adminPrintReport
+    ? adminPrintReport.attendance
+    : attendanceSnapshot && !snapshotNeedsRefresh
     ? mapAttendanceSnapshot(attendanceSnapshot.summary, attendanceSnapshot.is_out_of_date)
     : { ...attendance, isOutOfDate: snapshotNeedsRefresh };
 
@@ -213,7 +262,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
     );
   }
 
-  if (isLoadingMarks || isLoadingExams) {
+  if (!adminPrintReport && (isLoadingMarks || isLoadingExams)) {
     return (
       <div className="p-12 text-center flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -232,39 +281,13 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <select
-            value={reportCategory}
-            onChange={(event) => {
-              const nextCategory = event.target.value as "current" | "past";
-              setReportCategory(nextCategory);
-              const nextExam = availableExams.find(exam => {
-                const isCurrent = `${exam.year.trim()}-${exam.term.trim().toLowerCase()}` === currentPeriod;
-                return exam.report_type === activeReportType && (nextCategory === "current" ? isCurrent : !isCurrent);
-              });
-              setSelectedExamId(nextExam?.id ?? null);
-            }}
-            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
-            aria-label="Report card term category"
-          >
-            <option value="current">Current Term</option>
-            <option value="past">Past Report Cards</option>
-          </select>
-          <select
             value={activeReportType}
             onChange={(event) => {
               const nextType = event.target.value as ExamReportType;
               setSelectedReportType(nextType);
-              const isCurrentPeriod = (exam: typeof availableExams[number]) => {
-                const isCurrent = `${exam.year.trim()}-${exam.term.trim().toLowerCase()}` === currentPeriod;
-                return isCurrent;
-              };
-              const nextExam = availableExams.find(exam =>
-                exam.report_type === nextType &&
-                (reportCategory === "current" ? isCurrentPeriod(exam) : !isCurrentPeriod(exam)),
-              ) ?? availableExams.find(exam => exam.report_type === nextType);
-              if (nextExam) {
-                setReportCategory(isCurrentPeriod(nextExam) ? "current" : "past");
-              }
-              setSelectedExamId(nextExam?.id ?? null);
+              const impliedTerm = getTermForReportType(nextType);
+              if (impliedTerm) setSelectedAcademicTerm(impliedTerm);
+              setSelectedExamId(null);
             }}
             className="px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
             aria-label="Report card type"
@@ -272,9 +295,40 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
             {EXAM_REPORT_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
           </select>
           <select
+            value={selectedYear}
+            onChange={(event) => {
+              setSelectedYear(event.target.value);
+              setSelectedExamId(null);
+            }}
+            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+            aria-label="Report card year"
+          >
+            {yearOptions.map(({ year, isFuture }) => (
+              <option key={year} value={year} disabled={isFuture}>
+                {year}{isFuture ? " (not available yet)" : ""}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedAcademicTerm}
+            onChange={(event) => {
+              const nextTerm = event.target.value;
+              setSelectedAcademicTerm(nextTerm);
+              if (getTermForReportType(selectedReportType)) {
+                setSelectedReportType(getReportTypeForTerm(nextTerm));
+              }
+              setSelectedExamId(null);
+            }}
+            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+            aria-label="Report card term"
+          >
+            {termOptions.map(term => <option key={term} value={term}>{term}</option>)}
+          </select>
+          <select
             value={selectedExam?.id ?? ""}
             onChange={(e) => setSelectedExamId(Number(e.target.value))}
             className="px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+            aria-label="Report card examination"
             disabled={visibleExams.length === 0}
           >
             {visibleExams.length === 0 && <option value="">No exam results</option>}
@@ -327,9 +381,9 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
       )}
 
       <div
-        id="report-card-content"
+        id={adminPrintReport ? undefined : "report-card-content"}
         ref={reportCardRef}
-        className="mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-[#ead9e3] bg-[#fffafd] text-[#172044] shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none"
+        className={`report-card-content mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-[#ead9e3] bg-[#fffafd] text-[#172044] shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none${adminPrintReport ? " admin-print-report-card" : ""}`}
       >
         <header className="text-white">
           <div className="flex flex-col gap-4 bg-gradient-to-r from-[#10244f] via-[#34245f] to-[#b31669] px-5 py-4 sm:flex-row sm:items-center">
@@ -365,11 +419,11 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-[#eadde5] bg-white p-3">
               <div className="col-span-2 min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8d8490]">Learner</p>
-                <p className="truncate font-serif text-base font-bold text-[#17244c]">{profile?.name || "Student"}</p>
+                <p className="truncate font-serif text-base font-bold text-[#17244c]">{adminPrintReport?.student.name || profile?.name || "Student"}</p>
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d8490]">Class</p>
-                <p className="truncate text-xs font-semibold text-[#17244c]">{profile?.class_name || "—"}</p>
+                <p className="truncate text-xs font-semibold text-[#17244c]">{adminPrintReport?.student.class_name || profile?.class_name || "—"}</p>
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d8490]">Examination</p>
@@ -509,7 +563,7 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl border border-[#eadde5] bg-white px-3 py-2.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">
-                {reportReview?.class_teacher_comment ? "Class teacher comment" : "Teacher's comment"}
+                Class Teacher&apos;s comment
               </p>
               <p className="mt-1 text-[10px] italic leading-relaxed text-[#454255]">{teacherComment}</p>
             </div>
@@ -518,13 +572,6 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
               <p className="mt-1 text-[10px] italic leading-relaxed text-[#454255]">{principalComment || "Awaiting principal review."}</p>
             </div>
           </div>
-          {subjectComments && (
-            <div className="mt-2 rounded-xl border border-[#eadde5] bg-white px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7e7888]">Teacher subject comments</p>
-              <p className="mt-1 text-[10px] italic leading-relaxed text-[#454255]">{subjectComments}</p>
-            </div>
-          )}
-
           <div className="mt-2 rounded-xl border border-[#eadde5] bg-white px-3 py-2">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <div>
@@ -539,11 +586,6 @@ const ReportCardSection = ({ studentId }: ReportCardSectionProps) => {
                 <p className="mt-1 text-[9px] text-[#777484]">
                   Unexcused absence dates: {publishedAttendance.absentDates.length ? publishedAttendance.absentDates.join(", ") : "None recorded"}
                 </p>
-                {publishedAttendance.isOutOfDate && (
-                  <p role="status" className="mt-1 text-[9px] font-semibold text-amber-700">
-                    Attendance has changed since this report was generated. The latest register records are shown while the school refreshes this snapshot.
-                  </p>
-                )}
               </div>
               <div className="grid grid-cols-3 gap-4 sm:min-w-[270px]">
                 <div>

@@ -527,8 +527,6 @@ class ReportCardReviewViewSet(viewsets.ModelViewSet):
         if is_admin(request.user):
             if submitted_fields != {'principal_comment'}:
                 raise PermissionDenied('Administrators can only edit the principal comment.')
-            if not review.class_teacher_submitted_at:
-                raise ValidationError({'detail': 'The class teacher must submit this report before principal review.'})
             comment = self._comment_from_request(request, 'principal_comment')
             review.principal_comment = comment
             review.principal_reviewed_by = request.user if comment else None
@@ -547,7 +545,31 @@ class ReportCardReviewViewSet(viewsets.ModelViewSet):
         if review.class_teacher_submitted_at:
             raise ValidationError({'detail': 'This class report has already been submitted to the principal.'})
         review.class_teacher_comment = self._comment_from_request(request, 'class_teacher_comment')
-        review.save(update_fields=['class_teacher_comment'])
+        review.save(update_fields=['class_teacher_comment'        ])
+        return Response(self.get_serializer(review).data)
+
+    @action(detail=False, methods=['post'], url_path='save-principal-comment')
+    @transaction.atomic
+    def save_principal_comment(self, request):
+        if not is_admin(request.user):
+            raise PermissionDenied('Only administrators can add principal report comments.')
+        try:
+            exam_id = int(request.data.get('exam'))
+            student_id = int(request.data.get('student'))
+        except (TypeError, ValueError):
+            raise ValidationError({'detail': 'Choose a valid exam and student report.'})
+        exam = Exam.objects.filter(pk=exam_id).first()
+        student = Student.objects.filter(pk=student_id).select_related('school_class').first()
+        if not exam or not student or not exam.classes.filter(pk=student.school_class_id).exists():
+            raise ValidationError({'detail': 'The selected student does not belong to this exam.'})
+        comment = self._comment_from_request(request, 'principal_comment')
+        review, _ = ReportCardReview.objects.get_or_create(exam=exam, student=student)
+        review.principal_comment = comment
+        review.principal_reviewed_by = request.user if comment else None
+        review.principal_reviewed_at = timezone.now() if comment else None
+        review.save(update_fields=[
+            'principal_comment', 'principal_reviewed_by', 'principal_reviewed_at',
+        ])
         return Response(self.get_serializer(review).data)
 
     @action(detail=False, methods=['post'], url_path='save-class-comments')

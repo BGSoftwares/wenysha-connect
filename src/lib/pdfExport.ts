@@ -89,7 +89,7 @@ export interface StudentReportCardPdfData {
     calendarLabel: string;
     isOutOfDate?: boolean;
   };
-  results: Array<{ subject: string; marks: number; scored: number; percentage: number; grade: string }>;
+  results: Array<{ subject: string; marks: number; scored: number; percentage: number; grade: string; comment: string }>;
 }
 
 export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
@@ -155,30 +155,43 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(8.5);
   pdf.text("Subject", left + 3, tableTop + 6);
-  pdf.text("Score", 119, tableTop + 6, { align: "right" });
-  pdf.text("Out of", 139, tableTop + 6, { align: "right" });
-  pdf.text("Percentage", 169, tableTop + 6, { align: "right" });
-  pdf.text("Grade", right - 3, tableTop + 6, { align: "right" });
+  pdf.text("Score", 88, tableTop + 6, { align: "right" });
+  pdf.text("Out of", 108, tableTop + 6, { align: "right" });
+  pdf.text("Percentage", 135, tableTop + 6, { align: "right" });
+  pdf.text("Grade", 154, tableTop + 6, { align: "right" });
+  pdf.text("Subject comment", 158, tableTop + 6);
 
   let y = tableTop + headerHeight;
   data.results.forEach((result, index) => {
+    const commentLines = pdf.splitTextToSize(result.comment || "", right - 161);
+    const currentRowHeight = Math.max(rowHeight, Math.min(13, 3 + commentLines.length * 3.2));
     if (index % 2 === 1) {
       pdf.setFillColor(248, 245, 248);
-      pdf.rect(left, y, width, rowHeight, "F");
+      pdf.rect(left, y, width, currentRowHeight, "F");
     }
     pdf.setDrawColor(232, 226, 233);
-    pdf.line(left, y + rowHeight, right, y + rowHeight);
+    pdf.line(left, y + currentRowHeight, right, y + currentRowHeight);
     pdf.setTextColor(37, 41, 62);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
-    const baseline = y + Math.min(rowHeight - 1.5, 4.4);
-    pdf.text(pdf.splitTextToSize(result.subject, 85)[0], left + 3, baseline);
-    pdf.text(result.scored.toFixed(2), 119, baseline, { align: "right" });
-    pdf.text(String(result.marks), 139, baseline, { align: "right" });
-    pdf.text(`${result.percentage.toFixed(1)}%`, 169, baseline, { align: "right" });
+    const baseline = y + Math.min(currentRowHeight - 1.5, 4.4);
+    pdf.text(pdf.splitTextToSize(result.subject, 50)[0], left + 3, baseline);
+    pdf.text(result.scored.toFixed(2), 88, baseline, { align: "right" });
+    pdf.text(String(result.marks), 108, baseline, { align: "right" });
+    pdf.text(`${result.percentage.toFixed(1)}%`, 135, baseline, { align: "right" });
     pdf.setFont("helvetica", "bold");
-    pdf.text(result.grade, right - 3, baseline, { align: "right" });
-    y += rowHeight;
+    pdf.text(result.grade, 154, baseline, { align: "right" });
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7.5);
+    if (commentLines.length) {
+      const maxCommentLines = Math.max(1, Math.floor((currentRowHeight - 2) / 3.2));
+      const visibleCommentLines = commentLines.slice(0, maxCommentLines);
+      if (commentLines.length > maxCommentLines) {
+        visibleCommentLines[maxCommentLines - 1] = `${visibleCommentLines[maxCommentLines - 1].slice(0, -3)}...`;
+      }
+      pdf.text(visibleCommentLines, 158, baseline);
+    }
+    y += currentRowHeight;
   });
 
   y += 8;
@@ -187,7 +200,7 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   pdf.setFontSize(10);
   pdf.text(`Level position: ${data.levelPosition}`, left, y);
   const attendanceLines = pdf.splitTextToSize(
-    `${data.attendance.calendarLabel} through ${data.attendance.throughDate}: ${data.attendance.totalDays} marked days · ${data.attendance.present} present · ${data.attendance.absent} unexcused absent · ${data.attendance.excused ?? 0} excused · ${data.attendance.late} late · ${data.attendance.sickBay ?? 0} sick bay · ${data.attendance.suspended ?? 0} suspended · ${data.attendance.unrecorded} unmarked of ${data.attendance.schoolDays} scheduled school days${data.attendance.isOutOfDate ? " · OUT OF DATE" : ""}`,
+    `${data.attendance.calendarLabel} through ${data.attendance.throughDate}: ${data.attendance.totalDays} marked days · ${data.attendance.present} present · ${data.attendance.absent} unexcused absent · ${data.attendance.excused ?? 0} excused · ${data.attendance.late} late · ${data.attendance.sickBay ?? 0} sick bay · ${data.attendance.suspended ?? 0} suspended · ${data.attendance.unrecorded} unmarked of ${data.attendance.schoolDays} scheduled school days`,
     width,
   );
   pdf.text(attendanceLines, left, y);
@@ -206,7 +219,7 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   y += absentDateLines.length * 4 + 4;
 
   const comments = [
-    ["TEACHER COMMENT", data.teacherComment],
+    ["CLASS TEACHER'S COMMENT", data.teacherComment],
     ["PRINCIPAL'S COMMENT", data.principalComment],
   ].filter((item) => item[1]);
   if (comments.length && y < pageHeight - 39) {

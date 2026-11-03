@@ -282,7 +282,7 @@ export const useTeacherProfile = () => {
     });
 };
 
-export const useStudentProfile = () => {
+export const useStudentProfile = (enabled = true) => {
     const user = getStoredUser();
     return useQuery({
         queryKey: ["student-profile", user?.id],
@@ -303,7 +303,7 @@ export const useStudentProfile = () => {
                 return null;
             }
         },
-        enabled: !!user,
+        enabled: !!user && enabled,
         refetchInterval: 15000,
     });
 };
@@ -788,12 +788,13 @@ export const useGrades = (params?: { student?: number; assessment?: number }) =>
 // Exam Hooks
 export const useExams = (
     params?: { term?: string; year?: string; status?: string },
-    options?: { refetchInterval?: number | false },
+    options?: { refetchInterval?: number | false; enabled?: boolean },
 ) => {
     return useQuery({
         queryKey: ["exams", params],
         queryFn: () => fetchAllPages<Exam>("/exams/exams/", toQueryParams(params)),
         refetchInterval: options?.refetchInterval,
+        enabled: options?.enabled,
     });
 };
 
@@ -835,11 +836,14 @@ export const useExamSchedules = (params?: { exam?: number; subject?: number; sch
     });
 };
 
-export const useExamMarks = (params?: { exam?: number; student?: number; subject?: number; school_class?: number }) => {
+export const useExamMarks = (
+    params?: { exam?: number; student?: number; subject?: number; school_class?: number },
+    enabled = true,
+) => {
     return useQuery({
         queryKey: ["exam-marks", params],
         queryFn: () => fetchAllPages<ExamMark>("/exams/exam-marks/", toQueryParams(params)),
-        enabled: !!params?.student || !!params?.exam,
+        enabled: (!!params?.student || !!params?.exam) && enabled,
         refetchInterval: params?.student ? 5000 : false,
     });
 };
@@ -911,13 +915,13 @@ export const useUpdateExamMark = () => {
     });
 };
 
-export const useReportCardReviews = (exam?: number, student?: number) => useQuery({
+export const useReportCardReviews = (exam?: number, student?: number, enabled = true) => useQuery({
     queryKey: ["report-card-reviews", exam, student],
     queryFn: () => fetchAllPages<ReportCardReview>("/exams/report-card-reviews/", toQueryParams({
         exam,
         student,
     })),
-    enabled: !!exam,
+    enabled: !!exam && enabled,
     refetchInterval: student ? 5000 : false,
 });
 
@@ -949,8 +953,8 @@ export const useSubmitClassReports = () => {
 export const useUpdateReportCardReview = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, principal_comment }: { id: number; principal_comment: string }) =>
-            api.patch<ReportCardReview>(`/exams/report-card-reviews/${id}/`, { principal_comment }),
+        mutationFn: (data: { exam: number; student: number; principal_comment: string }) =>
+            api.post<ReportCardReview>("/exams/report-card-reviews/save-principal-comment/", data),
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["report-card-reviews"] });
         },
@@ -965,11 +969,11 @@ export const useAttendanceRecords = (params?: {
     term?: number;
     school_class?: number;
     session?: string;
-}) => {
+}, enabled = true) => {
     return useQuery({
         queryKey: ["attendance-records", params],
         queryFn: () => fetchAllPages<AttendanceRecord>("/attendance/attendance/", toQueryParams(params)),
-        enabled: params?.student === undefined || !!params.student,
+        enabled: enabled && (params?.student === undefined || !!params.student),
         refetchInterval: 60000,
     });
 };
@@ -1005,7 +1009,7 @@ export const useBulkUpdateAttendance = () => {
     });
 };
 
-export const useAttendanceReportSnapshot = (exam?: number, student?: number) => useQuery({
+export const useAttendanceReportSnapshot = (exam?: number, student?: number, enabled = true) => useQuery({
     queryKey: ["attendance-report-snapshots", exam, student],
     queryFn: async () => {
         const response = await api.get<unknown>("/attendance/report-snapshots/", {
@@ -1014,7 +1018,7 @@ export const useAttendanceReportSnapshot = (exam?: number, student?: number) => 
         });
         return extractArray<AttendanceReportSnapshot>(response)[0] ?? null;
     },
-    enabled: !!exam && !!student,
+    enabled: !!exam && !!student && enabled,
     refetchInterval: exam && student ? 5000 : false,
 });
 
@@ -1025,15 +1029,19 @@ export const useAttendanceReportSnapshots = (exam?: number) => useQuery({
         return extractArray<AttendanceReportSnapshot>(response);
     },
     enabled: !!exam,
+    refetchInterval: exam ? 60000 : false,
 });
 
-export const useAttendanceTermSummaries = (params?: { student?: number; term?: number; year?: string; term_name?: string }) => useQuery({
+export const useAttendanceTermSummaries = (
+    params?: { student?: number; term?: number; year?: string; term_name?: string },
+    enabled = true,
+) => useQuery({
     queryKey: ["attendance-summaries", params],
     queryFn: async () => {
         const response = await api.get<unknown>("/attendance/summaries/", toQueryParams(params));
         return extractArray<AttendanceTermSummary>(response);
     },
-    enabled: true,
+    enabled,
 });
 
 export const useSchoolCalendarDays = (params?: { date?: string; day_type?: string; term?: number }) => useQuery({
@@ -1059,15 +1067,16 @@ export const useAttendanceSettings = () => useQuery({
     queryFn: () => api.get<AttendanceSettings>("/attendance/settings/"),
 });
 
-export const useAcademicYears = () => useQuery({
+export const useAcademicYears = (enabled = true) => useQuery({
     queryKey: ["academic-years"],
     queryFn: () => fetchAllPages<AcademicYear>("/school/academic-years/"),
+    enabled,
 });
 
-export const useSchoolTerms = (params?: { academic_year?: number }) => useQuery({
+export const useSchoolTerms = (params?: { academic_year?: number }, enabled = true) => useQuery({
     queryKey: ["school-terms", params],
     queryFn: () => fetchAllPages<SchoolTerm>("/school/terms/", toQueryParams(params)),
-    enabled: !!params?.academic_year,
+    enabled: !!params?.academic_year && enabled,
 });
 
 export const useSaveAcademicYear = () => {
@@ -1366,7 +1375,7 @@ export const useDeleteFeeStructure = () => {
     });
 };
 
-export const useInvoices = (params?: { student?: number; status?: string }) => {
+export const useInvoices = (params?: { student?: number; status?: string }, enabled = true) => {
     return useQuery({
         queryKey: ["invoices", params],
         queryFn: async () => {
@@ -1375,7 +1384,7 @@ export const useInvoices = (params?: { student?: number; status?: string }) => {
             if (params?.status) cleanParams.status = params.status;
             return fetchAllPages<Invoice>("/finance/invoices/", cleanParams);
         },
-        enabled: params?.student === undefined || !!params.student,
+        enabled: enabled && (params?.student === undefined || !!params.student),
         refetchInterval: 15000,
     });
 };

@@ -464,3 +464,24 @@ class ReportCardReviewWorkflowTests(APITestCase):
             'comments': [{'student': self.student.pk, 'comment': 'Unauthorized'}],
         }, format='json')
         self.assertEqual(response.status_code, 403, response.data)
+
+    def test_admin_can_save_principal_comment_before_class_teacher_submission(self):
+        admin = User.objects.create_superuser('early-comment-admin', 'early@example.test', 'admin-pass-123')
+        self.client.force_authenticate(admin)
+
+        response = self.client.post(
+            '/api/exams/report-card-reviews/save-principal-comment/',
+            {
+                'exam': self.exam.pk,
+                'student': self.student.pk,
+                'principal_comment': 'Excellent progress this term.',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        review = ReportCardReview.objects.get(exam=self.exam, student=self.student)
+        self.assertEqual(review.principal_comment, 'Excellent progress this term.')
+        self.assertEqual(review.principal_reviewed_by, admin)
+        self.assertIsNotNone(review.principal_reviewed_at)
+        self.assertIsNone(review.class_teacher_submitted_at)

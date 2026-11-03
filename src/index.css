@@ -430,6 +430,46 @@ html {
   .admin-report-footer { margin-top: 8mm; color: #666; font-size: 8pt; }
 }
 
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
+
+  body.printing-admin-report-cards #admin-report-print-root,
+  body.printing-admin-report-cards #admin-report-print-root * {
+    visibility: hidden;
+  }
+
+  body.printing-admin-report-cards #admin-report-print-root .report-card-content,
+  body.printing-admin-report-cards #admin-report-print-root .report-card-content * {
+    visibility: visible;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.printing-admin-report-cards .admin-report-print-card > .space-y-6 > :not(.report-card-content) {
+    display: none !important;
+  }
+
+  body.printing-admin-report-cards .report-card-content {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body.printing-admin-report-cards .admin-report-print-card:not(:last-child) {
+    break-after: page;
+    page-break-after: always;
+  }
+}
+
 /* ===== 3D Effects (touch-friendly) ===== */
 @layer utilities {
   .perspective-1000 { perspective: 1000px; }
