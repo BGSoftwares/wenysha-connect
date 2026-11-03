@@ -166,7 +166,7 @@ const Auth = () => {
                                 <div className="space-y-1.5">
                                     <div className="flex justify-between items-center ml-1">
                                         <label className="text-xs font-semibold text-foreground/80">Password</label>
-                                        {isLogin && <button type="button" className="text-[10px] text-muted-foreground hover:text-accent font-bold uppercase transition-colors">Forgot?</button>}
+                                        {isLogin && <Link to="/contact" className="text-[10px] text-muted-foreground hover:text-accent font-bold uppercase transition-colors">Need help?</Link>}
                                     </div>
                                     <div className="relative">
                                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
