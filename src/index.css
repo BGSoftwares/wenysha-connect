@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -38,7 +38,7 @@
     --input: 224 18% 86%;
     --ring: 332 80% 45%;
 
-    --radius: 0.625rem;
+    --radius: 0.875rem;
 
     /* Custom School Tokens */
     --gold: 332 78% 63%;
@@ -55,9 +55,9 @@
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(330 45% 98%) 100%);
 
     /* Shadows */
-    --shadow-sm: 0 2px 8px -2px hsl(224 72% 22% / 0.08);
-    --shadow-md: 0 8px 24px -8px hsl(224 72% 22% / 0.12);
-    --shadow-lg: 0 16px 48px -12px hsl(224 72% 22% / 0.18);
+    --shadow-sm: 0 1px 2px hsl(224 72% 22% / 0.04), 0 2px 8px -2px hsl(224 72% 22% / 0.06);
+    --shadow-md: 0 2px 4px hsl(224 72% 22% / 0.04), 0 12px 28px -10px hsl(224 72% 22% / 0.14);
+    --shadow-lg: 0 4px 8px hsl(224 72% 22% / 0.05), 0 24px 56px -16px hsl(224 72% 22% / 0.22);
     --shadow-gold: 0 8px 24px -8px hsl(332 80% 45% / 0.3);
 
     /* Sidebar */
@@ -813,4 +813,56 @@ html.reduce-motion *::after {
   animation-iteration-count: 1 !important;
   scroll-behavior: auto !important;
   transition-duration: 0.01ms !important;
+}
+
+/* ===== Modern polish layer ===== */
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { letter-spacing: -0.005em; }
+  h1, h2, h3 { letter-spacing: -0.02em; }
+  ::selection { background: hsl(var(--accent) / 0.2); color: hsl(var(--foreground)); }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: hsl(var(--primary) / 0.18); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+  *::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.35); background-clip: content-box; border: 3px solid transparent; }
+  :focus-visible { outline: 2px solid hsl(var(--ring) / 0.6); outline-offset: 2px; }
+}
+
+/* Dashboards: soft mesh backdrop + glass cards */
+.dashboard-3d {
+  background:
+    radial-gradient(60rem 30rem at 100% -10%, hsl(var(--accent) / 0.07), transparent 60%),
+    radial-gradient(50rem 30rem at -10% 110%, hsl(var(--primary) / 0.07), transparent 60%),
+    hsl(var(--background));
+}
+.dashboard-3d main .rounded-lg.border,
+.dashboard-3d main .rounded-xl.border {
+  background: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(10px);
+  border-color: hsl(var(--border) / 0.7);
+  box-shadow: var(--shadow-sm);
+}
+.dashboard-3d header {
+  box-shadow: 0 1px 0 hsl(0 0% 100% / 0.06), 0 8px 24px -12px hsl(224 76% 8% / 0.5);
+}
+.dashboard-3d aside {
+  background-image: linear-gradient(180deg, hsl(0 0% 100% / 0.04), transparent 40%);
+}
+.dashboard-3d aside button, .dashboard-3d aside a {
+  border-radius: 0.75rem;
+  transition: background-color .2s ease, transform .2s ease, color .2s ease;
+}
+@media (hover: hover) {
+  .dashboard-3d aside button:hover, .dashboard-3d aside a:hover { transform: translateX(3px); }
+}
+.dashboard-3d table thead tr { background: hsl(var(--muted) / 0.6); }
+.dashboard-3d table tbody tr { transition: background-color .15s ease; }
+.dashboard-3d table tbody tr:hover { background: hsl(var(--secondary) / 0.6); }
+
+/* Inputs: modern soft fields */
+input:not([type=checkbox]):not([type=radio]), textarea, select, button[role=combobox] {
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+input:not([type=checkbox]):not([type=radio]):focus, textarea:focus {
+  box-shadow: 0 0 0 4px hsl(var(--ring) / 0.12);
 }
