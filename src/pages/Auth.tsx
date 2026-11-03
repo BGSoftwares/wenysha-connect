@@ -7,15 +7,12 @@ import {
     Mail,
     Lock,
     ArrowRight,
-    ShieldCheck,
-    UserCheck,
     User,
     UserPlus,
     Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "/able-god-college-logo.png";
-import campusPhoto from "@/assets/slides/slide-6252.jpeg";
 import { login, signup, getErrorMessage, clearAuth } from "@/lib/api";
 import { toast } from "sonner";
 import { dashboardPathForRole } from "@/lib/portalRoles";
@@ -79,22 +76,8 @@ const Auth = () => {
                 <div className="absolute -bottom-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-primary/15 blur-3xl" />
 
                 <div className="container mx-auto px-4 relative z-10">
-                    <div className="max-w-5xl mx-auto grid lg:grid-cols-2 rounded-[2rem] overflow-hidden border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-500">
-                        <div className="relative hidden lg:block min-h-[640px]">
-                            <img src={campusPhoto} alt="Students at school assembly" className="absolute inset-0 h-full w-full object-cover" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/60 to-transparent" />
-                            <div className="relative h-full flex flex-col justify-end p-10 text-primary-foreground">
-                                <span className="inline-flex w-fit items-center gap-2 rounded-full border border-primary-foreground/30 bg-primary-foreground/10 px-3 py-1 text-xs font-semibold backdrop-blur">
-                                    <ShieldCheck className="h-3.5 w-3.5" /> Secure school portal
-                                </span>
-                                <h2 className="mt-4 text-4xl font-heading font-semibold leading-tight">One place for learning, results and school life.</h2>
-                                <p className="mt-3 text-sm text-primary-foreground/80 max-w-sm">Students, parents, teachers and staff sign in to see marks, fees, library books and notices.</p>
-                                <div className="mt-6 flex gap-6 text-xs text-primary-foreground/80">
-                                    <span className="flex items-center gap-1.5"><UserCheck className="h-4 w-4" /> Approved accounts</span>
-                                    <span className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Private data</span>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="max-w-lg mx-auto rounded-[2rem] overflow-hidden border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-500">
+
 
                         <div className="p-8 sm:p-12">
                             <div className="mb-8">
