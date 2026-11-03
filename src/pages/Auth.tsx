@@ -223,19 +223,8 @@ const Auth = () => {
                                 </Button>
                             </form>
 
-                            <div className="mt-8 text-center space-y-4">
-                                <div className="relative">
-                                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-border" />
-                                    <span className="relative z-10 bg-card px-4 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">or</span>
-                                </div>
-                                <p className="text-muted-foreground text-xs font-medium">
-                                    {isLogin ? (
-                                        <>Are you new? <button onClick={() => setIsLogin(false)} className="text-accent hover:underline font-bold">Request Access</button></>
-                                    ) : (
-                                        <>Already have an account? <button onClick={() => setIsLogin(true)} className="text-accent hover:underline font-bold">Sign In</button></>
-                                    )}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground/50">
+                            <div className="mt-8 text-center">
+                                <p className="text-xs text-muted-foreground">
                                     Access is restricted to authorized personnel. By entering, you agree to our <Link to="/terms" className="underline">Security Policy</Link>.
                                 </p>
                             </div>
