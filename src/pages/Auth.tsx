@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "/able-god-college-logo.png";
+import campusPhoto from "@/assets/slides/slide-6252.jpeg";
 import { login, signup, getErrorMessage, clearAuth } from "@/lib/api";
 import { toast } from "sonner";
 import { dashboardPathForRole } from "@/lib/portalRoles";
@@ -73,22 +74,43 @@ const Auth = () => {
 
     return (
         <Layout>
-            <section className="min-h-screen flex items-center justify-center py-20 bg-background relative overflow-hidden">
-                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,#14295f20,transparent)]" />
+            <section className="min-h-screen flex items-center justify-center py-24 bg-background relative overflow-hidden">
+                <div className="absolute -top-40 -right-40 h-[28rem] w-[28rem] rounded-full bg-accent/15 blur-3xl" />
+                <div className="absolute -bottom-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-primary/15 blur-3xl" />
 
                 <div className="container mx-auto px-4 relative z-10">
-                    <div className="max-w-md mx-auto">
-                        <div className="bg-card rounded-3xl p-8 border border-border shadow-2xl shadow-forest/20 animate-in fade-in zoom-in duration-500">
-                            <div className="text-center mb-8">
-                                <Link to="/" className="inline-block mb-6 transition-transform hover:scale-110">
-                                    <img src={logo} alt="Logo" className="h-20 w-20 mx-auto rounded-2xl shadow-xl border border-border p-1 bg-white" />
+                    <div className="max-w-5xl mx-auto grid lg:grid-cols-2 rounded-[2rem] overflow-hidden border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-500">
+                        <div className="relative hidden lg:block min-h-[640px]">
+                            <img src={campusPhoto} alt="Students at school assembly" className="absolute inset-0 h-full w-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/60 to-transparent" />
+                            <div className="relative h-full flex flex-col justify-end p-10 text-primary-foreground">
+                                <span className="inline-flex w-fit items-center gap-2 rounded-full border border-primary-foreground/30 bg-primary-foreground/10 px-3 py-1 text-xs font-semibold backdrop-blur">
+                                    <ShieldCheck className="h-3.5 w-3.5" /> Secure school portal
+                                </span>
+                                <h2 className="mt-4 text-4xl font-heading font-semibold leading-tight">One place for learning, results and school life.</h2>
+                                <p className="mt-3 text-sm text-primary-foreground/80 max-w-sm">Students, parents, teachers and staff sign in to see marks, fees, library books and notices.</p>
+                                <div className="mt-6 flex gap-6 text-xs text-primary-foreground/80">
+                                    <span className="flex items-center gap-1.5"><UserCheck className="h-4 w-4" /> Approved accounts</span>
+                                    <span className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Private data</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-8 sm:p-12">
+                            <div className="mb-8">
+                                <Link to="/" className="inline-flex items-center gap-3 mb-8 group">
+                                    <img src={logo} alt="Logo" className="h-12 w-12 rounded-xl shadow-md border border-border p-0.5 bg-card transition-transform group-hover:scale-105" />
+                                    <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors">Back to website</span>
                                 </Link>
-                                <h1 className="text-3xl font-heading font-black text-foreground">
-                                    {isLogin ? "Secure Entrance" : "Join Able God College"}
+                                <div className="grid grid-cols-2 p-1 mb-8 rounded-xl bg-muted/70">
+                                    <button type="button" onClick={() => setIsLogin(true)} className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${isLogin ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>Sign in</button>
+                                    <button type="button" onClick={() => setIsLogin(false)} className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${!isLogin ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>Request access</button>
+                                </div>
+                                <h1 className="text-3xl font-heading font-semibold text-foreground">
+                                    {isLogin ? "Welcome back" : "Join Able God College"}
                                 </h1>
                                 <p className="text-muted-foreground text-sm mt-2">
-                                    {isLogin ? "Access your academic sanctuary" : "Begin your journey to excellence"}
+                                    {isLogin ? "Sign in to continue to your portal." : "Send a request and the school will approve your account."}
                                 </p>
                             </div>
 
@@ -96,7 +118,7 @@ const Auth = () => {
                                 {!isLogin && (
                                     <>
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">Full Name</label>
+                                            <label className="text-xs font-semibold text-foreground/80 ml-1">Full Name</label>
                                             <div className="relative">
                                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                                 <input
@@ -105,16 +127,16 @@ const Auth = () => {
                                                     placeholder="John Doe"
                                                     value={fullName}
                                                     onChange={(e) => setFullName(e.target.value)}
-                                                    className="w-full bg-secondary/50 border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
+                                                    className="w-full bg-background border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
                                                 />
                                             </div>
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">Identify As</label>
+                                            <label className="text-xs font-semibold text-foreground/80 ml-1">Identify As</label>
                                             <select
                                                 value={role}
                                                 onChange={(e) => setRole(e.target.value as typeof role)}
-                                                className="w-full bg-secondary/50 border border-border rounded-xl py-3.5 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm appearance-none"
+                                                className="w-full bg-background border border-border rounded-xl py-3.5 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm appearance-none"
                                             >
                                                 <option value="student">Student</option>
                                                 <option value="parent">Parent / Guardian</option>
@@ -126,7 +148,7 @@ const Auth = () => {
                                 )}
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">{isLogin ? "Email or Username" : "Email Address"}</label>
+                                    <label className="text-xs font-semibold text-foreground/80 ml-1">{isLogin ? "Email or Username" : "Email Address"}</label>
                                     <div className="relative">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <input
@@ -136,14 +158,14 @@ const Auth = () => {
                                             placeholder={isLogin ? "name@ablegodcollege.edu or username" : "name@ablegodcollege.edu"}
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            className="w-full bg-secondary/50 border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
+                                            className="w-full bg-background border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-1.5">
                                     <div className="flex justify-between items-center ml-1">
-                                        <label className="text-[10px] font-bold text-accent uppercase tracking-widest">Password</label>
+                                        <label className="text-xs font-semibold text-foreground/80">Password</label>
                                         {isLogin && <button type="button" className="text-[10px] text-muted-foreground hover:text-accent font-bold uppercase transition-colors">Forgot?</button>}
                                     </div>
                                     <div className="relative">
@@ -155,7 +177,7 @@ const Auth = () => {
                                             placeholder="••••••••"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full bg-secondary/50 border border-border rounded-xl py-3.5 pl-11 pr-12 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
+                                            className="w-full bg-background border border-border rounded-xl py-3.5 pl-11 pr-12 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
                                         />
                                         <button
                                             type="button"
@@ -169,7 +191,7 @@ const Auth = () => {
 
                                 {!isLogin && (
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-accent uppercase tracking-widest ml-1">Confirm Password</label>
+                                        <label className="text-xs font-semibold text-foreground/80 ml-1">Confirm Password</label>
                                         <div className="relative">
                                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                             <input
@@ -178,7 +200,7 @@ const Auth = () => {
                                                 placeholder="••••••••"
                                                 value={confirmPassword}
                                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                                className="w-full bg-secondary/50 border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
+                                                className="w-full bg-background border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
                                             />
                                         </div>
                                     </div>
@@ -201,19 +223,8 @@ const Auth = () => {
                                 </Button>
                             </form>
 
-                            <div className="mt-8 text-center space-y-4">
-                                <div className="relative">
-                                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-border" />
-                                    <span className="relative z-10 bg-card px-4 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">or</span>
-                                </div>
-                                <p className="text-muted-foreground text-xs font-medium">
-                                    {isLogin ? (
-                                        <>Are you new? <button onClick={() => setIsLogin(false)} className="text-accent hover:underline font-bold">Request Access</button></>
-                                    ) : (
-                                        <>Already have an account? <button onClick={() => setIsLogin(true)} className="text-accent hover:underline font-bold">Sign In</button></>
-                                    )}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground/50">
+                            <div className="mt-8 text-center">
+                                <p className="text-xs text-muted-foreground">
                                     Access is restricted to authorized personnel. By entering, you agree to our <Link to="/terms" className="underline">Security Policy</Link>.
                                 </p>
                             </div>
