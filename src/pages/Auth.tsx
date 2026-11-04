@@ -8,11 +8,11 @@ import {
     Lock,
     ArrowRight,
     User,
-    UserPlus,
     Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "/able-god-college-logo.png";
+import campusPhoto from "@/assets/slides/slide-6252.jpeg";
 import { login, signup, getErrorMessage, clearAuth } from "@/lib/api";
 import { toast } from "sonner";
 import { dashboardPathForRole } from "@/lib/portalRoles";
@@ -71,17 +71,42 @@ const Auth = () => {
 
     return (
         <Layout>
-            <section className="min-h-screen flex items-center justify-center py-24 bg-background relative overflow-hidden">
-                <div className="absolute -top-40 -right-40 h-[28rem] w-[28rem] rounded-full bg-accent/15 blur-3xl" />
-                <div className="absolute -bottom-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-primary/15 blur-3xl" />
+            <section className="min-h-screen flex bg-background relative overflow-hidden">
+                {/* Campus photo panel */}
+                <div className="relative hidden lg:flex lg:w-1/2 xl:w-[55%] items-end">
+                    <img
+                        src={campusPhoto}
+                        alt="Able God College learners gathered at assembly"
+                        className="absolute inset-0 h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--forest-dark))] via-[hsl(var(--forest-dark))]/50 to-[hsl(var(--forest-dark))]/10" />
+                    <div className="relative z-10 p-12 xl:p-16 max-w-xl">
+                        <Link to="/" className="inline-flex items-center gap-4 mb-8 group">
+                            <img
+                                src={logo}
+                                alt="Able God College crest"
+                                className="h-16 w-16 rounded-2xl object-contain bg-card p-1 shadow-xl ring-4 ring-accent/70 transition-transform group-hover:scale-105"
+                            />
+                        </Link>
+                        <h2 className="font-heading text-4xl xl:text-5xl font-bold text-white leading-tight">
+                            Able God College
+                        </h2>
+                        <p className="mt-4 text-white/80 text-lg leading-relaxed">
+                            Learning, leadership and service. Sign in to access your portal — timetables, results, report cards and school announcements, all in one place.
+                        </p>
+                        <p className="mt-8 text-xs uppercase tracking-[0.3em] text-accent font-semibold">
+                            Est. 2024 · ZIMSEC &amp; HEXCO
+                        </p>
+                    </div>
+                </div>
 
-                <div className="container mx-auto px-4 relative z-10">
-                    <div className="w-full max-w-md mx-auto rounded-[2rem] overflow-hidden border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-500">
-
-
-                        <div className="p-8 sm:p-12">
+                {/* Form panel */}
+                <div className="flex w-full lg:w-1/2 xl:w-[45%] items-center justify-center py-24 px-4 sm:px-8">
+                    <div className="absolute -top-40 -right-40 h-[28rem] w-[28rem] rounded-full bg-accent/10 blur-3xl pointer-events-none" />
+                    <div className="w-full max-w-md rounded-[2rem] overflow-hidden border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-500 relative z-10">
+                        <div className="p-8 sm:p-10">
                             <div className="mb-8">
-                                <Link to="/" className="inline-flex items-center gap-3 mb-8 group">
+                                <Link to="/" className="lg:hidden inline-flex items-center gap-3 mb-8 group">
                                     <img src={logo} alt="Logo" className="h-12 w-12 rounded-xl shadow-md border border-border p-0.5 bg-card transition-transform group-hover:scale-105" />
                                     <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors">Back to website</span>
                                 </Link>
@@ -138,7 +163,7 @@ const Auth = () => {
                                             required
                                             type={isLogin ? "text" : "email"}
                                             autoComplete={isLogin ? "username" : "email"}
-                                            placeholder={isLogin ? "name@ablegodcollege.edu or username" : "name@ablegodcollege.edu"}
+                                            placeholder="name@ablegodcollege.edu or username"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             className="w-full bg-background border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
