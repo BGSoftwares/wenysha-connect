@@ -867,7 +867,7 @@ const TeacherDashboard = () => {
             <div className="relative flex flex-col md:flex-row items-center gap-6">
               <img src={logo} alt="School Logo" className="h-24 w-24 rounded-2xl object-contain bg-card p-2 shadow-lg ring-4 ring-accent/70" />
               <div className="flex-1 text-center md:text-left">
-                <p className="text-xs uppercase tracking-[0.3em] text-accent font-semibold">Wenyasha International School</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-accent font-semibold">Able God College</p>
                 <h1 className="mt-1 font-heading text-2xl md:text-3xl font-bold tracking-wide">{reportCardHeading}</h1>
                 <p className="mt-1 text-sm text-primary-foreground/80">{schoolContact.address} · {teacher?.phone || schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
               </div>
