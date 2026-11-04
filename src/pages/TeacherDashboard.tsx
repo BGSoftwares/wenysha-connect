@@ -860,25 +860,26 @@ const TeacherDashboard = () => {
       )}
 
       {reportCardRows.length > 0 && (
-        <div className="report-card bg-card rounded-2xl border border-border overflow-hidden shadow-lg print:border-none print:shadow-none">
-          <div className="relative bg-gradient-hero text-primary-foreground px-6 py-8">
-            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary-foreground/10 blur-2xl" />
+        <div className="report-card bg-card rounded-3xl border-2 border-accent/60 overflow-hidden shadow-2xl shadow-primary/20 ring-1 ring-accent/20 print:border-none print:shadow-none">
+          <div className="relative bg-[hsl(var(--forest-dark))] text-primary-foreground px-6 py-8 border-b-4 border-accent">
+            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-accent/30 blur-3xl" />
+            <div className="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-primary/40 blur-3xl" />
             <div className="relative flex flex-col md:flex-row items-center gap-6">
-              <img src={logo} alt="School Logo" className="h-24 w-24 rounded-2xl object-contain bg-card p-2 shadow-lg" />
+              <img src={logo} alt="School Logo" className="h-24 w-24 rounded-2xl object-contain bg-card p-2 shadow-lg ring-4 ring-accent/70" />
               <div className="flex-1 text-center md:text-left">
-                <p className="text-xs uppercase tracking-[0.3em] text-primary-foreground/70">Able God College</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-accent font-semibold">Wenyasha International School</p>
                 <h1 className="mt-1 font-heading text-2xl md:text-3xl font-bold tracking-wide">{reportCardHeading}</h1>
                 <p className="mt-1 text-sm text-primary-foreground/80">{schoolContact.address} · {teacher?.phone || schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
               </div>
-              <div className="text-center rounded-2xl bg-primary-foreground/10 border border-primary-foreground/20 px-6 py-4 backdrop-blur">
+              <div className="text-center rounded-2xl bg-accent/15 border-2 border-accent/70 px-6 py-4 backdrop-blur">
                 <p className="text-xs uppercase tracking-widest text-primary-foreground/70">Class average</p>
-                <p className="text-4xl font-bold">{calculateGrade(classReportAverage).grade}</p>
+                <p className="text-4xl font-bold text-accent">{calculateGrade(classReportAverage).grade}</p>
                 <p className="text-sm text-primary-foreground/80">{classReportAverage.toFixed(1)}%</p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 xl:grid-cols-7">
+          <div className="grid grid-cols-2 gap-px bg-accent/30 sm:grid-cols-3 xl:grid-cols-7">
             {[
               ["Learners", `${reportCardRows.length} in class`],
               ["Class", uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"],
@@ -889,7 +890,7 @@ const TeacherDashboard = () => {
               ["Issued", `${reportPreviewType === "monthly_report_card" ? `${reportIssueMonthYear} · ` : ""}${reportIssuedDate}`],
             ].map(([k, v]) => (
               <div key={k} className="bg-card px-4 py-3">
-                <p className="text-[11px] uppercase tracking-widest text-muted-foreground">{k}</p>
+                <p className="text-[11px] uppercase tracking-widest text-primary font-semibold">{k}</p>
                 <p className="mt-0.5 text-sm font-semibold text-foreground truncate">{v}</p>
               </div>
             ))}
@@ -897,7 +898,7 @@ const TeacherDashboard = () => {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-primary text-primary-foreground">
+              <thead className="bg-[hsl(var(--forest-dark))] text-accent border-b-2 border-accent">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-semibold">LEARNER</th>
                   <th className="px-4 py-3 text-center text-sm font-semibold">SCORED</th>
@@ -912,13 +913,13 @@ const TeacherDashboard = () => {
                   const percentage = row.percentage ?? 0;
                   const gradeInfo = calculateGrade(percentage);
                   return (
-                    <tr key={row.studentId} className="odd:bg-card even:bg-secondary/40 hover:bg-secondary transition-colors">
+                    <tr key={row.studentId} className="odd:bg-card even:bg-primary/5 hover:bg-accent/10 transition-colors">
                       <td className="px-4 py-3 text-sm font-medium text-foreground">{row.studentName}</td>
                       <td className="px-4 py-3 text-sm text-center font-medium text-foreground">{row.score === null ? "—" : row.score.toFixed(2)}</td>
                       <td className="px-4 py-3 text-sm text-center text-muted-foreground">{row.score === null ? "—" : row.totalMarks}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {row.percentage !== null && <div className="flex items-center gap-2 justify-center">
-                          <div className="h-2 w-20 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-gradient-hero" style={{ width: `${Math.min(percentage, 100)}%` }} /></div>
+                          <div className="h-2 w-20 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-primary to-accent" style={{ width: `${Math.min(percentage, 100)}%` }} /></div>
                           <span>{percentage.toFixed(1)}%</span>
                         </div>}
                       </td>
@@ -935,7 +936,7 @@ const TeacherDashboard = () => {
             </table>
           </div>
 
-          <div className="p-6 border-t border-border bg-secondary/10 space-y-4">
+          <div className="p-6 border-t border-border bg-primary/5 space-y-4">
             <div className="grid md:grid-cols-3 gap-4">
               <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Teacher comments</p>

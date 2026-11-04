@@ -76,7 +76,7 @@ const Auth = () => {
                 <div className="absolute -bottom-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-primary/15 blur-3xl" />
 
                 <div className="container mx-auto px-4 relative z-10">
-                    <div className="max-w-lg mx-auto rounded-[2rem] overflow-hidden border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-500">
+                    <div className="w-full max-w-md mx-auto rounded-[2rem] overflow-hidden border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-500">
 
 
                         <div className="p-8 sm:p-12">
