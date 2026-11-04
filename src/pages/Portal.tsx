@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
+import { DeveloperSignature } from "@/components/layout/DeveloperSignature";
 import { GraduationCap, Users, Shield, Eye, EyeOff, Mail, Lock, ArrowLeft, Wallet, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "/able-god-college-logo.png";
+import campusPhoto from "@/assets/slides/slide-6252.jpeg";
 import { schoolContact } from "@/lib/schoolContact";
 import { login, getErrorMessage, clearAuth } from "@/lib/api";
 import { dashboardPathForRole, normalizePortalRole } from "@/lib/portalRoles";
@@ -80,9 +82,9 @@ const Portal = () => {
     const portal = portals.find(p => p.type === selectedPortal)!;
     return (
       <Layout>
-        <section className="portal-access-shell min-h-[80vh] flex items-center justify-center py-12">
+        <section className="portal-access-shell flex min-h-[80vh] items-center justify-center px-4 pb-12 pt-28">
           <div className="container mx-auto px-4">
-            <div className="max-w-md mx-auto">
+            <div className="mx-auto max-w-3xl">
               <button
                 onClick={() => setSelectedPortal(null)}
                 className="flex items-center gap-2 text-primary font-semibold hover:text-accent mb-6 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md"
@@ -91,20 +93,33 @@ const Portal = () => {
                 Back to portal selection
               </button>
 
-              <div className="portal-access-card bg-card rounded-3xl border p-8 md:p-10 shadow-elegant">
-                <div className="text-center mb-8">
-                  <img
-                    src={logo}
-                    alt="Able God College Logo"
-                    className="h-20 w-20 object-contain mx-auto mb-4 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-pink-100"
-                  />
-                  <h1 className="font-heading text-2xl font-bold text-foreground">
-                    {portal.title}
-                  </h1>
-                  <p className="text-muted-foreground text-sm">{portal.description}</p>
+              <div className="portal-access-card overflow-hidden rounded-2xl border border-pink-100 bg-card shadow-xl shadow-primary/10 lg:grid lg:grid-cols-[0.8fr_1.2fr]">
+                <div className="relative hidden min-h-[480px] lg:block">
+                  <img src={campusPhoto} alt="Students at school assembly" className="absolute inset-0 h-full w-full object-cover object-center" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/45 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 p-6 text-primary-foreground">
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Able God College</span>
+                    <h2 className="mt-3 font-heading text-2xl font-semibold leading-tight">Learning, results and school life — together.</h2>
+                    <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/80">
+                      Secure access for students, parents, teachers and school staff.
+                    </p>
+                  </div>
                 </div>
 
-                <form onSubmit={handleLogin} className="space-y-5">
+                <div className="p-6 sm:p-7 lg:p-8">
+                  <div className="mb-5 text-center">
+                    <img
+                      src={logo}
+                      alt="Able God College Logo"
+                      className="mx-auto mb-3 h-16 w-16 rounded-xl border border-pink-100 bg-white p-1.5 object-contain"
+                    />
+                    <h1 className="font-heading text-2xl font-bold text-foreground">
+                      {portal.title}
+                    </h1>
+                    <p className="text-muted-foreground text-sm">{portal.description}</p>
+                  </div>
+
+                  <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-primary mb-2">
                       Email Address or Username
@@ -117,7 +132,7 @@ const Portal = () => {
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-white text-primary placeholder:text-slate-400 focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/15 transition-all"
+                        className="w-full rounded-xl border border-slate-200 bg-blue-50 py-3.5 pl-12 pr-4 text-primary placeholder:text-slate-400 transition-all focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
                         placeholder="Enter your school email or username"
                       />
                     </div>
@@ -134,7 +149,8 @@ const Portal = () => {
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-white text-primary placeholder:text-slate-400 focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/15 transition-all"
+                        autoComplete="current-password"
+                        className="w-full rounded-xl border border-slate-200 bg-blue-50 py-3.5 pl-12 pr-12 text-primary placeholder:text-slate-400 transition-all focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
                         placeholder="Enter your password"
                       />
                       <button
@@ -158,9 +174,9 @@ const Portal = () => {
                   <Button type="submit" variant="gold" size="lg" className="w-full" disabled={isLoading}>
                     {isLoading ? "Signing in…" : "Sign In"}
                   </Button>
-                </form>
+                  </form>
 
-                <div className="mt-7 pt-6 border-t border-pink-100 text-center space-y-3">
+                  <div className="mt-6 border-t border-pink-100 pt-5 text-center space-y-3">
                   <p className="text-sm text-muted-foreground">
                     Don't have an account?{" "}
                     <Link to="/signup" className="text-primary hover:underline font-medium">
@@ -173,6 +189,8 @@ const Portal = () => {
                       {schoolContact.phones[0].label}
                     </a>
                   </p>
+                  </div>
+                  <DeveloperSignature className="mt-4 border-t border-pink-100 pt-4 text-center text-xs text-muted-foreground" />
                 </div>
               </div>
             </div>

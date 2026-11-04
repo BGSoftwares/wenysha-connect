@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
+import { DeveloperSignature } from "@/components/layout/DeveloperSignature";
 import {
     Eye,
     EyeOff,
     Mail,
     Lock,
     ArrowRight,
-    ShieldCheck,
-    UserCheck,
     User,
-    UserPlus,
     Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -74,69 +72,80 @@ const Auth = () => {
 
     return (
         <Layout>
-            <section className="min-h-screen flex items-center justify-center py-24 bg-background relative overflow-hidden">
-                <div className="absolute -top-40 -right-40 h-[28rem] w-[28rem] rounded-full bg-accent/15 blur-3xl" />
-                <div className="absolute -bottom-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-primary/15 blur-3xl" />
+            <section className="relative flex min-h-[80vh] items-center justify-center overflow-hidden bg-background px-4 pb-12 pt-28">
+                <div className="pointer-events-none absolute -right-40 -top-40 h-[28rem] w-[28rem] rounded-full bg-accent/10 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-primary/10 blur-3xl" />
 
-                <div className="container mx-auto px-4 relative z-10">
-                    <div className="max-w-5xl mx-auto grid lg:grid-cols-2 rounded-[2rem] overflow-hidden border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-500">
-                        <div className="relative hidden lg:block min-h-[640px]">
-                            <img src={campusPhoto} alt="Students at school assembly" className="absolute inset-0 h-full w-full object-cover" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/60 to-transparent" />
-                            <div className="relative h-full flex flex-col justify-end p-10 text-primary-foreground">
-                                <span className="inline-flex w-fit items-center gap-2 rounded-full border border-primary-foreground/30 bg-primary-foreground/10 px-3 py-1 text-xs font-semibold backdrop-blur">
-                                    <ShieldCheck className="h-3.5 w-3.5" /> Secure school portal
-                                </span>
-                                <h2 className="mt-4 text-4xl font-heading font-semibold leading-tight">One place for learning, results and school life.</h2>
-                                <p className="mt-3 text-sm text-primary-foreground/80 max-w-sm">Students, parents, teachers and staff sign in to see marks, fees, library books and notices.</p>
-                                <div className="mt-6 flex gap-6 text-xs text-primary-foreground/80">
-                                    <span className="flex items-center gap-1.5"><UserCheck className="h-4 w-4" /> Approved accounts</span>
-                                    <span className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Private data</span>
-                                </div>
+                <div className="relative z-10 w-full max-w-3xl animate-in fade-in zoom-in-95 duration-500">
+                    <div className="overflow-hidden rounded-2xl border border-pink-100 bg-card shadow-xl shadow-primary/10 lg:grid lg:grid-cols-[0.8fr_1.2fr]">
+                        <div className="relative hidden min-h-[480px] lg:block">
+                            <img src={campusPhoto} alt="Students at school assembly" className="absolute inset-0 h-full w-full object-cover object-center" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/45 to-transparent" />
+                            <div className="absolute inset-x-0 bottom-0 p-6 text-primary-foreground">
+                                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Able God College</span>
+                                <h2 className="mt-3 font-heading text-2xl font-semibold leading-tight">Learning, results and school life — together.</h2>
+                                <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/80">
+                                    Secure access for students, parents, teachers and school staff.
+                                </p>
                             </div>
                         </div>
 
-                        <div className="p-8 sm:p-12">
-                            <div className="mb-8">
-                                <Link to="/" className="inline-flex items-center gap-3 mb-8 group">
-                                    <img src={logo} alt="Logo" className="h-12 w-12 rounded-xl shadow-md border border-border p-0.5 bg-card transition-transform group-hover:scale-105" />
-                                    <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors">Back to website</span>
-                                </Link>
-                                <div className="grid grid-cols-2 p-1 mb-8 rounded-xl bg-muted/70">
-                                    <button type="button" onClick={() => setIsLogin(true)} className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${isLogin ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>Sign in</button>
-                                    <button type="button" onClick={() => setIsLogin(false)} className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${!isLogin ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>Request access</button>
-                                </div>
-                                <h1 className="text-3xl font-heading font-semibold text-foreground">
-                                    {isLogin ? "Welcome back" : "Join Able God College"}
+                        <div className="p-6 sm:p-7 lg:p-8">
+                            <div className="mb-5 text-center">
+                                <img
+                                    src={logo}
+                                    alt="Able God College Logo"
+                                    className="mx-auto mb-3 h-16 w-16 rounded-xl border border-pink-100 bg-white p-1.5 object-contain"
+                                />
+                                <h1 className="font-heading text-2xl font-semibold text-foreground">
+                                    {isLogin ? "Portal Sign In" : "Join Able God College"}
                                 </h1>
-                                <p className="text-muted-foreground text-sm mt-2">
-                                    {isLogin ? "Sign in to continue to your portal." : "Send a request and the school will approve your account."}
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    {isLogin ? "Sign in to continue to your school portal." : "Send a request and the school will approve your account."}
                                 </p>
                             </div>
 
-                            <form className="space-y-4" onSubmit={handleSubmit}>
+                            <div className="mb-5 grid grid-cols-2 rounded-xl bg-muted/70 p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsLogin(true)}
+                                    className={`rounded-lg py-2.5 text-sm font-semibold transition-all ${isLogin ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                >
+                                    Sign in
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsLogin(false)}
+                                    className={`rounded-lg py-2.5 text-sm font-semibold transition-all ${!isLogin ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                >
+                                    Request access
+                                </button>
+                            </div>
+
+                            <form className="space-y-3.5" onSubmit={handleSubmit}>
                                 {!isLogin && (
                                     <>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-semibold text-foreground/80 ml-1">Full Name</label>
+                                        <div>
+                                            <label className="mb-2 block text-sm font-bold text-primary">Full Name</label>
                                             <div className="relative">
-                                                <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <User className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                                                 <input
                                                     required
                                                     type="text"
-                                                    placeholder="John Doe"
+                                                    autoComplete="name"
+                                                    placeholder="Enter your full name"
                                                     value={fullName}
                                                     onChange={(e) => setFullName(e.target.value)}
-                                                    className="w-full bg-background border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
+                                                    className="w-full rounded-xl border border-slate-200 bg-blue-50 py-2.5 pl-12 pr-4 text-foreground placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
                                                 />
                                             </div>
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-semibold text-foreground/80 ml-1">Identify As</label>
+                                        <div>
+                                            <label className="mb-2 block text-sm font-bold text-primary">Identify As</label>
                                             <select
                                                 value={role}
                                                 onChange={(e) => setRole(e.target.value as typeof role)}
-                                                className="w-full bg-background border border-border rounded-xl py-3.5 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm appearance-none"
+                                                className="w-full appearance-none rounded-xl border border-slate-200 bg-blue-50 px-4 py-2.5 text-foreground focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
                                             >
                                                 <option value="student">Student</option>
                                                 <option value="parent">Parent / Guardian</option>
@@ -147,87 +156,91 @@ const Auth = () => {
                                     </>
                                 )}
 
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-semibold text-foreground/80 ml-1">{isLogin ? "Email or Username" : "Email Address"}</label>
+                                <div>
+                                    <label className="mb-2 block text-sm font-bold text-primary">
+                                        {isLogin ? "Email Address or Username" : "Email Address"}
+                                    </label>
                                     <div className="relative">
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                                         <input
                                             required
                                             type={isLogin ? "text" : "email"}
                                             autoComplete={isLogin ? "username" : "email"}
-                                            placeholder={isLogin ? "name@ablegodcollege.edu or username" : "name@ablegodcollege.edu"}
+                                            placeholder={isLogin ? "Enter your school email or username" : "you@example.com"}
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            className="w-full bg-background border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
+                                            className="w-full rounded-xl border border-slate-200 bg-blue-50 py-2.5 pl-12 pr-4 text-foreground placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-1.5">
-                                    <div className="flex justify-between items-center ml-1">
-                                        <label className="text-xs font-semibold text-foreground/80">Password</label>
-                                        {isLogin && <Link to="/contact" className="text-[10px] text-muted-foreground hover:text-accent font-bold uppercase transition-colors">Need help?</Link>}
+                                <div>
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <label className="block text-sm font-bold text-primary">Password</label>
+                                        {isLogin && (
+                                            <Link to="/contact" className="text-sm font-semibold text-primary hover:text-accent hover:underline">
+                                                Need help?
+                                            </Link>
+                                        )}
                                     </div>
                                     <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                                         <input
                                             required
                                             type={showPassword ? "text" : "password"}
                                             autoComplete={isLogin ? "current-password" : "new-password"}
-                                            placeholder="••••••••"
+                                            placeholder="Enter your password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full bg-background border border-border rounded-xl py-3.5 pl-11 pr-12 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
+                                            className="w-full rounded-xl border border-slate-200 bg-blue-50 py-2.5 pl-12 pr-12 text-foreground placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-accent transition-colors"
+                                            aria-label={showPassword ? "Hide password" : "Show password"}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 rounded text-slate-500 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                         >
-                                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                                         </button>
                                     </div>
                                 </div>
 
                                 {!isLogin && (
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-semibold text-foreground/80 ml-1">Confirm Password</label>
+                                    <div>
+                                        <label className="mb-2 block text-sm font-bold text-primary">Confirm Password</label>
                                         <div className="relative">
-                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                            <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                                             <input
                                                 required
                                                 type={showPassword ? "text" : "password"}
-                                                placeholder="••••••••"
+                                                autoComplete="new-password"
+                                                placeholder="Confirm your password"
                                                 value={confirmPassword}
                                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                                className="w-full bg-background border border-border rounded-xl py-3.5 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all text-sm"
+                                                className="w-full rounded-xl border border-slate-200 bg-blue-50 py-2.5 pl-12 pr-4 text-foreground placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
                                             />
                                         </div>
                                     </div>
                                 )}
 
-                                <Button
-                                    type="submit"
-                                    disabled={isLoading}
-                                    variant="gold"
-                                    className="w-full py-6 rounded-xl font-bold shadow-xl shadow-accent/20 group h-14"
-                                >
+                                <Button type="submit" disabled={isLoading} variant="gold" className="h-11 w-full rounded-xl text-base font-bold shadow-lg shadow-accent/20">
                                     {isLoading ? (
                                         <Loader2 className="h-5 w-5 animate-spin" />
                                     ) : (
                                         <>
-                                            {isLogin ? "Enter Portal" : "Submit Request"}
-                                            <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                                            {isLogin ? "Sign In" : "Submit Request"}
+                                            <ArrowRight className="ml-2 h-4 w-4" />
                                         </>
                                     )}
                                 </Button>
                             </form>
 
-                            <div className="mt-8 text-center">
-                                <p className="text-xs text-muted-foreground">
-                                    Access is restricted to authorized personnel. By entering, you agree to our <Link to="/terms" className="underline">Security Policy</Link>.
-                                </p>
-                            </div>
+                            <p className="mt-5 text-center text-xs text-muted-foreground">
+                                By continuing, you agree to our{" "}
+                                <Link to="/terms" className="underline hover:text-primary">Security Policy</Link>.
+                                {" "} <Link to="/" className="font-medium text-primary hover:underline">Back to website</Link>
+                            </p>
+                            <DeveloperSignature className="mt-4 border-t border-pink-100 pt-4 text-center text-xs text-muted-foreground" />
                         </div>
                     </div>
                 </div>

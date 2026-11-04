@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Phone, MapPin } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
+import { DeveloperSignature } from "./DeveloperSignature";
 
 const quickLinks = [
   { name: "About Us", path: "/about" },
@@ -105,8 +106,12 @@ export const Footer = () => {
       {/* Bottom Bar */}
       <div className="border-t border-primary-foreground/10">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-primary-foreground/60">
-            <p>© 2026 Able God College. All rights reserved.</p>
+          <div className="flex flex-col items-center justify-between gap-4 text-center text-sm text-primary-foreground/60 md:flex-row md:text-left">
+            <div className="flex flex-col items-center gap-1 sm:flex-row sm:gap-4">
+              <p>© 2026 Able God College. All rights reserved.</p>
+              <span className="hidden text-primary-foreground/30 sm:inline" aria-hidden="true">|</span>
+              <DeveloperSignature />
+            </div>
             <div className="flex gap-6">
               <Link to="/privacy" className="hover:text-accent transition-colors">
                 Privacy Policy
