@@ -99,3 +99,33 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+### Self-hosted Docker deployment
+
+The Compose deployment serves the frontend and API through Nginx over HTTPS.
+It requires a public DNS name, an externally managed MySQL database, and a
+certificate directory containing `fullchain.pem` and `privkey.pem` as regular
+files (not symlinks to paths outside the mounted directory).
+
+1. Copy `deploy.env.example` to `deploy.env`. Set `DOMAIN`, `TLS_CERT_DIR` to
+   the host directory containing the certificate files, and the MySQL
+   connection values. Set `DJANGO_SECRET_KEY` to a unique random value of at
+   least 50 characters (for example, generate one with
+   `python -c "import secrets; print(secrets.token_urlsafe(64))"`).
+2. Ensure the certificate is valid for `DOMAIN`, the MySQL server accepts
+   connections from the Docker host, and inbound TCP ports 80 and 443 are
+   allowed. Do not expose MySQL publicly unless your provider requires it;
+   restrict its network access to the application host.
+3. Validate and start the deployment:
+
+   ```sh
+   docker compose --env-file deploy.env config --quiet
+   docker compose --env-file deploy.env up --build -d
+   ```
+
+Compose runs database migrations before starting the API. Uploaded media is
+stored in a Docker volume; back up that volume and the external MySQL database
+regularly. Keep `deploy.env` and private TLS keys out of version control.
+Configure optional `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
+before building if the Supabase-backed AI features are used. Build-time Vite
+values are embedded in the frontend image, so rebuild after changing them.

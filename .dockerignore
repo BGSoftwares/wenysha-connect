@@ -5,7 +5,10 @@ dist
 .gitignore
 .env
 .env.*
+deploy.env
 *.local
 .DS_Store
 coverage
 .vscode
+backend/
+certs/

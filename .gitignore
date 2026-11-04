@@ -28,6 +28,8 @@ backend/venv/
 backend/.venv/
 backend/.env
 .env
+deploy.env
+/certs/
 
 # Python pycache and bytecode
 __pycache__/
@@ -38,5 +40,4 @@ backend/media/
 
 # One-time student portal credentials
 output/
-
 

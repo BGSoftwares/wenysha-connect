@@ -3,9 +3,11 @@ Django settings for Able God College backend.
 Uses MySQL and Django REST Framework with JWT.
 """
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
@@ -17,20 +19,27 @@ def _as_list(value: str, default: str = "") -> list[str]:
     return [item.strip() for item in items.split(',') if item.strip()]
 
 
-SECRET_KEY = os.environ.get(
-    'DJANGO_SECRET_KEY',
-    'development-secret-key-change-in-production-use-env-2026-abcdefghi123456'
-)
-
 # Support both DJANGO_DEBUG and DEBUG env var names.
-DEBUG = os.environ.get('DJANGO_DEBUG', os.environ.get('DEBUG', 'True')).lower() == 'true'
+DEBUG = os.environ.get('DJANGO_DEBUG', os.environ.get('DEBUG', 'False')).lower() == 'true'
+
+_DEVELOPMENT_SECRET_KEY = 'development-secret-key-change-in-production-use-env-2026-abcdefghi123456'
+_IS_TEST_RUN = 'test' in sys.argv[1:]
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', _DEVELOPMENT_SECRET_KEY)
+if not DEBUG and not _IS_TEST_RUN and (
+    not SECRET_KEY
+    or SECRET_KEY == _DEVELOPMENT_SECRET_KEY
+    or SECRET_KEY == 'replace-this-in-production'
+    or SECRET_KEY.startswith('replace-with-a-unique-secret')
+    or len(SECRET_KEY) < 50
+):
+    raise ImproperlyConfigured(
+        'Set a unique DJANGO_SECRET_KEY of at least 50 characters before running with DJANGO_DEBUG=False.'
+    )
 
 ALLOWED_HOSTS = _as_list(
-    os.environ.get('DJANGO_ALLOWED_HOSTS', os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,::1,testserver')),
-    'localhost,127.0.0.1,0.0.0.0,::1,testserver'
+    os.environ.get('DJANGO_ALLOWED_HOSTS', os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,::1')),
+    'localhost,127.0.0.1,0.0.0.0,::1'
 )
-if 'testserver' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('testserver')
 
 
 INSTALLED_APPS = [
@@ -166,14 +175,24 @@ CSRF_TRUSTED_ORIGINS = _as_list(
     'http://localhost:5173,http://localhost:8080,http://localhost:8081,http://127.0.0.1:5173,http://127.0.0.1:8080,http://127.0.0.1:8081'
 )
 
+SECURE_SSL_REDIRECT = os.environ.get(
+    'DJANGO_SECURE_SSL_REDIRECT',
+    'False' if DEBUG else 'True',
+).lower() == 'true'
+SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_SECURE_HSTS_SECONDS', '31536000' if not DEBUG else '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get(
+    'DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS',
+    'True' if not DEBUG else 'False',
+).lower() == 'true'
+SECURE_HSTS_PRELOAD = os.environ.get(
+    'DJANGO_SECURE_HSTS_PRELOAD',
+    'False',
+).lower() == 'true'
+
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'True').lower() == 'true'
-    SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_SECURE_HSTS_SECONDS', '31536000'))
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True').lower() == 'true'
-    SECURE_HSTS_PRELOAD = os.environ.get('DJANGO_SECURE_HSTS_PRELOAD', 'True').lower() == 'true'
 
 # REST Framework
 REST_FRAMEWORK = {
