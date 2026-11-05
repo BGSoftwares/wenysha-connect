@@ -4,10 +4,10 @@ import { schoolContact } from "@/lib/schoolContact";
 
 type RGB = readonly [number, number, number];
 
-const reportCardNavy: RGB = [16, 36, 79];
-const reportCardPurple: RGB = [52, 36, 95];
+const reportCardNavy: RGB = [16, 33, 97];
+const reportCardPurple: RGB = [48, 52, 128];
 const reportCardMagenta: RGB = [179, 22, 105];
-const accentStops: RGB[] = [[237, 60, 145], [216, 33, 121], [240, 200, 108]];
+const accentStops: RGB[] = [[234, 88, 160], [166, 18, 92], [16, 33, 97]];
 
 function drawGradientBand(doc: jsPDF, y: number, height: number, stops: RGB[]) {
   const width = doc.internal.pageSize.getWidth();
