@@ -115,7 +115,7 @@ const HeroCarousel = () => {
             className={`hero-slide-image absolute inset-0 h-full w-full ${slide.fit === "contain" ? "object-contain" : "object-cover"} ${isActive ? slide.fit === "contain" ? "hero-slide-image-active-contained" : "hero-slide-image-active" : ""}`}
             loading={index === 0 ? "eager" : "lazy"}
           />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#07132a]/45 via-[#07132a]/10 to-[#07132a]/55" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#07132a]/20 via-transparent to-[#07132a]/45" />
           <span className="sr-only">{slide.description}</span>
         </div>
         );

@@ -778,18 +778,18 @@ html {
 }
 @keyframes hero-image-zoom {
   from { transform: scale(1); }
-  to { transform: scale(1.055); }
+  to { transform: scale(1.03); }
 }
 @keyframes hero-image-zoom-contained {
   from { transform: scale(1); }
-  to { transform: scale(1.02); }
+  to { transform: scale(1.012); }
 }
 .hero-slide {
   transition: transform 950ms cubic-bezier(.22, 1, .36, 1), opacity 950ms cubic-bezier(.22, 1, .36, 1);
 }
-.hero-slide-image { transform: scale(1); transform-origin: center; }
-.hero-slide-image-active { animation: hero-image-zoom 6500ms linear both; }
-.hero-slide-image-active-contained { animation: hero-image-zoom-contained 6500ms linear both; }
+.hero-slide-image { transform: scale(1); transform-origin: center; image-rendering: auto; }
+.hero-slide-image-active { animation: hero-image-zoom 2200ms ease-out both; }
+.hero-slide-image-active-contained { animation: hero-image-zoom-contained 2200ms ease-out both; }
 .hero-caption { animation: hero-caption-enter .65s cubic-bezier(.22,1,.36,1) both; }
 
 @media (prefers-reduced-motion: reduce) {
