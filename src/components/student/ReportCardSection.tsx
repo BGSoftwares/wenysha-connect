@@ -383,7 +383,7 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
       <div
         id={adminPrintReport ? undefined : "report-card-content"}
         ref={reportCardRef}
-        className={`report-card-content mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-gold/25 bg-card text-[#172044] shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none${adminPrintReport ? " admin-print-report-card" : ""}`}
+        className={`report-card-content mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-gold/25 bg-card text-forest-dark shadow-xl shadow-forest/15 ring-1 ring-gold/20 print:max-w-none print:rounded-none print:border-0 print:shadow-none${adminPrintReport ? " admin-print-report-card" : ""}`}
       >
         <header className="text-white">
           <div className="flex flex-col gap-4 bg-gradient-to-r from-forest-dark via-forest-light to-gold-dark px-5 py-4 sm:flex-row sm:items-center">
