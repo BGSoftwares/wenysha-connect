@@ -137,8 +137,10 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+FRONTEND_BUILD_DIR = Path(os.environ.get('FRONTEND_BUILD_DIR', BASE_DIR.parent / 'dist')).resolve()
+STATICFILES_DIRS = [FRONTEND_BUILD_DIR] if FRONTEND_BUILD_DIR.is_dir() else []
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media')).resolve()
 FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 # This limit includes multipart headers and fields as well as the file itself.
 DATA_UPLOAD_MAX_MEMORY_SIZE = 22 * 1024 * 1024

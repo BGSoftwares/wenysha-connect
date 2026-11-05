@@ -129,3 +129,113 @@ regularly. Keep `deploy.env` and private TLS keys out of version control.
 Configure optional `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
 before building if the Supabase-backed AI features are used. Build-time Vite
 values are embedded in the frontend image, so rebuild after changing them.
+
+### PythonAnywhere (Django WSGI)
+
+The Django WSGI application can serve the built React app from the same
+PythonAnywhere web app. Use a PythonAnywhere account with a custom domain and
+HTTPS for production. The application needs a writable, persistent media
+directory and a database that the PythonAnywhere account can reach. A managed
+MySQL database is recommended for production; SQLite is suitable only for
+small single-instance deployments with reliable backups.
+
+1. Clone the repository into your PythonAnywhere home directory. In a Bash
+   console, create a virtual environment and install the backend dependencies:
+
+   ```sh
+   cd ~/wenysha-connect
+   python3.11 -m venv ~/.virtualenvs/wenysha-connect
+   source ~/.virtualenvs/wenysha-connect/bin/activate
+   pip install -r backend/requirements.txt
+   ```
+
+   Select this virtualenv and a compatible Python version in the PythonAnywhere
+   **Web** tab. If `mysqlclient` cannot be installed in that environment, use
+   PythonAnywhere's documented MySQL client setup or choose a supported
+   database configuration before deploying.
+
+2. Create `backend/.env` on the server (it is ignored by Git) and set at least:
+
+   ```dotenv
+   DJANGO_DEBUG=False
+   DJANGO_SECRET_KEY=<unique-random-secret-at-least-50-characters>
+   DJANGO_ALLOWED_HOSTS=<your-domain>,<your-PythonAnywhere-domain>
+   CSRF_TRUSTED_ORIGINS=https://<your-domain>,https://<your-PythonAnywhere-domain>
+   CORS_ALLOWED_ORIGINS=https://<your-domain>,https://<your-PythonAnywhere-domain>
+   DJANGO_SECURE_SSL_REDIRECT=True
+   DJANGO_MEDIA_ROOT=/home/<username>/wenysha-connect-media
+   MYSQL_HOST=<database-host>
+   MYSQL_PORT=3306
+   MYSQL_DATABASE=<database-name>
+   MYSQL_USER=<database-user>
+   MYSQL_PASSWORD=<database-password>
+   ```
+
+   For a single-instance SQLite setup, use `USE_SQLITE=True` instead of the
+   `MYSQL_*` settings and make regular offsite backups of
+   `backend/db.sqlite3`. Keep the `.env` file and database credentials private.
+   Create the media directory and ensure the WSGI process can write to it.
+
+3. Build the frontend for same-origin Django hosting. The example file sets the
+   API to `/api` and bundled asset URLs to `/static/`:
+
+   ```sh
+   cd ~/wenysha-connect
+   cp frontend.pythonanywhere.env.example .env.production
+   npm ci
+   npm run build
+   ```
+
+   The build output must remain in the repository-root `dist` directory. The
+   Django settings automatically collect files from that directory when it
+   exists. If using the AI Coach, also provide `VITE_SUPABASE_URL` and
+   `VITE_SUPABASE_PUBLISHABLE_KEY` during the frontend build, and configure
+   `LOVABLE_API_KEY` and `DJANGO_API_BASE_URL` as Supabase Edge Function
+   secrets. Keep the AI key out of frontend variables and Django settings.
+
+4. In the PythonAnywhere **Web** tab, create a manual-config web app and point
+   its WSGI configuration file to the backend. A minimal configuration is:
+
+   ```python
+   import os
+   import sys
+
+   project_root = "/home/<username>/wenysha-connect"
+   sys.path.insert(0, os.path.join(project_root, "backend"))
+   os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+   from django.core.wsgi import get_wsgi_application
+   application = get_wsgi_application()
+   ```
+
+   The Django settings load `backend/.env` automatically. Set the virtualenv
+   path in the Web tab, then run migrations and collect static files from a
+   Bash console using that same virtualenv:
+
+   ```sh
+   cd ~/wenysha-connect/backend
+   source ~/.virtualenvs/wenysha-connect/bin/activate
+   python manage.py migrate --noinput
+   python manage.py collectstatic --noinput
+   ```
+
+   Add PythonAnywhere static-file mappings for `/static/` to
+   `/home/<username>/wenysha-connect/backend/staticfiles` and `/media/` to the
+   persistent directory configured by `DJANGO_MEDIA_ROOT`. Reload the web app
+   after configuration changes. `/api/health/` reports backend/database
+   health; the site root and React client-side routes serve the frontend when
+   `dist/index.html` is present.
+
+The frontend and API may also be deployed separately on other providers. Set
+`VITE_API_BASE_URL` to the deployed API's `/api` URL when building the frontend,
+and set `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS` to the exact HTTPS
+frontend origin in Django. Configure persistent storage for uploaded media,
+HTTPS, a private production secret, and a production database. The existing
+Docker Compose path is intended for providers that support containers, an
+external MySQL service, persistent volumes, and TLS certificates; it is not a
+one-click template for every hosting provider.
+
+The frontend currently attempts to connect to a WebSocket notification URL,
+but this Django deployment does not provide a matching WebSocket consumer.
+Deployments should not rely on realtime WebSocket notifications until a
+compatible ASGI/WebSocket service is implemented and configured.
