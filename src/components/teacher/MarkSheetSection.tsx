@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
-import { Download, Send, Save, Share2 } from "lucide-react";
+import { Download, Send, Save, Share2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api, getErrorMessage } from "@/lib/api";
-import { calculateGrade } from "@/lib/grading";
+import { calculateGrade, getGradeComment } from "@/lib/grading";
 import { EXAM_REPORT_TYPES, useSaveExamMarkSheet, type ExamMark, type ExamReportType } from "@/lib/hooks";
 import { formatLocalDateTime } from "@/lib/examDisplay";
 import { drawSchoolLetterhead, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
@@ -259,13 +259,30 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
             <tbody className="divide-y divide-border">
               {students.map((s, i) => {
                 const r = rows[s.id] ?? { score: "", comment: "" };
+                const score = Number(r.score);
+                const canGenerateComment = r.score.trim() !== "" && Number.isInteger(score) && score >= 0 && score <= 100;
                 return (
                   <tr key={s.id} className="odd:bg-card even:bg-secondary/20">
                     <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
                     <td className="px-3 py-2 font-medium text-foreground">{s.name}</td>
                     <td className="px-3 py-2"><input aria-label={`Mark for ${s.name}`} type="number" min={0} max={100} step={1} value={r.score} onChange={(e) => update(s.id, { score: e.target.value })} className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-center" /></td>
                     <td className="px-3 py-2 text-center font-semibold">{r.score ? calculateGrade(Number(r.score)).grade : "—"}</td>
-                    <td className="px-3 py-2"><input aria-label={`Subject comment for ${s.name}`} value={r.comment} maxLength={500} onChange={(e) => update(s.id, { comment: e.target.value })} placeholder="Subject comment for report card" className="w-full px-2 py-1.5 rounded-md border border-border bg-background" /></td>
+                    <td className="px-3 py-2">
+                      <div className="flex min-w-[300px] items-center gap-2">
+                        <input aria-label={`Subject comment for ${s.name}`} value={r.comment} maxLength={500} onChange={(e) => update(s.id, { comment: e.target.value })} placeholder="Subject comment for report card" className="w-full min-w-0 px-2 py-1.5 rounded-md border border-border bg-background" />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          aria-label={`Generate comment for ${s.name}`}
+                          onClick={() => update(s.id, { comment: getGradeComment(calculateGrade(score).grade, subjectName) })}
+                          disabled={!canGenerateComment}
+                        >
+                          <Sparkles className="mr-1 h-4 w-4" />
+                          Generate
+                        </Button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}

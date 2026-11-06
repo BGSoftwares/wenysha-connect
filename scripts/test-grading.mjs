@@ -6,7 +6,7 @@ const source = await readFile(new URL('../src/lib/grading.ts', import.meta.url),
 const javascript = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
 }).outputText;
-const { calculateGradeFromScore, calculatePercentageFromScore } = await import(
+const { calculateGradeFromScore, calculatePercentageFromScore, getGradeComment } = await import(
   `data:text/javascript;base64,${Buffer.from(javascript).toString('base64')}`
 );
 
@@ -30,6 +30,11 @@ for (const [score, total, expected] of cases) {
 }
 
 console.log(`Passed ${cases.length} grade calculation cases.`);
+assert.match(getGradeComment('A', 'Mathematics'), /Excellent work in Mathematics.*Keep it up/i);
+assert.match(getGradeComment('C', 'Mathematics'), /Mathematics.*improve/i);
+assert.match(getGradeComment('U', 'Mathematics'), /did not pass Mathematics.*can improve/i);
+assert.match(getGradeComment('U', 'Mathematics'), /practice regularly.*ask for help/i);
+console.log('Passed encouraging subject-comment cases.');
 assert.equal(calculatePercentageFromScore(15, 20), 75);
 assert.equal(calculatePercentageFromScore(41, 50), 82);
 assert.equal(calculatePercentageFromScore(0, 100), 0);

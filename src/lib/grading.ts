@@ -70,23 +70,23 @@ export const getGradeColorClasses = (grade: string): { color: string; bgColor: s
 };
 
 /**
- * Get comment based on grade
+ * Get an encouraging, subject-specific comment based on grade.
  */
-export const getGradeComment = (grade: string): string => {
+export const getGradeComment = (grade: string, subject = "this subject"): string => {
   switch (grade.toUpperCase()) {
     case "A":
-      return "Excellent work! Keep it up.";
+      return `Excellent work in ${subject}! Keep it up and continue challenging yourself.`;
     case "B":
-      return "Very good performance.";
+      return `Very good work in ${subject}. Keep practicing and you can do even better.`;
     case "C":
-      return "Good effort, room for improvement.";
+      return `Good effort in ${subject}. Review challenging topics and keep working to improve.`;
     case "D":
-      return "Fair, more effort needed.";
+      return `You are making progress in ${subject}. More practice will help you improve further.`;
     case "E":
-      return "Just passing, needs significant improvement.";
+      return `You are progressing in ${subject}. Keep revising and practicing so you can do even better.`;
     case "U":
     default:
-      return "Fail, requires remedial attention.";
+      return `You did not pass ${subject} this time, but you can improve. Review the topics you found difficult, practice regularly, and ask for help when needed.`;
   }
 };
 

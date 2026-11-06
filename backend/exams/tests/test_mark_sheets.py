@@ -23,6 +23,65 @@ class MarkSheetTests(APITestCase):
         self.assertEqual(r.status_code, 201, r.content)
         self.assertEqual(ExamMark.objects.get().comment, 'Good effort')
 
+    def test_mark_sheet_bulk_save_updates_existing_marks(self):
+        for scored, comment in ((72, 'Initial comment'), (81, 'Updated comment')):
+            response = self.client.post('/api/exams/mark-sheets/', {
+                'exam': self.exam.pk,
+                'school_class': self.cls.pk,
+                'subject': self.subject.pk,
+                'marks': [{
+                    'student': self.student.pk,
+                    'total_marks': 100,
+                    'scored': scored,
+                    'comment': comment,
+                }],
+            }, format='json')
+            self.assertEqual(response.status_code, 200, response.data)
+
+        self.assertEqual(ExamMark.objects.count(), 1)
+        mark = ExamMark.objects.get()
+        self.assertEqual(mark.scored, 81)
+        self.assertEqual(mark.comment, 'Updated comment')
+
+    def test_publish_rejects_missing_active_learner_marks_even_without_reviews(self):
+        self.exam.status = 'completed'
+        self.exam.save(update_fields=['status'])
+        other_student = Student.objects.create(
+            student_id='S2',
+            name='Second Learner',
+            school_class=self.cls,
+        )
+        ExamMark.objects.create(
+            exam=self.exam,
+            student=self.student,
+            subject=self.subject,
+            total_marks=100,
+            scored=72,
+        )
+        response = self.client.patch(
+            f'/api/exams/exams/{self.exam.pk}/',
+            {'results_published': True},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn('Complete marks for every active learner', str(response.data['results_published']))
+        self.assertFalse(Exam.objects.get(pk=self.exam.pk).results_published)
+
+        ExamMark.objects.create(
+            exam=self.exam,
+            student=other_student,
+            subject=self.subject,
+            total_marks=100,
+            scored=68,
+        )
+        publish_response = self.client.patch(
+            f'/api/exams/exams/{self.exam.pk}/',
+            {'results_published': True},
+            format='json',
+        )
+        self.assertEqual(publish_response.status_code, 200, publish_response.data)
+
     def test_zero_mark_is_valid_and_marks_cannot_exceed_the_total(self):
         zero_mark = self.client.post('/api/exams/exam-marks/', {
             'exam': self.exam.id,

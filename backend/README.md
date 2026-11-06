@@ -69,6 +69,8 @@ python manage.py migrate exams
 
 The assigned class teacher saves a comment for each learner and submits the completed class reports. An administrator then adds an individual principal comment to each submitted report. Publishing is blocked once this review workflow has started until every marked learner has a submitted class-teacher comment and a principal comment. Students can read the saved comments after results are published.
 
+Regardless of whether report reviews have been started, publishing also requires marks for every active learner in each exam-assigned class across that class's allocated exam subjects. If the class has no subject allocations, all subjects assigned to the exam are required. The server enforces this check even when publication is requested directly through the API.
+
 ## GitHub
 
 Repo: **https://github.com/BGSoftwares/AbleGodCollegeELibrary.git**

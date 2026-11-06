@@ -2,7 +2,7 @@ import re
 from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -26,6 +26,20 @@ def get_level_name(class_name):
     return match.group(1).strip() if match else None
 
 
+def expected_subject_ids_by_class(exam, class_ids):
+    exam_subject_ids = set(exam.subjects.values_list('pk', flat=True))
+    allocations_by_class = defaultdict(set)
+    for class_id, subject_id in TeacherSubjectClass.objects.filter(
+        school_class_id__in=class_ids,
+        subject_id__in=exam_subject_ids,
+    ).values_list('school_class_id', 'subject_id'):
+        allocations_by_class[class_id].add(subject_id)
+    return {
+        class_id: allocations_by_class[class_id] or exam_subject_ids
+        for class_id in class_ids
+    }
+
+
 class ExamViewSet(viewsets.ModelViewSet):
     queryset = Exam.objects.prefetch_related('classes', 'subjects').all()
     serializer_class = ExamSerializer
@@ -45,6 +59,37 @@ class ExamViewSet(viewsets.ModelViewSet):
             raise ValidationError({'results_published': 'Complete and verify the exam before publishing results to student portals.'})
         if not exam.marks.exists():
             raise ValidationError({'results_published': 'Enter marks before unlocking and publishing results to student portals.'})
+
+        exam_classes = list(exam.classes.values_list('pk', 'name'))
+        exam_class_ids = [class_id for class_id, _ in exam_classes]
+        expected_subjects_by_class = expected_subject_ids_by_class(exam, exam_class_ids)
+        active_students = list(
+            Student.objects.filter(
+                status='Active',
+                school_class_id__in=exam_class_ids,
+            ).values_list('pk', 'name', 'school_class_id')
+        )
+        marks_by_student = defaultdict(set)
+        if active_students:
+            for student_id, subject_id in ExamMark.objects.filter(
+                exam=exam,
+                student_id__in=[student_id for student_id, _, _ in active_students],
+                subject_id__in=set().union(*expected_subjects_by_class.values()),
+            ).values_list('student_id', 'subject_id'):
+                marks_by_student[student_id].add(subject_id)
+
+        class_names = dict(exam_classes)
+        learners_missing_marks = [
+            f'{student_name} ({class_names[class_id]})'
+            for student_id, student_name, class_id in active_students
+            if expected_subjects_by_class[class_id] - marks_by_student[student_id]
+        ]
+        if learners_missing_marks:
+            raise ValidationError({
+                'results_published': 'Complete marks for every active learner in each assigned class before publishing.',
+                'learners': learners_missing_marks,
+            })
+
         if exam.report_card_reviews.exists():
             submitted_reviews = {
                 review.student_id: review
@@ -268,19 +313,51 @@ class ExamMarkSheetView(APIView):
         serializer = ExamMarkSheetSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         values = serializer.validated_data
-        saved_marks = []
-        for row in values['marks']:
-            mark, _ = ExamMark.objects.update_or_create(
-                exam=values['exam'],
-                student=row['student'],
-                subject=values['subject'],
-                defaults={
-                    'total_marks': row['total_marks'],
-                    'scored': row['scored'],
-                    'comment': row['comment'],
-                },
+        mark_rows = values['marks']
+        student_ids = [row['student'].pk for row in mark_rows]
+        if connection.features.supports_update_conflicts:
+            bulk_create_options = {
+                'update_conflicts': True,
+                'update_fields': ['total_marks', 'scored', 'comment'],
+            }
+            if connection.features.supports_update_conflicts_with_target:
+                bulk_create_options['unique_fields'] = ['exam', 'student', 'subject']
+            ExamMark.objects.bulk_create(
+                [
+                    ExamMark(
+                        exam=values['exam'],
+                        student=row['student'],
+                        subject=values['subject'],
+                        total_marks=row['total_marks'],
+                        scored=row['scored'],
+                        comment=row['comment'],
+                    )
+                    for row in mark_rows
+                ],
+                **bulk_create_options,
             )
-            saved_marks.append(mark)
+        else:
+            for row in mark_rows:
+                ExamMark.objects.update_or_create(
+                    exam=values['exam'],
+                    student=row['student'],
+                    subject=values['subject'],
+                    defaults={
+                        'total_marks': row['total_marks'],
+                        'scored': row['scored'],
+                        'comment': row['comment'],
+                    },
+                )
+
+        saved_marks_by_student = {
+            mark.student_id: mark
+            for mark in ExamMark.objects.filter(
+                exam=values['exam'],
+                subject=values['subject'],
+                student_id__in=student_ids,
+            ).select_related('exam', 'student', 'subject')
+        }
+        saved_marks = [saved_marks_by_student[student_id] for student_id in student_ids]
         return Response(
             ExamMarkSerializer(saved_marks, many=True, context={'request': request}).data,
             status=status.HTTP_200_OK,
@@ -630,13 +707,7 @@ class ReportCardReviewViewSet(viewsets.ModelViewSet):
                 'learners': missing_comments,
             })
 
-        allocated_subject_ids = set(
-            TeacherSubjectClass.objects.filter(
-                school_class=school_class,
-                subject__in=exam.subjects.all(),
-            ).values_list('subject_id', flat=True)
-        )
-        expected_subject_ids = allocated_subject_ids or set(exam.subjects.values_list('id', flat=True))
+        expected_subject_ids = expected_subject_ids_by_class(exam, [school_class.pk])[school_class.pk]
         marks = ExamMark.objects.filter(
             exam=exam,
             student__in=students,
