@@ -383,31 +383,31 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
       <div
         id={adminPrintReport ? undefined : "report-card-content"}
         ref={reportCardRef}
-        className={`report-card-content mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-gold/25 bg-card text-forest-dark shadow-xl shadow-forest/15 ring-1 ring-gold/20 print:max-w-none print:rounded-none print:border-0 print:shadow-none${adminPrintReport ? " admin-print-report-card" : ""}`}
+        className={`report-card-content mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card text-foreground shadow-elegant print:max-w-none print:rounded-none print:border-0 print:shadow-none${adminPrintReport ? " admin-print-report-card" : ""}`}
       >
-        <header className="text-white">
-          <div className="flex flex-col gap-4 bg-gradient-to-r from-forest-dark via-forest-light to-gold-dark px-5 py-4 sm:flex-row sm:items-center">
+        <header className="text-primary-foreground">
+          <div className="flex flex-col gap-4 bg-primary px-5 py-6 sm:flex-row sm:items-center">
             <img
               src={logo}
               alt="Able God College crest"
-              className="h-16 w-16 shrink-0 rounded-xl bg-white p-1.5 object-contain ring-2 ring-gold shadow-lg"
+              className="h-16 w-16 shrink-0 rounded-md bg-card p-1.5 object-contain ring-1 ring-primary-foreground/20"
             />
             <div className="min-w-0 flex-1 text-center sm:text-left">
-              <p className="font-serif text-2xl font-bold tracking-wide">Able God College</p>
-              <p className="mt-0.5 text-[9px] uppercase tracking-[0.3em] text-white/75">B&apos;Ezrat Hashem</p>
+              <p className="font-heading text-2xl font-bold">Able God College</p>
+              <p className="mt-0.5 text-[9px] uppercase text-primary-foreground/75">B&apos;Ezrat Hashem</p>
             </div>
-            <div className="text-center text-[10px] leading-relaxed text-white/90 sm:text-right">
-              <p className="mb-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-white/65">Contact</p>
+            <div className="text-center text-[10px] leading-relaxed text-primary-foreground/90 sm:text-right">
+              <p className="mb-0.5 text-[9px] font-semibold uppercase text-primary-foreground/65">Contact</p>
               <p>{schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
               <p>{schoolContact.address}</p>
             </div>
           </div>
-          <div className="h-1 bg-gradient-to-r from-gold via-gold-dark to-accent" />
+          <div className="h-1 bg-accent" />
         </header>
 
         <div className="px-4 pb-4 pt-3 sm:px-6">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h1 className="font-serif text-base font-bold tracking-wide text-forest-dark sm:text-lg">
+            <h1 className="font-heading text-base font-bold text-foreground sm:text-lg">
               {reportHeading.toUpperCase()}
             </h1>
             <p className="text-[10px] text-muted-foreground">
@@ -416,49 +416,49 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
           </div>
 
           <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(105px,0.43fr)_minmax(82px,0.32fr)]">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-gold/25 bg-white p-3">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-border bg-card p-3">
               <div className="col-span-2 min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Learner</p>
-                <p className="truncate font-serif text-base font-bold text-forest">{adminPrintReport?.student.name || profile?.name || "Student"}</p>
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Learner</p>
+                <p className="break-words font-heading text-base font-bold text-foreground">{adminPrintReport?.student.name || profile?.name || "Student"}</p>
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Class</p>
-                <p className="truncate text-xs font-semibold text-forest">{adminPrintReport?.student.class_name || profile?.class_name || "—"}</p>
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground">Class</p>
+                <p className="break-words text-xs font-semibold text-foreground">{adminPrintReport?.student.class_name || profile?.class_name || "—"}</p>
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Examination</p>
-                <p className="truncate text-xs font-semibold text-forest">{selectedTerm}</p>
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground">Examination</p>
+                <p className="break-words text-xs font-semibold text-foreground">{selectedTerm}</p>
               </div>
             </div>
 
-            <div className="flex flex-col justify-center rounded-xl bg-gradient-to-br from-forest-dark to-gold-dark p-3 text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">Average</p>
-              <p className="mt-0.5 font-serif text-2xl font-bold leading-none">{averagePercentage.toFixed(2)}%</p>
-              <p className="mt-1 text-[9px] text-white/85">Overall grade {calculateGrade(averagePercentage).grade}</p>
+            <div className="flex flex-col justify-center rounded-md bg-primary p-3 text-primary-foreground">
+              <p className="text-[10px] font-semibold uppercase text-primary-foreground/75">Average</p>
+              <p className="mt-0.5 font-heading text-2xl font-bold leading-none">{averagePercentage.toFixed(2)}%</p>
+              <p className="mt-1 text-[9px] text-primary-foreground/85">Overall grade {calculateGrade(averagePercentage).grade}</p>
             </div>
 
-            <div className="flex flex-row items-center justify-between rounded-xl border border-gold/25 bg-white p-3 sm:flex-col sm:items-start sm:justify-center">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Passed</p>
-              <p className="font-serif text-2xl font-bold leading-none text-forest">{countPassed()} / {results.length}</p>
+            <div className="flex flex-row items-center justify-between rounded-md border border-border bg-card p-3 sm:flex-col sm:items-start sm:justify-center">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Passed</p>
+              <p className="font-heading text-2xl font-bold leading-none text-foreground">{countPassed()} / {results.length}</p>
               <p className="text-[9px] text-muted-foreground">subjects</p>
             </div>
           </div>
 
           <div className="mb-3 grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-gold/25 bg-white px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Class position</p>
-              <p className="mt-0.5 font-serif text-lg font-bold leading-tight text-forest">
+            <div className="rounded-md border border-border bg-card px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Class position</p>
+              <p className="mt-0.5 font-heading text-lg font-bold leading-tight text-foreground">
                 {isReportProvisional ? "Provisional" : (isLoadingRanking ? "Calculating…" : formatPosition(ranking?.class_position, ranking?.class_total))}
               </p>
               <p className="text-[9px] text-muted-foreground">
                 {isReportProvisional ? "Computed when exam is finalized" : "Based on this examination"}
               </p>
             </div>
-            <div className="rounded-xl border border-gold/25 bg-gold/10 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <div className="rounded-md border border-border bg-secondary/50 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">
                 {ranking?.level_name ? `${ranking.level_name} level position` : "Overall level position"}
               </p>
-              <p className="mt-0.5 font-serif text-lg font-bold leading-tight text-forest">
+              <p className="mt-0.5 font-heading text-lg font-bold leading-tight text-foreground">
                 {isReportProvisional ? "Provisional" : (isLoadingRanking ? "Calculating…" : formatPosition(ranking?.level_position, ranking?.level_total))}
               </p>
               <p className="text-[9px] text-muted-foreground">
@@ -472,7 +472,7 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
             </p>
           )}
 
-          <div className="overflow-x-auto rounded-lg border border-gold/25">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full min-w-[620px] table-fixed border-collapse text-[11px]">
               <colgroup>
                 <col className="w-[25%]" />
@@ -482,32 +482,32 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
                 <col className="w-[10%]" />
                 <col className="w-[22%]" />
               </colgroup>
-              <thead className="bg-forest-dark text-white">
+              <thead className="bg-primary text-primary-foreground">
                 <tr>
                   {["Subject", "Out of", "Score", "Percentage", "Grade", "Comment"].map((heading, index) => (
                     <th
                       key={heading}
-                      className={`px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] ${index === 0 || index === 5 ? "text-left" : "text-center"}`}
+                      className={`px-2 py-2 text-[10px] font-semibold uppercase ${index === 0 || index === 5 ? "text-left" : "text-center"}`}
                     >
                       {heading}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gold/25">
+              <tbody className="divide-y divide-border">
                 {results.map((result, index) => {
                   const percentage = getPercentage(result);
                   const gradeInfo = calculateGrade(percentage);
                   return (
-                    <tr key={`${result.subject}-${index}`} className={index % 2 === 0 ? "bg-white" : "bg-gold/10"}>
-                      <td className="px-2 py-1.5 font-semibold text-forest">{result.subject}</td>
+                    <tr key={`${result.subject}-${index}`} className={index % 2 === 0 ? "bg-card" : "bg-secondary/50"}>
+                      <td className="px-2 py-1.5 font-semibold text-foreground">{result.subject}</td>
                       <td className="px-2 py-1.5 text-center text-muted-foreground">{result.marks}</td>
-                      <td className="px-2 py-1.5 text-center font-semibold text-forest">{result.scored.toFixed(2)}</td>
+                      <td className="px-2 py-1.5 text-center font-semibold text-foreground">{result.scored.toFixed(2)}</td>
                       <td className="px-2 py-1.5">
                         <div className="flex items-center gap-1.5">
                           <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-forest to-gold"
+                              className="h-full rounded-full bg-primary"
                               style={{ width: `${Math.min(Math.max(percentage, 0), 100)}%` }}
                             />
                           </div>
@@ -515,7 +515,7 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
                         </div>
                       </td>
                       <td className="px-2 py-1.5 text-center">
-                          <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold ${gradeInfo.bgColor} ${gradeInfo.color}`}>
+                          <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold bg-secondary text-secondary-foreground`}>
                           {gradeInfo.grade}
                         </span>
                       </td>
@@ -532,24 +532,24 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
                 )}
               </tbody>
               {results.length > 0 && (
-                <tfoot className="border-t border-gold/25 bg-gold/10">
+                <tfoot className="border-t border-border bg-secondary/50">
                   <tr>
-                    <td className="px-2 py-2 font-bold text-forest">Average</td>
+                    <td className="px-2 py-2 font-bold text-foreground">Average</td>
                     <td className="px-2 py-2 text-center text-muted-foreground">—</td>
-                    <td className="px-2 py-2 text-center font-bold text-forest">{averagePercentage.toFixed(2)}</td>
+                    <td className="px-2 py-2 text-center font-bold text-foreground">{averagePercentage.toFixed(2)}</td>
                     <td className="px-2 py-2">
                       <div className="flex items-center gap-1.5">
-                        <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-white">
+                        <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-card">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-forest to-gold"
+                            className="h-full rounded-full bg-primary"
                             style={{ width: `${Math.min(Math.max(averagePercentage, 0), 100)}%` }}
                           />
                         </div>
-                        <span className="w-12 shrink-0 text-right text-[10px] font-semibold text-forest">{averagePercentage.toFixed(2)}%</span>
+                        <span className="w-12 shrink-0 text-right text-[10px] font-semibold text-foreground">{averagePercentage.toFixed(2)}%</span>
                       </div>
                     </td>
                     <td className="px-2 py-2 text-center">
-                      <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold ${calculateGrade(averagePercentage).bgColor} ${calculateGrade(averagePercentage).color}`}>
+                      <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold bg-secondary text-secondary-foreground`}>
                         {calculateGrade(averagePercentage).grade}
                       </span>
                     </td>
@@ -561,27 +561,27 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
           </div>
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <div className="rounded-xl border border-gold/25 bg-white px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <div className="rounded-md border border-border bg-card px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">
                 Class Teacher&apos;s comment
               </p>
-              <p className="mt-1 text-[10px] italic leading-relaxed text-foreground/80">{teacherComment}</p>
+              <p className="mt-1 text-xs leading-relaxed text-foreground/80">{teacherComment}</p>
             </div>
-            <div className="rounded-xl border border-gold/25 bg-gold/10 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Principal&apos;s overall comment</p>
-              <p className="mt-1 text-[10px] italic leading-relaxed text-foreground/80">{principalComment || "Awaiting principal review."}</p>
+            <div className="rounded-md border border-border bg-secondary/50 px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Principal&apos;s overall comment</p>
+              <p className="mt-1 text-xs leading-relaxed text-foreground/80">{principalComment || "Awaiting principal review."}</p>
             </div>
           </div>
-          <div className="mt-2 rounded-xl border border-gold/25 bg-white px-3 py-2">
+          <div className="mt-2 rounded-md border border-border bg-card px-3 py-2">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{publishedAttendance.calendarLabel} through {publishedAttendance.throughDate || "report period"}</p>
-                <p className="mt-0.5 text-xs font-bold text-forest">{publishedAttendance.totalDays} marked days · {publishedAttendance.present} present · {publishedAttendance.absent} unexcused absent · {publishedAttendance.excused} excused · {publishedAttendance.late} late</p>
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground">{publishedAttendance.calendarLabel} through {publishedAttendance.throughDate || "report period"}</p>
+                <p className="mt-0.5 text-xs font-bold text-foreground">{publishedAttendance.totalDays} marked days · {publishedAttendance.present} present · {publishedAttendance.absent} unexcused absent · {publishedAttendance.excused} excused · {publishedAttendance.late} late</p>
                 <p className="mt-0.5 text-[9px] text-muted-foreground">
                   {publishedAttendance.schoolDays} scheduled school days in the report period · {publishedAttendance.unrecorded} unmarked · {publishedAttendance.sickBay} sick bay · {publishedAttendance.suspended} suspended
                 </p>
                 <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-forest" style={{ width: `${publishedAttendance.schoolDays ? Math.min(100, ((publishedAttendance.present + publishedAttendance.late) / publishedAttendance.schoolDays) * 100) : 0}%` }} />
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${publishedAttendance.schoolDays ? Math.min(100, ((publishedAttendance.present + publishedAttendance.late) / publishedAttendance.schoolDays) * 100) : 0}%` }} />
                 </div>
                 <p className="mt-1 text-[9px] text-muted-foreground">
                   Unexcused absence dates: {publishedAttendance.absentDates.length ? publishedAttendance.absentDates.join(", ") : "None recorded"}
@@ -589,23 +589,23 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
               </div>
               <div className="grid grid-cols-3 gap-4 sm:min-w-[270px]">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Unexcused</p>
-                  <p className="mt-0.5 text-xs font-bold text-forest">{publishedAttendance.absent} days</p>
+                  <p className="text-[10px] font-semibold uppercase text-muted-foreground">Unexcused</p>
+                  <p className="mt-0.5 text-xs font-bold text-foreground">{publishedAttendance.absent} days</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Excused</p>
-                  <p className="mt-0.5 text-xs font-bold text-forest">{publishedAttendance.excused} days</p>
+                  <p className="text-[10px] font-semibold uppercase text-muted-foreground">Excused</p>
+                  <p className="mt-0.5 text-xs font-bold text-foreground">{publishedAttendance.excused} days</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Late</p>
-                  <p className="mt-0.5 text-xs font-bold text-forest">{publishedAttendance.late} days</p>
+                  <p className="text-[10px] font-semibold uppercase text-muted-foreground">Late</p>
+                  <p className="mt-0.5 text-xs font-bold text-foreground">{publishedAttendance.late} days</p>
                 </div>
               </div>
             </div>
           </div>
           {attendanceSummaries.length > 0 && (
-            <section aria-label="Term attendance comparison" className="mt-2 rounded-xl border border-gold/25 bg-white px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Attendance by term · {selectedExam?.year}</p>
+            <section aria-label="Term attendance comparison" className="mt-2 rounded-md border border-border bg-card px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Attendance by term · {selectedExam?.year}</p>
               <div className="mt-2 grid gap-2 sm:grid-cols-3">
                 {attendanceSummaries
                   .slice()
@@ -613,18 +613,18 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
                   .map(summary => (
                     <div key={summary.id} className="text-[9px] text-muted-foreground">
                       <div className="flex justify-between gap-2">
-                        <span className="font-semibold text-forest">{summary.term_name}</span>
+                        <span className="font-semibold text-foreground">{summary.term_name}</span>
                         <span>{Number(summary.attendance_percentage).toFixed(1)}%</span>
                       </div>
                       <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-gold-dark" style={{ width: `${Math.min(100, Math.max(0, Number(summary.attendance_percentage)))}%` }} />
+                        <div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, Math.max(0, Number(summary.attendance_percentage)))}%` }} />
                       </div>
                       <p className="mt-1">{summary.days_present} present · {summary.days_absent} absent · {summary.total_school_days} school days{summary.is_out_of_date ? " · needs refresh" : ""}</p>
                     </div>
                   ))}
               </div>
               {selectedExam?.term.toLowerCase().includes("term 3") && (
-                <p className="mt-2 text-[9px] font-semibold text-forest">
+                <p className="mt-2 text-[9px] font-semibold text-foreground">
                   Year to date: {attendanceSummaries.reduce((total, summary) => total + summary.days_present + summary.days_late, 0)} present/late days from {attendanceSummaries.reduce((total, summary) => total + summary.total_school_days, 0)} scheduled school days.
                 </p>
               )}
@@ -632,13 +632,13 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
           )}
 
           <div className="mt-4 grid grid-cols-2 gap-8 px-3">
-            <div className="border-t border-forest/40 pt-1 text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Class teacher</div>
-            <div className="border-t border-forest/40 pt-1 text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Principal</div>
+            <div className="border-t border-border pt-1 text-[9px] uppercase text-muted-foreground">Class teacher</div>
+            <div className="border-t border-border pt-1 text-[9px] uppercase text-muted-foreground">Principal</div>
           </div>
 
           <footer className="mt-3 flex flex-wrap items-center justify-between gap-1 text-[9px] text-muted-foreground">
             <p>This report is electronically generated.</p>
-            <p><span className="font-semibold text-forest">Able God College</span> · {schoolContact.address}</p>
+            <p><span className="font-semibold text-foreground">Able God College</span> · {schoolContact.address}</p>
           </footer>
         </div>
       </div>
