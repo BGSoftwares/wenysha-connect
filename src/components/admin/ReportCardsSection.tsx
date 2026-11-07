@@ -77,6 +77,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ReportViewMode>("class");
+  const [showOnlyMissingTeacherComments, setShowOnlyMissingTeacherComments] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("pdf");
   const [isExporting, setIsExporting] = useState(false);
   const [printStudentIds, setPrintStudentIds] = useState<number[]>([]);
@@ -216,6 +217,15 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       gradedLearners: averages.length,
     };
   }, [reports]);
+  const missingTeacherCommentCount = reports.filter(
+    report => !report.review?.class_teacher_comment.trim(),
+  ).length;
+  const savedUnsubmittedTeacherCommentCount = reports.filter(
+    report => Boolean(report.review?.class_teacher_comment.trim()) && !report.review?.class_teacher_submitted_at,
+  ).length;
+  const displayedReports = showOnlyMissingTeacherComments
+    ? reports.filter(report => !report.review?.class_teacher_comment.trim())
+    : reports;
 
   const togglePublication = async () => {
     if (!selectedExam) return;
@@ -669,6 +679,24 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
           <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">No marks have been recorded for this class and subject yet.</div>
         ) : (
           <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background p-3">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${missingTeacherCommentCount ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"}`}>
+                  {missingTeacherCommentCount} missing teacher comment{missingTeacherCommentCount === 1 ? "" : "s"}
+                </span>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${savedUnsubmittedTeacherCommentCount ? "bg-amber-100 text-amber-900" : "bg-secondary text-muted-foreground"}`}>
+                  {savedUnsubmittedTeacherCommentCount} saved, not submitted
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant={showOnlyMissingTeacherComments ? "default" : "outline"}
+                aria-pressed={showOnlyMissingTeacherComments}
+                onClick={() => setShowOnlyMissingTeacherComments(current => !current)}
+              >
+                {showOnlyMissingTeacherComments ? "Show all report cards" : `Show missing comments (${missingTeacherCommentCount})`}
+              </Button>
+            </div>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border p-3">
               <p className="text-sm text-muted-foreground">
                 Add a principal&apos;s comment to each report now, or wait for class-teacher comments. Principal comments can be saved before or after class reports are submitted.
@@ -688,7 +716,11 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
                 Fill built-in comments
               </Button>
             </div>
-            {reports.map((report) => (
+            {displayedReports.length === 0 ? (
+              <div role="status" className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
+                Every report card in this view has a class-teacher comment.
+              </div>
+            ) : displayedReports.map((report) => (
               <article key={report.student.id} className="flex flex-col gap-3 rounded-xl border border-border bg-secondary/20 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{report.student.name}</p>
@@ -697,6 +729,19 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
                     {selectedExam.results_published ? "Available in the student portal" : "Locked from the student portal"}
                     {report.attendance.isOutOfDate ? " · Attendance snapshot needs regeneration" : ""}
                   </p>
+                  <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    !report.review?.class_teacher_comment.trim()
+                      ? "bg-rose-100 text-rose-800"
+                      : report.review?.class_teacher_submitted_at
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-amber-100 text-amber-900"
+                  }`}>
+                    {!report.review?.class_teacher_comment.trim()
+                      ? "Teacher comment missing"
+                      : report.review?.class_teacher_submitted_at
+                        ? "Teacher comment submitted"
+                        : "Comment saved · awaiting submission"}
+                  </span>
                   {report.review?.class_teacher_comment && (
                     <p className="mt-2 text-sm"><span className="font-medium">Class teacher:</span> {report.review.class_teacher_comment}</p>
                   )}
