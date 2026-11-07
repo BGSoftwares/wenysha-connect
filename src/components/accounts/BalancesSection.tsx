@@ -1,3 +1,5 @@
+import { DashboardTable } from "@/components/dashboard/DashboardTable";
+import { useTableNavigation } from "@/hooks/useTableNavigation";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +48,7 @@ const BalancesSection = () => {
     const matchesStatus = filterStatus === "all" || balance.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
+  const tableNavigation = useTableNavigation(filteredBalances, `${searchTerm}|${filterStatus}`);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -174,7 +177,7 @@ const BalancesSection = () => {
             </div>
 
             {/* Table */}
-            <div className="rounded-xl border border-border overflow-hidden">
+            <DashboardTable navigation={tableNavigation} label="Student balances">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
@@ -189,7 +192,7 @@ const BalancesSection = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredBalances.length > 0 ? (
-                    filteredBalances.map((balance) => (
+                    tableNavigation.visibleRows.map((balance) => (
                       <TableRow key={balance.id} className="hover:bg-muted/20 transition-all border-b border-border/50">
                         <TableCell>
                           <div className="flex flex-col">
@@ -237,7 +240,7 @@ const BalancesSection = () => {
                   )}
                 </TableBody>
               </Table>
-            </div>
+            </DashboardTable>
           </div>
         </CardContent>
       </Card>

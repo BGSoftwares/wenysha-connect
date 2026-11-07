@@ -1,3 +1,5 @@
+import { DashboardTable } from "@/components/dashboard/DashboardTable";
+import { useTableNavigation } from "@/hooks/useTableNavigation";
 import { useMemo, useState } from "react";
 import { Search, Edit, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,9 +32,10 @@ const StudentsSection = ({ students, isLoading, error, classes, onAddStudent, on
         const matchesSearch = `${student.name} ${student.student_id}`.toLowerCase().includes(search.toLowerCase());
         return matchesSearch && (!classFilter || String(student.school_class) === classFilter);
     }), [students, search, classFilter]);
+  const tableNavigation = useTableNavigation(filteredStudents, `${search}|${classFilter}`);
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="font-heading text-xl font-bold text-foreground">Student Management</h2>
                 <Button onClick={onAddStudent} variant="gold" className="shadow-lg shadow-accent/20 transition-all hover:scale-105 active:scale-95">
                     <Plus className="h-4 w-4 mr-2" />
@@ -41,7 +44,7 @@ const StudentsSection = ({ students, isLoading, error, classes, onAddStudent, on
             </div>
 
             <div className="bg-card rounded-xl border border-border overflow-hidden shadow-elegant">
-                <div className="p-4 border-b border-border flex items-center gap-4 bg-secondary/20">
+                <div className="p-4 border-b border-border flex flex-wrap items-center gap-4 bg-secondary/20">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <input
@@ -68,7 +71,7 @@ const StudentsSection = ({ students, isLoading, error, classes, onAddStudent, on
                         Failed to load students. Please tray again later.
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
+                    <DashboardTable navigation={tableNavigation} label="Students">
                         <table className="w-full">
                             <thead className="bg-secondary/50">
                                 <tr>
@@ -81,7 +84,7 @@ const StudentsSection = ({ students, isLoading, error, classes, onAddStudent, on
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
-                                {filteredStudents.map((student) => (
+                                {tableNavigation.visibleRows.map((student) => (
                                     <tr key={student.id} className="hover:bg-secondary/30 transition-colors">
                                         <td className="px-6 py-4 text-sm font-medium text-foreground">{student.name}</td>
                                         <td className="px-6 py-4 text-sm text-muted-foreground">{student.student_id}</td>
@@ -116,7 +119,7 @@ const StudentsSection = ({ students, isLoading, error, classes, onAddStudent, on
                                 )}
                             </tbody>
                         </table>
-                    </div>
+            </DashboardTable>
                 )}
             </div>
         </div>
