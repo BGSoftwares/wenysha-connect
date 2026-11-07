@@ -142,7 +142,7 @@ const BalancesSection = () => {
       </div>
 
       <Card className="border-none shadow-elegant overflow-hidden">
-        <CardHeader className="bg-muted/30 pb-8">
+        <CardHeader className="bg-muted/30">
           <CardTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
             <div className="p-2 rounded-xl bg-primary/10">
               <DollarSign className="h-6 w-6 text-primary" />
@@ -150,21 +150,21 @@ const BalancesSection = () => {
             Financial Accountability Ledger
           </CardTitle>
         </CardHeader>
-        <CardContent className="-mt-6">
-          <div className="bg-card rounded-2xl border border-border shadow-soft p-6">
+        <CardContent>
+          <div className="min-w-0">
             {/* Filters */}
             <div className="flex flex-wrap gap-4 mb-6">
-              <div className="relative flex-1 min-w-[300px]">
+              <div className="relative min-w-0 basis-full sm:flex-1 sm:basis-auto">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
-                  placeholder="Search master registry by name or student ID..."
+                  placeholder="Search name or student ID…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-12 h-14 rounded-xl border-muted bg-muted/20 focus:bg-white transition-all text-lg"
+                  className="h-11 pl-12 text-sm"
                 />
               </div>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[200px] h-14 rounded-xl font-bold uppercase text-[10px] tracking-widest">
+                <SelectTrigger className="h-11 w-full sm:w-[200px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
