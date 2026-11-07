@@ -855,9 +855,65 @@ html.reduce-motion *::after {
 @media (hover: hover) {
   .dashboard-3d aside button:hover, .dashboard-3d aside a:hover { transform: translateX(3px); }
 }
-.dashboard-3d table thead tr { background: hsl(var(--muted) / 0.6); }
-.dashboard-3d table tbody tr { transition: background-color .15s ease; }
-.dashboard-3d table tbody tr:hover { background: hsl(var(--secondary) / 0.6); }
+/* Screen-only list styling: report cards keep their independent print design. */
+@media screen {
+  .dashboard-3d main { min-width: 0; }
+  .dashboard-3d table:not(:where(.report-card table, .report-card-content table)),
+  .dashboard-table table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .dashboard-3d table:not(:where(.report-card table, .report-card-content table)) thead tr,
+  .dashboard-table thead tr { background: hsl(var(--primary)); }
+  .dashboard-3d table:not(:where(.report-card table, .report-card-content table)) th,
+  .dashboard-table th {
+    color: hsl(var(--primary-foreground));
+    background: hsl(var(--primary));
+    border-bottom: 2px solid hsl(var(--accent) / 0.65);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.5;
+    text-transform: none;
+    vertical-align: middle;
+  }
+  .dashboard-3d table:not(:where(.report-card table, .report-card-content table)) tbody tr,
+  .dashboard-table tbody tr { background: hsl(var(--card)); transition: background-color .15s ease; }
+  .dashboard-3d table:not(:where(.report-card table, .report-card-content table)) tbody tr:nth-child(even),
+  .dashboard-table tbody tr:nth-child(even) { background: hsl(var(--secondary) / 0.4); }
+  .dashboard-3d table:not(:where(.report-card table, .report-card-content table)) tbody tr:hover,
+  .dashboard-table tbody tr:hover { background: hsl(var(--secondary)); }
+  .dashboard-3d table:not(:where(.report-card table, .report-card-content table)) td,
+  .dashboard-table td { border-bottom: 1px solid hsl(var(--border) / 0.65); line-height: 1.5; }
+  .dashboard-3d table:not(:where(.report-card table, .report-card-content table)) tbody tr:last-child td,
+  .dashboard-table tbody tr:last-child td { border-bottom: 0; }
+  .dashboard-table {
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    overflow: hidden;
+    background: hsl(var(--card));
+  }
+  .dashboard-table-scroll { max-height: 36rem; overflow: auto; overscroll-behavior: contain; }
+  .dashboard-table-scroll > div { overflow: visible; }
+  .dashboard-table table { min-width: 640px; }
+  .dashboard-table th { position: sticky; top: 0; z-index: 2; padding: 0.85rem 1rem; height: auto; }
+  .dashboard-table td { padding: 0.9rem 1rem; }
+  .dashboard-table[data-density="compact"] td { padding: 0.5rem 0.8rem; }
+  .dashboard-table[data-density="compact"] th { padding: 0.65rem 0.8rem; }
+  .dashboard-table td:last-child button { min-height: 40px; }
+  .dashboard-table tbody tr:focus-within { background: hsl(var(--secondary)); }
+  .dashboard-table-scroll:focus-visible { outline-offset: -2px; }
+  .dashboard-table .table-toolbar button { transform: none; box-shadow: none; }
+  @media (max-width: 640px) {
+    .dashboard-table-scroll { max-height: 28rem; }
+    .dashboard-table td, .dashboard-table th { padding-left: 0.8rem; padding-right: 0.8rem; }
+    .dashboard-table > div:last-child { justify-content: center; }
+  }
+}
 
 /* Inputs: modern soft fields */
 input:not([type=checkbox]):not([type=radio]), textarea, select, button[role=combobox] {

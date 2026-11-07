@@ -1,1 +1,2 @@
 - AI features run in Lovable Cloud backend functions (supabase/functions), not the Django backend — keeps the AI key server-side without extra Django config.
+- Dashboard list pagination uses useTableNavigation and DashboardTable on already-filtered records; preserve full arrays for totals, exports and edits, and keep report cards, timetables and financial running-balance statements outside pagination.
