@@ -1,3 +1,5 @@
+import { DashboardTable } from "@/components/dashboard/DashboardTable";
+import { useTableNavigation } from "@/hooks/useTableNavigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,6 +50,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
     const matchesStatus = filterStatus === "all" || inv.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
+  const tableNavigation = useTableNavigation(filteredInvoices, `${searchTerm}|${filterStatus}`);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -131,7 +134,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
           </div>
 
           {/* Table */}
-          <div className="rounded-xl border border-border overflow-hidden bg-card">
+          <DashboardTable navigation={tableNavigation} label="Invoices">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
@@ -148,7 +151,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
               </TableHeader>
               <TableBody>
                 {filteredInvoices.length > 0 ? (
-                  filteredInvoices.map((invoice) => (
+                  tableNavigation.visibleRows.map((invoice) => (
                     <TableRow key={invoice.id} className="hover:bg-muted/10 transition-colors">
                       <TableCell className="font-bold text-primary">{invoice.invoice_no}</TableCell>
                       <TableCell className="font-medium">{invoice.student_name}</TableCell>
@@ -181,7 +184,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
                 )}
               </TableBody>
             </Table>
-          </div>
+            </DashboardTable>
         </CardContent>
       </Card>
 

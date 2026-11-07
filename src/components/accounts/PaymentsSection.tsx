@@ -1,3 +1,5 @@
+import { DashboardTable } from "@/components/dashboard/DashboardTable";
+import { useTableNavigation } from "@/hooks/useTableNavigation";
 import { api } from "@/lib/api";
 import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
@@ -59,6 +61,7 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
     const matchesMethod = filterMethod === "all" || payment.method === filterMethod;
     return matchesSearch && matchesMethod;
   });
+  const tableNavigation = useTableNavigation(filteredPayments, `${searchTerm}|${filterMethod}`);
 
   const getMethodBadge = (method: string) => {
     switch (method) {
@@ -212,7 +215,7 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
           </div>
 
           {/* Table */}
-          <div className="rounded-xl border border-border overflow-hidden bg-card">
+          <DashboardTable navigation={tableNavigation} label="Payments">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
@@ -228,7 +231,7 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
               </TableHeader>
               <TableBody>
                 {filteredPayments.length > 0 ? (
-                  filteredPayments.map((payment) => (
+                  tableNavigation.visibleRows.map((payment) => (
                     <TableRow key={payment.id} className="hover:bg-muted/10 transition-colors">
                       <TableCell className="font-bold text-primary">{payment.receipt_no}</TableCell>
                       <TableCell className="font-medium">{payment.student_name}</TableCell>
@@ -258,7 +261,7 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
                 )}
               </TableBody>
             </Table>
-          </div>
+            </DashboardTable>
         </CardContent>
       </Card>
 

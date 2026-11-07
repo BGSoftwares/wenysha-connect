@@ -1,3 +1,5 @@
+import { DashboardTable } from "@/components/dashboard/DashboardTable";
+import { useTableNavigation } from "@/hooks/useTableNavigation";
 import { useState } from "react";
 import { calculateGrade, calculatePercentageFromScore, getGradeColorClasses } from "@/lib/grading";
 import { useGrades, useStudentProfile } from "@/lib/hooks";
@@ -26,6 +28,11 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
     result.assessment_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const historyNavigation = useTableNavigation(filteredResults, searchQuery);
+  const termLabel = (grade: typeof grades[number]) => `${grade.assessment_term_name} ${grade.academic_year_name}`.trim();
+  const currentTermGrades = selectedTerm === "All" ? grades : grades.filter((grade) => termLabel(grade) === selectedTerm);
+  const currentNavigation = useTableNavigation(currentTermGrades, selectedTerm);
+
   if (isLoading) {
     return (
       <div className="p-12 text-center flex flex-col items-center justify-center gap-4">
@@ -35,9 +42,8 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
     );
   }
 
-  const termLabel = (grade: typeof grades[number]) => `${grade.assessment_term_name} ${grade.academic_year_name}`.trim();
   const termOptions = Array.from(new Set(grades.map((grade) => termLabel(grade)))).filter(Boolean).sort().reverse();
-  const currentTermGrades = selectedTerm === "All" ? grades : grades.filter((grade) => termLabel(grade) === selectedTerm);
+
   const percentageFor = (grade: typeof grades[number]) =>
     calculatePercentageFromScore(grade.score, grade.assessment_total_marks);
   const averageScore = currentTermGrades.length
@@ -77,7 +83,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-2xl font-bold text-foreground">My Results</h2>
           <p className="text-muted-foreground">View your examination results and performance trends</p>
@@ -153,7 +159,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
         <TabsContent value="current" className="mt-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <CardTitle>Assessment results</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -175,7 +181,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <DashboardTable navigation={currentNavigation} label="Assessment results">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
@@ -187,7 +193,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {currentTermGrades.map((subject, index) => {
+                    {currentNavigation.visibleRows.map((subject, index) => {
                       const percentage = percentageFor(subject);
                       const gradeInfo = calculateGrade(percentage);
 
@@ -213,14 +219,15 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                     )}
                   </tbody>
                 </table>
-              </div>
+              </DashboardTable>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
-          <div className="grid gap-4">
-            <div className="overflow-x-auto">
+          <div className="grid min-w-0 gap-4">
+            <input aria-label="Search results history" placeholder="Search subject or assessment…" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} className="h-10 w-full max-w-sm rounded-md border border-input bg-background px-3 text-sm" />
+            <DashboardTable navigation={historyNavigation} label="Results history">
               <table className="min-w-full divide-y divide-border">
                 <thead>
                   <tr className="bg-secondary/20">
@@ -232,7 +239,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredResults.map((result, idx) => {
+                  {historyNavigation.visibleRows.map((result, idx) => {
                     const percentage = percentageFor(result);
                     const gradeInfo = calculateGrade(percentage);
                     return (
@@ -268,7 +275,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                   )}
                 </tbody>
               </table>
-            </div>
+            </DashboardTable>
           </div>
         </TabsContent>
       </Tabs>

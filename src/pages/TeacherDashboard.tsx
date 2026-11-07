@@ -860,20 +860,18 @@ const TeacherDashboard = () => {
       )}
 
       {reportCardRows.length > 0 && (
-        <div className="report-card bg-card rounded-3xl border-2 border-accent/60 overflow-hidden shadow-2xl shadow-primary/20 ring-1 ring-accent/20 print:border-none print:shadow-none">
-          <div className="relative bg-[hsl(var(--forest-dark))] text-primary-foreground px-6 py-8 border-b-4 border-accent">
-            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-accent/30 blur-3xl" />
-            <div className="absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-primary/40 blur-3xl" />
+        <div className="report-card bg-card rounded-lg border border-border overflow-hidden shadow-elegant print:border-none print:shadow-none">
+          <div className="relative bg-primary text-primary-foreground px-6 py-8 border-b-4 border-accent">
             <div className="relative flex flex-col md:flex-row items-center gap-6">
-              <img src={logo} alt="School Logo" className="h-24 w-24 rounded-2xl object-contain bg-card p-2 shadow-lg ring-4 ring-accent/70" />
+              <img src={logo} alt="School Logo" className="h-20 w-20 rounded-md object-contain bg-card p-2 ring-1 ring-primary-foreground/20" />
               <div className="flex-1 text-center md:text-left">
-                <p className="text-xs uppercase tracking-[0.3em] text-accent font-semibold">Able God College</p>
+                <p className="text-base text-primary-foreground font-semibold">Able God College</p>
                 <h1 className="mt-1 font-heading text-2xl md:text-3xl font-bold tracking-wide">{reportCardHeading}</h1>
                 <p className="mt-1 text-sm text-primary-foreground/80">{schoolContact.address} · {teacher?.phone || schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
               </div>
-              <div className="text-center rounded-2xl bg-accent/15 border-2 border-accent/70 px-6 py-4 backdrop-blur">
+              <div className="text-center rounded-md bg-primary-foreground/10 border border-primary-foreground/20 px-5 py-4">
                 <p className="text-xs uppercase tracking-widest text-primary-foreground/70">Class average</p>
-                <p className="text-4xl font-bold text-accent">{calculateGrade(classReportAverage).grade}</p>
+                <p className="text-3xl font-bold text-primary-foreground">{calculateGrade(classReportAverage).grade}</p>
                 <p className="text-sm text-primary-foreground/80">{classReportAverage.toFixed(1)}%</p>
               </div>
             </div>
@@ -891,14 +889,14 @@ const TeacherDashboard = () => {
             ].map(([k, v]) => (
               <div key={k} className="bg-card px-4 py-3">
                 <p className="text-[11px] uppercase tracking-widest text-primary font-semibold">{k}</p>
-                <p className="mt-0.5 text-sm font-semibold text-foreground truncate">{v}</p>
+                <p className="mt-0.5 text-sm font-semibold text-foreground break-words">{v}</p>
               </div>
             ))}
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-[hsl(var(--forest-dark))] text-accent border-b-2 border-accent">
+              <thead className="bg-primary text-primary-foreground border-b border-border">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-semibold">LEARNER</th>
                   <th className="px-4 py-3 text-center text-sm font-semibold">SCORED</th>
@@ -919,12 +917,12 @@ const TeacherDashboard = () => {
                       <td className="px-4 py-3 text-sm text-center text-muted-foreground">{row.score === null ? "—" : row.totalMarks}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {row.percentage !== null && <div className="flex items-center gap-2 justify-center">
-                          <div className="h-2 w-20 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-primary to-accent" style={{ width: `${Math.min(percentage, 100)}%` }} /></div>
+                          <div className="h-2 w-20 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(percentage, 100)}%` }} /></div>
                           <span>{percentage.toFixed(1)}%</span>
                         </div>}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {row.percentage === null ? "—" : <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${gradeInfo.bgColor} ${gradeInfo.color}`}>
+                        {row.percentage === null ? "—" : <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold bg-secondary text-secondary-foreground`}>
                           {gradeInfo.grade}
                         </span>}
                       </td>
@@ -938,15 +936,15 @@ const TeacherDashboard = () => {
 
           <div className="p-6 border-t border-border bg-primary/5 space-y-4">
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
+              <div className="border-l-2 border-accent pl-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Teacher comments</p>
-                <p className="mt-1 text-sm text-foreground italic">Each learner&apos;s comment is shown beside their mark above.</p>
+                <p className="mt-1 text-sm text-foreground">Each learner&apos;s comment is shown beside their mark above.</p>
               </div>
-              <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
+              <div className="border-l-2 border-accent pl-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Principal comment</p>
-                <p className="mt-1 text-sm text-foreground italic">Awaiting principal review after the class teacher submits completed reports.</p>
+                <p className="mt-1 text-sm text-foreground">Awaiting principal review after the class teacher submits completed reports.</p>
               </div>
-              <div className="rounded-xl border-l-4 border-accent bg-card p-4 shadow-sm">
+              <div className="border-l-2 border-accent pl-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Attendance</p>
                 <p className="mt-1 text-sm text-foreground">{classStudents.filter(student => attendanceRecords.some(record => record.student === student.id && record.status === "present")).length} / {classStudents.length} present on {attendanceDate}</p>
               </div>

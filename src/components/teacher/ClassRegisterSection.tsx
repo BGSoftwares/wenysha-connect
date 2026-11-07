@@ -1,3 +1,5 @@
+import { DashboardTable } from "@/components/dashboard/DashboardTable";
+import { useTableNavigation } from "@/hooks/useTableNavigation";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -41,6 +43,9 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
     () => students.filter(student => student.school_class === classId),
     [students, classId],
   );
+
+  const [studentSearch, setStudentSearch] = useState("");
+  const tableNavigation = useTableNavigation(classStudents.filter(student => `${student.name} ${student.student_id}`.toLowerCase().includes(studentSearch.toLowerCase())), `${classId}|${studentSearch}`);
 
   const addStudent = async () => {
     if (!selectedClass || !draft.name.trim()) {
@@ -106,9 +111,9 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
 
       {!selectedClass
         ? <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">No class has been assigned to you as class teacher yet.</p>
-        : <div className="overflow-x-auto rounded-xl border bg-card"><table className="w-full min-w-[680px]">
+        : <div className="space-y-3"><Input aria-label="Search class students" placeholder="Search name or student ID…" value={studentSearch} onChange={event => setStudentSearch(event.target.value)} className="max-w-sm" /><DashboardTable navigation={tableNavigation} label="Class register"><table className="w-full min-w-[680px]">
           <thead className="bg-secondary/50"><tr>{["Student ID", "Student", "Gender", "Date of birth", "Status", "Actions"].map(label => <th key={label} className="px-4 py-3 text-left text-sm font-semibold">{label}</th>)}</tr></thead>
-          <tbody className="divide-y divide-border">{classStudents.map(student => <tr key={student.id}>
+          <tbody className="divide-y divide-border">{tableNavigation.visibleRows.map(student => <tr key={student.id}>
             <td className="px-4 py-3 font-mono text-sm">{student.student_id || "—"}</td>
             <td className="px-4 py-3 font-medium">{student.name}</td>
             <td className="px-4 py-3 text-sm">{student.gender || "—"}</td>
@@ -116,9 +121,9 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
             <td className="px-4 py-3 text-sm">{student.status}</td>
             <td className="px-4 py-3"><Button variant="outline" size="sm" disabled={deleteStudent.isPending} onClick={() => void removeStudent(student)}><Trash2 className="mr-2 h-4 w-4 text-destructive" />Remove</Button></td>
           </tr>)}
-            {classStudents.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No students are registered in {selectedClass.name} yet.</td></tr>}
+            {tableNavigation.total === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No students match this class or search.</td></tr>}
           </tbody>
-        </table></div>}
+        </table></DashboardTable></div>}
 
       {showAddForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowAddForm(false)}><div className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-xl bg-card p-6" onClick={event => event.stopPropagation()}>
         <div><h3 className="text-xl font-bold">Add a student</h3><p className="text-sm text-muted-foreground">Class: {selectedClass?.name}. Student ID is generated automatically.</p></div>
