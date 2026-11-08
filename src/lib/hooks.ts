@@ -600,6 +600,19 @@ export interface ExamMark {
     comment?: string;
 }
 
+export interface MarkSubmission {
+    id: number;
+    exam: number;
+    exam_name: string;
+    subject: number;
+    subject_name: string;
+    school_class: number;
+    class_name: string;
+    teacher_name: string;
+    note: string;
+    submitted_at: string;
+}
+
 export interface ReportCardReview {
     id: number;
     exam: number;
@@ -839,14 +852,26 @@ export const useExamSchedules = (params?: { exam?: number; subject?: number; sch
 export const useExamMarks = (
     params?: { exam?: number; student?: number; subject?: number; school_class?: number },
     enabled = true,
+    refetchIntervalMs: number | false = params?.student ? 5000 : false,
 ) => {
     return useQuery({
         queryKey: ["exam-marks", params],
         queryFn: () => fetchAllPages<ExamMark>("/exams/exam-marks/", toQueryParams(params)),
         enabled: (!!params?.student || !!params?.exam) && enabled,
-        refetchInterval: params?.student ? 5000 : false,
+        refetchInterval: refetchIntervalMs,
     });
 };
+
+export const useMarkSubmissions = (
+    params?: { exam?: number; school_class?: number },
+    enabled = true,
+    refetchIntervalMs: number | false = false,
+) => useQuery({
+    queryKey: ["mark-submissions", params],
+    queryFn: () => fetchAllPages<MarkSubmission>("/exams/mark-submissions/", toQueryParams(params)),
+    enabled: enabled && (!!params?.exam || !!params?.school_class),
+    refetchInterval: refetchIntervalMs,
+});
 
 export const useExamRanking = (exam?: number, student?: number) => {
     return useQuery({
@@ -915,14 +940,19 @@ export const useUpdateExamMark = () => {
     });
 };
 
-export const useReportCardReviews = (exam?: number, student?: number, enabled = true) => useQuery({
+export const useReportCardReviews = (
+    exam?: number,
+    student?: number,
+    enabled = true,
+    refetchIntervalMs: number | false = student ? 5000 : false,
+) => useQuery({
     queryKey: ["report-card-reviews", exam, student],
     queryFn: () => fetchAllPages<ReportCardReview>("/exams/report-card-reviews/", toQueryParams({
         exam,
         student,
     })),
     enabled: !!exam && enabled,
-    refetchInterval: student ? 5000 : false,
+    refetchInterval: refetchIntervalMs,
 });
 
 export const useSaveClassReportComments = () => {

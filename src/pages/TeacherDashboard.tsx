@@ -1,7 +1,7 @@
 import { schoolContact } from "@/lib/schoolContact";
 import DashboardExtras from "@/components/dashboard/DashboardExtras";
 import AIFeedbackSection from "@/components/teacher/AIFeedbackSection";
-import { Fragment, useState, useEffect, useMemo } from "react";
+import { Fragment, useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   Home,
@@ -48,6 +48,7 @@ import {
   useSubjects,
   useExams,
   useExamMarks,
+  useMarkSubmissions,
   useReportCardReviews,
   useSaveClassReportComments,
   useSubmitClassReports,
@@ -93,6 +94,7 @@ const TeacherDashboard = () => {
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
   const [gradeInputs, setGradeInputs] = useState<Record<number, string>>({});
   const [classTeacherComments, setClassTeacherComments] = useState<Record<number, string>>({});
+  const editedClassTeacherComments = useRef(new Set<number>());
   const [reportCardRows, setReportCardRows] = useState<Array<{
     studentId: number;
     studentName: string;
@@ -126,9 +128,29 @@ const TeacherDashboard = () => {
   const { data: libraryBooks = [], isLoading: isLoadingLibraryBooks, error: libraryBooksError } = useBooks();
 
   const { data: exams = [], isLoading: isLoadingExams, error: examsError } = useExams();
-  const { data: examMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined);
-  const { data: classExamMarks = [] } = useExamMarks(selectedExamId ? { exam: selectedExamId } : undefined);
-  const { data: reportCardReviews = [], isLoading: loadingReportCardReviews, error: reportCardReviewsError } = useReportCardReviews(selectedExamId ?? undefined);
+  const { data: examMarks = [] } = useExamMarks(
+    selectedExamId ? { exam: selectedExamId, subject: selectedSubjectId || undefined } : undefined,
+    true,
+    2000,
+  );
+  const { data: classExamMarks = [] } = useExamMarks(
+    selectedExamId ? { exam: selectedExamId } : undefined,
+    true,
+    2000,
+  );
+  const { data: reportCardReviews = [], isLoading: loadingReportCardReviews, error: reportCardReviewsError } = useReportCardReviews(
+    selectedExamId ?? undefined,
+    undefined,
+    true,
+    2000,
+  );
+  const { data: markSubmissions = [] } = useMarkSubmissions(
+    selectedExamId && selectedClassId
+      ? { exam: selectedExamId, school_class: selectedClassId }
+      : undefined,
+    Boolean(selectedExamId && selectedClassId),
+    2000,
+  );
   const { data: attendanceRecords = [] } = useAttendanceRecords({
     date: attendanceDate,
     session: attendanceSession,
@@ -151,9 +173,33 @@ const TeacherDashboard = () => {
   const uniqueClasses = Array.from(
     new Map([...allocatedClasses, ...classTeacherClasses].map((schoolClass) => [schoolClass.id, schoolClass])).values(),
   );
+  const selectedClass = classes.find(classItem => classItem.id === selectedClassId) ?? null;
+  const isClassTeacherForSelectedClass = Boolean(
+    teacher && selectedClass && (
+      selectedClass.class_teacher === teacher.id ||
+      (!selectedClass.class_teacher && allocations.some(a => a.school_class === selectedClass.id))
+    )
+  );
 
   const uniqueSubjects = Array.from(new Set(allocations.map(a => JSON.stringify({ id: a.subject, name: a.subject_name }))))
     .map(s => JSON.parse(s));
+  const classTeacherExamSubjects = isClassTeacherForSelectedClass
+    ? Array.from(new Set(exams
+      .filter(exam => selectedClass && exam.classes.includes(selectedClass.id) && exam.report_type === selectedReportType && !exam.results_published)
+      .flatMap(exam => exam.subjects)))
+      .map(subjectId => allSubjects.find(subject => subject.id === subjectId))
+      .filter((subject): subject is (typeof allSubjects)[number] => Boolean(subject))
+    : [];
+  const gradingSubjects = isClassTeacherForSelectedClass
+    ? Array.from(new Map([
+      ...allocations
+        .filter(allocation => allocation.school_class === selectedClassId)
+        .map(allocation => [allocation.subject, { id: allocation.subject, name: allocation.subject_name }] as const),
+      ...classTeacherExamSubjects.map(subject => [subject.id, { id: subject.id, name: subject.name }] as const),
+    ]).values())
+    : allocations
+      .filter(allocation => allocation.school_class === selectedClassId)
+      .map(allocation => ({ id: allocation.subject, name: allocation.subject_name }));
   const contentSubjects = managedClasses.length > 0 && allSubjects.length > 0 ? allSubjects : uniqueSubjects;
   const contentPairs = [
     ...allocations.map(allocation => ({ class_name: allocation.class_name, subject_name: allocation.subject_name })),
@@ -201,32 +247,42 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     if (!selectedReportType) return;
-    const allocatedSubject = allocations.find(allocation => allocation.school_class === selectedClassId)?.subject;
-    if (allocatedSubject && !allocations.some(allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId)) {
-      setSelectedSubjectId(allocatedSubject);
+    if (gradingSubjects.length > 0 && !gradingSubjects.some(subject => subject.id === selectedSubjectId)) {
+      setSelectedSubjectId(gradingSubjects[0].id);
     }
-  }, [allocations, selectedReportType, selectedClassId, selectedSubjectId]);
+  }, [gradingSubjects, selectedReportType, selectedSubjectId]);
 
   const subjectStudents = selectedClassId && selectedSubjectId
     ? classStudents.filter(student => allocations.some(allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId))
     : classStudents;
+  const canEnterSelectedSubjectMarks = Boolean(selectedClassId && selectedSubjectId && allocations.some(
+    allocation => allocation.school_class === selectedClassId && allocation.subject === selectedSubjectId,
+  ));
 
   useEffect(() => {
     setGradeInputs(Object.fromEntries(examMarks.map(mark => [mark.student, String(mark.scored)])));
   }, [examMarks]);
   useEffect(() => {
-    setClassTeacherComments(Object.fromEntries(
-      reportCardReviews.map(review => [review.student, review.class_teacher_comment]),
-    ));
-  }, [reportCardReviews]);
+    editedClassTeacherComments.current.clear();
+    setClassTeacherComments({});
+  }, [selectedExamId, selectedClassId]);
 
-  const selectedClass = classes.find(classItem => classItem.id === selectedClassId) ?? null;
-  const isClassTeacherForSelectedClass = Boolean(
-    teacher && selectedClass && (
-      selectedClass.class_teacher === teacher.id ||
-      (!selectedClass.class_teacher && allocations.some(a => a.school_class === selectedClass.id))
-    )
-  );
+  useEffect(() => {
+    const savedComments = Object.fromEntries(
+      reportCardReviews
+        .filter(review => review.exam === selectedExamId && review.school_class === selectedClassId)
+        .map(review => [review.student, review.class_teacher_comment]),
+    );
+    setClassTeacherComments(current => ({
+      ...savedComments,
+      ...Object.fromEntries(
+        Array.from(editedClassTeacherComments.current)
+          .filter(studentId => studentId in current)
+          .map(studentId => [studentId, current[studentId]]),
+      ),
+    }));
+  }, [reportCardReviews, selectedExamId, selectedClassId]);
+
   const reportPreviewExam = exams.find(exam => exam.id === selectedExamId);
   const reportPreviewType = reportPreviewExam?.report_type ?? selectedReportType;
   const reportIssuedAt = new Date();
@@ -245,6 +301,7 @@ const TeacherDashboard = () => {
     : 0;
 
   const applyClassCommentTemplate = (studentId: number, percentage: number) => {
+    editedClassTeacherComments.current.add(studentId);
     setClassTeacherComments((current) => ({
       ...current,
       [studentId]: getTeacherComment(percentage),
@@ -259,10 +316,16 @@ const TeacherDashboard = () => {
     ), 0) / savedMarks.length;
   };
 
-  const classTeacherSubmission = reportCardReviews.find(review =>
-    review.exam === selectedExamId && review.school_class === selectedClassId && review.class_teacher_submitted_at,
-  );
+  const classReviewsByStudent = new Map(reportCardReviews
+    .filter(review => review.exam === selectedExamId && review.school_class === selectedClassId)
+    .map(review => [review.student, review]));
+  const classTeacherSubmission = Array.from(classReviewsByStudent.values())
+    .find(review => review.class_teacher_submitted_at);
   const classCommentsSaved = classStudents.every(student => classTeacherComments[student.id]?.trim());
+  const hasSavedClassComments = classStudents.length > 0 && classStudents.every(student => {
+    const savedComment = classReviewsByStudent.get(student.id)?.class_teacher_comment.trim();
+    return Boolean(savedComment && savedComment === classTeacherComments[student.id]?.trim());
+  });
   const reportCardMarksComplete = classStudents.length > 0 && classStudents.every(student => {
     const assignedSubjects = allocations
       .filter(allocation => allocation.school_class === selectedClassId && exams.find(exam => exam.id === selectedExamId)?.subjects.includes(allocation.subject))
@@ -289,6 +352,7 @@ const TeacherDashboard = () => {
           comment: classTeacherComments[student.id].trim(),
         })),
       });
+      classStudents.forEach(student => editedClassTeacherComments.current.delete(student.id));
       toast.success("Class-teacher comments saved.");
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -314,6 +378,7 @@ const TeacherDashboard = () => {
           comment: classTeacherComments[student.id].trim(),
         })),
       });
+      classStudents.forEach(student => editedClassTeacherComments.current.delete(student.id));
       await submitClassReports.mutateAsync({ exam: selectedExamId, school_class: selectedClassId });
       toast.success("Completed class report cards sent to the principal.");
     } catch (error) {
@@ -714,7 +779,7 @@ const TeacherDashboard = () => {
           </select>
           <select value={selectedSubjectId || ""} onChange={e => { setSelectedSubjectId(Number(e.target.value)); setReportCardRows([]); }} disabled={!selectedReportType || !selectedClassId} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">Select Subject</option>
-            {allocations.filter(allocation => allocation.school_class === selectedClassId).map(allocation => <option key={allocation.subject} value={allocation.subject}>{allocation.subject_name}</option>)}
+            {gradingSubjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
           </select>
           <select value={selectedExamId || ""} onChange={e => { setSelectedExamId(Number(e.target.value)); setReportCardRows([]); }} disabled={!selectedReportType || !selectedClassId || !selectedSubjectId || matchingExams.length === 0} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
             <option value="">{matchingExams.length ? "Select exam" : "No exam for this report"}</option>
@@ -733,7 +798,7 @@ const TeacherDashboard = () => {
         : selectedClassId && selectedSubjectId && !selectedExamId ? <div role="status" className="rounded-xl border border-dashed p-6 text-center">
           {examsForSelectedPair.length === 0 ? <>
             <p className="font-medium text-foreground">No exam is set up for this class and subject.</p>
-            <p className="mt-2 text-sm text-muted-foreground">Ask an administrator to create an exam and include {uniqueClasses.find(item => item.id === selectedClassId)?.name} and {uniqueSubjects.find(item => item.id === selectedSubjectId)?.name}.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Ask an administrator to create an exam and include {uniqueClasses.find(item => item.id === selectedClassId)?.name} and {gradingSubjects.find(item => item.id === selectedSubjectId)?.name}.</p>
           </> : writableExamsForSelectedPair.length === 0 ? <>
             <p className="font-medium text-foreground">The exams for this class and subject are already published.</p>
             <p className="mt-2 text-sm text-muted-foreground">Ask an administrator to unpublish the results or create a new exam before entering marks.</p>
@@ -751,19 +816,23 @@ const TeacherDashboard = () => {
         </div>
         : selectedClassId && selectedSubjectId && selectedExamId && (
         <div className="space-y-4">
-          <MarkSheetSection
+          {canEnterSelectedSubjectMarks ? <MarkSheetSection
             students={classStudents}
             marks={examMarks}
             examId={selectedExamId}
             examName={exams.find(e => e.id === selectedExamId)?.name || ""}
             reportType={selectedReportType}
             subjectId={selectedSubjectId}
-            subjectName={uniqueSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Subject"}
+            subjectName={gradingSubjects.find(subject => subject.id === selectedSubjectId)?.name || "Subject"}
             classId={selectedClassId}
             className={uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"}
             teacherName={teacher?.name || "Teacher"}
             onGradeChange={(studentId, score) => setGradeInputs(current => ({ ...current, [studentId]: score }))}
-          />
+          /> : isClassTeacherForSelectedClass ? (
+            <div role="status" className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+              Marks for this subject are read-only for you. Subject teachers should use “Send marks to admin &amp; class teacher” after entering their marks; you can review the marks and complete the class-teacher comments below.
+            </div>
+          ) : null}
 
           {isClassTeacherForSelectedClass && classStudents.length > 0 && (
             <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/30 p-4 space-y-4">
@@ -777,7 +846,11 @@ const TeacherDashboard = () => {
                   <p className="text-sm font-semibold text-foreground">Class Teacher Comments</p>
                   <p className="text-xs text-muted-foreground">
                     Required for every learner in {selectedClass?.name ?? "this class"}.
-                    {classTeacherSubmission ? " Submitted to the principal for review." : " Save comments, then submit completed reports to the principal."}
+                    {classTeacherSubmission
+                      ? " Submitted to the principal for review."
+                      : hasSavedClassComments
+                        ? " Comments are saved but not submitted. Send them to the admin when the class is ready."
+                        : " Save comments, then send the completed reports to the admin."}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -802,9 +875,25 @@ const TeacherDashboard = () => {
                     disabled={Boolean(classTeacherSubmission) || loadingReportCardReviews || saveClassReportComments.isPending || submitClassReports.isPending}
                     onClick={() => void submitCompletedClassReports()}
                   >
-                    {submitClassReports.isPending ? "Submitting…" : "Send completed reports to admin"}
+                    {submitClassReports.isPending ? "Submitting…" : "Send class-teacher comments to admin"}
                   </Button>
                 </div>
+              </div>
+              <div className="rounded-lg border border-border bg-background/80 p-3">
+                <p className="text-sm font-medium text-foreground">Subject mark handoffs</p>
+                {markSubmissions.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    {markSubmissions.map(submission => (
+                      <li key={submission.id}>
+                        {submission.subject_name} — sent by {submission.teacher_name} ({submission.note})
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    No subject mark sheets have been sent for this exam yet. Updates appear automatically as teachers submit them.
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-3">
@@ -820,6 +909,7 @@ const TeacherDashboard = () => {
                           onChange={(event) => {
                             const selectedTemplate = TEACHER_COMMENT_LIBRARY.find((template) => template.label === event.target.value);
                             if (selectedTemplate) {
+                              editedClassTeacherComments.current.add(student.id);
                               setClassTeacherComments((current) => ({
                                 ...current,
                                 [student.id]: selectedTemplate.text,
@@ -843,10 +933,13 @@ const TeacherDashboard = () => {
                       <textarea
                         value={classTeacherComments[student.id] ?? ""}
                         disabled={Boolean(classTeacherSubmission) || loadingReportCardReviews}
-                        onChange={(event) => setClassTeacherComments((current) => ({
-                          ...current,
-                          [student.id]: event.target.value,
-                        }))}
+                        onChange={(event) => {
+                          editedClassTeacherComments.current.add(student.id);
+                          setClassTeacherComments((current) => ({
+                            ...current,
+                            [student.id]: event.target.value,
+                          }));
+                        }}
                         placeholder={`Comment for ${student.name}...`}
                         className="w-full min-h-[80px] px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
                       />

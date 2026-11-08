@@ -286,7 +286,15 @@ class ExamMarkViewSet(viewsets.ModelViewSet):
                     exam__classes=class_id,
                     exam__subjects=subject_id,
                 )
-            return queryset.filter(matching_pair).distinct() if allocation_pairs else queryset.none()
+            class_teacher_classes = SchoolClass.objects.filter(
+                class_teacher=teacher,
+            ).values_list('pk', flat=True)
+            if class_teacher_classes.exists():
+                matching_pair |= Q(
+                    student__school_class_id__in=class_teacher_classes,
+                    exam__classes__in=class_teacher_classes,
+                )
+            return queryset.filter(matching_pair).distinct()
         return queryset.none()
 
     def perform_create(self, serializer):
@@ -506,7 +514,8 @@ class MarkSubmissionViewSet(viewsets.ModelViewSet):
         allocation_pairs = list(teacher.allocations.values_list('school_class_id', 'subject_id'))
         for class_id, subject_id in allocation_pairs:
             matching_pair |= Q(school_class_id=class_id, subject_id=subject_id)
-        return queryset.filter(matching_pair).distinct() if allocation_pairs else queryset.none()
+        matching_pair |= Q(school_class__class_teacher=teacher)
+        return queryset.filter(matching_pair).distinct()
 
     def perform_create(self, serializer):
         user = self.request.user

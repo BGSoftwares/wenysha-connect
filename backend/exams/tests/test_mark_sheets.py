@@ -524,6 +524,60 @@ class ReportCardReviewWorkflowTests(APITestCase):
         }, format='json')
         self.assertEqual(response.status_code, 403, response.data)
 
+    def test_class_teacher_can_read_class_marks_without_mark_entry_allocation(self):
+        other_subject = Subject.objects.create(name='Science')
+        self.exam.subjects.add(other_subject)
+        other_teacher_user = User.objects.create_user('science-teacher', password='teacher-pass-123')
+        UserProfile.objects.create(
+            user=other_teacher_user,
+            role=Role.objects.get(name='Teacher'),
+            full_name='Science Teacher',
+        )
+        TeacherSubjectClass.objects.create(
+            teacher=Teacher.objects.create(user=other_teacher_user, name='Science Teacher'),
+            school_class=self.school_class,
+            subject=other_subject,
+        )
+        mark = ExamMark.objects.create(
+            exam=self.exam,
+            student=self.student,
+            subject=other_subject,
+            total_marks=100,
+            scored=76,
+        )
+        self.client.force_authenticate(self.teacher_user)
+
+        response = self.client.get('/api/exams/exam-marks/', {'exam': self.exam.pk})
+
+        self.assertEqual(response.status_code, 200, response.data)
+        returned_mark_ids = {row['id'] for row in response.data['results']}
+        self.assertIn(mark.pk, returned_mark_ids)
+        update_response = self.client.patch(
+            f'/api/exams/exam-marks/{mark.pk}/',
+            {'scored': 90},
+            format='json',
+        )
+        self.assertEqual(update_response.status_code, 400, update_response.data)
+        mark.refresh_from_db()
+        self.assertEqual(mark.scored, 76)
+
+        self.client.force_authenticate(other_teacher_user)
+        submission_response = self.client.post('/api/exams/mark-submissions/', {
+            'exam': self.exam.pk,
+            'school_class': self.school_class.pk,
+            'subject': other_subject.pk,
+            'teacher_name': 'Science Teacher',
+            'note': '1 of 1 learners marked',
+        }, format='json')
+        self.assertEqual(submission_response.status_code, 201, submission_response.data)
+        self.client.force_authenticate(self.teacher_user)
+        handoff_response = self.client.get('/api/exams/mark-submissions/', {
+            'exam': self.exam.pk,
+            'school_class': self.school_class.pk,
+        })
+        self.assertEqual(handoff_response.status_code, 200, handoff_response.data)
+        self.assertEqual(handoff_response.data['results'][0]['subject'], other_subject.pk)
+
     def test_admin_can_save_principal_comment_before_class_teacher_submission(self):
         admin = User.objects.create_superuser('early-comment-admin', 'early@example.test', 'admin-pass-123')
         self.client.force_authenticate(admin)

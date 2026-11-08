@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { Download, FileSpreadsheet, Loader2, LockKeyhole, Printer, UnlockKeyhole } from "lucide-react";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
-import { EXAM_REPORT_TYPES, useAcademicYears, useAttendanceRecords, useAttendanceReportSnapshots, useExamMarks, useExams, useRegenerateAttendanceSnapshot, useReportCardReviews, useSchoolTerms, useStudents, useSubjects, useUpdateExam, useUpdateReportCardReview, type Exam, type ExamMark, type ReportCardReview, type SchoolClass, type Student } from "@/lib/hooks";
+import { EXAM_REPORT_TYPES, useAcademicYears, useAllocations, useAttendanceRecords, useAttendanceReportSnapshots, useExamMarks, useExams, useRegenerateAttendanceSnapshot, useReportCardReviews, useSchoolTerms, useStudents, useSubjects, useUpdateExam, useUpdateReportCardReview, type Exam, type ExamMark, type ReportCardReview, type SchoolClass, type Student } from "@/lib/hooks";
 import { calculateGrade } from "@/lib/grading";
 import { getErrorMessage } from "@/lib/api";
 import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
@@ -34,6 +34,19 @@ interface StudentReport {
   review?: ReportCardReview;
 }
 
+interface LearnerPublicationIssues {
+  student: Student;
+  missingSubjects: string[];
+  missingClassTeacherComment: boolean;
+  classTeacherCommentNotSubmitted: boolean;
+  missingPrincipalComment: boolean;
+}
+
+interface ClassPublicationReadiness {
+  schoolClass: SchoolClass;
+  learners: LearnerPublicationIssues[];
+}
+
 const getReportTypeLabel = (exam: Exam) => EXAM_REPORT_TYPES.find((type) => type.value === exam.report_type)?.label ?? "Report card";
 const getReportHeading = (exam: Exam) => exam.report_type === "monthly_report_card"
   ? "End-of-month Examination Report Card"
@@ -54,6 +67,7 @@ const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""'
 const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const { data: students = [], isLoading: loadingStudents, error: studentsError } = useStudents();
   const { data: exams = [], isLoading: loadingExams, error: examsError } = useExams();
+  const { data: allocations = [], isLoading: loadingAllocations, error: allocationsError } = useAllocations();
   const { data: attendanceRecords = [] } = useAttendanceRecords();
   const { data: subjects = [], isLoading: loadingSubjects } = useSubjects();
   const localCalendarPeriod = useLocalSchoolPeriod();
@@ -115,8 +129,17 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   ));
   const selectedExam = visibleExams.find((exam) => exam.id === selectedExamId) ?? visibleExams[0];
   const { data: attendanceSnapshots = [] } = useAttendanceReportSnapshots(selectedExam?.id);
-  const { data: marks = [], isLoading: loadingMarks, error: marksError } = useExamMarks({ exam: selectedExam?.id });
-  const { data: reportReviews = [], isLoading: loadingReportReviews, error: reportReviewsError } = useReportCardReviews(selectedExam?.id);
+  const { data: marks = [], isLoading: loadingMarks, error: marksError } = useExamMarks(
+    { exam: selectedExam?.id },
+    true,
+    2000,
+  );
+  const { data: reportReviews = [], isLoading: loadingReportReviews, error: reportReviewsError } = useReportCardReviews(
+    selectedExam?.id,
+    undefined,
+    true,
+    2000,
+  );
   const classOptions = classes;
   const defaultClassId = classOptions.find((schoolClass) => selectedExam?.classes.includes(schoolClass.id))?.id
     ?? classOptions[0]?.id
@@ -226,22 +249,87 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
   const displayedReports = showOnlyMissingTeacherComments
     ? reports.filter(report => !report.review?.class_teacher_comment.trim())
     : reports;
+  const reviewWorkflowStarted = reportReviews.length > 0;
+  const publicationReadiness = useMemo<ClassPublicationReadiness[]>(() => {
+    if (!selectedExam) return [];
+
+    const reviewsByStudent = new Map(reportReviews.map(review => [review.student, review]));
+    const marksByStudent = new Map<number, ExamMark[]>();
+    marks.forEach(mark => {
+      const studentMarks = marksByStudent.get(mark.student) ?? [];
+      studentMarks.push(mark);
+      marksByStudent.set(mark.student, studentMarks);
+    });
+
+    return selectedExam.classes.flatMap(classId => {
+      const schoolClass = classOptions.find(item => item.id === classId);
+      if (!schoolClass) return [];
+
+      const classAllocations = allocations
+        .filter(allocation => allocation.school_class === classId && selectedExam.subjects.includes(allocation.subject));
+      const expectedSubjectIds = new Set(
+        classAllocations.length
+          ? classAllocations.map(allocation => allocation.subject)
+          : selectedExam.subjects,
+      );
+      const classStudents = students.filter(student => student.school_class === classId);
+      const learners = classStudents.flatMap(student => {
+        const studentMarks = marksByStudent.get(student.id) ?? [];
+        const savedSubjectIds = new Set(studentMarks.map(mark => mark.subject));
+        const missingSubjects = student.status === "Active"
+          ? Array.from(expectedSubjectIds)
+            .filter(subjectId => !savedSubjectIds.has(subjectId))
+            .map(subjectId => subjectOptions.find(subject => subject.id === subjectId)?.name ?? `Subject ${subjectId}`)
+          : [];
+        const review = reviewsByStudent.get(student.id);
+        const hasMarks = studentMarks.length > 0;
+        const missingClassTeacherComment = reviewWorkflowStarted
+          && hasMarks
+          && !review?.class_teacher_comment.trim();
+        const classTeacherCommentNotSubmitted = reviewWorkflowStarted
+          && hasMarks
+          && Boolean(review?.class_teacher_comment.trim())
+          && !review?.class_teacher_submitted_at;
+        const missingPrincipalComment = reviewWorkflowStarted
+          && hasMarks
+          && !review?.principal_comment.trim();
+
+        if (
+          missingSubjects.length === 0
+          && !missingClassTeacherComment
+          && !classTeacherCommentNotSubmitted
+          && !missingPrincipalComment
+        ) return [];
+
+        return [{
+          student,
+          missingSubjects,
+          missingClassTeacherComment,
+          classTeacherCommentNotSubmitted,
+          missingPrincipalComment,
+        }];
+      });
+
+      return learners.length ? [{ schoolClass, learners }] : [];
+    });
+  }, [allocations, classOptions, marks, reportReviews, reviewWorkflowStarted, selectedExam, students, subjectOptions]);
+  const publicationBlockers = publicationReadiness.reduce(
+    (count, readiness) => count + readiness.learners.length,
+    0,
+  );
 
   const togglePublication = async () => {
     if (!selectedExam) return;
     const publish = !selectedExam.results_published;
-    if (publish && !window.confirm("Unlock and publish these verified report cards to the student portal?")) return;
-    if (publish && reportReviews.length > 0) {
-      const reviewsByStudent = new Map(reportReviews.map(review => [review.student, review]));
-      const learnersAwaitingReview = Array.from(new Set(marks.map(mark => mark.student))).filter(studentId => {
-        const review = reviewsByStudent.get(studentId);
-        return !review?.class_teacher_submitted_at || !review.principal_comment.trim();
-      });
-      if (learnersAwaitingReview.length > 0) {
-        toast.error(`${learnersAwaitingReview.length} marked learner report(s) still need class-teacher submission and principal comments.`);
-        return;
-      }
+    if (publish && publicationBlockers > 0) {
+      setSelectedClassId(publicationReadiness[0]?.schoolClass.id ?? null);
+      setViewMode("class");
+      toast.error(
+        `Publishing is blocked by unfinished work in ${publicationReadiness.length} class${publicationReadiness.length === 1 ? "" : "es"}. Review the class checklist below.`,
+      );
+      return;
     }
+    if (publish && !window.confirm("Unlock and publish these verified report cards to the student portal?")) return;
     try {
       await updateExam.mutateAsync({
         id: selectedExam.id,
@@ -561,7 +649,16 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
                 size="sm"
                 variant={selectedExam.results_published ? "outline" : "gold"}
                 onClick={() => void togglePublication()}
-                disabled={marks.length === 0 || loadingMarks || loadingReportReviews || updateExam.isPending}
+                disabled={
+                  marks.length === 0
+                  || loadingExams
+                  || loadingMarks
+                  || loadingStudents
+                  || loadingAllocations
+                  || loadingReportReviews
+                  || Boolean(examsError || marksError || studentsError || allocationsError || reportReviewsError)
+                  || updateExam.isPending
+                }
               >
                 {selectedExam.results_published
                   ? <LockKeyhole className="mr-2 h-4 w-4" />
@@ -592,6 +689,111 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
           </span>
         </div>
       </section>
+
+      {selectedExam && !selectedExam.results_published && !loadingStudents && !loadingAllocations && !loadingMarks && !loadingReportReviews && !studentsError && !allocationsError && !marksError && !reportReviewsError && (
+        <section
+          aria-labelledby="publication-readiness-heading"
+          className={`rounded-2xl border p-5 shadow-elegant sm:p-6 ${
+            publicationBlockers
+              ? "border-amber-300 bg-amber-50/80"
+              : "border-emerald-200 bg-emerald-50/70"
+          }`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 id="publication-readiness-heading" className="font-semibold text-foreground">
+                {publicationBlockers ? "Publication checklist" : "Publication readiness"}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {publicationBlockers
+                  ? `${publicationBlockers} learner report${publicationBlockers === 1 ? "" : "s"} need attention across ${publicationReadiness.length} class${publicationReadiness.length === 1 ? "" : "es"}.`
+                  : reviewWorkflowStarted
+                    ? "Marks and all started class-teacher/principal reviews are complete."
+                    : "Marks are complete. The class-teacher/principal comment workflow has not been started for this exam."}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Marks and teacher/principal comments refresh automatically every 2 seconds. This checklist updates as each item is saved or submitted.
+              </p>
+              {!reviewWorkflowStarted && !publicationBlockers && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  If comments are expected, ask class teachers to save and submit their reviews, then add principal comments before publishing.
+                </p>
+              )}
+            </div>
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              publicationBlockers
+                ? "bg-amber-100 text-amber-950"
+                : "bg-emerald-100 text-emerald-900"
+            }`}>
+              {publicationBlockers ? "Action required" : "No blockers found"}
+            </span>
+          </div>
+
+          {publicationReadiness.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {publicationReadiness.map(({ schoolClass, learners }) => {
+                const learnersMissingMarks = learners.filter(learner => learner.missingSubjects.length > 0);
+                const learnersMissingComments = learners.filter(learner => learner.missingClassTeacherComment);
+                const learnersWithUnsubmittedComments = learners.filter(learner => learner.classTeacherCommentNotSubmitted);
+                const learnersMissingPrincipalComments = learners.filter(learner => learner.missingPrincipalComment);
+                const formatLearners = (items: LearnerPublicationIssues[]) => items
+                  .map(item => item.student.name)
+                  .join(", ");
+
+                return (
+                  <article key={schoolClass.id} className="rounded-xl border border-amber-200 bg-background p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="font-semibold text-foreground">
+                        {schoolClass.name} · {learners.length} learner{learners.length === 1 ? "" : "s"} need attention
+                      </h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedClassId(schoolClass.id);
+                          setViewMode("class");
+                        }}
+                      >
+                        Open class report cards
+                      </Button>
+                    </div>
+                    <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                      {learnersMissingMarks.length > 0 && (
+                        <li>
+                          <span className="font-medium text-foreground">Missing subject marks:</span>{" "}
+                          {learnersMissingMarks.map(learner => (
+                            <span key={learner.student.id} className="block">
+                              {learner.student.name} — {learner.missingSubjects.join(", ")}
+                            </span>
+                          ))}
+                        </li>
+                      )}
+                      {learnersMissingComments.length > 0 && (
+                        <li>
+                          <span className="font-medium text-foreground">Class-teacher comment missing:</span>{" "}
+                          {formatLearners(learnersMissingComments)}. Ask the class teacher to add a comment.
+                        </li>
+                      )}
+                      {learnersWithUnsubmittedComments.length > 0 && (
+                        <li>
+                          <span className="font-medium text-foreground">Class-teacher comments saved but not submitted:</span>{" "}
+                          {formatLearners(learnersWithUnsubmittedComments)}. Ask the class teacher to submit the completed class reports.
+                        </li>
+                      )}
+                      {learnersMissingPrincipalComments.length > 0 && (
+                        <li>
+                          <span className="font-medium text-foreground">Principal comment missing:</span>{" "}
+                          {formatLearners(learnersMissingPrincipalComments)}. Add the comments in this class&apos;s report-card list.
+                        </li>
+                      )}
+                    </ul>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {reports.length > 0 && (
         <section className="grid gap-4 lg:grid-cols-2">
@@ -669,10 +871,10 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
           </div>
         </div>
 
-        {(loadingStudents || loadingExams || loadingMarks || loadingSubjects || loadingReportReviews) ? (
+        {(loadingStudents || loadingExams || loadingAllocations || loadingMarks || loadingSubjects || loadingReportReviews) ? (
           <div className="flex items-center justify-center gap-3 py-12 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Loading published report cards…</div>
-        ) : (studentsError || examsError || marksError || reportReviewsError) ? (
-          <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">Could not load report cards: {getErrorMessage(studentsError || examsError || marksError || reportReviewsError)}</div>
+        ) : (studentsError || examsError || allocationsError || marksError || reportReviewsError) ? (
+        <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">Could not load report cards: {getErrorMessage(studentsError || examsError || allocationsError || marksError || reportReviewsError)}</div>
         ) : !selectedExam ? (
           <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">There are no completed exams yet. Complete and approve an exam to publish results to student portals.</div>
         ) : reports.length === 0 ? (

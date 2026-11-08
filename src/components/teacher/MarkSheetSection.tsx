@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
 import { Download, Send, Save, Share2, Sparkles } from "lucide-react";
@@ -29,17 +29,31 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
   const saveMarkSheet = useSaveExamMarkSheet();
   const [rows, setRows] = useState<Record<number, Row>>({});
   const [busy, setBusy] = useState(false);
+  const dirtyRows = useRef(new Set<number>());
+  const markSheetKey = `${examId ?? ""}:${classId}:${subjectId}`;
+  const previousMarkSheetKey = useRef(markSheetKey);
 
   useEffect(() => {
-    const next: Record<number, Row> = {};
-    students.forEach((s) => {
-      const m = marks.find((mk) => mk.student === s.id && mk.subject === subjectId);
-      next[s.id] = { score: m ? String(m.scored) : "", comment: m?.comment ?? "" };
+    if (previousMarkSheetKey.current !== markSheetKey) {
+      dirtyRows.current.clear();
+      previousMarkSheetKey.current = markSheetKey;
+    }
+  }, [markSheetKey]);
+
+  useEffect(() => {
+    setRows(current => {
+      const next: Record<number, Row> = { ...current };
+      students.forEach((student) => {
+        if (dirtyRows.current.has(student.id) && current[student.id]) return;
+        const mark = marks.find(savedMark => savedMark.student === student.id && savedMark.subject === subjectId);
+        next[student.id] = { score: mark ? String(mark.scored) : "", comment: mark?.comment ?? "" };
+      });
+      return next;
     });
-    setRows(next);
   }, [students, marks, subjectId]);
 
   const update = (id: number, patch: Partial<Row>) => {
+    dirtyRows.current.add(id);
     setRows((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
     if (patch.score !== undefined) onGradeChange(id, patch.score);
   };
@@ -64,6 +78,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
           comment: rows[student.id].comment.trim(),
         })),
       });
+      entered.forEach(student => dirtyRows.current.delete(student.id));
       toast.success(`Saved marks for ${entered.length} learners`);
       return true;
     } catch (e) {
@@ -208,8 +223,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
     if (!ok) return;
     try {
       await api.post("/exams/mark-submissions/", { exam: examId, subject: subjectId, school_class: classId, teacher_name: teacherName, note: `${entered.length} of ${students.length} learners marked` });
-      await download();
-      toast.success("Mark sheet submitted to admin");
+      toast.success("Marks sent to the admin and made available to the class teacher.");
     } catch (e) { toast.error(getErrorMessage(e)); }
   };
 
@@ -238,7 +252,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => void saveAll()} disabled={busy}><Save className="h-4 w-4 mr-1" />Save marks</Button>
           <Button size="sm" variant="outline" onClick={() => void download()}><Download className="h-4 w-4 mr-1" />PDF</Button>
-          <Button size="sm" variant="gold" onClick={() => void submitToAdmin()} disabled={busy}><Send className="h-4 w-4 mr-1" />Submit to admin</Button>
+          <Button size="sm" variant="gold" onClick={() => void submitToAdmin()} disabled={busy}><Send className="h-4 w-4 mr-1" />Send marks to admin &amp; class teacher</Button>
           <Button size="sm" variant="outline" onClick={() => void shareWhatsApp()}><Share2 className="h-4 w-4 mr-1" />WhatsApp</Button>
         </div>
       </div>
