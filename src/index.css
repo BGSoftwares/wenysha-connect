@@ -962,7 +962,6 @@ input:not([type=checkbox]):not([type=radio]):focus, textarea:focus {
   .teacher-card-3d:hover .teacher-avatar-3d { transform: translateZ(40px) rotate(0deg) scale(1.05); }
   .teacher-stat:hover { transform: translateY(-3px); }
 }
-.teacher-card-3d:active { transform: scale(0.995); }
 @media (prefers-reduced-motion: reduce) {
   .teacher-card-3d, .teacher-avatar-3d, .teacher-stat { transition: none; transform: none !important; }
 }
