@@ -922,3 +922,47 @@ input:not([type=checkbox]):not([type=radio]), textarea, select, button[role=comb
 input:not([type=checkbox]):not([type=radio]):focus, textarea:focus {
   box-shadow: 0 0 0 4px hsl(var(--ring) / 0.12);
 }
+
+/* Teacher management 3D styling */
+.teacher-hero {
+  background: radial-gradient(circle at 85% 10%, hsl(var(--accent) / 0.35), transparent 45%),
+    linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.82));
+  box-shadow: 0 24px 50px -24px hsl(var(--primary) / 0.6), inset 0 1px 0 hsl(var(--primary-foreground) / 0.15);
+}
+.teacher-stat {
+  background: hsl(var(--primary-foreground) / 0.1);
+  border: 1px solid hsl(var(--primary-foreground) / 0.15);
+  backdrop-filter: blur(8px);
+  transition: transform .3s ease;
+}
+.teacher-chip {
+  background: hsl(var(--primary-foreground) / 0.15);
+  border: 1px solid hsl(var(--primary-foreground) / 0.25);
+  color: hsl(var(--primary-foreground));
+}
+.teacher-card-3d {
+  transform-style: preserve-3d;
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.06), 0 14px 30px -18px hsl(var(--primary) / 0.35);
+  transition: transform .45s cubic-bezier(.2,.8,.2,1), box-shadow .45s ease;
+}
+.teacher-card-banner {
+  background: linear-gradient(120deg, hsl(var(--primary)), hsl(var(--primary) / 0.75) 60%, hsl(var(--accent) / 0.8));
+}
+.teacher-avatar-3d {
+  background: linear-gradient(145deg, hsl(var(--accent)), hsl(var(--primary)));
+  box-shadow: 0 10px 20px -8px hsl(var(--primary) / 0.6), inset 0 2px 0 hsl(var(--primary-foreground) / 0.35), 0 0 0 4px hsl(var(--card));
+  transform: translateZ(30px) rotate(-4deg);
+  transition: transform .45s cubic-bezier(.2,.8,.2,1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .teacher-card-3d:hover {
+    transform: perspective(1000px) rotateX(3deg) translateY(-6px);
+    box-shadow: 0 2px 4px hsl(var(--foreground) / 0.06), 0 30px 50px -22px hsl(var(--primary) / 0.5);
+  }
+  .teacher-card-3d:hover .teacher-avatar-3d { transform: translateZ(40px) rotate(0deg) scale(1.05); }
+  .teacher-stat:hover { transform: translateY(-3px); }
+}
+.teacher-card-3d:active { transform: scale(0.995); }
+@media (prefers-reduced-motion: reduce) {
+  .teacher-card-3d, .teacher-avatar-3d, .teacher-stat { transition: none; transform: none !important; }
+}
