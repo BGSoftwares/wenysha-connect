@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { User, Edit, Trash2, Plus, School, BookOpen, Layers, Link2 } from "lucide-react";
+import { User, Users, Edit, Trash2, Plus, School, BookOpen, Layers, Link2, Search, Phone } from "lucide-react";
+
+const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join("");
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { api, getErrorMessage } from "@/lib/api";
@@ -76,6 +78,14 @@ const TeachersSection = ({
 
     const subjectsList = propSubjects ?? fallbackSubjects ?? [];
     const allocationsList = propAllocations ?? fallbackAllocations ?? [];
+
+    const [search, setSearch] = useState("");
+    const term = search.trim().toLowerCase();
+    const filteredTeachers = (teachers ?? []).filter(t => !term || [t.name, t.employee_id, t.department, t.phone]
+        .some(value => String(value ?? "").toLowerCase().includes(term)));
+    const totalTeachers = teachers?.length ?? 0;
+    const homeroomCount = new Set((classes ?? []).map(c => c.class_teacher).filter(Boolean)).size;
+    const linkedCount = (teachers ?? []).filter(t => t.user != null).length;
 
     const createAllocationMutation = useCreateAllocation();
     const deleteAllocationMutation = useDeleteAllocation();
@@ -186,17 +196,46 @@ const TeachersSection = ({
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="font-heading text-xl font-bold text-foreground">Teacher Management</h2>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        Manage teachers, class teacher assignments, and teaching subjects across classrooms
-                    </p>
+            <div className="teacher-hero relative overflow-hidden rounded-2xl p-6 sm:p-8 text-primary-foreground">
+                <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-accent">Staff Directory</p>
+                        <h2 className="font-heading text-2xl sm:text-3xl font-bold mt-1">Teacher Management</h2>
+                        <p className="text-sm opacity-80 mt-1 max-w-xl">
+                            Manage teachers, class teacher assignments, and teaching subjects across classrooms
+                        </p>
+                    </div>
+                    <Button onClick={onAddTeacher} variant="gold" className="self-start lg:self-auto">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Teacher
+                    </Button>
                 </div>
-                <Button onClick={onAddTeacher} variant="gold" className="shadow-lg shadow-accent/20 transition-all hover:scale-105 active:scale-95">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Teacher
-                </Button>
+                <div className="relative z-10 mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                        { label: "Teachers", value: totalTeachers, icon: Users },
+                        { label: "Class teachers", value: homeroomCount, icon: School },
+                        { label: "Lessons assigned", value: allocationsList.length, icon: BookOpen },
+                        { label: "Portal linked", value: linkedCount, icon: Link2 },
+                    ].map(stat => (
+                        <div key={stat.label} className="teacher-stat rounded-xl p-3 sm:p-4">
+                            <stat.icon className="h-4 w-4 text-accent" />
+                            <div className="mt-2 text-2xl font-bold leading-none">{stat.value}</div>
+                            <div className="text-[11px] uppercase tracking-wider opacity-75 mt-1">{stat.label}</div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                    type="search"
+                    value={search}
+                    onChange={event => setSearch(event.target.value)}
+                    placeholder="Search by name, staff ID, department or phone"
+                    aria-label="Search teachers"
+                    className="w-full rounded-xl border border-border bg-card pl-9 pr-3 py-2.5 text-sm text-foreground shadow-sm"
+                />
             </div>
 
             {isLoading ? (
@@ -206,7 +245,7 @@ const TeachersSection = ({
                 </div>
             ) : (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {(teachers || []).map((teacher) => {
+                    {filteredTeachers.map((teacher) => {
                         const teacherIdNum = Number(teacher.id);
                         const currentAccountId = teacher.user == null ? "" : String(teacher.user);
                         const selectedAccountId = selectedAccounts[teacherIdNum] ?? currentAccountId;
@@ -225,28 +264,46 @@ const TeachersSection = ({
                         const assignedClasses = classes?.filter(cls => cls.class_teacher === teacherIdNum) || [];
 
                         return (
-                            <div key={teacher.id} className="bg-card rounded-xl border border-border p-6 shadow-elegant hover:shadow-lg transition-all group flex flex-col justify-between">
-                                <div>
-                                    {/* Teacher Header */}
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform">
-                                                <User className="h-7 w-7 text-primary" />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <h3 className="font-bold text-foreground leading-tight text-base">{teacher.name}</h3>
-                                                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
-                                                        {teacher.employee_id || `AbleGodStaff${String(teacher.id).padStart(3, "0")}`}
-                                                    </span>
-                                                </div>
-                                                <div className="flex flex-col gap-0.5 mt-1">
-                                                    <span className="text-xs font-semibold text-accent uppercase tracking-wider">{teacher.department || "General"} Department</span>
-                                                    <span className="text-xs text-muted-foreground">{teacher.phone || "No contact"}</span>
-                                                </div>
-                                            </div>
+                            <div key={teacher.id} className="teacher-card-3d group flex flex-col rounded-2xl border border-border bg-card overflow-hidden">
+                                <div className="teacher-card-banner relative px-6 pt-6 pb-10 text-primary-foreground">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md teacher-chip">
+                                            {teacher.employee_id || `AbleGodStaff${String(teacher.id).padStart(3, "0")}`}
+                                        </span>
+                                        <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${teacher.user ? "bg-accent text-accent-foreground" : "teacher-chip"}`}>
+                                            {teacher.user ? "Portal active" : "No portal"}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="px-6 -mt-8 relative">
+                                    <div className="flex items-end gap-4">
+                                        <div className="teacher-avatar-3d h-16 w-16 shrink-0 rounded-2xl flex items-center justify-center font-heading text-xl font-bold text-primary-foreground">
+                                            {initialsOf(teacher.name) || <User className="h-7 w-7" />}
+                                        </div>
+                                        <div className="min-w-0 pb-1">
+                                            <h3 className="font-heading font-bold text-foreground leading-tight text-lg truncate">{teacher.name}</h3>
+                                            <span className="text-[11px] font-semibold text-accent uppercase tracking-wider">{teacher.department || "General"} Department</span>
                                         </div>
                                     </div>
+                                    <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                                        <Phone className="h-3.5 w-3.5" />
+                                        {teacher.phone || "No contact"}
+                                    </div>
+                                    <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                                        {[
+                                            { label: "Classes", value: uniqueClassIds.size },
+                                            { label: "Subjects", value: uniqueSubjectIds.size },
+                                            { label: "Homeroom", value: assignedClasses.length },
+                                        ].map(metric => (
+                                            <div key={metric.label} className="rounded-xl border border-border bg-secondary/40 py-2">
+                                                <div className="text-lg font-bold text-primary leading-none">{metric.value}</div>
+                                                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">{metric.label}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="px-6 pb-6">
+                                <div>
 
                                     {/* Edit / Delete Buttons */}
                                     <div className="flex gap-2 mt-5">
@@ -528,13 +585,14 @@ const TeachersSection = ({
                                         </div>
                                     </div>
                                 </div>
+                                </div>
                             </div>
                         );
                     })}
 
-                    {teachers?.length === 0 && (
+                    {filteredTeachers.length === 0 && (
                         <div className="col-span-full p-12 text-center border-2 border-dashed border-border rounded-xl text-muted-foreground">
-                            No teachers registered in the system.
+                            {teachers?.length ? "No teachers match your search." : "No teachers registered in the system."}
                         </div>
                     )}
                 </div>
