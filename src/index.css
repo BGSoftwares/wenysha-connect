@@ -40,6 +40,15 @@
 
     --radius: 0.875rem;
 
+    /* Able God Group of Schools slideshow flyer palette */
+    --report-navy: 227 72% 22%;
+    --report-pink: 329 78% 49%;
+    --report-paper: 0 0% 100%;
+    --report-tint: 329 80% 97%;
+    --report-ink: 227 45% 20%;
+    --report-muted: 227 18% 43%;
+    --report-border: 227 20% 86%;
+
     /* Custom School Tokens */
     --gold: 332 78% 63%;
     --gold-dark: 332 80% 36%;
@@ -123,6 +132,27 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading font-semibold tracking-tight;
   }
+}
+
+/* Reports retain the printed school colours in both light and dark portals. */
+.report-card-content,
+.report-card {
+  --primary: var(--report-navy);
+  --primary-foreground: var(--report-paper);
+  --accent: var(--report-pink);
+  --accent-foreground: var(--report-paper);
+  --background: var(--report-paper);
+  --card: var(--report-paper);
+  --card-foreground: var(--report-ink);
+  --foreground: var(--report-ink);
+  --secondary: var(--report-tint);
+  --secondary-foreground: var(--report-navy);
+  --muted: var(--report-tint);
+  --muted-foreground: var(--report-muted);
+  --border: var(--report-border);
+  color-scheme: light;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
 }
 
 @layer utilities {
