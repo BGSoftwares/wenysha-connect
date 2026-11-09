@@ -390,7 +390,7 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
             <img
               src={logo}
               alt="Able God College crest"
-              className="h-16 w-16 shrink-0 rounded-md bg-card p-1.5 object-contain ring-1 ring-primary-foreground/20"
+              className="h-16 w-16 shrink-0 rounded-md bg-card p-1.5 object-contain ring-2 ring-accent"
             />
             <div className="min-w-0 flex-1 text-center sm:text-left">
               <p className="font-heading text-2xl font-bold">Able God College</p>
@@ -507,7 +507,7 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
                         <div className="flex items-center gap-1.5">
                           <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted">
                             <div
-                              className="h-full rounded-full bg-primary"
+                              className="h-full rounded-full bg-accent"
                               style={{ width: `${Math.min(Math.max(percentage, 0), 100)}%` }}
                             />
                           </div>
@@ -541,7 +541,7 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
                       <div className="flex items-center gap-1.5">
                         <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-card">
                           <div
-                            className="h-full rounded-full bg-primary"
+                            className="h-full rounded-full bg-accent"
                             style={{ width: `${Math.min(Math.max(averagePercentage, 0), 100)}%` }}
                           />
                         </div>
@@ -561,13 +561,13 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
           </div>
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <div className="rounded-md border border-border bg-card px-3 py-2.5">
+            <div className="rounded-md border border-border border-l-2 border-l-accent bg-card px-3 py-2.5">
               <p className="text-[10px] font-semibold uppercase text-muted-foreground">
                 Class Teacher&apos;s comment
               </p>
               <p className="mt-1 text-xs leading-relaxed text-foreground/80">{teacherComment}</p>
             </div>
-            <div className="rounded-md border border-border bg-secondary/50 px-3 py-2.5">
+            <div className="rounded-md border border-border border-l-2 border-l-accent bg-secondary/50 px-3 py-2.5">
               <p className="text-[10px] font-semibold uppercase text-muted-foreground">Principal&apos;s overall comment</p>
               <p className="mt-1 text-xs leading-relaxed text-foreground/80">{principalComment || "Awaiting principal review."}</p>
             </div>

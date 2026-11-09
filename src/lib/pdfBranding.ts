@@ -4,28 +4,24 @@ import { schoolContact } from "@/lib/schoolContact";
 
 type RGB = readonly [number, number, number];
 
-const reportCardNavy: RGB = [16, 33, 97];
-const reportCardPurple: RGB = [48, 52, 128];
-const reportCardMagenta: RGB = [179, 22, 105];
-const accentStops: RGB[] = [[234, 88, 160], [166, 18, 92], [16, 33, 97]];
-
-function drawGradientBand(doc: jsPDF, y: number, height: number, stops: RGB[]) {
-  const width = doc.internal.pageSize.getWidth();
-  const segmentCount = 72;
-
-  for (let index = 0; index < segmentCount; index += 1) {
-    const progress = (index / (segmentCount - 1)) * (stops.length - 1);
-    const stopIndex = Math.min(Math.floor(progress), stops.length - 2);
-    const blend = progress - stopIndex;
-    const start = stops[stopIndex];
-    const end = stops[stopIndex + 1];
-    const color = start.map((channel, channelIndex) =>
-      Math.round(channel + (end[channelIndex] - channel) * blend),
-    ) as unknown as RGB;
-
-    doc.setFillColor(color[0], color[1], color[2]);
-    doc.rect((width * index) / segmentCount, y, width / segmentCount + 0.08, height, "F");
-  }
+export function getReportPalette() {
+  const styles = getComputedStyle(document.documentElement);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Unable to load report colours.");
+  const readColor = (token: string): RGB => {
+    context.fillStyle = `hsl(${styles.getPropertyValue(token).trim()})`;
+    context.fillRect(0, 0, 1, 1);
+    const channels = context.getImageData(0, 0, 1, 1).data;
+    return [channels[0], channels[1], channels[2]];
+  };
+  return {
+    navy: readColor("--report-navy"), pink: readColor("--report-pink"),
+    paper: readColor("--report-paper"), tint: readColor("--report-tint"),
+    ink: readColor("--report-ink"), muted: readColor("--report-muted"),
+    border: readColor("--report-border"),
+  };
 }
 
 export async function loadSchoolLogoDataUrl(): Promise<string | null> {
@@ -48,9 +44,11 @@ export async function loadSchoolLogoDataUrl(): Promise<string | null> {
 export function drawSchoolLetterhead(doc: jsPDF, logoDataUrl: string | null, title: string, subtitle: string) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const right = pageWidth - 14;
+  const palette = getReportPalette();
 
-  drawGradientBand(doc, 0, 37, [reportCardNavy, reportCardPurple, reportCardMagenta]);
-  doc.setFillColor(255, 255, 255);
+  doc.setFillColor(...palette.navy);
+  doc.rect(0, 0, pageWidth, 37, "F");
+  doc.setFillColor(...palette.paper);
   doc.roundedRect(14, 6, 20, 20, 2, 2, "F");
   if (logoDataUrl) doc.addImage(logoDataUrl, "PNG", 16, 8, 16, 16);
 
@@ -80,5 +78,6 @@ export function drawSchoolLetterhead(doc: jsPDF, logoDataUrl: string | null, tit
   doc.setFontSize(7.5);
   doc.text(subtitle, pageWidth / 2, 34, { align: "center", maxWidth: pageWidth - 28 });
 
-  drawGradientBand(doc, 37, 1.4, accentStops);
+  doc.setFillColor(...palette.pink);
+  doc.rect(0, 37, pageWidth, 1.4, "F");
 }

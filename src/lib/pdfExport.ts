@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import { formatLocalDateKey } from "@/lib/zimbabweSchoolCalendar";
-import { drawSchoolLetterhead, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
+import { drawSchoolLetterhead, getReportPalette, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
 
 export interface ReportCardPdfData {
   studentName: string;
@@ -99,11 +99,12 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   const left = 14;
   const right = pageWidth - left;
   const width = right - left;
+  const palette = getReportPalette();
 
   const schoolLogo = await loadSchoolLogoDataUrl();
   drawSchoolLetterhead(pdf, schoolLogo, data.reportHeading, `${data.reportPeriod} · ${data.examName}`);
 
-  pdf.setTextColor(35, 39, 60);
+  pdf.setTextColor(...palette.ink);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
   pdf.text("Student", left, 44);
@@ -118,7 +119,7 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   pdf.setFont("helvetica", "normal");
   pdf.text(data.className || "—", left, 65);
   pdf.text(data.termLabel, 112, 65, { maxWidth: 82 });
-  pdf.setDrawColor(221, 210, 220);
+  pdf.setDrawColor(...palette.border);
   pdf.line(left, 70, right, 70);
 
   const summaryY = 75;
@@ -131,13 +132,13 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   ];
   summary.forEach(([label, value], index) => {
     const x = left + index * summaryWidth;
-    pdf.setFillColor(index % 2 ? 249 : 244, index % 2 ? 243 : 239, index % 2 ? 247 : 244);
+    pdf.setFillColor(...(index === 0 ? palette.navy : palette.tint));
     pdf.roundedRect(x, summaryY, summaryWidth - 1.5, 18, 2, 2, "F");
-    pdf.setTextColor(115, 108, 126);
+    pdf.setTextColor(...(index === 0 ? palette.paper : palette.muted));
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(7.5);
     pdf.text(label, x + 3, summaryY + 6);
-    pdf.setTextColor(23, 36, 76);
+    pdf.setTextColor(...(index === 0 ? palette.paper : palette.navy));
     pdf.setFontSize(10);
     pdf.text(pdf.splitTextToSize(value, summaryWidth - 6)[0], x + 3, summaryY + 13);
   });
@@ -149,9 +150,9 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   const rowHeight = data.results.length
     ? Math.max(5.5, Math.min(9, availableRowsHeight / data.results.length))
     : 9;
-  pdf.setFillColor(20, 43, 86);
+  pdf.setFillColor(...palette.navy);
   pdf.rect(left, tableTop, width, headerHeight, "F");
-  pdf.setTextColor(255, 255, 255);
+  pdf.setTextColor(...palette.paper);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(8.5);
   pdf.text("Subject", left + 3, tableTop + 6);
@@ -166,12 +167,12 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
     const commentLines = pdf.splitTextToSize(result.comment || "", right - 161);
     const currentRowHeight = Math.max(rowHeight, Math.min(13, 3 + commentLines.length * 3.2));
     if (index % 2 === 1) {
-      pdf.setFillColor(248, 245, 248);
+      pdf.setFillColor(...palette.tint);
       pdf.rect(left, y, width, currentRowHeight, "F");
     }
-    pdf.setDrawColor(232, 226, 233);
+    pdf.setDrawColor(...palette.border);
     pdf.line(left, y + currentRowHeight, right, y + currentRowHeight);
-    pdf.setTextColor(37, 41, 62);
+    pdf.setTextColor(...palette.ink);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     const baseline = y + Math.min(currentRowHeight - 1.5, 4.4);
@@ -195,10 +196,13 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   });
 
   y += 8;
-  pdf.setTextColor(23, 36, 76);
+  pdf.setTextColor(...palette.navy);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
   pdf.text(`Level position: ${data.levelPosition}`, left, y);
+  y += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
   const attendanceLines = pdf.splitTextToSize(
     `${data.attendance.calendarLabel} through ${data.attendance.throughDate}: ${data.attendance.totalDays} marked days · ${data.attendance.present} present · ${data.attendance.absent} unexcused absent · ${data.attendance.excused ?? 0} excused · ${data.attendance.late} late · ${data.attendance.sickBay ?? 0} sick bay · ${data.attendance.suspended ?? 0} suspended · ${data.attendance.unrecorded} unmarked of ${data.attendance.schoolDays} scheduled school days`,
     width,
@@ -229,23 +233,25 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
       const x = left + index * (columnWidth + gap);
       const lines = pdf.splitTextToSize(comment, columnWidth - 8);
       const boxHeight = Math.max(18, Math.min(38, 10 + lines.length * 4.2));
-      pdf.setDrawColor(226, 214, 224);
-      pdf.setFillColor(255, 250, 253);
+      pdf.setDrawColor(...palette.border);
+      pdf.setFillColor(...palette.tint);
       pdf.roundedRect(x, y, columnWidth, boxHeight, 2, 2, "FD");
+      pdf.setFillColor(...palette.pink);
+      pdf.rect(x, y + 2, 0.6, boxHeight - 4, "F");
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(7.5);
-      pdf.setTextColor(115, 108, 126);
+      pdf.setTextColor(...palette.muted);
       pdf.text(label, x + 4, y + 6);
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
-      pdf.setTextColor(55, 52, 69);
+      pdf.setTextColor(...palette.ink);
       pdf.text(lines.slice(0, 5), x + 4, y + 12);
     });
   }
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
-  pdf.setTextColor(120, 120, 130);
+  pdf.setTextColor(...palette.muted);
   pdf.text(`Issued ${data.issuedDate} · Available in the student portal`, left, pageHeight - 9);
 
   const safeName = data.studentName.trim().replace(/[^a-z0-9-_]+/gi, "_") || "Student";

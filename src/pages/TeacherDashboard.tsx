@@ -956,7 +956,7 @@ const TeacherDashboard = () => {
         <div className="report-card bg-card rounded-lg border border-border overflow-hidden shadow-elegant print:border-none print:shadow-none">
           <div className="relative bg-primary text-primary-foreground px-6 py-8 border-b-4 border-accent">
             <div className="relative flex flex-col md:flex-row items-center gap-6">
-              <img src={logo} alt="School Logo" className="h-20 w-20 rounded-md object-contain bg-card p-2 ring-1 ring-primary-foreground/20" />
+              <img src={logo} alt="School Logo" className="h-20 w-20 rounded-md object-contain bg-card p-2 ring-2 ring-accent" />
               <div className="flex-1 text-center md:text-left">
                 <p className="text-base text-primary-foreground font-semibold">Able God College</p>
                 <h1 className="mt-1 font-heading text-2xl md:text-3xl font-bold tracking-wide">{reportCardHeading}</h1>
@@ -1010,7 +1010,7 @@ const TeacherDashboard = () => {
                       <td className="px-4 py-3 text-sm text-center text-muted-foreground">{row.score === null ? "—" : row.totalMarks}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {row.percentage !== null && <div className="flex items-center gap-2 justify-center">
-                          <div className="h-2 w-20 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(percentage, 100)}%` }} /></div>
+                          <div className="h-2 w-20 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(percentage, 100)}%` }} /></div>
                           <span>{percentage.toFixed(1)}%</span>
                         </div>}
                       </td>
