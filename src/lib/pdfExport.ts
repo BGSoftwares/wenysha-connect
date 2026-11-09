@@ -200,6 +200,9 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
   pdf.text(`Level position: ${data.levelPosition}`, left, y);
+  y += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
   const attendanceLines = pdf.splitTextToSize(
     `${data.attendance.calendarLabel} through ${data.attendance.throughDate}: ${data.attendance.totalDays} marked days · ${data.attendance.present} present · ${data.attendance.absent} unexcused absent · ${data.attendance.excused ?? 0} excused · ${data.attendance.late} late · ${data.attendance.sickBay ?? 0} sick bay · ${data.attendance.suspended ?? 0} suspended · ${data.attendance.unrecorded} unmarked of ${data.attendance.schoolDays} scheduled school days`,
     width,
