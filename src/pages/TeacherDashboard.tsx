@@ -94,6 +94,7 @@ const TeacherDashboard = () => {
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
   const [gradeInputs, setGradeInputs] = useState<Record<number, string>>({});
   const [classTeacherComments, setClassTeacherComments] = useState<Record<number, string>>({});
+  const [classSubmissionError, setClassSubmissionError] = useState<string | null>(null);
   const editedClassTeacherComments = useRef(new Set<number>());
   const [reportCardRows, setReportCardRows] = useState<Array<{
     studentId: number;
@@ -265,6 +266,7 @@ const TeacherDashboard = () => {
   useEffect(() => {
     editedClassTeacherComments.current.clear();
     setClassTeacherComments({});
+    setClassSubmissionError(null);
   }, [selectedExamId, selectedClassId]);
 
   useEffect(() => {
@@ -326,17 +328,6 @@ const TeacherDashboard = () => {
     const savedComment = classReviewsByStudent.get(student.id)?.class_teacher_comment.trim();
     return Boolean(savedComment && savedComment === classTeacherComments[student.id]?.trim());
   });
-  const reportCardMarksComplete = classStudents.length > 0 && classStudents.every(student => {
-    const assignedSubjects = allocations
-      .filter(allocation => allocation.school_class === selectedClassId && exams.find(exam => exam.id === selectedExamId)?.subjects.includes(allocation.subject))
-      .map(allocation => allocation.subject);
-    const expectedSubjects = assignedSubjects.length
-      ? assignedSubjects
-      : exams.find(exam => exam.id === selectedExamId)?.subjects ?? [];
-    const savedSubjects = new Set(classExamMarks.filter(mark => mark.student === student.id).map(mark => mark.subject));
-    return expectedSubjects.length > 0 && expectedSubjects.every(subjectId => savedSubjects.has(subjectId));
-  });
-
   const saveClassTeacherComments = async () => {
     if (!selectedExamId || !selectedClassId) return;
     if (!classCommentsSaved) {
@@ -361,12 +352,14 @@ const TeacherDashboard = () => {
 
   const submitCompletedClassReports = async () => {
     if (!selectedExamId || !selectedClassId) return;
+    setClassSubmissionError(null);
     if (!classCommentsSaved) {
-      toast.error("Add a class-teacher comment for every learner before submitting.");
-      return;
-    }
-    if (!reportCardMarksComplete) {
-      toast.error("Complete each learner's marks for all subjects assigned to this class first.");
+      const missingComments = classStudents
+        .filter(student => !classTeacherComments[student.id]?.trim())
+        .map(student => student.name);
+      const message = `Add a class-teacher comment for every learner before submitting: ${missingComments.join(", ")}.`;
+      setClassSubmissionError(message);
+      toast.error(message);
       return;
     }
     try {
@@ -382,7 +375,9 @@ const TeacherDashboard = () => {
       await submitClassReports.mutateAsync({ exam: selectedExamId, school_class: selectedClassId });
       toast.success("Completed class report cards sent to the principal.");
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      const message = getErrorMessage(error);
+      setClassSubmissionError(message);
+      toast.error(message);
     }
   };
 
@@ -879,6 +874,11 @@ const TeacherDashboard = () => {
                   </Button>
                 </div>
               </div>
+              {classSubmissionError && (
+                <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                  Submission blocked: {classSubmissionError}
+                </p>
+              )}
               <div className="rounded-lg border border-border bg-background/80 p-3">
                 <p className="text-sm font-medium text-foreground">Subject mark handoffs</p>
                 {markSubmissions.length > 0 ? (

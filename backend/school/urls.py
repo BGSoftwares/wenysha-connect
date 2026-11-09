@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     SchoolClassViewSet, TeacherViewSet, SubjectViewSet, StudentViewSet, TeacherSubjectClassViewSet,
     AcademicYearViewSet, TermViewSet, AssessmentViewSet, GradeViewSet,
-    FeeStructureViewSet, StudentFeeViewSet, PaymentViewSet,
+    StudentPerformanceSummaryView, FeeStructureViewSet, StudentFeeViewSet, PaymentViewSet,
     AttendanceViewSet, TimetableViewSet
 )
 
@@ -30,5 +30,6 @@ router.register(r'attendance', AttendanceViewSet)
 router.register(r'timetable', TimetableViewSet)
 
 urlpatterns = [
+    path('student-performance-summary/', StudentPerformanceSummaryView.as_view(), name='student-performance-summary'),
     path('', include(router.urls)),
 ]

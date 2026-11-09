@@ -511,6 +511,46 @@ class ReportCardReviewWorkflowTests(APITestCase):
         self.assertEqual(student_response.data['results'][0]['class_teacher_comment'], 'A thoughtful and hardworking learner.')
         self.assertEqual(student_response.data['results'][0]['principal_comment'], 'Excellent effort this term.')
 
+    def test_class_submission_reports_missing_subject_marks(self):
+        other_subject = Subject.objects.create(name='Science')
+        self.exam.subjects.add(other_subject)
+        science_teacher = Teacher.objects.create(name='Science Teacher')
+        TeacherSubjectClass.objects.create(
+            teacher=science_teacher,
+            school_class=self.school_class,
+            subject=other_subject,
+        )
+        ExamMark.objects.create(
+            exam=self.exam,
+            student=self.student,
+            subject=self.subject,
+            total_marks=100,
+            scored=80,
+        )
+        self.client.force_authenticate(self.teacher_user)
+        save_response = self.client.post('/api/exams/report-card-reviews/save-class-comments/', {
+            'exam': self.exam.pk,
+            'school_class': self.school_class.pk,
+            'comments': [{
+                'student': self.student.pk,
+                'comment': 'A thoughtful and hardworking learner.',
+            }],
+        }, format='json')
+        self.assertEqual(save_response.status_code, 200, save_response.data)
+
+        submit_response = self.client.post('/api/exams/report-card-reviews/submit-class/', {
+            'exam': self.exam.pk,
+            'school_class': self.school_class.pk,
+        }, format='json')
+
+        self.assertEqual(submit_response.status_code, 400, submit_response.data)
+        self.assertEqual(
+            submit_response.data['missing_marks'],
+            [{'learner': self.student.name, 'missing_subjects': ['Science']}],
+        )
+        review = ReportCardReview.objects.get(exam=self.exam, student=self.student)
+        self.assertIsNone(review.class_teacher_submitted_at)
+
     def test_non_class_teacher_cannot_save_or_submit_comments(self):
         other_user = User.objects.create_user('other-teacher', password='teacher-pass-123')
         teacher_role = Role.objects.get(name='Teacher')

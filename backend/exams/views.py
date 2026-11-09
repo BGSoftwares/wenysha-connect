@@ -717,6 +717,7 @@ class ReportCardReviewViewSet(viewsets.ModelViewSet):
             })
 
         expected_subject_ids = expected_subject_ids_by_class(exam, [school_class.pk])[school_class.pk]
+        subject_names = dict(exam.subjects.filter(pk__in=expected_subject_ids).values_list('pk', 'name'))
         marks = ExamMark.objects.filter(
             exam=exam,
             student__in=students,
@@ -726,13 +727,20 @@ class ReportCardReviewViewSet(viewsets.ModelViewSet):
         for student_id, subject_id in marks:
             marks_by_student[student_id].add(subject_id)
         incomplete = [
-            student.name for student in students
+            {
+                'learner': student.name,
+                'missing_subjects': [
+                    subject_names[subject_id]
+                    for subject_id in sorted(expected_subject_ids - marks_by_student[student.pk])
+                ],
+            }
+            for student in students
             if expected_subject_ids - marks_by_student[student.pk]
         ]
         if incomplete:
             raise ValidationError({
                 'marks': 'Complete every assigned subject mark before submitting the class reports.',
-                'learners': incomplete,
+                'missing_marks': incomplete,
             })
 
         submitted_at = timezone.now()

@@ -437,6 +437,7 @@ class GradeSerializer(serializers.ModelSerializer):
     assessment_total_marks = serializers.DecimalField(
         source='assessment.total_marks', max_digits=5, decimal_places=2, read_only=True
     )
+    assessment_term_id = serializers.IntegerField(source='assessment.term_id', read_only=True)
     assessment_term_name = serializers.CharField(source='assessment.term.name', read_only=True)
     academic_year_name = serializers.CharField(source='assessment.term.academic_year.name', read_only=True)
 
@@ -444,7 +445,7 @@ class GradeSerializer(serializers.ModelSerializer):
         model = Grade
         fields = [
             'id', 'student', 'student_name', 'assessment', 'assessment_name', 
-            'subject_name', 'assessment_total_marks', 'assessment_term_name', 'academic_year_name',
+            'subject_name', 'assessment_total_marks', 'assessment_term_id', 'assessment_term_name', 'academic_year_name',
             'score', 'remarks', 'date_recorded'
         ]
 

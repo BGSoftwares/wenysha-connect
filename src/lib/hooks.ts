@@ -519,6 +519,7 @@ export interface Grade {
     assessment_name: string;
     subject_name: string;
     assessment_total_marks: number | string;
+    assessment_term_id: number;
     assessment_term_name: string;
     academic_year_name: string;
     score: number;
@@ -789,14 +790,42 @@ export interface AdmissionApplication {
     submission_date: string;
 }
 
-export const useGrades = (params?: { student?: number; assessment?: number }) => {
+export const useGrades = (
+    params?: { student?: number; assessment?: number },
+    refetchIntervalMs: number | false = 60000,
+) => {
     return useQuery({
         queryKey: ["grades", params],
         queryFn: () => fetchAllPages<Grade>("/school/grades/", toQueryParams(params)),
         enabled: !!params?.student,
-        refetchInterval: 60000,
+        refetchInterval: refetchIntervalMs,
+        refetchIntervalInBackground: false,
     });
 };
+
+export interface StudentPerformanceSummary {
+    class_position: number | null;
+    class_total: number;
+    current_average: number | null;
+    improvement: number | null;
+    improvement_period: string | null;
+    previous_period: string | null;
+}
+
+export const useStudentPerformanceSummary = (
+    student?: number,
+    term?: number,
+    refetchIntervalMs: number | false = 5000,
+) => useQuery({
+    queryKey: ["student-performance-summary", student, term],
+    queryFn: () => api.get<StudentPerformanceSummary>(
+        "/school/student-performance-summary/",
+        toQueryParams({ student, term }),
+    ),
+    enabled: !!student,
+    refetchInterval: refetchIntervalMs,
+    refetchIntervalInBackground: false,
+});
 
 // Exam Hooks
 export const useExams = (

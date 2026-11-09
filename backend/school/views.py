@@ -1,16 +1,18 @@
 from django.db import transaction
 from django.db.models import Q
+from decimal import Decimal, ROUND_HALF_UP
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from core.roles import is_admin, portal_role, teacher_class_ids
 from core.permissions import IsAuthenticatedAdminOrReadOnly, IsFinanceStaffOrReadOnly
 from parents.models import StudentParent
 from .models import (
     SchoolClass, Teacher, Subject, Student, TeacherSubjectClass,
-    Assessment, Grade, StudentFee, Attendance, Timetable,
+    Term, Assessment, Grade, StudentFee, Attendance, Timetable,
 )
 from .serializers import (
     SchoolClassSerializer,
@@ -296,6 +298,138 @@ class GradeViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         self._validate_grade_write(instance.student, instance.assessment)
         instance.delete()
+
+
+class StudentPerformanceSummaryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @staticmethod
+    def _average(grades):
+        percentages = [
+            Decimal(row['score']) * Decimal('100') / Decimal(row['assessment__total_marks'])
+            for row in grades
+            if row['assessment__total_marks'] > 0
+        ]
+        if not percentages:
+            return None
+        return (sum(percentages) / len(percentages)).quantize(
+            Decimal('0.01'),
+            rounding=ROUND_HALF_UP,
+        )
+
+    def get(self, request):
+        try:
+            student_id = int(request.query_params['student'])
+        except (KeyError, TypeError, ValueError):
+            raise ValidationError({'student': 'A valid student ID is required.'})
+
+        student = Student.objects.select_related('school_class').filter(pk=student_id).first()
+        if not student:
+            raise ValidationError({'student': 'The requested student was not found.'})
+
+        if portal_role(request.user) == 'student':
+            if not Student.objects.filter(pk=student.pk, user=request.user).exists():
+                raise PermissionDenied('You can only view your own performance summary.')
+        elif not is_admin(request.user):
+            raise PermissionDenied('Your account cannot view this performance summary.')
+
+        term_id = request.query_params.get('term')
+        selected_term = None
+        if term_id is not None:
+            try:
+                term_id = int(term_id)
+            except (TypeError, ValueError):
+                raise ValidationError({'term': 'Enter a valid term ID.'})
+            selected_term = Term.objects.filter(pk=term_id).first()
+            if not selected_term:
+                raise ValidationError({'term': 'The requested term was not found.'})
+
+        active_student_ids = list(
+            Student.objects.filter(
+                school_class_id=student.school_class_id,
+                status='Active',
+            ).values_list('pk', flat=True)
+        )
+        class_total = len(active_student_ids)
+        class_grades = Grade.objects.filter(
+            student_id__in=active_student_ids,
+            assessment__school_class_id=student.school_class_id,
+        )
+        ranking_grades = class_grades
+        if selected_term:
+            ranking_grades = ranking_grades.filter(assessment__term=selected_term)
+
+        grades_by_student = {}
+        for row in ranking_grades.values(
+            'student_id',
+            'score',
+            'assessment__total_marks',
+        ):
+            grades_by_student.setdefault(row['student_id'], []).append(row)
+
+        averages = {
+            candidate_id: self._average(candidate_grades)
+            for candidate_id, candidate_grades in grades_by_student.items()
+        }
+        student_average = averages.get(student.pk)
+        position = None
+        if student_average is not None:
+            position = 1 + sum(
+                average is not None and average > student_average
+                for average in averages.values()
+            )
+
+        student_grades = Grade.objects.filter(
+            student=student,
+            assessment__school_class_id=student.school_class_id,
+        )
+        student_term_ids = student_grades.values_list('assessment__term_id', flat=True).distinct()
+        available_terms = list(
+            Term.objects.filter(pk__in=student_term_ids).select_related('academic_year').order_by('-start_date', '-pk')
+        )
+        improvement_term = selected_term or (available_terms[0] if available_terms else None)
+        previous_term = next(
+            (
+                term for term in available_terms
+                if improvement_term and (term.start_date, term.pk) < (improvement_term.start_date, improvement_term.pk)
+            ),
+            None,
+        )
+
+        def average_for_term(term):
+            if not term:
+                return None
+            term_grades = list(
+                student_grades.filter(assessment__term=term).values(
+                    'score',
+                    'assessment__total_marks',
+                )
+            )
+            return self._average(term_grades)
+
+        current_term_average = average_for_term(improvement_term)
+        previous_average = average_for_term(previous_term)
+        improvement = (
+            (current_term_average - previous_average).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            if current_term_average is not None and previous_average is not None
+            else None
+        )
+
+        return Response({
+            'class_position': position,
+            'class_total': class_total,
+            'current_average': float(student_average) if student_average is not None else None,
+            'improvement': float(improvement) if improvement is not None else None,
+            'improvement_period': (
+                f'{improvement_term.name} {improvement_term.academic_year.name}'
+                if improvement_term else None
+            ),
+            'previous_period': (
+                f'{previous_term.name} {previous_term.academic_year.name}'
+                if previous_term else None
+            ),
+        })
+
 
 # --- Fees & Finance Views ---
 

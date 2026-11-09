@@ -71,6 +71,8 @@ The assigned class teacher saves a comment for each learner and submits the comp
 
 Regardless of whether report reviews have been started, publishing also requires marks for every active learner in each exam-assigned class across that class's allocated exam subjects. If the class has no subject allocations, all subjects assigned to the exam are required. The server enforces this check even when publication is requested directly through the API.
 
+The student **My Results** summary uses `GET /api/school/student-performance-summary/?student=<id>` with an optional `term=<id>`. Students can request only their own summary; administrators can request any student. Class rank is calculated from each active classmate's average percentage across recorded assessments (or the selected term), with tied averages sharing a position. Improvement is the learner's percentage-point average change from the preceding term with recorded marks. The page refreshes both the summary and grade history every five seconds while open.
+
 ## GitHub
 
 Repo: **https://github.com/BGSoftwares/AbleGodCollegeELibrary.git**
