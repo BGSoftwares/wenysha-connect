@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import AdmissionFormModal from "./AdmissionFormModal";
@@ -38,13 +39,23 @@ const AdmissionsSection = () => {
             Send an enquiry using the form and the school can provide the current application details.
           </p>
           
-          <Button 
-            size="lg"
-            onClick={() => setShowAdmissionForm(true)}
-            className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold shadow-lg shadow-accent/30"
-          >
-            Send an Enquiry
-          </Button>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Button 
+              size="lg"
+              onClick={() => setShowAdmissionForm(true)}
+              className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold shadow-lg shadow-accent/30"
+            >
+              Send an Enquiry
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="border-primary text-primary hover:bg-primary hover:text-primary-foreground font-bold"
+            >
+              <Link to="/admissions">View Admissions & Fees</Link>
+            </Button>
+          </div>
         </div>
       </section>
 

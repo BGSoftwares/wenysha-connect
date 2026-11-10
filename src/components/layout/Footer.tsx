@@ -7,6 +7,7 @@ import { DeveloperSignature } from "./DeveloperSignature";
 const quickLinks = [
   { name: "About Us", path: "/about" },
   { name: "Academics", path: "/academics" },
+  { name: "Admissions", path: "/admissions" },
   { name: "Gallery", path: "/gallery" },
   { name: "Announcements", path: "/announcements" },
   { name: "Contact", path: "/contact" },
