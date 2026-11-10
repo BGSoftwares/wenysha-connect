@@ -228,7 +228,7 @@ const Admissions = () => {
             className="w-full h-full object-cover object-center"
             style={{ objectPosition: "center 30%" }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#10264f]/90 via-[#10264f]/85 to-[#0b1c3b]/95" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#10264f]/90 via-[#10264f]/85 to-[#10264f]/95" />
         </div>
 
         <div className="container relative z-10 mx-auto px-4 py-20 text-center">

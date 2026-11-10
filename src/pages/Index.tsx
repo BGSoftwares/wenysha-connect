@@ -81,9 +81,9 @@ const Index = () => (
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#c51f67]">Able God College</p>
-            <h2 className="mt-2 font-serif text-3xl font-black uppercase tracking-wide text-[#18112f]">Explore the Website</h2>
+            <h2 className="mt-2 font-serif text-3xl font-black uppercase tracking-wide text-[#10264f]">Explore the Website</h2>
           </div>
-          <Link to="/about" className="inline-flex items-center gap-2 font-semibold text-[#32254c] hover:text-[#c51f67]">
+          <Link to="/about" className="inline-flex items-center gap-2 font-semibold text-[#10264f] hover:text-[#c51f67]">
             About the school <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -91,10 +91,10 @@ const Index = () => (
           {quickLinks.map((item) => (
             <Link key={item.path} to={item.path} className="group rounded-xl border border-[#dedbe3] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#c51f67]/40 hover:shadow-lg flex flex-col justify-between">
               <div>
-                <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#18112f] text-white transition group-hover:bg-[#c51f67]">
+                <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#10264f] text-white transition group-hover:bg-[#c51f67]">
                   <item.icon className="h-5 w-5" />
                 </span>
-                <h3 className="text-lg font-bold text-[#18112f]">{item.title}</h3>
+                <h3 className="text-lg font-bold text-[#10264f]">{item.title}</h3>
                 <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{item.description}</p>
               </div>
               <div className="mt-4 pt-2 flex items-center gap-1 text-xs font-semibold text-[#c51f67] opacity-0 group-hover:opacity-100 transition-opacity">

@@ -115,7 +115,7 @@ const HeroCarousel = () => {
         <div className="max-w-5xl mx-auto space-y-6">
           {/* Pill Badge */}
           <div className="inline-block bg-[#c51f67] text-white px-5 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-widest uppercase mb-2 shadow-md">
-            Able God College • Chitungwiza
+            Able God College • Masvingo
           </div>
 
           {/* Heading */}

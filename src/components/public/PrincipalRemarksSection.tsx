@@ -7,7 +7,7 @@ const PrincipalRemarksSection = () => (
     <div className="container mx-auto grid max-w-7xl items-center gap-10 px-4 lg:grid-cols-[1.05fr_0.95fr]">
       <div>
         <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#c51f67]">Able God College</p>
-        <h2 id="principal-remarks-heading" className="mt-2 font-serif text-3xl font-black uppercase tracking-wide text-[#18112f] md:text-4xl">
+        <h2 id="principal-remarks-heading" className="mt-2 font-serif text-3xl font-black uppercase tracking-wide text-[#10264f] md:text-4xl">
           Principal’s Remarks
         </h2>
         <p className="mt-4 leading-relaxed text-muted-foreground">
@@ -16,11 +16,11 @@ const PrincipalRemarksSection = () => (
         <div className="mt-7 space-y-5">
           <article className="border-l-4 border-[#c51f67] bg-white p-5 shadow-sm sm:p-6">
             <h3 className="font-heading text-sm font-extrabold uppercase tracking-[0.16em] text-[#c51f67]">Our Mission</h3>
-            <p className="mt-2 leading-relaxed text-[#18112f]">{schoolMission}</p>
+            <p className="mt-2 leading-relaxed text-[#10264f]">{schoolMission}</p>
           </article>
-          <article className="border-l-4 border-[#18112f] bg-white p-5 shadow-sm sm:p-6">
+          <article className="border-l-4 border-[#10264f] bg-white p-5 shadow-sm sm:p-6">
             <h3 className="font-heading text-sm font-extrabold uppercase tracking-[0.16em] text-[#c51f67]">Our Vision</h3>
-            <p className="mt-2 leading-relaxed text-[#18112f]">{schoolVision}</p>
+            <p className="mt-2 leading-relaxed text-[#10264f]">{schoolVision}</p>
           </article>
         </div>
       </div>
