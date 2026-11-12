@@ -23,10 +23,7 @@ const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const AccountsDashboard = lazy(() => import("./pages/AccountsDashboard"));
 const About = lazy(() => import("./pages/About"));
 const Academics = lazy(() => import("./pages/Academics"));
-<<<<<<< HEAD
 const Departments = lazy(() => import("./pages/Departments"));
-=======
->>>>>>> 551f0b25b96788a1c8529fe96f2591c586561a1d
 const Admissions = lazy(() => import("./pages/Admissions"));
 const Gallery = lazy(() => import("./pages/Gallery"));
 const Announcements = lazy(() => import("./pages/Announcements"));
@@ -83,10 +80,7 @@ const App = () => (
               <Route path="/parent/*" element={<PortalRoute role="parent"><ParentPortal /></PortalRoute>} />
               <Route path="/about" element={<About />} />
               <Route path="/academics" element={<Academics />} />
-<<<<<<< HEAD
               <Route path="/departments" element={<Departments />} />
-=======
->>>>>>> 551f0b25b96788a1c8529fe96f2591c586561a1d
               <Route path="/admissions" element={<Admissions />} />
               <Route path="/gallery" element={<Gallery />} />
               <Route path="/announcements" element={<Announcements />} />

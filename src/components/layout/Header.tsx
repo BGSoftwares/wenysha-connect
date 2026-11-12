@@ -12,10 +12,7 @@ const navLinks = [
   { name: "Home", path: "/" },
   { name: "About Us", path: "/about" },
   { name: "Academics", path: "/academics" },
-<<<<<<< HEAD
   { name: "Departments", path: "/departments" },
-=======
->>>>>>> 551f0b25b96788a1c8529fe96f2591c586561a1d
   { name: "Admissions", path: "/admissions" },
   { name: "Gallery", path: "/gallery" },
   { name: "Announcements", path: "/announcements" },
@@ -44,11 +41,7 @@ export const Header = () => {
   const isActive = (path: string) => location.pathname === path;
   const dashboardPath = dashboardPathForRole(user?.role);
   const isHomePage = location.pathname === "/";
-<<<<<<< HEAD
   const useSolidHeader = scrolled || (!isHomePage && ["/about", "/academics", "/departments", "/admissions", "/announcements", "/portal", "/auth", "/signup"].includes(location.pathname));
-=======
-  const useSolidHeader = scrolled || (!isHomePage && ["/about", "/academics", "/admissions", "/announcements", "/portal", "/auth", "/signup"].includes(location.pathname));
->>>>>>> 551f0b25b96788a1c8529fe96f2591c586561a1d
   const headerSurface = useSolidHeader
     ? "bg-[#10264f]/95 backdrop-blur-md border-b border-white/10 shadow-lg"
     : "bg-transparent";
