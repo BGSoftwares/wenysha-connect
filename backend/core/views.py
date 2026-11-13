@@ -5,12 +5,16 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 import logging
+import secrets
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
 from .models import Role, UserProfile, PendingApproval
 from .roles import is_admin, normalize_role_name, portal_role
 from .permissions import IsPortalAdmin
+from .caching import get_cached_portal_profile, set_cached_portal_profile, invalidate_user_cache
+from .throttling import LoginRateThrottle, MFARateThrottle, AccountLockoutManager
+from .mfa import is_mfa_enabled_for_user, generate_mfa_challenge, verify_mfa_challenge, mask_email
 from school.models import Student, SchoolClass
 from .serializers import (
     RoleSerializer,
@@ -25,11 +29,19 @@ from .serializers import (
 logger = logging.getLogger('ablegod.accounts')
 
 
-def get_tokens_for_user(user):
+def get_tokens_for_user(user, role=None, full_name=None):
     refresh = RefreshToken.for_user(user)
+    session_id = secrets.token_urlsafe(24)
+    if role:
+        refresh['role'] = role
+    if full_name:
+        refresh['full_name'] = full_name
+    refresh['session_id'] = session_id
+
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
+        'session_id': session_id,
         'user': {
             'id': user.id,
             'email': user.email,
@@ -39,15 +51,22 @@ def get_tokens_for_user(user):
 
 
 def get_portal_profile(user):
-    """Return the authoritative portal role and display name for an account."""
+    """Return the authoritative portal role and display name for an account, with memory caching."""
+    cached = get_cached_portal_profile(user.id)
+    if cached:
+        return cached['role'], cached['full_name']
+
     full_name = user.get_full_name() or user.username
     role = None
     try:
-        profile = user.profile
+        profile = getattr(user, 'profile', None)
+        if profile is None:
+            profile = user.profile
         role = profile.role.name if profile.role else None
         full_name = profile.full_name or full_name
-    except UserProfile.DoesNotExist:
+    except (UserProfile.DoesNotExist, AttributeError):
         pass
+
     # Django staff and superuser accounts always belong to the admin portal,
     # including legacy accounts created before role profiles were introduced.
     if user.is_superuser or user.is_staff:
@@ -61,40 +80,183 @@ def get_portal_profile(user):
             'parent': 'Parent',
             'accounts': 'Accounts',
         }.get(normalized_role, role)
+
+    must_change = False
+    try:
+        must_change = bool(user.profile.preferences.get('must_change_password'))
+    except Exception:
+        pass
+
+    if role:
+        set_cached_portal_profile(user.id, role, full_name, must_change)
+
     return role, full_name
 
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         ser = LoginSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         email_or_username = ser.validated_data['email']
         password = ser.validated_data['password']
-        user = User.objects.filter(
-            Q(email__iexact=email_or_username) | Q(username__iexact=email_or_username)
-        ).first()
+
+        # 1. Check account lockout to prevent brute-force attacks
+        is_locked, remaining_seconds = AccountLockoutManager.is_locked(email_or_username)
+        if is_locked:
+            minutes = max(1, remaining_seconds // 60)
+            return Response(
+                {
+                    'detail': f'Too many failed login attempts. This account is temporarily locked for {minutes} minute(s) to prevent brute-force attacks. Please try again later.'
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        # 2. Database query with indexing and joined profile
+        user = User.objects.select_related('profile__role').filter(username=email_or_username).first()
         if not user:
-            return Response({'detail': 'Invalid username/email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
-        if not user.check_password(password):
+            user = User.objects.select_related('profile__role').filter(email=email_or_username).first()
+        if not user:
+            user = User.objects.select_related('profile__role').filter(
+                Q(email__iexact=email_or_username) | Q(username__iexact=email_or_username)
+            ).first()
+
+        # 3. Dynamic and secure password check (never cached)
+        if not user or not user.check_password(password):
+            locked, remaining = AccountLockoutManager.record_failure(email_or_username)
+            if locked:
+                minutes = max(1, remaining // 60)
+                return Response(
+                    {
+                        'detail': f'Too many failed login attempts. This account is temporarily locked for {minutes} minute(s) to prevent brute-force attacks. Please try again later.'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
             return Response({'detail': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
+
         if not user.is_active:
             return Response({'detail': 'User account is disabled.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Password succeeded: reset lockout counters
+        AccountLockoutManager.reset(email_or_username)
+
+        # 4. Authoritative portal role
         role, full_name = get_portal_profile(user)
         if not role:
             return Response(
                 {'detail': 'This account has no portal role assigned. Please contact the school administrator.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        tokens = get_tokens_for_user(user)
+
+        # 5. Check if Multi-Factor Authentication is required for this account
+        if is_mfa_enabled_for_user(user):
+            challenge = generate_mfa_challenge(user)
+            return Response(challenge, status=status.HTTP_200_OK)
+
+        # 6. Generate secure session and access token
+        tokens = get_tokens_for_user(user, role=role, full_name=full_name)
         tokens['user']['role'] = role
         tokens['user']['full_name'] = full_name
         try:
             tokens['user']['must_change_password'] = bool(user.profile.preferences.get('must_change_password'))
-        except UserProfile.DoesNotExist:
+        except (UserProfile.DoesNotExist, AttributeError):
             tokens['user']['must_change_password'] = False
         return Response(tokens)
+
+
+class MFAVerifyView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [MFARateThrottle]
+
+    def post(self, request):
+        mfa_token = request.data.get('mfa_token', '').strip()
+        code = str(request.data.get('code', '')).strip()
+
+        is_valid, user, error_msg = verify_mfa_challenge(mfa_token, code)
+        if not is_valid or not user:
+            return Response({'detail': error_msg or 'Invalid verification code.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        role, full_name = get_portal_profile(user)
+        if not role:
+            return Response(
+                {'detail': 'This account has no portal role assigned. Please contact the school administrator.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        tokens = get_tokens_for_user(user, role=role, full_name=full_name)
+        tokens['user']['role'] = role
+        tokens['user']['full_name'] = full_name
+        try:
+            tokens['user']['must_change_password'] = bool(user.profile.preferences.get('must_change_password'))
+        except (UserProfile.DoesNotExist, AttributeError):
+            tokens['user']['must_change_password'] = False
+
+        return Response(tokens)
+
+
+class MFAResendView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [MFARateThrottle]
+
+    def post(self, request):
+        mfa_token = request.data.get('mfa_token', '').strip()
+        if not mfa_token:
+            return Response({'detail': 'MFA session token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+        from .mfa import SIGNER_SALT, MFA_CHALLENGE_TIMEOUT
+        signer = TimestampSigner(salt=SIGNER_SALT)
+        try:
+            user_id_str = signer.unsign(mfa_token, max_age=MFA_CHALLENGE_TIMEOUT)
+            user = User.objects.get(id=int(user_id_str), is_active=True)
+        except (SignatureExpired, BadSignature, ValueError, User.DoesNotExist):
+            return Response({'detail': 'Verification session expired. Please sign in again.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        challenge = generate_mfa_challenge(user)
+        return Response({
+            'detail': 'A fresh verification code has been dispatched.',
+            'mfa_token': challenge['mfa_token'],
+            'masked_destination': challenge['masked_destination'],
+            'expires_in': challenge['expires_in'],
+        })
+
+
+class MFAStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        enabled = is_mfa_enabled_for_user(user)
+        return Response({
+            'mfa_enabled': enabled,
+            'email': user.email,
+            'masked_email': mask_email(user.email),
+        })
+
+
+class MFAToggleView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        enabled = bool(request.data.get('enabled', False))
+        password = str(request.data.get('password', ''))
+
+        if not request.user.check_password(password):
+            return Response({'detail': 'Password confirmation is required to change MFA settings.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        prefs = dict(profile.preferences or {})
+        prefs['mfa_enabled'] = enabled
+        profile.preferences = prefs
+        profile.save(update_fields=['preferences'])
+        invalidate_user_cache(request.user.id)
+
+        return Response({
+            'mfa_enabled': enabled,
+            'detail': f'Multi-Factor Authentication {"enabled" if enabled else "disabled"} successfully.',
+        })
 
 
 class CurrentUserView(APIView):
