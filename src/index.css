@@ -717,11 +717,12 @@ html {
   box-shadow: 10px 0 32px -26px hsl(224 72% 12% / 0.9);
 }
 .portal-dashboard .portal-sidebar nav button:not(.bg-accent) {
-  color: rgb(255 255 255 / 0.78);
+  color: rgb(255 255 255 / 0.9);
+  font-weight: 500;
 }
 .portal-dashboard .portal-sidebar nav button:not(.bg-accent):hover {
   color: white;
-  background-color: rgb(255 255 255 / 0.12);
+  background-color: rgb(255 255 255 / 0.16);
 }
 .portal-dashboard .portal-header {
   color: white;
@@ -731,7 +732,7 @@ html {
 }
 .portal-dashboard .portal-header h1,
 .portal-dashboard .portal-header p { color: white; }
-.portal-dashboard .portal-header p { color: rgb(255 255 255 / 0.72); }
+.portal-dashboard .portal-header p { color: rgb(255 255 255 / 0.88); font-weight: 500; }
 .portal-dashboard main .bg-card.rounded-xl,
 .portal-dashboard main .bg-card.rounded-2xl {
   border-color: hsl(332 42% 88%);

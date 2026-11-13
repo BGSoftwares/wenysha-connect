@@ -342,7 +342,7 @@ const AdminDashboard = () => {
       hostel: "Hostel",
       notice: "Communications",
       message: "Messages",
-      gallery: "Gallery",
+      gallery: "Pictures & Gallery",
       "hero-carousel": "Hero Carousel",
       map: "Map",
       "report-cards": "Report Cards",

@@ -1369,15 +1369,15 @@ const TeacherDashboard = () => {
               <MenuIcon className="h-5 w-5 text-white" />
             </button>
             <div>
-              <h1 className="font-heading text-2xl font-bold text-white">
+              <h1 className="font-heading text-2xl font-bold text-white drop-shadow-sm">
                 {navigation.find(n => n.id === activeNav)?.name || "Dashboard"}
               </h1>
-              <p className="text-white/50 text-sm">{department} Department</p>
+              <p className="text-white/85 text-sm font-medium">{department} Department</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button aria-label="Open messages" onClick={() => setActiveNav("messages")} className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
-              <Bell className="h-6 w-6 text-white/60" />
+              <Bell className="h-6 w-6 text-white/90" />
             </button>
             <Link to="/portal" onClick={clearAuth} className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">
               <LogOut className="h-4 w-4" />Sign Out

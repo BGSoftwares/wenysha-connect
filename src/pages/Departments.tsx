@@ -83,8 +83,7 @@ const departments = [
     id: "english",
     name: "English & Literature Department",
     motto: "Using the power of language to build foundations for life.",
-    head: "Mr. F. Chiweshe",
-    staff: "Mrs. Mariga",
+    head: "Mrs. Mariga",
     overview:
       "As an English department, our goal is to teach English Language and Literature with diligence, care, and responsible lesson execution. It is our purpose that this should be embedded within a context of genuine concern for the pupils, arising from our faith in Christ who gives purpose to all our endeavours.",
     vision:
@@ -124,8 +123,7 @@ const departments = [
     id: "business",
     name: "Commercials & Business Department",
     motto: "Godly business ethics for an ever-changing commercial world.",
-    head: "Ms. P. Zondo",
-    staff: "Mr. Katesi",
+    head: "Mr. Katesi",
     overview:
       "The Commercials Department teaches Accounting, Business Studies, Economics, and Commerce within the context of Biblical ethics. We equip students to become principled business leaders, accountants, and entrepreneurs who manage finances with integrity.",
     vision:

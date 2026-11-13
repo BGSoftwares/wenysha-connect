@@ -19,14 +19,14 @@ export const WelcomeBanner = ({ name, role, actions = [] }: { name?: string; rol
       <div className="absolute -bottom-20 right-24 h-40 w-40 rounded-full bg-accent/40 blur-3xl" />
       <div className="relative flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <p className="flex items-center gap-2 text-sm text-primary-foreground/80">
-            <Sparkles className="h-4 w-4" />
+          <p className="flex items-center gap-2 text-sm text-white/90 font-medium drop-shadow-sm">
+            <Sparkles className="h-4 w-4 text-pink-300" />
             {now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
-          <h2 className="mt-2 text-2xl md:text-3xl font-semibold">
+          <h2 className="mt-2 text-2xl md:text-3xl font-bold text-white drop-shadow-sm">
             {greet}{name ? `, ${name}` : ""}!
           </h2>
-          <p className="mt-1 text-primary-foreground/80">Welcome to your {role} dashboard.</p>
+          <p className="mt-1 text-white/90 font-medium drop-shadow-sm">Welcome to your {role} dashboard.</p>
         </div>
         {actions.length > 0 && (
           <div className="flex flex-wrap gap-2">
@@ -34,7 +34,7 @@ export const WelcomeBanner = ({ name, role, actions = [] }: { name?: string; rol
               <button
                 key={a.label}
                 onClick={a.onClick}
-                className="rounded-full border border-primary-foreground/30 bg-primary-foreground/10 px-4 py-2 text-sm font-medium backdrop-blur transition hover:bg-primary-foreground/20"
+                className="rounded-full border border-white/40 bg-white/20 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur transition hover:bg-white/30"
               >
                 {a.label}
               </button>

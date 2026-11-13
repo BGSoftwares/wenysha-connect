@@ -203,10 +203,10 @@ const ParentPortal = () => {
                         <Badge variant="outline" className="text-accent border-accent/30 mb-6 bg-accent/10 px-4 py-1">
                             PARENT COMMAND CENTER
                         </Badge>
-                        <h1 className="text-4xl md:text-5xl font-heading font-black text-white mb-4">
+                        <h1 className="text-4xl md:text-5xl font-heading font-black text-white mb-4 drop-shadow-sm">
                             Welcome back, <span className="text-accent">{parentProfile?.name?.split(' ')[0] || "Parent"}.</span>
                         </h1>
-                        <p className="text-lg text-white/70 mb-0 font-light">
+                        <p className="text-lg text-white/90 mb-0 font-normal">
                             Monitoring the academic growth and well-being of your children.
                         </p>
                     </div>
