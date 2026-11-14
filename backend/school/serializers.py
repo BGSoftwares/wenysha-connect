@@ -164,6 +164,18 @@ class TeacherSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'name', 'department', 'phone', 'employee_id', 'allocations']
         read_only_fields = ['employee_id']
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request is not None:
+            from core.roles import is_admin
+            user = request.user
+            if not (is_admin(user) or instance.user_id == user.pk):
+                # Other portal users see who teaches, not staff phone numbers or IDs.
+                for private in ('phone', 'employee_id', 'user'):
+                    data.pop(private, None)
+        return data
+
     def validate_user(self, value):
         if value:
             from core.roles import portal_role

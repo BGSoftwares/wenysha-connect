@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useBooks, useBorrowBook, useMyBorrowings, useRenewBook, Borrowing } from "@/lib/hooks";
-import { getErrorMessage } from "@/lib/api";
+import { downloadAuthenticatedFile, getErrorMessage } from "@/lib/api";
 
 const daysLeft = (due: string) =>
   Math.ceil((new Date(due).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
@@ -107,9 +107,9 @@ const StudentLibrarySection = () => {
                 <Badge variant={b.available > 0 ? "outline" : "destructive"}>{b.available}/{b.copies}</Badge>
               </div>
               {b.digital_file_url && (
-                <a className="text-sm text-primary underline underline-offset-2" href={b.digital_file_url} target="_blank" rel="noreferrer">
-                  Open or download digital book
-                </a>
+                <button type="button" className="text-left text-sm text-primary underline underline-offset-2" onClick={() => void downloadAuthenticatedFile(b.digital_file_url!, `${b.title}`).catch((e) => toast.error(getErrorMessage(e)))}>
+                  Download digital book
+                </button>
               )}
               <Button size="sm" disabled={b.available < 1 || heldIds.has(b.id) || borrow.isPending} onClick={() => onBorrow(b.id, b.title)}>
                 {heldIds.has(b.id) ? "Already borrowed" : b.available < 1 ? "Unavailable" : "Borrow"}

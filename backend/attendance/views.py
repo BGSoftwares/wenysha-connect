@@ -1,6 +1,9 @@
 from datetime import timedelta
 
+from pathlib import Path
+
 from django.db import transaction
+from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -321,6 +324,20 @@ class AttendanceExcuseViewSet(viewsets.ModelViewSet):
         if not can_manage_attendance(request.user):
             raise PermissionDenied('Only authorised administrators can review attendance excuses.')
         return super().partial_update(request, *args, **kwargs)
+
+    @action(detail=True, methods=['get'], url_path='attachment')
+    def attachment_download(self, request, pk=None):
+        excuse = self.get_object()  # get_queryset limits this to the caller's own students
+        if not excuse.attachment:
+            return Response({'detail': 'This excuse has no attachment.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            response = FileResponse(excuse.attachment.open('rb'), as_attachment=True,
+                                    filename=Path(excuse.attachment.name).name)
+        except OSError:
+            return Response({'detail': 'The attachment is unavailable.'}, status=status.HTTP_404_NOT_FOUND)
+        response['X-Content-Type-Options'] = 'nosniff'
+        response['Content-Security-Policy'] = "default-src 'none'; sandbox"
+        return response
 
     @action(detail=True, methods=['post'])
     def review(self, request, pk=None):

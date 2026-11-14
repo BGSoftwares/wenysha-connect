@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, X, Clock, Calendar, Search, Users, TrendingUp, AlertCircle, Share2, Download } from "lucide-react";
 import { buildAttendancePdf, sharePdfToWhatsApp } from "@/lib/pdfExport";
 import { formatLocalDateKey, getSchoolDateStatus, ZIMBABWE_2026_PUBLIC_HOLIDAYS, ZIMBABWE_2026_TERMS } from "@/lib/zimbabweSchoolCalendar";
-import { getErrorMessage } from "@/lib/api";
+import { downloadAuthenticatedFile, getErrorMessage } from "@/lib/api";
 
 const formatCalendarDate = (dateKey: string) => new Date(`${dateKey}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
@@ -662,7 +662,7 @@ const AttendanceSection = () => {
                   <div>
                     <p className="font-semibold">{excuse.student_name} · {excuse.date}</p>
                     <p className="text-sm text-muted-foreground">{excuse.reason.replaceAll("_", " ")}{excuse.note ? ` · ${excuse.note}` : ""}</p>
-                    {excuse.attachment && <a className="text-sm text-primary underline" href={excuse.attachment} target="_blank" rel="noreferrer">View attachment</a>}
+                    {excuse.attachment_url && <button type="button" className="text-sm text-primary underline" onClick={() => void downloadAuthenticatedFile(excuse.attachment_url!, `excuse-${excuse.id}`).catch((e) => toast.error(getErrorMessage(e)))}>Download attachment</button>}
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => void handleReviewExcuse(excuse, "approved")} disabled={reviewExcuse.isPending}>Approve</Button>
