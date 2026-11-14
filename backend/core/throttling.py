@@ -25,6 +25,14 @@ class LoginRateThrottle(AnonRateThrottle):
     scope = 'login'
 
 
+class SignupRateThrottle(SimpleRateThrottle):
+    """Caps account sign-ups and admission applications per client IP."""
+    scope = 'signup'
+
+    def get_cache_key(self, request, view):
+        return self.cache_format % {'scope': self.scope, 'ident': self.get_ident(request)}
+
+
 class MFARateThrottle(SimpleRateThrottle):
     """Caps MFA verify/resend/setup requests per client IP."""
     scope = 'mfa'

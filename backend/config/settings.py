@@ -275,6 +275,7 @@ REST_FRAMEWORK = {
         # Per client IP. Sized for a school network where many students share one
         # public IP; per-account lockout (core.throttling) is the main brute-force guard.
         'login': os.environ.get('LOGIN_THROTTLE_RATE', '1000/minute' if _IS_TEST_RUN else '20/minute'),
+        'signup': os.environ.get('SIGNUP_THROTTLE_RATE', '1000/minute' if _IS_TEST_RUN else '10/hour'),
         'mfa': os.environ.get('MFA_THROTTLE_RATE', '1000/minute' if _IS_TEST_RUN else '10/minute'),
     },
     # Number of trusted reverse proxies in front of Django (our nginx = 1). Without

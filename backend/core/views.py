@@ -18,7 +18,7 @@ from .models import Role, UserProfile, PendingApproval
 from .roles import is_admin, normalize_role_name, portal_role
 from .permissions import IsPortalAdmin
 from .caching import get_portal_state
-from .throttling import LoginRateThrottle, MFARateThrottle, AccountLockoutManager
+from .throttling import LoginRateThrottle, MFARateThrottle, SignupRateThrottle, AccountLockoutManager
 from .tokens import get_tokens_for_user, revoke_user_tokens
 from .mfa import (
     RESEND_COOLDOWN_SECONDS,
@@ -441,6 +441,7 @@ class ChangePasswordView(APIView):
 
 class SignUpView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [SignupRateThrottle]
 
     def post(self, request):
         ser = SignUpSerializer(data=request.data)

@@ -16,8 +16,15 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app
+
 COPY . .
-RUN DJANGO_DEBUG=True python manage.py collectstatic --noinput
+RUN DJANGO_DEBUG=True python manage.py collectstatic --noinput \
+    && mkdir -p /app/media \
+    && chown -R app:app /app
+
+USER app
 
 EXPOSE 8000
 

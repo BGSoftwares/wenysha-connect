@@ -4,6 +4,9 @@ import re
 from urllib.parse import urlparse
 
 from core.roles import is_admin, portal_role
+from core.upload_validation import (
+    ATTACHMENT_EXTENSIONS, IMAGE_EXTENSIONS, MATERIAL_EXTENSIONS, VIDEO_EXTENSIONS, validate_upload,
+)
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from .models import (
@@ -61,10 +64,8 @@ class GalleryItemSerializer(serializers.ModelSerializer):
     def validate_media_file(self, value):
         if value and value.size > 50 * 1024 * 1024:
             raise serializers.ValidationError('Media files must be 50MB or smaller.')
-        content_type = (mimetypes.guess_type(value.name)[0] or value.content_type or '') if value else ''
-        if value and not content_type.startswith(('image/', 'video/')):
-            raise serializers.ValidationError('Upload an image or video file.')
-        return value
+        # Images and videos only; extension AND file contents are checked (SVG is not allowed).
+        return validate_upload(value, IMAGE_EXTENSIONS | VIDEO_EXTENSIONS, 'gallery file')
 
     def validate(self, attrs):
         uploaded_file = attrs.get('media_file')
@@ -180,7 +181,7 @@ class LearningMaterialSerializer(serializers.ModelSerializer):
     def validate_file(self, value):
         if value and value.size > MAX_MATERIAL_BYTES:
             raise serializers.ValidationError('File must be 20MB or smaller.')
-        return value
+        return validate_upload(value, MATERIAL_EXTENSIONS, 'file')
 
     def validate(self, attrs):
         uploaded = attrs.get('file')
@@ -241,7 +242,7 @@ class LearningAssignmentSerializer(serializers.ModelSerializer):
     def validate_attachment(self, value):
         if value and value.size > MAX_MATERIAL_BYTES:
             raise serializers.ValidationError('File must be 20MB or smaller.')
-        return value
+        return validate_upload(value, ATTACHMENT_EXTENSIONS, 'attachment')
 
 
 class LearningSubmissionSerializer(serializers.ModelSerializer):
@@ -275,7 +276,7 @@ class LearningSubmissionSerializer(serializers.ModelSerializer):
     def validate_attachment(self, value):
         if value and value.size > MAX_MATERIAL_BYTES:
             raise serializers.ValidationError('File must be 20MB or smaller.')
-        return value
+        return validate_upload(value, ATTACHMENT_EXTENSIONS, 'attachment')
 
     def validate(self, attrs):
         answer = attrs.get('answer', getattr(self.instance, 'answer', '')).strip()

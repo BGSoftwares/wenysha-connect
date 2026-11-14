@@ -1,7 +1,9 @@
 from datetime import date, timedelta
+from pathlib import Path
 
 from django.db import transaction
 from django.db.models import F, Q
+from django.http import FileResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -64,6 +66,20 @@ class BookViewSet(viewsets.ModelViewSet):
         if copies < on_loan:
             raise ValidationError({'copies': f'{on_loan} copies are on loan; total cannot be lower.'})
         serializer.save(available=copies - on_loan)
+
+    @action(detail=True, methods=['get'], url_path='file', permission_classes=[permissions.IsAuthenticated])
+    def file(self, request, pk=None):
+        book = self.get_object()
+        if not book.digital_file:
+            return Response({'detail': 'This book has no digital copy.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            response = FileResponse(book.digital_file.open('rb'), as_attachment=True,
+                                    filename=Path(book.digital_file.name).name)
+        except OSError:
+            return Response({'detail': 'The file is unavailable.'}, status=status.HTTP_404_NOT_FOUND)
+        response['X-Content-Type-Options'] = 'nosniff'
+        response['Content-Security-Policy'] = "default-src 'none'; sandbox"
+        return response
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def borrow(self, request, pk=None):

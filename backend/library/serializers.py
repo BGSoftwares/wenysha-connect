@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from rest_framework import serializers
+from core.upload_validation import validate_upload
 from .models import Book, Borrowing
 
 
@@ -17,15 +18,12 @@ class BookSerializer(serializers.ModelSerializer):
         if not book.digital_file:
             return None
         request = self.context.get('request')
-        url = book.digital_file.url
-        return request.build_absolute_uri(url) if request else url
+        return f'/library/books/{book.pk}/file/'  # authenticated download; /media/ is not public
 
     def validate_digital_file(self, uploaded_file):
         if uploaded_file is None:
             return uploaded_file
-        extension = Path(uploaded_file.name).suffix.lower()
-        if extension not in {'.pdf', '.epub', '.docx'}:
-            raise serializers.ValidationError('Upload a PDF, EPUB, or DOCX book file.')
+        validate_upload(uploaded_file, {'.pdf', '.epub', '.docx'}, 'book file')
         if uploaded_file.size > 20 * 1024 * 1024:
             raise serializers.ValidationError('Book files must be 20 MB or smaller.')
         return uploaded_file
