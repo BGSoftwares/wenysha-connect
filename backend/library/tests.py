@@ -29,7 +29,8 @@ class DigitalLibraryBookTests(APITestCase):
         }, format='multipart')
 
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(response.data['digital_file_url'].endswith('.pdf'))
+        # Books are downloaded through an authenticated endpoint, never a public /media/ path.
+        self.assertEqual(response.data['digital_file_url'], f"/library/books/{response.data['id']}/file/")
         self.assertTrue(Path(Book.objects.get(pk=response.data['id']).digital_file.path).is_file())
 
         self.client.force_authenticate(user=User.objects.create_user('reader', password='pass12345'))
