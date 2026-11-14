@@ -18,6 +18,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from django.db import transaction
 
 from . import totp
 from .models import UserProfile
@@ -29,6 +30,10 @@ MFA_CHALLENGE_TIMEOUT = 300  # 5 minutes
 MAX_OTP_ATTEMPTS = 3
 RESEND_COOLDOWN_SECONDS = 60
 SIGNER_SALT = 'ablegod-mfa-challenge'
+
+BACKUP_CODE_COUNT = 8
+BACKUP_CODE_LENGTH = 10  # letters/digits, shown as xxxxx-xxxxx
+_BACKUP_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'  # no look-alikes (0/o, 1/l/i)
 
 
 def mask_email(email: str) -> str:
@@ -79,7 +84,7 @@ def enable_email_mfa(user: User) -> None:
 
 def disable_mfa(user: User) -> None:
     prefs = _prefs(user)
-    for key in ('mfa_enabled', 'mfa_method', 'totp_secret', 'totp_pending_secret'):
+    for key in ('mfa_enabled', 'mfa_method', 'totp_secret', 'totp_pending_secret', 'backup_codes'):
         prefs.pop(key, None)
     _save_prefs(user, prefs)
 
@@ -103,6 +108,62 @@ def confirm_totp_enrollment(user: User, code: str) -> bool:
     prefs.pop('totp_pending_secret', None)
     prefs.update(totp_secret=pending, mfa_method='totp', mfa_enabled=True)
     _save_prefs(user, prefs)
+    return True
+
+
+# --- backup codes ------------------------------------------------------------
+# One-time recovery codes for a lost phone. Only keyed hashes are stored, so a
+# database leak does not reveal usable codes; the plain codes are shown once.
+
+def _normalize_backup_code(code: str) -> str:
+    return ''.join(ch for ch in str(code or '').lower() if ch.isalnum())
+
+
+def looks_like_backup_code(code: str) -> bool:
+    return len(_normalize_backup_code(code)) == BACKUP_CODE_LENGTH
+
+
+def _hash_backup_code(user_id: int, normalized: str) -> str:
+    return hmac.new(settings.SECRET_KEY.encode('utf-8'), f"backup:{user_id}:{normalized}".encode('utf-8'), hashlib.sha256).hexdigest()
+
+
+def generate_backup_codes(user: User) -> list[str]:
+    """Replace all existing backup codes with a fresh set and return them (display once)."""
+    raw = [''.join(secrets.choice(_BACKUP_ALPHABET) for _ in range(BACKUP_CODE_LENGTH)) for _ in range(BACKUP_CODE_COUNT)]
+    prefs = _prefs(user)
+    prefs['backup_codes'] = [_hash_backup_code(user.id, c) for c in raw]
+    _save_prefs(user, prefs)
+    return [f"{c[:5]}-{c[5:]}" for c in raw]
+
+
+def backup_codes_remaining(user: User) -> int:
+    return len(_prefs(user).get('backup_codes', []))
+
+
+def consume_backup_code(user: User, submitted: str) -> bool:
+    """Use up one backup code. The row lock stops two simultaneous logins spending the same code."""
+    normalized = _normalize_backup_code(submitted)
+    if len(normalized) != BACKUP_CODE_LENGTH:
+        return False
+    candidate = _hash_backup_code(user.id, normalized)
+    with transaction.atomic():
+        try:
+            profile = UserProfile.objects.select_for_update().get(user=user)
+        except UserProfile.DoesNotExist:
+            return False
+        prefs = dict(profile.preferences or {})
+        remaining = list(prefs.get('backup_codes', []))
+        matched = None
+        for stored in remaining:  # compare against every code, no early exit
+            if hmac.compare_digest(stored, candidate):
+                matched = stored
+        if matched is None:
+            return False
+        remaining.remove(matched)
+        prefs['backup_codes'] = remaining
+        profile.preferences = prefs
+        profile.save(update_fields=['preferences'])
+    logger.warning("Backup code used to sign in for user id %s (%d left)", user.id, len(remaining))
     return True
 
 
@@ -198,7 +259,9 @@ def verify_mfa_challenge(mfa_token: str, submitted_code: str) -> tuple[bool, Use
     if not user.is_active:
         return False, None, "Account is disabled."
 
-    if challenge.get('method') == 'totp':
+    if looks_like_backup_code(submitted_code):
+        ok = consume_backup_code(user, submitted_code)
+    elif challenge.get('method') == 'totp':
         encrypted = _prefs(user).get('totp_secret')
         secret = totp.decrypt_secret(encrypted) if encrypted else None
         ok = bool(secret) and totp.verify_totp(secret, submitted_code, user.id)

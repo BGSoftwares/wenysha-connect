@@ -24,6 +24,7 @@ x-backend: &backend
     REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in deploy.env}@redis:6379/0
     # nginx is the one trusted proxy in front of Django (used for real client IPs).
     NUM_PROXIES: "1"
+    MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES-Admin}
 
 services:
   redis:

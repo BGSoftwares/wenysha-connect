@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.contrib.auth.hashers import check_password as hasher_check_password, make_password
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -21,10 +22,12 @@ from .throttling import LoginRateThrottle, MFARateThrottle, AccountLockoutManage
 from .tokens import get_tokens_for_user, revoke_user_tokens
 from .mfa import (
     RESEND_COOLDOWN_SECONDS,
+    backup_codes_remaining,
     begin_totp_enrollment,
     confirm_totp_enrollment,
     disable_mfa,
     enable_email_mfa,
+    generate_backup_codes,
     generate_mfa_challenge,
     get_mfa_method,
     is_mfa_enabled_for_user,
@@ -92,6 +95,7 @@ def _session_response(user) -> Response:
         role=state['role'],
         full_name=state['full_name'],
         must_change_password=state['must_change_password'],
+        mfa_setup_required=state['mfa_setup_required'],
     )
     return Response(tokens)
 
@@ -208,6 +212,10 @@ class MFAResendView(APIView):
         })
 
 
+def role_requires_mfa(user) -> bool:
+    return get_portal_state(user)['role'] in getattr(settings, 'MFA_REQUIRED_ROLES', [])
+
+
 class MFAStatusView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -217,6 +225,8 @@ class MFAStatusView(APIView):
         return Response({
             'mfa_enabled': enabled,
             'mfa_method': get_mfa_method(user) if enabled else None,
+            'mfa_required': role_requires_mfa(user),
+            'backup_codes_remaining': backup_codes_remaining(user) if enabled else 0,
             'email': user.email,
             'masked_email': mask_email(user.email),
         })
@@ -241,6 +251,11 @@ class MFAToggleView(APIView):
                     )
                 enable_email_mfa(request.user)
         else:
+            if role_requires_mfa(request.user):
+                return Response(
+                    {'detail': 'Two-step verification is required for your role and cannot be turned off.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             disable_mfa(request.user)
 
         return Response({
@@ -267,7 +282,25 @@ class TOTPConfirmView(APIView):
     def post(self, request):
         if not confirm_totp_enrollment(request.user, str(request.data.get('code', ''))):
             return Response({'detail': 'That code is not valid. Check the time on your phone and try again.'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'mfa_enabled': True, 'mfa_method': 'totp', 'detail': 'Authenticator app verified. Two-step verification is now on.'})
+        return Response({
+            'mfa_enabled': True,
+            'mfa_method': 'totp',
+            'backup_codes': generate_backup_codes(request.user),  # shown once; only hashes are stored
+            'detail': 'Authenticator app verified. Two-step verification is now on.',
+        })
+
+
+class BackupCodesView(APIView):
+    """Replace the backup codes with a new set (old ones stop working). Needs the password."""
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [MFARateThrottle]
+
+    def post(self, request):
+        if not request.user.check_password(str(request.data.get('password', ''))):
+            return Response({'detail': 'Password confirmation is required to create new backup codes.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not is_mfa_enabled_for_user(request.user):
+            return Response({'detail': 'Turn on two-step verification first.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'backup_codes': generate_backup_codes(request.user)})
 
 
 class LogoutView(APIView):
@@ -312,6 +345,8 @@ class CurrentUserView(APIView):
             'phone': phone or '',
             'preferences': preferences,
             'must_change_password': bool(preferences.get('must_change_password')),
+            'mfa_enabled': bool(preferences.get('mfa_enabled')),
+            'mfa_setup_required': get_portal_state(user)['mfa_setup_required'],
         })
 
     @transaction.atomic

@@ -7,6 +7,7 @@ password verification never touch the cache.
 """
 import logging
 
+from django.conf import settings
 from django.core.cache import cache
 
 logger = logging.getLogger('ablegod.accounts')
@@ -30,11 +31,13 @@ def get_cached_portal_profile(user_id: int):
     return cache.get(_profile_cache_key(user_id))
 
 
-def set_cached_portal_profile(user_id: int, role, full_name: str, must_change_password: bool = False, ttl: int = PROFILE_CACHE_TTL):
+def set_cached_portal_profile(user_id: int, role, full_name: str, must_change_password: bool = False, mfa_enabled: bool = False, mfa_setup_required: bool = False, ttl: int = PROFILE_CACHE_TTL):
     data = {
         'role': role,
         'full_name': full_name,
         'must_change_password': must_change_password,
+        'mfa_enabled': mfa_enabled,
+        'mfa_setup_required': mfa_setup_required,
     }
     cache.set(_profile_cache_key(user_id), data, ttl)
     return data
@@ -63,11 +66,14 @@ def get_portal_state(user) -> dict:
     full_name = user.get_full_name() or user.username
     role = None
     must_change = False
+    mfa_enabled = False
     try:
         profile = user.profile
         role = profile.role.name if profile.role else None
         full_name = profile.full_name or full_name
-        must_change = bool((profile.preferences or {}).get('must_change_password'))
+        prefs = profile.preferences or {}
+        must_change = bool(prefs.get('must_change_password'))
+        mfa_enabled = bool(prefs.get('mfa_enabled'))
     except (UserProfile.DoesNotExist, AttributeError):
         pass
 
@@ -78,4 +84,5 @@ def get_portal_state(user) -> dict:
     elif role:
         role = _PORTAL_ROLE_LABELS.get(normalize_role_name(role), role)
 
-    return set_cached_portal_profile(user.id, role, full_name, must_change)
+    mfa_setup_required = bool(role in getattr(settings, 'MFA_REQUIRED_ROLES', []) and not mfa_enabled)
+    return set_cached_portal_profile(user.id, role, full_name, must_change, mfa_enabled, mfa_setup_required)

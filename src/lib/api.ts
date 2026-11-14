@@ -76,6 +76,8 @@ export interface LoginResponse {
     username: string;
     role?: string;
     full_name?: string;
+    must_change_password?: boolean;
+    mfa_setup_required?: boolean;
   };
 }
 

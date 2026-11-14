@@ -19,6 +19,7 @@ import {
   Palette
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { TwoFactorCard } from "@/components/auth/TwoFactorCard";
 import { api, applySessionTokens, getErrorMessage, getStoredUser } from "@/lib/api";
 import { fetchAllPages, type Student } from "@/lib/hooks";
 
@@ -408,6 +409,7 @@ const StudentSettingsSection = ({ studentContext = true }: { studentContext?: bo
               </Button>
             </CardContent>
           </Card>
+          <div className="mt-6"><TwoFactorCard /></div>
         </TabsContent>
 
         <TabsContent value="appearance" className="mt-6">

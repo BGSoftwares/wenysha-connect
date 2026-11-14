@@ -173,6 +173,14 @@ else:
 # DJANGO_SECRET_KEY; set MFA_ENCRYPTION_KEY to rotate DJANGO_SECRET_KEY independently.
 MFA_ENCRYPTION_KEY = os.environ.get('MFA_ENCRYPTION_KEY', '')
 
+# Portal roles that MUST use two-step verification (comma separated; empty = nobody).
+# Until they enrol they can sign in but only reach the screens needed to set it up.
+MFA_REQUIRED_ROLES = [
+    role.strip()
+    for role in os.environ.get('MFA_REQUIRED_ROLES', '' if _IS_TEST_RUN else 'Admin').split(',')
+    if role.strip()
+]
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},

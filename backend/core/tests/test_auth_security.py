@@ -1,3 +1,4 @@
+import io
 import json
 import re
 from unittest import mock
@@ -6,6 +7,7 @@ from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from django.core import mail
+from django.core.management import call_command
 from django.core.cache import cache
 from django.db import connection
 from django.test import TestCase, override_settings
@@ -200,7 +202,9 @@ class AccountCacheTests(AuthTestCase):
         tokens = self.login().data
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
         self.assertEqual(self.client.get('/api/auth/me/').status_code, 200)
-        self.assertEqual(self.client.get('/api/auth/accounts/').status_code, 403)
+        blocked = self.client.get('/api/auth/accounts/')
+        self.assertEqual(blocked.status_code, 403)
+        self.assertEqual(blocked.data['detail'].code, 'password_change_required')  # not just a role denial
 
     def test_login_lookup_columns_are_indexed(self):
         with connection.cursor() as cursor:
@@ -365,3 +369,128 @@ class TotpMfaTests(AuthTestCase):
         self.assertNotIn('totp_secret', prefs)
         self.assertNotIn('mfa_enabled', prefs)
         self.assertEqual(self.login().status_code, 200)
+
+
+class BackupCodeTests(AuthTestCase):
+    def setUp(self):
+        super().setUp()
+        mfa.enable_email_mfa(self.user)
+        self.codes = mfa.generate_backup_codes(self.fresh_user())
+
+    def start(self):
+        return self.login().data['mfa_token']
+
+    def verify(self, token, code):
+        return self.client.post('/api/auth/mfa/verify/', {'mfa_token': token, 'code': code}, format='json')
+
+    def test_eight_codes_in_xxxxx_xxxxx_form(self):
+        self.assertEqual(len(self.codes), mfa.BACKUP_CODE_COUNT)
+        self.assertTrue(all(re.fullmatch(r'[a-z0-9]{5}-[a-z0-9]{5}', c) for c in self.codes))
+        self.assertEqual(len(set(self.codes)), len(self.codes))
+
+    def test_only_hashes_are_stored(self):
+        stored = json.dumps(UserProfile.objects.get(user=self.user).preferences)
+        for code in self.codes:
+            self.assertNotIn(code.replace('-', ''), stored)
+
+    def test_a_backup_code_signs_in_exactly_once(self):
+        first = self.verify(self.start(), self.codes[0])
+        self.assertEqual(first.status_code, 200)
+        self.assertTrue(first.data['access'])
+        self.assertEqual(self.verify(self.start(), self.codes[0]).status_code, 400)
+        self.assertEqual(mfa.backup_codes_remaining(self.fresh_user()), mfa.BACKUP_CODE_COUNT - 1)
+
+    def test_case_and_dash_do_not_matter(self):
+        typed = self.codes[1].upper().replace('-', ' ')
+        self.assertEqual(self.verify(self.start(), typed).status_code, 200)
+
+    def test_wrong_backup_code_is_rejected_and_counted(self):
+        response = self.verify(self.start(), 'zzzzz-zzzzz')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('remaining', response.data['detail'])
+        self.assertEqual(mfa.backup_codes_remaining(self.fresh_user()), mfa.BACKUP_CODE_COUNT)
+
+    def test_regenerating_needs_the_password_and_retires_the_old_codes(self):
+        self.client.force_authenticate(self.user)
+        self.assertEqual(self.client.post('/api/auth/mfa/backup-codes/', {'password': 'bad'}, format='json').status_code, 400)
+        fresh = self.client.post('/api/auth/mfa/backup-codes/', {'password': PASSWORD}, format='json')
+        self.assertEqual(fresh.status_code, 200)
+        self.client.force_authenticate(None)
+
+        self.assertEqual(self.verify(self.start(), self.codes[0]).status_code, 400)
+        self.assertEqual(self.verify(self.start(), fresh.data['backup_codes'][0]).status_code, 200)
+
+    def test_turning_mfa_off_removes_backup_codes(self):
+        self.client.force_authenticate(self.user)
+        self.client.post('/api/auth/mfa/toggle/', {'enabled': False, 'password': PASSWORD}, format='json')
+        self.assertNotIn('backup_codes', UserProfile.objects.get(user=self.user).preferences)
+
+    def test_status_reports_remaining_codes(self):
+        self.client.force_authenticate(self.user)
+        self.assertEqual(self.client.get('/api/auth/mfa/status/').data['backup_codes_remaining'], mfa.BACKUP_CODE_COUNT)
+
+
+@override_settings(MFA_REQUIRED_ROLES=['Student'])
+class RequiredMfaTests(AuthTestCase):
+    FIXED_NOW = 1_800_000_010.0
+
+    def sign_in(self):
+        tokens = self.login().data
+        self.assertTrue(tokens['user']['mfa_setup_required'])
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    def enrol(self):
+        clock = mock.Mock(time=lambda: self.FIXED_NOW)
+        with mock.patch('core.totp.time', clock):
+            secret = self.client.post('/api/auth/mfa/totp/setup/', {'password': PASSWORD}, format='json').data['secret']
+            return self.client.post('/api/auth/mfa/totp/confirm/', {'code': totp.totp_now(secret, self.FIXED_NOW)}, format='json')
+
+    def test_unenrolled_account_can_only_reach_setup_screens(self):
+        self.sign_in()
+        me = self.client.get('/api/auth/me/')
+        self.assertEqual(me.status_code, 200)
+        self.assertTrue(me.data['mfa_setup_required'])
+        status = self.client.get('/api/auth/mfa/status/')
+        self.assertEqual(status.status_code, 200)
+        self.assertTrue(status.data['mfa_required'])
+
+        blocked = self.client.get('/api/auth/accounts/')
+        self.assertEqual(blocked.status_code, 403)
+        self.assertEqual(blocked.data['detail'].code, 'mfa_setup_required')
+
+    def test_enrolling_lifts_the_restriction_and_returns_backup_codes(self):
+        self.sign_in()
+        response = self.enrol()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['backup_codes']), mfa.BACKUP_CODE_COUNT)
+
+        self.assertFalse(self.client.get('/api/auth/me/').data['mfa_setup_required'])
+        after = self.client.get('/api/auth/accounts/')  # a student may still be denied by role,
+        self.assertNotEqual(getattr(after.data.get('detail'), 'code', None), 'mfa_setup_required')  # but not by MFA
+
+    def test_required_accounts_cannot_turn_mfa_off(self):
+        self.sign_in()
+        self.enrol()
+        response = self.client.post('/api/auth/mfa/toggle/', {'enabled': False, 'password': PASSWORD}, format='json')
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(mfa.is_mfa_enabled_for_user(self.fresh_user()))
+
+    def test_roles_not_listed_are_unaffected(self):
+        with override_settings(MFA_REQUIRED_ROLES=['Admin']):
+            tokens = self.login().data
+        self.assertFalse(tokens['user']['mfa_setup_required'])
+
+
+class ResetMfaCommandTests(AuthTestCase):
+    def test_reset_clears_mfa_and_signs_the_account_out(self):
+        mfa.enable_email_mfa(self.user)
+        mfa.generate_backup_codes(self.fresh_user())
+
+        out = io.StringIO()
+        call_command('reset_mfa', 'TENDAI@example.com', stdout=out)
+
+        user = self.fresh_user()
+        self.assertFalse(mfa.is_mfa_enabled_for_user(user))
+        self.assertEqual(mfa.backup_codes_remaining(user), 0)
+        self.assertIn('reset', out.getvalue())
+        self.assertEqual(self.login().status_code, 200)  # plain password sign-in again
