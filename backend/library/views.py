@@ -138,7 +138,12 @@ class BorrowingViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         if not is_library_staff(request.user):
             raise PermissionDenied()
-        return super().destroy(request, *args, **kwargs)
+        with transaction.atomic():
+            loan = Borrowing.objects.select_for_update().filter(pk=kwargs.get('pk')).first()
+            if loan and loan.status != 'Returned':
+                # The copy is still out; deleting the record must not lose it from stock.
+                Book.objects.filter(pk=loan.book_id).update(available=F('available') + 1)
+            return super().destroy(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'])
     def mine(self, request):

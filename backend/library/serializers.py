@@ -40,3 +40,5 @@ class BorrowingSerializer(serializers.ModelSerializer):
             'id', 'book', 'book_title', 'student', 'student_name', 'class_name',
             'borrow_date', 'due_date', 'return_date', 'status'
         ]
+        # Returning a book changes stock, so it only happens through the return_book action.
+        read_only_fields = ['return_date', 'status']

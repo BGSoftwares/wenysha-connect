@@ -48,3 +48,6 @@ output/
 !.env.example
 backend/.env
 deploy.env
+
+# Local databases
+*.sqlite3

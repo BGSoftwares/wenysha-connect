@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from pathlib import Path
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -166,11 +166,19 @@ class AttendanceRecordViewSet(viewsets.ModelViewSet):
         return record, True
 
     def create(self, request, *args, **kwargs):
-        existing = self._existing_record_for_payload(request.data)
-        serializer = self.get_serializer(instance=existing, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        with transaction.atomic():
-            record, created = self._save_validated_record(serializer.validated_data, existing)
+        # Two people marking the same student/day at once can both see "no record yet".
+        # The database's unique constraint rejects the second insert; retry it as an update.
+        for attempt in (1, 2):
+            existing = self._existing_record_for_payload(request.data)
+            serializer = self.get_serializer(instance=existing, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            try:
+                with transaction.atomic():
+                    record, created = self._save_validated_record(serializer.validated_data, existing)
+                break
+            except IntegrityError:
+                if attempt == 2:
+                    raise
         return Response(
             self.get_serializer(record).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
