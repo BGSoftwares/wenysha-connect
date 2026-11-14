@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Menu, X, LogOut, User as UserIcon, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "/able-god-college-logo.png";
-import { getStoredUser, clearAuth } from "@/lib/api";
+import { getStoredUser, clearAuth, revokeSession } from "@/lib/api";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { dashboardPathForRole, normalizePortalRole } from "@/lib/portalRoles";
@@ -47,6 +47,7 @@ export const Header = () => {
     : "bg-transparent";
 
   const handleLogout = () => {
+    revokeSession();
     clearAuth();
     setUser(null);
     toast.success("Logged out successfully");

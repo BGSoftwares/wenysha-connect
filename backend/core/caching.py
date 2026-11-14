@@ -1,35 +1,36 @@
 """
-Account and User Profile Caching layer to eliminate database bottlenecks
-on frequently accessed authentication and profile endpoints.
+Account/profile caching so authenticated requests do not hit the database for
+role, display name and "must change password" on every call.
+
+Only non-credential data is cached (role, name, flags). Password hashes and
+password verification never touch the cache.
 """
-from django.core.cache import cache
 import logging
+
+from django.core.cache import cache
 
 logger = logging.getLogger('ablegod.accounts')
 
-PROFILE_CACHE_TTL = 300  # 5 minutes
+PROFILE_CACHE_TTL = 300  # 5 minutes; also invalidated explicitly by signals
+
+_PORTAL_ROLE_LABELS = {
+    'admin': 'Admin',
+    'teacher': 'Teacher',
+    'student': 'Student',
+    'parent': 'Parent',
+    'accounts': 'Accounts',
+}
 
 
 def _profile_cache_key(user_id: int) -> str:
     return f"ablegod:profile:{user_id}"
 
 
-def _user_session_cache_key(user_id: int) -> str:
-    return f"ablegod:session:{user_id}"
-
-
 def get_cached_portal_profile(user_id: int):
-    """
-    Retrieve cached portal profile (role, full_name, must_change_password)
-    to prevent repetitive DB queries on every authenticated request.
-    """
     return cache.get(_profile_cache_key(user_id))
 
 
-def set_cached_portal_profile(user_id: int, role: str, full_name: str, must_change_password: bool = False, ttl: int = PROFILE_CACHE_TTL):
-    """
-    Store authoritative portal profile in the fast cache.
-    """
+def set_cached_portal_profile(user_id: int, role, full_name: str, must_change_password: bool = False, ttl: int = PROFILE_CACHE_TTL):
     data = {
         'role': role,
         'full_name': full_name,
@@ -40,9 +41,41 @@ def set_cached_portal_profile(user_id: int, role: str, full_name: str, must_chan
 
 
 def invalidate_user_cache(user_id: int):
-    """
-    Invalidate all cached user records when the profile, role, or preferences change.
-    """
+    """Drop cached state when the user, profile or role changes."""
     cache.delete(_profile_cache_key(user_id))
-    cache.delete(_user_session_cache_key(user_id))
-    cache.delete(f"ablegod:mfa:status:{user_id}")
+
+
+def get_portal_state(user) -> dict:
+    """
+    Authoritative portal role, display name and must-change-password flag.
+
+    Served from cache when possible; otherwise loaded once and cached (including
+    "no role" so such accounts do not cause a query per request either).
+    """
+    cached = get_cached_portal_profile(user.id)
+    if cached is not None:
+        return cached
+
+    # Imported here to avoid import cycles at app-loading time.
+    from .models import UserProfile
+    from .roles import normalize_role_name
+
+    full_name = user.get_full_name() or user.username
+    role = None
+    must_change = False
+    try:
+        profile = user.profile
+        role = profile.role.name if profile.role else None
+        full_name = profile.full_name or full_name
+        must_change = bool((profile.preferences or {}).get('must_change_password'))
+    except (UserProfile.DoesNotExist, AttributeError):
+        pass
+
+    # Django staff and superuser accounts always belong to the admin portal,
+    # including legacy accounts created before role profiles were introduced.
+    if user.is_superuser or user.is_staff:
+        role = 'Admin'
+    elif role:
+        role = _PORTAL_ROLE_LABELS.get(normalize_role_name(role), role)
+
+    return set_cached_portal_profile(user.id, role, full_name, must_change)

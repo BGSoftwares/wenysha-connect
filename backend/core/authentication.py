@@ -1,7 +1,7 @@
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .models import UserProfile
+from .caching import get_portal_state
 
 
 class PasswordChangeRequiredJWTAuthentication(JWTAuthentication):
@@ -13,12 +13,8 @@ class PasswordChangeRequiredJWTAuthentication(JWTAuthentication):
             return None
 
         user, token = result
-        try:
-            must_change = bool(user.profile.preferences.get('must_change_password'))
-        except UserProfile.DoesNotExist:
-            must_change = False
-
-        if must_change:
+        # Served from cache: no extra profile query on every authenticated request.
+        if get_portal_state(user)['must_change_password']:
             path = request.path.rstrip('/')
             is_identity_lookup = request.method == 'GET' and path.endswith('/auth/me')
             is_password_change = request.method == 'POST' and path.endswith('/auth/change-password')

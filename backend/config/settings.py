@@ -4,6 +4,7 @@ Uses MySQL and Django REST Framework with JWT.
 """
 import os
 import sys
+import warnings
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'django_filters',
     'corsheaders',
     'core',
@@ -123,28 +125,53 @@ else:
         }
     }
 
-# Password Hashing Algorithm Hardening:
-# Hardened PBKDF2 with SHA-256 and 720,000 iterations (exceeding OWASP recommended minimum of 600,000)
-# for high resistance against GPU-accelerated brute force cracking while keeping password verification secured.
+# Password hashing: Argon2id (memory-hard) is the preferred algorithm. The older
+# hashers stay listed only so existing accounts can still log in; Django then
+# re-hashes their password with Argon2id automatically on that successful login.
 PASSWORD_HASHERS = [
-    'core.hashers.HardenedPBKDF2PasswordHasher',
+    'core.hashers.HardenedArgon2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
 ]
+if _IS_TEST_RUN:
+    # Keep the test suite fast; security tests override PASSWORD_HASHERS explicitly.
+    PASSWORD_HASHERS.insert(0, 'django.contrib.auth.hashers.MD5PasswordHasher')
 
-# Fast Caching Layer for frequently accessed account profiles, rate limiting, and MFA sessions
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'ablegod-auth-cache',
-        'TIMEOUT': 300,
-        'OPTIONS': {
-            'MAX_ENTRIES': 10000,
+# Shared cache for profile data, rate-limit counters, account lockouts and MFA
+# challenges. It must be shared by every worker and every server behind the load
+# balancer, so production uses Redis (REDIS_URL). Per-process memory is only
+# acceptable for single-process local development.
+REDIS_URL = os.environ.get('REDIS_URL', '').strip()
+if REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
+            'KEY_PREFIX': 'ablegod',
+            'TIMEOUT': 300,
+            'OPTIONS': {'socket_connect_timeout': 2, 'socket_timeout': 2},
         }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'ablegod-auth-cache',
+            'TIMEOUT': 300,
+            'OPTIONS': {'MAX_ENTRIES': 10000},
+        }
+    }
+    if not DEBUG and not _IS_TEST_RUN:
+        warnings.warn(
+            'REDIS_URL is not set: login rate limits, lockouts and MFA challenges are kept in '
+            'per-process memory and will NOT work correctly with several workers or servers.',
+            RuntimeWarning,
+        )
+
+# Authenticator-app secrets are encrypted at rest. Defaults to a key derived from
+# DJANGO_SECRET_KEY; set MFA_ENCRYPTION_KEY to rotate DJANGO_SECRET_KEY independently.
+MFA_ENCRYPTION_KEY = os.environ.get('MFA_ENCRYPTION_KEY', '')
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -237,9 +264,15 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '120/minute',
         'user': '600/minute',
-        'login': '5/minute',
-        'mfa': '10/minute',
+        # Per client IP. Sized for a school network where many students share one
+        # public IP; per-account lockout (core.throttling) is the main brute-force guard.
+        'login': os.environ.get('LOGIN_THROTTLE_RATE', '1000/minute' if _IS_TEST_RUN else '20/minute'),
+        'mfa': os.environ.get('MFA_THROTTLE_RATE', '1000/minute' if _IS_TEST_RUN else '10/minute'),
     },
+    # Number of trusted reverse proxies in front of Django (our nginx = 1). Without
+    # this, DRF trusts the whole client-supplied X-Forwarded-For header, which lets
+    # an attacker dodge rate limits by sending a different fake address each time.
+    'NUM_PROXIES': int(os.environ.get('NUM_PROXIES', '0' if DEBUG or _IS_TEST_RUN else '1')),
 }
 
 # Admin account lifecycle events are emitted without credential values; the
@@ -259,9 +292,12 @@ LOGGING = {
 
 # JWT
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    # Short-lived access token; the client renews it silently with the refresh token.
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.environ.get('JWT_ACCESS_MINUTES', '15'))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.environ.get('JWT_REFRESH_DAYS', '7'))),
+    # Every refresh issues a new refresh token and blacklists the old one.
     'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # Email configuration - use console backend in development when not specified
