@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import logo from "/able-god-college-logo.png";
 import campusPhoto from "@/assets/slides/slide-6252.jpeg";
 import { schoolContact } from "@/lib/schoolContact";
-import { login, getErrorMessage, clearAuth } from "@/lib/api";
+import { login, getErrorMessage, clearAuth, isMfaChallenge } from "@/lib/api";
 import { dashboardPathForRole, normalizePortalRole } from "@/lib/portalRoles";
 import { toast } from "sonner";
 
@@ -59,6 +59,12 @@ const Portal = () => {
     setIsLoading(true);
     try {
       const result = await login(email, password);
+      if (isMfaChallenge(result)) {
+        // This account uses two-step verification; the main sign-in page handles the code step.
+        toast.info("Two-step verification is on for this account. Please sign in on the main sign-in page.");
+        navigate("/auth", { replace: true });
+        return;
+      }
       const actualRole = normalizePortalRole(result.user.role);
       if (!actualRole) {
         clearAuth();

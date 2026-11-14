@@ -31,6 +31,7 @@ jobs:
         env:
           USE_SQLITE: "True"
           DJANGO_DEBUG: "False"
+          DJANGO_SECURE_SSL_REDIRECT: "False"  # the test client speaks plain http
           DJANGO_SECRET_KEY: ci-only-not-a-real-secret-key-0123456789abcdef
           DJANGO_ALLOWED_HOSTS: localhost,testserver
         run: python manage.py test --noinput
