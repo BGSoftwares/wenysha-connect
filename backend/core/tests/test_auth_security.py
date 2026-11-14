@@ -65,7 +65,7 @@ class LoginTests(AuthTestCase):
         self.assertTrue(response.data['refresh'])
         self.assertTrue(response.data['session_id'])
         self.assertEqual(response.data['user']['role'], 'Student')
-        self.assertNotIn('password', json.dumps(response.data))
+        self.assertNotIn('"password"', json.dumps(response.data))  # no credential field ('must_change_password' is fine)
 
     def test_can_log_in_with_email_or_username_in_any_case(self):
         self.assertEqual(self.login('tendai@example.com').status_code, 200)
@@ -182,7 +182,7 @@ class AccountCacheTests(AuthTestCase):
         user = self.fresh_user()
         first = get_portal_state(user)
         self.assertEqual(first['role'], 'Student')
-        self.assertNotIn('password', json.dumps(first).lower())
+        self.assertNotIn('"password"', json.dumps(first).lower())
 
         another_instance = self.fresh_user()
         with self.assertNumQueries(0):
@@ -426,7 +426,7 @@ class BackupCodeTests(AuthTestCase):
         self.assertNotIn('backup_codes', UserProfile.objects.get(user=self.user).preferences)
 
     def test_status_reports_remaining_codes(self):
-        self.client.force_authenticate(self.user)
+        self.client.force_authenticate(self.fresh_user())  # self.user holds a stale cached profile
         self.assertEqual(self.client.get('/api/auth/mfa/status/').data['backup_codes_remaining'], mfa.BACKUP_CODE_COUNT)
 
 

@@ -29,12 +29,12 @@ class PrivateFileAndPiiTests(TestCase):
 
     def setUp(self):
         self.admin = User.objects.create_superuser('boss', 'boss@example.com', 'x-Pass-12345')
-        t_user = self.make_user('teacher1', 'Teacher')
+        t_user = self.make_user('teacher_login', 'Teacher')
         self.teacher = Teacher.objects.create(user=t_user, name='Mr Moyo', phone='0771234567')
         cls = SchoolClass.objects.create(name='4A', class_teacher=self.teacher)
         self.student = Student.objects.create(student_id='S1', name='Kid One', school_class=cls)
-        self.student_user = self.make_user('kid', 'Student')
-        self.stranger = self.make_user('stranger', 'Student')
+        self.student_user = self.make_user('pupil_login', 'Student')
+        self.stranger = self.make_user('other_pupil', 'Student')
 
     def test_teacher_phone_hidden_from_students_but_visible_to_admin(self):
         client = APIClient()
