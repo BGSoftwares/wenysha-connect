@@ -10,6 +10,7 @@ from .models import (
     SchoolCalendarDay,
 )
 from .school_calendar import attendance_date_error
+from core.upload_validation import validate_upload
 
 
 class AttendanceRecordSerializer(serializers.ModelSerializer):
@@ -95,8 +96,10 @@ class AttendanceExcuseSerializer(serializers.ModelSerializer):
         if uploaded_file:
             if uploaded_file.size > 8 * 1024 * 1024:
                 raise serializers.ValidationError({'attachment': 'Attachments must be 8 MB or smaller.'})
-            if uploaded_file.content_type not in {'image/jpeg', 'image/png', 'application/pdf'}:
-                raise serializers.ValidationError({'attachment': 'Upload a JPEG, PNG, or PDF file.'})
+            try:
+                validate_upload(uploaded_file, {'.jpg', '.jpeg', '.png', '.pdf'}, 'attachment')
+            except serializers.ValidationError as exc:
+                raise serializers.ValidationError({'attachment': exc.detail})
         return attrs
 
 
