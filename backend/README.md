@@ -30,6 +30,10 @@ Configure a local administrator using Django's `createsuperuser` command or the 
 
 4. Open: **http://127.0.0.1:8000/admin** and log in with your configured administrator account.
 
+## Security and tests
+
+See `../docs/SECURITY.md` for authentication, MFA, rate limiting, upload rules and deployment hardening. Run the tests with `USE_SQLITE=True python manage.py test` (PowerShell: `$env:USE_SQLITE="True"`).
+
 ## Attendance module
 
 Attendance uses the existing `school.AcademicYear` and `school.Term` records. Its additive migrations add session-aware attendance, calendar overrides, policy settings, parent excuses, audit history, per-learner term summaries, report snapshots, and in-portal parent alerts for same-day absence/lateness and low term attendance.
