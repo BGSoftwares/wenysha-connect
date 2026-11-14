@@ -76,11 +76,18 @@ class AttendanceSettingsSerializer(serializers.ModelSerializer):
 
 class AttendanceExcuseSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.name', read_only=True)
+    # Never expose the raw /media/ path: excuse attachments are medical/private and are
+    # only downloadable through an authenticated, access-scoped endpoint.
+    attachment = serializers.FileField(required=False, allow_null=True, write_only=True)
+    attachment_url = serializers.SerializerMethodField()
+
+    def get_attachment_url(self, obj):
+        return f'/attendance/excuses/{obj.pk}/attachment/' if obj.attachment else ''
 
     class Meta:
         model = AttendanceExcuse
         fields = [
-            'id', 'student', 'student_name', 'date', 'reason', 'note', 'attachment', 'status',
+            'id', 'student', 'student_name', 'date', 'reason', 'note', 'attachment', 'attachment_url', 'status',
             'submitted_by', 'submitted_at', 'reviewed_by', 'reviewed_at', 'review_note',
         ]
         read_only_fields = ['status', 'submitted_by', 'submitted_at', 'reviewed_by', 'reviewed_at', 'review_note']

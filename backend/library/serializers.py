@@ -18,8 +18,7 @@ class BookSerializer(serializers.ModelSerializer):
         if not book.digital_file:
             return None
         request = self.context.get('request')
-        url = book.digital_file.url
-        return request.build_absolute_uri(url) if request else url
+        return f'/library/books/{book.pk}/file/'  # authenticated download; /media/ is not public
 
     def validate_digital_file(self, uploaded_file):
         if uploaded_file is None:
