@@ -10,8 +10,16 @@ Authentication: JWT. Send header: `Authorization: Bearer <access_token>`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/auth/login/` | Body: `{ "email", "password" }`. Returns `{ "access", "refresh", "user" }`. |
-| POST | `/auth/signup/` | Body: `{ "full_name", "email", "password", "confirm_password", "role" }`. Role: student, parent, teacher, accounts. |
+| POST | `/auth/login/` | Body: `{ "email", "password" }` (email or username). Returns `{ "access", "refresh", "user" }`, or for accounts with two-step verification `{ "mfa_required": true, "mfa_token", "mfa_method", "masked_destination", "expires_in" }`. 401 wrong credentials, 429 throttled or account locked. |
+| POST | `/auth/mfa/verify/` | Body: `{ "mfa_token", "code" }`. Code is an authenticator code, emailed code or backup code. Returns the same payload as a normal login. |
+| POST | `/auth/mfa/resend/` | Body: `{ "mfa_token" }`. Re-sends the email code. |
+| GET | `/auth/mfa/status/` | Own two-step status: enabled, method, required, backup codes left. |
+| POST | `/auth/mfa/totp/setup/` | Body: `{ "password" }`. Returns the authenticator `secret` and `otpauth_uri`. |
+| POST | `/auth/mfa/totp/confirm/` | Body: `{ "code" }`. Turns two-step on; returns one-time `backup_codes` (shown once). |
+| POST | `/auth/mfa/backup-codes/` | Body: `{ "password" }`. Issues a new set of backup codes. |
+| POST | `/auth/mfa/toggle/` | Body: `{ "enabled", "password" }`. Cannot turn off for roles in `MFA_REQUIRED_ROLES`. |
+| POST | `/auth/logout/` | Body: `{ "refresh" }`. Revokes the refresh token. 204. |
+| POST | `/auth/signup/` | Rate limited per IP (default 10/hour). Body: `{ "full_name", "email", "password", "confirm_password", "role" }`. Role: student, parent, teacher, accounts. |
 | POST | `/auth/token/refresh/` | Body: `{ "refresh" }`. Returns `{ "access" }`. |
 | GET/POST | `/auth/roles/` | List/create roles (authenticated). |
 | GET/POST | `/auth/profiles/` | List/create user profiles (authenticated). |
@@ -125,7 +133,7 @@ Authentication: JWT. Send header: `Authorization: Bearer <access_token>`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/admissions/` | Create admission application (no auth). |
+| POST | `/admissions/` | Create admission application (no auth; rate limited per IP). |
 | GET | `/admissions/` | List applications (authenticated). |
 
 ---
