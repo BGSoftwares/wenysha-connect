@@ -693,7 +693,7 @@ export interface AttendanceExcuse {
     date: string;
     reason: string;
     note: string;
-    attachment: string | null;
+    attachment_url?: string;
     status: "pending" | "approved" | "rejected";
     submitted_at: string;
     reviewed_at: string | null;

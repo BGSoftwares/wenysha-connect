@@ -14,7 +14,9 @@ import {
 import { Button } from "@/components/ui/button";
 import logo from "/able-god-college-logo.png";
 import campusPhoto from "@/assets/slides/slide-6252.jpeg";
-import { login, signup, getErrorMessage, clearAuth } from "@/lib/api";
+import { login, signup, getErrorMessage, clearAuth, isMfaChallenge } from "@/lib/api";
+import type { LoginResponse, MfaChallenge } from "@/lib/api";
+import { MfaCodeForm } from "@/components/auth/MfaCodeForm";
 import { toast } from "sonner";
 import { dashboardPathForRole } from "@/lib/portalRoles";
 
@@ -22,6 +24,7 @@ const Auth = () => {
     const [isLogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [mfaChallenge, setMfaChallenge] = useState<MfaChallenge | null>(null);
     const navigate = useNavigate();
 
     // Form states
@@ -31,22 +34,30 @@ const Auth = () => {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [role, setRole] = useState<"student" | "parent" | "teacher" | "accounts">("student");
 
+    const finishLogin = (data: LoginResponse) => {
+        toast.success(`Welcome back, ${data.user.full_name || data.user.username}`);
+
+        const dashboard = dashboardPathForRole(data.user.role);
+        if (!dashboard) {
+            clearAuth();
+            toast.error("Your account does not have a portal role yet. Please contact the school administrator.");
+            return;
+        }
+        navigate(dashboard, { replace: true });
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
 
         try {
             if (isLogin) {
-                const data = await login(email, password);
-                toast.success(`Welcome back, ${data.user.full_name || data.user.username}`);
-
-                const dashboard = dashboardPathForRole(data.user.role);
-                if (!dashboard) {
-                    clearAuth();
-                    toast.error("Your account does not have a portal role yet. Please contact the school administrator.");
+                const result = await login(email, password);
+                if (isMfaChallenge(result)) {
+                    setMfaChallenge(result);
                     return;
                 }
-                navigate(dashboard, { replace: true });
+                finishLogin(result);
             } else {
                 if (password !== confirmPassword) {
                     toast.error("Passwords do not match");
@@ -122,6 +133,13 @@ const Auth = () => {
                                 </button>
                             </div>
 
+                            {mfaChallenge ? (
+                                <MfaCodeForm
+                                    challenge={mfaChallenge}
+                                    onVerified={finishLogin}
+                                    onCancel={() => { setMfaChallenge(null); setPassword(""); }}
+                                />
+                            ) : (
                             <form className="space-y-3.5" onSubmit={handleSubmit}>
                                 {!isLogin && (
                                     <>
@@ -234,6 +252,7 @@ const Auth = () => {
                                     )}
                                 </Button>
                             </form>
+                            )}
 
                             <p className="mt-5 text-center text-xs text-muted-foreground">
                                 By continuing, you agree to our{" "}

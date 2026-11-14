@@ -76,6 +76,8 @@ export interface LoginResponse {
     username: string;
     role?: string;
     full_name?: string;
+    must_change_password?: boolean;
+    mfa_setup_required?: boolean;
   };
 }
 
@@ -223,10 +225,60 @@ export async function downloadAuthenticatedFile(path: string, filename: string):
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
-export async function login(email: string, password: string): Promise<LoginResponse> {
-  const data = await api.post<LoginResponse>("/auth/login/", { email, password });
+/** Returned instead of tokens when the account has two-step verification turned on. */
+export interface MfaChallenge {
+  mfa_required: true;
+  mfa_token: string;
+  mfa_method: "email" | "totp";
+  masked_destination: string | null;
+  expires_in: number;
+}
+
+export type LoginResult = LoginResponse | MfaChallenge;
+
+export function isMfaChallenge(result: LoginResult): result is MfaChallenge {
+  return (result as MfaChallenge).mfa_required === true;
+}
+
+/** Step 1: password. Resolves with tokens, or with an MfaChallenge that must be completed via verifyMfa(). */
+export async function login(email: string, password: string): Promise<LoginResult> {
+  const data = await api.post<LoginResult>("/auth/login/", { email, password });
+  if (isMfaChallenge(data)) return data;
   setTokens(data.access, data.refresh, data.user);
   return data;
+}
+
+/** Step 2: the 6-digit code from the authenticator app (or email). */
+export async function verifyMfa(mfaToken: string, code: string): Promise<LoginResponse> {
+  const data = await api.post<LoginResponse>("/auth/mfa/verify/", { mfa_token: mfaToken, code });
+  setTokens(data.access, data.refresh, data.user);
+  return data;
+}
+
+export async function resendMfaCode(mfaToken: string): Promise<{ detail: string; mfa_token: string; masked_destination: string | null; expires_in: number }> {
+  return api.post("/auth/mfa/resend/", { mfa_token: mfaToken });
+}
+
+/** Store a fresh token pair (e.g. after a password change revoked the old refresh token). */
+export function applySessionTokens(access: string, refresh: string): void {
+  localStorage.setItem(ACCESS_TOKEN_KEY, access);
+  localStorage.setItem(REFRESH_KEY, refresh);
+}
+
+/**
+ * Tell the server to revoke this device's refresh token. Call it right before
+ * clearAuth(): the token is read synchronously, so clearing storage afterwards is safe.
+ */
+export function revokeSession(): void {
+  const refresh = getRefreshToken();
+  if (!refresh) return;
+  const base = getApiBaseUrl().replace(/\/$/, "");
+  void fetch(`${base}/auth/logout/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh }),
+    keepalive: true,
+  }).catch(() => undefined);
 }
 
 export async function signup(payload: {

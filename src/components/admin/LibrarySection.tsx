@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   useBooks, useSaveBook, useDeleteBook, useBorrowings, useReturnBook, Book as BookT,
 } from "@/lib/hooks";
-import { getErrorMessage } from "@/lib/api";
+import { downloadAuthenticatedFile, getErrorMessage } from "@/lib/api";
 import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
 
 const empty: Partial<BookT> = { title: "", author: "", isbn: "", category: "", copies: 1 };
@@ -123,7 +123,7 @@ const LibrarySection = ({ classes = [], subjects = [] }: Props) => {
                     <td className="p-3"><Badge variant={b.available > 0 ? "outline" : "destructive"}>{b.available}/{b.copies}</Badge></td>
                     <td className="p-3">
                       {b.digital_file_url
-                        ? <a className="text-primary underline underline-offset-2" href={b.digital_file_url} target="_blank" rel="noreferrer">Open book</a>
+                        ? <button type="button" className="text-primary underline underline-offset-2" onClick={() => void downloadAuthenticatedFile(b.digital_file_url!, b.title).catch((e) => toast.error(getErrorMessage(e)))}>Download book</button>
                         : <span className="text-muted-foreground">Not uploaded</span>}
                     </td>
                     <td className="p-3 text-right whitespace-nowrap">
@@ -207,7 +207,7 @@ const LibrarySection = ({ classes = [], subjects = [] }: Props) => {
               <div className="grid gap-1">
                 <Label htmlFor="book-digital-file">Digital book file (PDF, EPUB, DOCX; max 20 MB)</Label>
                 {editing.digital_file_url && !digitalFile && (
-                  <a className="text-sm text-primary underline underline-offset-2" href={editing.digital_file_url} target="_blank" rel="noreferrer">Current digital copy</a>
+                  <button type="button" className="text-sm text-primary underline underline-offset-2" onClick={() => void downloadAuthenticatedFile(editing.digital_file_url!, editing.title || "book").catch((e) => toast.error(getErrorMessage(e)))}>Current digital copy</button>
                 )}
                 <Input
                   id="book-digital-file"

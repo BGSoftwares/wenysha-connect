@@ -19,12 +19,6 @@ class UserProfile(models.Model):
     full_name = models.CharField(max_length=255, blank=True, db_index=True)
     preferences = models.JSONField(default=dict, blank=True)
 
-    class Meta:
-        indexes = [
-            models.Index(fields=['user', 'role'], name='idx_profile_user_role'),
-            models.Index(fields=['full_name'], name='idx_profile_fullname'),
-        ]
-
     def __str__(self):
         return f"{self.user.email} ({self.role.name if self.role else 'no role'})"
 
@@ -54,7 +48,6 @@ class PendingApproval(models.Model):
         ordering = ['-requested_at']
         indexes = [
             models.Index(fields=['status', 'requested_at'], name='idx_pending_stat_req'),
-            models.Index(fields=['email'], name='idx_pending_email'),
         ]
 
     def __str__(self):

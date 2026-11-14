@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
-import { api, getErrorMessage } from "@/lib/api";
+import { api, applySessionTokens, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -16,7 +16,9 @@ export function FirstLoginPasswordChange({ onComplete }: { onComplete: () => voi
     if (password !== confirmPassword) return setError("The passwords do not match.");
     setSaving(true);
     try {
-      await api.post("/auth/change-password/", { new_password: password, confirm_password: confirmPassword });
+      const result = await api.post<{ access?: string; refresh?: string }>("/auth/change-password/", { new_password: password, confirm_password: confirmPassword });
+      // Changing the password revokes old sessions; the server returns a fresh pair for this device.
+      if (result.access && result.refresh) applySessionTokens(result.access, result.refresh);
       onComplete();
     } catch (cause) {
       setError(getErrorMessage(cause));

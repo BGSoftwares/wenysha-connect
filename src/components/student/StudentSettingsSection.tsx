@@ -19,7 +19,8 @@ import {
   Palette
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { api, getErrorMessage, getStoredUser } from "@/lib/api";
+import { TwoFactorCard } from "@/components/auth/TwoFactorCard";
+import { api, applySessionTokens, getErrorMessage, getStoredUser } from "@/lib/api";
 import { fetchAllPages, type Student } from "@/lib/hooks";
 
 type CurrentUserProfile = {
@@ -156,10 +157,12 @@ const StudentSettingsSection = ({ studentContext = true }: { studentContext?: bo
     }
     setIsSavingPassword(true);
     try {
-      await api.post("/auth/change-password/", {
+      const result = await api.post<{ access?: string; refresh?: string }>("/auth/change-password/", {
         current_password: passwordDraft.current,
         new_password: passwordDraft.next,
       });
+      // Changing the password revokes old sessions; the server returns a fresh pair for this device.
+      if (result.access && result.refresh) applySessionTokens(result.access, result.refresh);
       setPasswordDraft({ current: "", next: "", confirm: "" });
       toast({ title: "Password changed", description: "Your new password is ready to use." });
     } catch (error) {
@@ -406,6 +409,7 @@ const StudentSettingsSection = ({ studentContext = true }: { studentContext?: bo
               </Button>
             </CardContent>
           </Card>
+          <div className="mt-6"><TwoFactorCard /></div>
         </TabsContent>
 
         <TabsContent value="appearance" className="mt-6">

@@ -110,6 +110,7 @@ class GalleryItemViewSet(viewsets.ModelViewSet):
             content_type=content_type,
         )
         response['X-Content-Type-Options'] = 'nosniff'
+        response['Content-Security-Policy'] = "default-src 'none'; sandbox"
         return response
 
 
@@ -158,6 +159,7 @@ class LearningMaterialViewSet(viewsets.ModelViewSet):
         except OSError:
             return Response({'detail': 'The material file is unavailable.'}, status=status.HTTP_404_NOT_FOUND)
         response['X-Content-Type-Options'] = 'nosniff'
+        response['Content-Security-Policy'] = "default-src 'none'; sandbox"
         return response
 
     @action(detail=True, methods=['get'], url_path='public-file', permission_classes=[permissions.AllowAny])
@@ -181,6 +183,7 @@ class LearningMaterialViewSet(viewsets.ModelViewSet):
             content_type=content_type,
         )
         response['X-Content-Type-Options'] = 'nosniff'
+        response['Content-Security-Policy'] = "default-src 'none'; sandbox"
         return response
 
     def get_queryset(self):
@@ -327,6 +330,7 @@ class LearningAssignmentViewSet(viewsets.ModelViewSet):
         except OSError:
             return Response({'detail': 'The assignment file is unavailable.'}, status=status.HTTP_404_NOT_FOUND)
         response['X-Content-Type-Options'] = 'nosniff'
+        response['Content-Security-Policy'] = "default-src 'none'; sandbox"
         return response
 
     def perform_create(self, serializer):
@@ -421,6 +425,7 @@ class LearningSubmissionViewSet(viewsets.ModelViewSet):
         except OSError:
             return Response({'detail': 'The submission file is unavailable.'}, status=status.HTTP_404_NOT_FOUND)
         response['X-Content-Type-Options'] = 'nosniff'
+        response['Content-Security-Policy'] = "default-src 'none'; sandbox"
         return response
 
     def get_queryset(self):
