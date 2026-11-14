@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from decimal import Decimal, ROUND_HALF_UP
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
@@ -255,13 +255,15 @@ class GradeViewSet(viewsets.ModelViewSet):
             return queryset.filter(student_id__in=linked_ids)
         if role == 'teacher':
             class_teacher_ids = SchoolClass.objects.filter(class_teacher__user=user).values_list('id', flat=True)
-            allocations = TeacherSubjectClass.objects.filter(teacher__user=user)
+            # The class AND subject must be an assignment together: teaching Maths in Form 1
+            # and English in Form 2 does not grant Maths in Form 2.
+            assigned_pair = TeacherSubjectClass.objects.filter(
+                teacher__user=user,
+                school_class_id=OuterRef('assessment__school_class_id'),
+                subject_id=OuterRef('assessment__subject_id'),
+            )
             return queryset.filter(
-                Q(assessment__school_class_id__in=class_teacher_ids)
-                | Q(
-                    assessment__school_class_id__in=allocations.values('school_class_id'),
-                    assessment__subject_id__in=allocations.values('subject_id'),
-                )
+                Q(assessment__school_class_id__in=class_teacher_ids) | Exists(assigned_pair)
             )
         return queryset.none()
 

@@ -411,6 +411,9 @@ class AdminAccountSerializer(serializers.ModelSerializer):
         if password:
             instance.set_password(password)
         instance.save()
+        if password:
+            from .tokens import revoke_user_tokens
+            revoke_user_tokens(instance)  # a reset must sign the person out everywhere
         if full_name is not serializers.empty or role is not serializers.empty:
             profile, _ = UserProfile.objects.get_or_create(user=instance)
             update_fields = []

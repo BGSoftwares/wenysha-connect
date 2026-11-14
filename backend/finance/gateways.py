@@ -54,7 +54,7 @@ def online_payment_config():
         },
         "bank_account": {
             "account_name": _env("SCHOOL_BANK_ACCOUNT_NAME", "ABLE GOD COLLEGE"),
-            "account_number": _env("SCHOOL_BANK_ACCOUNT_NUMBER", "3252015253451"),
+            "account_number": _env("SCHOOL_BANK_ACCOUNT_NUMBER", ""),
             "bank": _env("SCHOOL_BANK_NAME", "NBS"),
             "branch": _env("SCHOOL_BANK_BRANCH", "MASVINGO"),
         },
