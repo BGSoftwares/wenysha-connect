@@ -123,6 +123,14 @@ files (not symlinks to paths outside the mounted directory).
    docker compose --env-file deploy.env up --build -d
    ```
 
+The stack also runs a Redis container (set `REDIS_PASSWORD`) that holds login
+rate limits, lockouts and MFA state shared by all backend replicas; nginx
+load-balances `BACKEND_REPLICAS` API containers. Backend containers run as a
+non-root user, so a media volume created by an older version needs a one-time
+`chown` (see `docs/SECURITY.md`). Admins must set up two-step verification at
+first sign-in (`MFA_REQUIRED_ROLES`). Read `docs/SECURITY.md` for the full
+security setup, including enforcing the Content-Security-Policy.
+
 Compose runs database migrations before starting the API. Uploaded media is
 stored in a Docker volume; back up that volume and the external MySQL database
 regularly. Keep `deploy.env` and private TLS keys out of version control.

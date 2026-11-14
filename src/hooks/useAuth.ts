@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, login as apiLogin, clearAuth, getStoredUser, getToken, getErrorMessage } from '@/lib/api';
+import { api, login as apiLogin, clearAuth, getStoredUser, getToken, getErrorMessage, isMfaChallenge } from '@/lib/api';
 
 interface User {
   id: number;
@@ -54,6 +54,11 @@ export function useAuth() {
 
     try {
       const result = await apiLogin(username, password);
+      if (isMfaChallenge(result)) {
+        setError("Two-step verification is on for this account. Please sign in on the main sign-in page.");
+        setLoading(false);
+        return false;
+      }
       setUser(result.user as User);
       setIsOffline(false);
       setLoading(false);
