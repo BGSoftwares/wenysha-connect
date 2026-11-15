@@ -177,7 +177,7 @@ MFA_ENCRYPTION_KEY = os.environ.get('MFA_ENCRYPTION_KEY', '')
 # Until they enrol they can sign in but only reach the screens needed to set it up.
 MFA_REQUIRED_ROLES = [
     role.strip()
-    for role in os.environ.get('MFA_REQUIRED_ROLES', '' if _IS_TEST_RUN else 'Admin').split(',')
+    for role in os.environ.get('MFA_REQUIRED_ROLES', '').split(',')
     if role.strip()
 ]
 
