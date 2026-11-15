@@ -61,6 +61,95 @@ jobs:
             vitest@2.1.9 jsdom@25.0.1 @testing-library/react@16.1.0 @testing-library/dom@10.4.0
           npm run test:ui
 
+  docker-stack:
+    name: Docker stack (build, start, smoke test, backup and restore)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: docker-compose.yml:ci/docker-compose.ci.yml
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare a throw-away deployment (secrets, certificate, settings)
+        run: |
+          mkdir -p ci-certs offsite backups
+          openssl req -x509 -newkey rsa:2048 -nodes -days 30 -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost" -keyout ci-certs/privkey.pem -out ci-certs/fullchain.pem
+          sh scripts/generate-secrets.sh
+          sed -i \
+            -e "s|^DOMAIN=.*|DOMAIN=localhost|" \
+            -e "s|^TLS_CERT_DIR=.*|TLS_CERT_DIR=$PWD/ci-certs|" \
+            -e "s|^MYSQL_HOST=.*|MYSQL_HOST=mysql|" \
+            -e "s|^MYSQL_DATABASE=.*|MYSQL_DATABASE=school_ci|" \
+            -e "s|^MYSQL_USER=.*|MYSQL_USER=school_ci|" \
+            -e "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=CiDbPassword2026x|" \
+            -e "s|^BACKUP_REMOTE=.*|BACKUP_REMOTE=/offsite|" \
+            deploy.env
+          sed "s|^MYSQL_HOST=.*|MYSQL_HOST=127.0.0.1|" deploy.env > deploy.preflight.env
+
+      - name: Start MySQL, then run the pre-deploy checks
+        run: |
+          docker compose --env-file deploy.env up -d --wait mysql
+          bash scripts/preflight.sh deploy.preflight.env
+
+      - name: docker compose up --build
+        run: docker compose --env-file deploy.env up --build -d
+
+      - name: Wait for the site to answer
+        run: |
+          for i in $(seq 1 60); do
+            curl -ksf https://localhost/api/health/ >/dev/null && exit 0
+            sleep 5
+          done
+          echo "Site did not become healthy in 5 minutes"; docker compose --env-file deploy.env ps -a; exit 1
+
+      - name: Containers and nginx config
+        run: |
+          docker compose --env-file deploy.env ps -a
+          docker compose --env-file deploy.env exec -T frontend nginx -t
+          docker inspect --format '{{.State.ExitCode}}' "$(docker compose --env-file deploy.env ps -a -q migrate)" | grep -qx 0
+
+      - name: Create an admin and run the smoke test
+        run: |
+          docker compose --env-file deploy.env exec -T backend python manage.py shell -c \
+            "from django.contrib.auth.models import User; User.objects.create_superuser('ciadmin','ci@example.org','Ci-Smoke-Pass-2026!')"
+          SMOKE_INSECURE=1 SMOKE_HTTP_URL=http://localhost SMOKE_USER=ciadmin SMOKE_PASS='Ci-Smoke-Pass-2026!' \
+            sh scripts/smoke-test.sh https://localhost
+
+      - name: Default-password tool finds nothing wrong
+        run: docker compose --env-file deploy.env exec -T backend python manage.py rotate_default_passwords --dry-run
+
+      - name: Backup is encrypted, copied off-server and reported healthy
+        run: |
+          docker compose --env-file deploy.env run --rm -e BACKUP_ONCE=1 backup
+          ls -l backups offsite
+          ls backups/db-*.sql.gz.enc offsite/db-*.sql.gz.enc
+          ! ls backups/db-*.sql.gz 2>/dev/null | grep -q .   # no unencrypted copy left behind
+          sh scripts/backup-status.sh ./backups
+
+      - name: Restore brings back deleted data (proves the backup is usable)
+        run: |
+          docker compose --env-file deploy.env exec -T backend python manage.py shell -c \
+            "from django.contrib.auth.models import User; User.objects.filter(username='ciadmin').delete()"
+          SMOKE_INSECURE=1 SMOKE_USER=ciadmin SMOKE_PASS='Ci-Smoke-Pass-2026!' sh scripts/smoke-test.sh https://localhost && exit 1 || echo "admin is gone, as expected"
+          echo RESTORE | sh scripts/restore.sh "$(ls backups/db-*.sql.gz.enc | head -n 1)"
+          SMOKE_INSECURE=1 SMOKE_USER=ciadmin SMOKE_PASS='Ci-Smoke-Pass-2026!' sh scripts/smoke-test.sh https://localhost
+
+      - name: A wrong passphrase is refused and changes nothing
+        run: |
+          if echo RESTORE | BACKUP_ENCRYPTION_PASSPHRASE=wrong-passphrase sh scripts/restore.sh "$(ls backups/db-*.sql.gz.enc | head -n 1)"; then
+            echo "restore with a wrong passphrase should have failed"; exit 1
+          fi
+          SMOKE_INSECURE=1 SMOKE_USER=ciadmin SMOKE_PASS='Ci-Smoke-Pass-2026!' sh scripts/smoke-test.sh https://localhost
+
+      - name: Show logs if anything failed
+        if: failure()
+        run: docker compose --env-file deploy.env logs --no-color --tail=120
+
+      - name: Tear down
+        if: always()
+        run: docker compose --env-file deploy.env down -v
+
   dependency-audit:
     name: Dependency vulnerability scan
     runs-on: ubuntu-latest

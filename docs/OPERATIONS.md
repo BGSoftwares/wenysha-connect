@@ -8,13 +8,17 @@ Run these on the server, in the folder that holds `docker-compose.yml`:
 
 ```sh
 sh scripts/generate-secrets.sh        # writes deploy.env with fresh random secrets
-nano deploy.env                       # set DOMAIN, TLS_CERT_DIR and the MYSQL_* values
-docker compose --env-file deploy.env config --quiet        # prints nothing when the file is complete
+nano deploy.env                       # set DOMAIN, TLS_CERT_DIR and the MYSQL_* values (and BACKUP_REMOTE, see section 3)
+bash scripts/preflight.sh             # checks settings, certificate, MySQL reachability; lists what to fix
 docker compose --env-file deploy.env up --build -d
 docker compose --env-file deploy.env ps                    # migrate = exited (0), the rest = running/healthy
-docker compose --env-file deploy.env exec frontend nginx -t
-curl -k https://YOUR_DOMAIN/api/health/                     # {"status":"ok",...}
+sh scripts/smoke-test.sh https://YOUR_DOMAIN               # health, headers, sign-in refusal, private paths
 ```
+
+The whole sequence above (build, start, smoke test, backup, restore) is rehearsed on every pull request by the
+"Docker stack" job in CI, on a throw-away MySQL, so a broken compose file or Dockerfile is caught before it reaches you.
+It cannot test your own domain, certificate or MySQL server, which is what `preflight.sh` and `smoke-test.sh` are for.
+For a real sign-in check, add `SMOKE_USER=name SMOKE_PASS=... ` before `sh scripts/smoke-test.sh` (use an account without two-step verification).
 
 If `up` fails, `docker compose --env-file deploy.env logs migrate backend` shows why. The most common causes are a
 missing value in `deploy.env`, a MySQL host the server cannot reach, or a TLS folder without `fullchain.pem` / `privkey.pem`.
@@ -38,14 +42,28 @@ missing value in `deploy.env`, a MySQL host the server cannot reach, or a TLS fo
 The `backup` service dumps the database and zips the uploaded files every day at `BACKUP_HOUR` (UTC) into `BACKUP_DIR`
 (default `./backups`), keeping `BACKUP_KEEP_DAYS` days. A failed dump never replaces an older good one.
 
+**Copy them off the server.** Set `BACKUP_REMOTE` in `deploy.env` and every backup is uploaded after it is made, the upload size is
+checked, and copies older than `BACKUP_REMOTE_KEEP_DAYS` are removed from the destination. Any rclone destination works
+(S3-compatible buckets such as Backblaze, Wasabi, Cloudflare R2 or AWS; SFTP; Google Drive; Dropbox; OneDrive; another server's folder).
+`deploy.env.example` has a ready S3 example; for other types see https://rclone.org/docs/ and write the options as
+`RCLONE_CONFIG_<NAME>_<OPTION>=value`. If the upload fails, the local backup is kept and the status turns to failed.
+
+**Encrypt them.** Set `BACKUP_ENCRYPTION_PASSPHRASE` (`generate-secrets.sh` creates one) and every file is encrypted with AES-256
+before it is stored or uploaded, so a stolen bucket or disk reveals nothing. Store the passphrase in a password manager:
+without it the backups cannot be opened. Encrypted files end in `.enc`.
+
 ```sh
 docker compose --env-file deploy.env logs backup               # shows "next run in ...s" and each result
 docker compose --env-file deploy.env run --rm -e BACKUP_ONCE=1 backup   # take a backup right now
-sh scripts/restore.sh backups/db-YYYYMMDD-HHMMSS.sql.gz       # replace live data (asks you to type RESTORE)
+sh scripts/backup-status.sh                                    # OK only if the last backup worked and is under 26h old
+sh scripts/restore.sh backups/db-YYYYMMDD-HHMMSS.sql.gz.enc    # replace live data (asks you to type RESTORE)
 ```
 
-Backups on the same server do not survive losing the server. Copy `BACKUP_DIR` somewhere else daily (another machine,
-object storage, or a synced drive). Test a restore on a spare database at least once a term.
+`backup-status.sh` exits non-zero when the last backup failed, is too old, or never ran. Run it from cron or point an uptime
+monitor at it so a silent failure is noticed the same day. To restore from the off-server copy, download the file first
+(for example `docker compose --env-file deploy.env run --rm --entrypoint rclone backup copy offsite:my-bucket/db-....sql.gz.enc /backups`),
+then run `restore.sh` on it. A wrong passphrase or damaged file stops before anything is changed. Test a restore on a spare
+database at least once a term.
 
 Local development with SQLite: copy `backend/db.sqlite3` while the server is stopped. It is no longer tracked by git.
 
