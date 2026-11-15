@@ -46,7 +46,8 @@ SECRET_FIELD = re.compile(r'password|secret|token|hash|otp|backup_code|preferenc
 USER_FIELDS = ('id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'is_staff',
                'is_superuser', 'date_joined', 'last_login')
 
-NAME_RE = re.compile(r'^backup-(\d{8})-(\d{6})-([A-Za-z0-9_.-]{1,40})(-files)?\.zip$')
+# The user part never contains '-', so the optional '-files' marker is unambiguous.
+NAME_RE = re.compile(r'^backup-(\d{8})-(\d{6})-([A-Za-z0-9_.]{1,40})(-files)?\.zip$')
 MIN_SECONDS_BETWEEN_BACKUPS = 30
 
 
@@ -98,7 +99,7 @@ def _prune():
 
 def create_backup(user, include_files: bool = False) -> dict:
     now = timezone.now().astimezone(dt_timezone.utc)
-    slug = re.sub(r'[^A-Za-z0-9_.-]', '_', user.get_username())[:40] or 'admin'
+    slug = re.sub(r'[^A-Za-z0-9_.]', '_', user.get_username())[:40] or 'admin'
     name = f"backup-{now:%Y%m%d-%H%M%S}-{slug}{'-files' if include_files else ''}.zip"
     final = _root() / name
     partial = _root() / f'.{name}.part'
