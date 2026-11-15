@@ -126,11 +126,5 @@ services:
     restart: unless-stopped
 
 volumes:
-      - ./scripts/backup.sh:/scripts/backup.sh:ro
-      - ${BACKUP_DIR:-./backups}:/backups
-      - media_data:/media:ro
-    restart: unless-stopped
-
-volumes:
   media_data:
   portal_backups:
