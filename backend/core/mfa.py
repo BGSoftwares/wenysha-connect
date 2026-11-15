@@ -273,6 +273,9 @@ def verify_mfa_challenge(mfa_token: str, submitted_code: str) -> tuple[bool, Use
         remaining = max(0, MAX_OTP_ATTEMPTS - challenge['attempts'])
         return False, None, f"Incorrect verification code. {remaining} attempt(s) remaining."
 
-    cache.delete(key)  # single use
+    # Single use. delete() reports whether *this* request removed the challenge, so two
+    # simultaneous submissions of the same code cannot both succeed.
+    if not cache.delete(key):
+        return False, None, "Verification session expired or already used. Please sign in again."
     AccountLockoutManager.reset(mfa_identity)
     return True, user, ""

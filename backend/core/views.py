@@ -331,6 +331,7 @@ class CurrentUserView(APIView):
             preferences = user.profile.preferences
         except UserProfile.DoesNotExist:
             preferences = {}
+        client_preferences = public_preferences(preferences)
         phone = Parent.objects.filter(user=user).values_list('phone', flat=True).first()
         if phone is None:
             phone = Teacher.objects.filter(user=user).values_list('phone', flat=True).first()
@@ -343,7 +344,7 @@ class CurrentUserView(APIView):
             'role': role,
             'full_name': full_name,
             'phone': phone or '',
-            'preferences': preferences,
+            'preferences': client_preferences,
             'must_change_password': bool(preferences.get('must_change_password')),
             'mfa_enabled': bool(preferences.get('mfa_enabled')),
             'mfa_setup_required': get_portal_state(user)['mfa_setup_required'],
@@ -352,9 +353,13 @@ class CurrentUserView(APIView):
     @transaction.atomic
     def patch(self, request):
         user = request.user
-        email = request.data.get('email', user.email).strip().casefold()
-        username = request.data.get('username', user.username).strip()
-        full_name = request.data.get('full_name', '').strip()
+        for field in ('email', 'username', 'full_name'):
+            value = request.data.get(field, '')
+            if value is not None and not isinstance(value, str):
+                return Response({field: ['Enter a valid text value.']}, status=status.HTTP_400_BAD_REQUEST)
+        email = (request.data.get('email', user.email) or '').strip().casefold()
+        username = (request.data.get('username', user.username) or '').strip()
+        full_name = (request.data.get('full_name', '') or '').strip()
         role = portal_role(user)
         if not username or not full_name or (not email and role != 'student'):
             return Response({'detail': 'Name and username are required; email is required for staff and parent accounts.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -371,7 +376,12 @@ class CurrentUserView(APIView):
         profile.full_name = full_name
         update_profile_fields = ['full_name']
         if preferences is not None:
-            profile.preferences = preferences
+            # Only display preferences can be changed here. Security state (two-step
+            # verification, backup codes, forced password change, access level...) is
+            # never writable through the profile form.
+            merged = dict(profile.preferences or {})
+            merged.update({k: v for k, v in preferences.items() if k in USER_EDITABLE_PREFERENCES})
+            profile.preferences = merged
             update_profile_fields.append('preferences')
         profile.save(update_fields=update_profile_fields)
         user.save(update_fields=['email', 'username'])
@@ -393,6 +403,15 @@ class CurrentUserView(APIView):
             'full_name': full_name,
             'preferences': profile.preferences,
         })
+
+
+USER_EDITABLE_PREFERENCES = frozenset({'notifications', 'appearance', 'theme', 'language'})
+_PRIVATE_PREFERENCE_KEYS = frozenset({'totp_secret', 'totp_pending_secret', 'totp_last_step', 'backup_codes', 'mfa_method', 'email_mfa'})
+
+
+def public_preferences(preferences):
+    """Preferences safe to send to the browser (no secrets, hashes or MFA internals)."""
+    return {k: v for k, v in (preferences or {}).items() if k not in _PRIVATE_PREFERENCE_KEYS}
 
 
 class ChangePasswordView(APIView):
@@ -542,6 +561,21 @@ class PendingApprovalViewSet(ModelViewSet):
             pending = PendingApproval.objects.select_for_update().get(pk=pending.pk)
             if pending.status != 'pending':
                 return Response({'detail': 'Already processed.'}, status=status.HTTP_400_BAD_REQUEST)
+            approved_class = None
+            if pending.role == 'student':
+                info = pending.additional_info or {}
+                cls_id = request.data.get('school_class') or info.get('school_class') or info.get('school_class_id')
+                cls_name = info.get('class_name')
+                if cls_id:
+                    approved_class = SchoolClass.objects.filter(pk=cls_id).first()
+                if not approved_class and cls_name:
+                    approved_class = SchoolClass.objects.filter(name=cls_name).first()
+                if not approved_class:
+                    # Never guess: a wrong class would expose the student's data to the wrong teacher.
+                    return Response(
+                        {'school_class': ['Choose a class before approving a student.']},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
             user = User(username=pending.email, email=pending.email)
             user.password = pending.password_hash  # already hashed from signup
             user.save()
@@ -553,34 +587,7 @@ class PendingApprovalViewSet(ModelViewSet):
             # If this was a student signup, create a corresponding Student record
             # in its own savepoint so failure cannot leave the approval half-saved.
             if pending.role == 'student':
-                try:
-                    with transaction.atomic():
-                        class_obj = None
-                        info = pending.additional_info or {}
-                        cls_id = info.get('school_class') or info.get('school_class_id')
-                        cls_name = info.get('class_name')
-                        if cls_id:
-                            try:
-                                class_obj = SchoolClass.objects.get(id=cls_id)
-                            except SchoolClass.DoesNotExist:
-                                class_obj = None
-                        if not class_obj and cls_name:
-                            try:
-                                class_obj = SchoolClass.objects.get(name=cls_name)
-                            except SchoolClass.DoesNotExist:
-                                class_obj = None
-                        if not class_obj:
-                            class_obj = SchoolClass.objects.first()
-
-                        if class_obj:
-                            Student.objects.create(
-                                user=user,
-                                name=pending.full_name,
-                                school_class=class_obj,
-                            )
-                except Exception:
-                    # Account approval can proceed; an admin can add the student record later.
-                    pass
+                Student.objects.create(user=user, name=pending.full_name, school_class=approved_class)
 
             pending.status = 'approved'
             pending.save(update_fields=['status'])

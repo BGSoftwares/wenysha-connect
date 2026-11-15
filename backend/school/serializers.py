@@ -283,7 +283,12 @@ class StudentSerializer(serializers.ModelSerializer):
     def validate_user(self, value):
         if value is None:
             return value
-        from core.roles import portal_role
+        from core.roles import is_admin, portal_role
+        request = self.context.get('request')
+        current = getattr(self.instance, 'user_id', None)
+        if request is not None and value.pk != current and not is_admin(request.user):
+            # A class teacher could otherwise attach any student account to their own pupil.
+            raise serializers.ValidationError('Only an administrator can link a portal account to a student.')
         if portal_role(value) != 'student':
             raise serializers.ValidationError('Link only an account with the Student role.')
         linked_students = Student.objects.filter(user=value)
@@ -295,18 +300,18 @@ class StudentSerializer(serializers.ModelSerializer):
 
     def get_next_of_kin(self, obj):
         from parents.models import StudentParent
+        from core.roles import portal_role
         links = StudentParent.objects.filter(student=obj).select_related('parent')
-        return [
-            {
-                'id': link.parent_id,
-                'name': link.parent.name,
-                'relationship': link.relationship,
-                'phone': link.parent.phone,
-                'email': link.parent.email,
-                'address': link.parent.address,
-            }
-            for link in links
-        ]
+        request = self.context.get('request')
+        viewer_is_parent = request is not None and portal_role(request.user) == 'parent'
+        result = []
+        for link in links:
+            entry = {'id': link.parent_id, 'name': link.parent.name, 'relationship': link.relationship}
+            # A parent sees their own details, but only the name/relationship of other guardians.
+            if not viewer_is_parent or link.parent.user_id == request.user.pk:
+                entry.update(phone=link.parent.phone, email=link.parent.email, address=link.parent.address)
+            result.append(entry)
+        return result
 
     def get_stream(self, obj):
         if hasattr(obj, '_student_stream'):

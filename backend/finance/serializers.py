@@ -1,5 +1,7 @@
 from decimal import Decimal
 import uuid
+from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import serializers
 from school.serializers import StudentSerializer
@@ -23,6 +25,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'id', 'invoice_no', 'student', 'student_name', 'student_id_display', 'class_name',
             'term', 'amount', 'currency', 'paid', 'status', 'date'
         ]
+        # 'paid' and 'status' are derived from recorded payments; they can never be set by hand.
+        read_only_fields = ['paid', 'status']
         extra_kwargs = {'invoice_no': {'required': False}}
 
     def create(self, validated_data):
@@ -53,7 +57,34 @@ class PaymentSerializer(serializers.ModelSerializer):
             'recorded_by': {'read_only': True},
         }
 
+    def _check_within_balance(self, invoice, amount, exclude_pk=None):
+        recorded = Payment.objects.filter(invoice=invoice)
+        if exclude_pk:
+            recorded = recorded.exclude(pk=exclude_pk)
+        already_paid = recorded.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        remaining = invoice.amount - already_paid
+        if amount > remaining:
+            raise serializers.ValidationError({'amount': f'This is more than the remaining balance ({remaining}).'})
+
+    def validate(self, attrs):
+        invoice = attrs.get('invoice') or getattr(self.instance, 'invoice', None)
+        amount = attrs.get('amount', getattr(self.instance, 'amount', None))
+        if invoice is not None and amount is not None:
+            self._check_within_balance(invoice, amount, getattr(self.instance, 'pk', None))
+        return attrs
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        # Lock the invoice so two payments recorded at the same moment cannot both fit.
+        invoice = Invoice.objects.select_for_update().get(pk=(validated_data.get('invoice') or instance.invoice).pk)
+        amount = validated_data.get('amount', instance.amount)
+        self._check_within_balance(invoice, amount, instance.pk)
+        return super().update(instance, validated_data)
+
+    @transaction.atomic
     def create(self, validated_data):
+        invoice = Invoice.objects.select_for_update().get(pk=validated_data['invoice'].pk)
+        self._check_within_balance(invoice, validated_data['amount'])
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             validated_data['recorded_by'] = request.user
