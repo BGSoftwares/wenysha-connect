@@ -21,7 +21,7 @@ RUN groupadd --system --gid 10001 app \
 
 COPY . .
 RUN DJANGO_DEBUG=True python manage.py collectstatic --noinput \
-    && mkdir -p /app/media \
+    && mkdir -p /app/media /app/backups \
     && chown -R app:app /app
 
 USER app

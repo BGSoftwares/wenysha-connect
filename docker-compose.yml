@@ -25,6 +25,8 @@ x-backend: &backend
     # nginx is the one trusted proxy in front of Django (used for real client IPs).
     NUM_PROXIES: "1"
     MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES-}
+    DJANGO_BACKUP_ROOT: /app/backups
+    BACKUP_MAX_FILES: ${BACKUP_MAX_FILES:-30}
 
 services:
   redis:
@@ -63,6 +65,7 @@ services:
       - "8000"
     volumes:
       - media_data:/app/media
+      - portal_backups:/app/backups
     healthcheck:
       test:
         - CMD
@@ -117,3 +120,4 @@ services:
 
 volumes:
   media_data:
+  portal_backups:

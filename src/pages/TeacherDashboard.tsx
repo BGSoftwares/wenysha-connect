@@ -28,7 +28,8 @@ import {
   Trash2,
   Sparkles,
   MessageSquare,
-  ClipboardList
+  ClipboardList,
+  Database
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { clearAuth, getErrorMessage } from "@/lib/api";
@@ -68,6 +69,7 @@ import { calculateGrade } from "@/lib/grading";
 import { getTeacherComment, TEACHER_COMMENT_LIBRARY } from "@/lib/reportComments";
 import { formatLocalDateKey, getSchoolDateStatus } from "@/lib/zimbabweSchoolCalendar";
 import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
+import TeacherBackupSection from "@/components/teacher/TeacherBackupSection";
 
 const navigation = [
   { name: "Dashboard", icon: Home, id: "dashboard" },
@@ -81,6 +83,7 @@ const navigation = [
   { name: "Assignments", icon: ClipboardList, id: "assignments" },
   { name: "Messages", icon: MessageSquare, id: "messages" },
   { name: "Timetable", icon: Calendar, id: "timetable" },
+  { name: "Backup", icon: Database, id: "backup" },
   { name: "Settings", icon: Settings, id: "settings" },
   { name: "Profile", icon: User, id: "profile" },
 ];
@@ -1288,6 +1291,7 @@ const TeacherDashboard = () => {
       case "assignments": return renderAssignments();
       case "messages": return renderMessages();
       case "timetable": return renderTimetable();
+      case "backup": return <TeacherBackupSection />;
       case "settings": return <StudentSettingsSection studentContext={false} />;
       case "profile": return <ProfileSection />;
       default: return renderDashboard();
