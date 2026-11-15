@@ -1840,3 +1840,18 @@ export const useReviewLearningSubmission = () => {
         },
     });
 };
+
+// --- Admin dashboard summary (real attendance, marks and upcoming events) ---
+
+export interface DashboardSummary {
+    attendance_trend: Array<{ month: string; rate: number | null }>;
+    marks_by_subject: Array<{ subject: string; average: number }>;
+    events: Array<{ date: string; title: string; kind: string }>;
+}
+
+export const useDashboardSummary = () =>
+    useQuery({
+        queryKey: ["dashboard-summary"],
+        queryFn: () => api.get<DashboardSummary>("/auth/dashboard/summary/"),
+        staleTime: 60_000,
+    });

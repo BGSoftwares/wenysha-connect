@@ -55,13 +55,40 @@ const performance = [
   { s: "History", v: 81 }, { s: "Shona", v: 85 }, { s: "Geo", v: 74 },
 ];
 
-export const StatsCharts = ({ title1 = "Attendance trend (%)", title2 = "Average marks by subject" }) => (
+type TrendPoint = { m: string; v: number | null };
+type SubjectPoint = { s: string; v: number };
+
+const ChartState = ({ loading, message }: { loading?: boolean; message: string }) =>
+  loading ? (
+    <div className="h-full animate-pulse rounded-xl bg-muted" aria-busy="true" />
+  ) : (
+    <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-sm text-muted-foreground">
+      {message}
+    </div>
+  );
+
+export const StatsCharts = ({
+  title1 = "Attendance trend (%)",
+  title2 = "Average marks by subject",
+  attendanceData = attendance,
+  performanceData = performance,
+  loading = false,
+}: {
+  title1?: string;
+  title2?: string;
+  attendanceData?: TrendPoint[];
+  performanceData?: SubjectPoint[];
+  loading?: boolean;
+}) => (
   <div className="grid items-stretch gap-4 xl:grid-cols-2">
     <div className="h-full min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
       <h3 className="mb-4 font-heading text-lg font-semibold text-foreground">{title1}</h3>
       <div className="h-56">
+        {loading || !attendanceData.some((p) => p.v !== null) ? (
+          <ChartState loading={loading} message="No attendance has been recorded yet. Mark a register to see the trend." />
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={attendance}>
+          <AreaChart data={attendanceData}>
             <defs>
               <linearGradient id="attGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity={0.5} />
@@ -70,25 +97,30 @@ export const StatsCharts = ({ title1 = "Attendance trend (%)", title2 = "Average
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis dataKey="m" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <YAxis domain={[80, 100]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+            <YAxis domain={[0, 100]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
             <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-            <Area type="monotone" dataKey="v" name="Attendance" stroke="hsl(var(--accent))" strokeWidth={2} fill="url(#attGrad)" animationDuration={1200} />
+            <Area type="monotone" dataKey="v" name="Attendance %" stroke="hsl(var(--accent))" strokeWidth={2} fill="url(#attGrad)" animationDuration={1200} />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
     <div className="h-full min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
       <h3 className="mb-4 font-heading text-lg font-semibold text-foreground">{title2}</h3>
       <div className="h-56">
+        {loading || performanceData.length === 0 ? (
+          <ChartState loading={loading} message="No marks have been entered yet. Averages appear once teachers submit marks." />
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={performance}>
+          <BarChart data={performanceData}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis dataKey="s" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+            <YAxis domain={[0, 100]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
             <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-            <Bar dataKey="v" name="Average" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} animationDuration={1200} />
+            <Bar dataKey="v" name="Average %" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} animationDuration={1200} />
           </BarChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
   </div>
@@ -172,13 +204,19 @@ export const ActivityFeed = ({
   </section>
 );
 
-const events = [
+export type CalendarEvent = { date: Date; title: string };
+
+const sampleEvents: CalendarEvent[] = [
   { date: new Date(new Date().getFullYear(), new Date().getMonth(), 14), title: "Sports Day" },
   { date: new Date(new Date().getFullYear(), new Date().getMonth(), 20), title: "Parents' Meeting" },
   { date: new Date(new Date().getFullYear(), new Date().getMonth(), 27), title: "Mid-term Exams" },
 ];
 
-export const EventsCalendar = ({ className = "" }: { className?: string }) => {
+export const EventsCalendar = ({
+  className = "",
+  events = sampleEvents,
+  loading = false,
+}: { className?: string; events?: CalendarEvent[]; loading?: boolean }) => {
   const [day, setDay] = useState<Date | undefined>(new Date());
   return (
     <section className={`min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm ${className}`}>
@@ -195,19 +233,27 @@ export const EventsCalendar = ({ className = "" }: { className?: string }) => {
           modifiersClassNames={{ event: "font-bold text-accent underline" }}
           className="mx-auto"
         />
-        <ul className="space-y-2">
-          {events.map((e) => (
-            <li key={e.title} className="flex items-center gap-3 rounded-xl bg-secondary px-3 py-2.5">
-              <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-card text-accent shadow-sm">
-                <span className="text-base font-bold leading-none">{e.date.getDate()}</span>
-                <span className="text-[10px] font-medium leading-none text-muted-foreground">
-                  {e.date.toLocaleDateString(undefined, { month: "short" })}
+        {loading ? (
+          <div className="h-32 animate-pulse rounded-xl bg-muted" aria-busy="true" />
+        ) : events.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            No upcoming exams or school closures. Schedule an exam or mark a holiday to see it here.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {events.map((e) => (
+              <li key={`${e.title}-${e.date.toISOString()}`} className="flex items-center gap-3 rounded-xl bg-secondary px-3 py-2.5">
+                <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-card text-accent shadow-sm">
+                  <span className="text-base font-bold leading-none">{e.date.getDate()}</span>
+                  <span className="text-[10px] font-medium leading-none text-muted-foreground">
+                    {e.date.toLocaleDateString(undefined, { month: "short" })}
+                  </span>
                 </span>
-              </span>
-              <span className="text-sm font-medium text-secondary-foreground">{e.title}</span>
-            </li>
-          ))}
-        </ul>
+                <span className="text-sm font-medium text-secondary-foreground">{e.title}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );

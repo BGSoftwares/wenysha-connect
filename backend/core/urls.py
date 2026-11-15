@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .dashboard import DashboardSummaryView
 from .views import (
     LoginView, LogoutView, SignUpView, CurrentUserView, RoleViewSet, UserProfileViewSet,
     PendingApprovalViewSet, AdminAccountViewSet, ChangePasswordView,
@@ -22,6 +23,7 @@ urlpatterns = [
     path('mfa/totp/setup/', TOTPSetupView.as_view(), name='mfa_totp_setup'),
     path('mfa/totp/confirm/', TOTPConfirmView.as_view(), name='mfa_totp_confirm'),
     path('mfa/backup-codes/', BackupCodesView.as_view(), name='mfa_backup_codes'),
+    path('dashboard/summary/', DashboardSummaryView.as_view(), name='dashboard_summary'),
     path('me/', CurrentUserView.as_view(), name='current_user'),
     path('change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('signup/', SignUpView.as_view(), name='signup'),
