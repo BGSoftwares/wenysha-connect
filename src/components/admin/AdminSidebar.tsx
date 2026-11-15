@@ -124,6 +124,7 @@ const navigation: NavItem[] = [
       { name: "Cache Management", id: "cache" },
     ]
   },
+  { name: "Backups", icon: Database, id: "backups" },
   { name: "Profile", icon: User, id: "profile" },
 ];
 

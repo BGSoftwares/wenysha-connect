@@ -199,6 +199,9 @@ FRONTEND_BUILD_DIR = Path(os.environ.get('FRONTEND_BUILD_DIR', BASE_DIR.parent /
 STATICFILES_DIRS = [FRONTEND_BUILD_DIR] if FRONTEND_BUILD_DIR.is_dir() else []
 MEDIA_URL = '/media/'
 MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media')).resolve()
+# Admin-made backup archives. Kept OUTSIDE MEDIA_ROOT so nginx can never serve them directly.
+BACKUP_ROOT = Path(os.environ.get('DJANGO_BACKUP_ROOT', BASE_DIR / 'backups')).resolve()
+BACKUP_MAX_FILES = int(os.environ.get('BACKUP_MAX_FILES', '30'))
 FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 # This limit includes multipart headers and fields as well as the file itself.
 DATA_UPLOAD_MAX_MEMORY_SIZE = 22 * 1024 * 1024

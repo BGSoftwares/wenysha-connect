@@ -49,6 +49,26 @@ object storage, or a synced drive). Test a restore on a spare database at least 
 
 Local development with SQLite: copy `backend/db.sqlite3` while the server is stopped. It is no longer tracked by git.
 
+### Backups from the portals
+
+- **Admin portal → Backups:** Back up now saves a ZIP of the school's records (one JSON file per table) on the server,
+  optionally with uploaded files. The list shows each backup with Download and Delete. The newest `BACKUP_MAX_FILES`
+  (default 30) are kept, and a second backup within 30 seconds is refused.
+  Passwords, hashes, tokens, authenticator secrets and per-user preferences are never written, and accounts are saved
+  without passwords. So this is a records backup: restore from the daily database backup after a failure.
+- **Teacher portal → Backup:** downloads a ZIP of CSV files (students, marks, attendance, allocations) for that
+  teacher's own classes and subjects only. No addresses, birth dates, contacts or fees.
+- Archives live in `DJANGO_BACKUP_ROOT` (`/app/backups`, the `portal_backups` volume), outside the media folder, so nginx
+  never serves them. They are only reachable through the signed-in admin endpoints below.
+
+| Endpoint | Who | What |
+|---|---|---|
+| `GET /api/auth/backups/` | Admin | List saved backups |
+| `POST /api/auth/backups/` | Admin | Make one (`{"include_files": true}` adds uploads) |
+| `GET /api/auth/backups/<name>/` | Admin | Download |
+| `DELETE /api/auth/backups/<name>/` | Admin | Delete |
+| `GET /api/auth/backups/my-data/` | Teacher | Download own teaching data |
+
 ## 4. Dashboard data
 
 The admin dashboard charts and events come from `GET /api/auth/dashboard/summary/` (admins only):

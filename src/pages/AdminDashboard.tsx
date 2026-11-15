@@ -11,6 +11,7 @@ import AdminHeader from "@/components/admin/AdminHeader";
 
 // Modular Sections
 import DashboardOverview from "@/components/admin/DashboardOverview";
+import BackupSection from "@/components/admin/BackupSection";
 import StudentsSection from "@/components/admin/StudentsSection";
 import TeachersSection from "@/components/admin/TeachersSection";
 import ClassesSection from "@/components/admin/ClassesSection";
@@ -436,6 +437,7 @@ const AdminDashboard = () => {
       case "settings":
       case "system-setup":
       case "cache": return <SettingsSection activeSubNav={activeNav} />;
+      case "backups": return <BackupSection />;
       case "profile": return <ProfileSection />;
       case "parents": return <ParentsSection />;
       case "library": return <LibrarySection classes={(classes || []).map((c) => ({ id: c.id, name: c.name }))} subjects={(subjects || []).map((s) => ({ id: s.id, name: s.name }))} />;
