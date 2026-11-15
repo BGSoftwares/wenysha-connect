@@ -1,4 +1,5 @@
-import { WelcomeBanner, StatsCharts, EventsCalendar } from "@/components/dashboard/DashboardExtras";
+import { WelcomeBanner } from "@/components/dashboard/DashboardExtras";
+import AdminDashboardCharts from "@/components/admin/AdminDashboardCharts";
 import { useState } from "react";
 import { useStudents, useTeachers, useClasses, useSubjects, useCreateStudent, useCreateTeacher, useCreateClass, useCreateSubject, useAllocations, useUpdateStudent, useDeleteStudent, type Student, type Teacher, type SchoolClass, type Subject } from "@/lib/hooks";
 import { Toaster } from "@/components/ui/sonner";
@@ -359,7 +360,7 @@ const AdminDashboard = () => {
 
   const renderContent = () => {
     switch (activeNav) {
-      case "dashboard": return (<div className="space-y-6"><WelcomeBanner role="Admin" actions={[{ label: "Students", onClick: () => setActiveNav("students") }, { label: "Notices", onClick: () => setActiveNav("notice") }]} /><DashboardOverview /><StatsCharts /><EventsCalendar /></div>);
+      case "dashboard": return (<div className="space-y-6"><WelcomeBanner role="Admin" actions={[{ label: "Students", onClick: () => setActiveNav("students") }, { label: "Notices", onClick: () => setActiveNav("notice") }]} /><DashboardOverview /><AdminDashboardCharts /></div>);
       case "students": return (
         <StudentsSection
           students={students}

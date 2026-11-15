@@ -54,6 +54,12 @@ jobs:
       - run: npm ci
       - run: npx tsc -p tsconfig.app.json --noEmit
       - run: npm run build
+      # Test tooling is installed on the fly (not saved) so it never ends up in the production image.
+      - name: Frontend tests
+        run: |
+          npm install --no-save --no-package-lock \
+            vitest@2.1.9 jsdom@25.0.1 @testing-library/react@16.1.0 @testing-library/dom@10.4.0
+          npm run test:ui
 
   dependency-audit:
     name: Dependency vulnerability scan
