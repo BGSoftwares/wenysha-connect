@@ -55,7 +55,7 @@ add a CDN or another proxy in front, set it accordingly and configure nginx
 - Users enrol under their profile (students and staff) via **Two-step
   verification**: scan or type the setup key into an authenticator app, confirm a
   code, then **save the 8 one-time backup codes** (shown once).
-- `MFA_REQUIRED_ROLES` (default `Admin`) forces those roles to enrol. Until they
+- Two-step verification is optional by default: everyone can turn it on later from their profile. `MFA_REQUIRED_ROLES` (empty by default; for example `Admin`) forces those roles to enrol. Until they
   do, their token only opens the MFA setup screen (`mfa_setup_required`).
 - Authenticator secrets are encrypted at rest (Fernet). Set a dedicated
   `MFA_ENCRYPTION_KEY`; if unset it is derived from `DJANGO_SECRET_KEY`, and
