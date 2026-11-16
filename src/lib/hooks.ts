@@ -1855,3 +1855,11 @@ export const useDashboardSummary = () =>
         queryFn: () => api.get<DashboardSummary>("/auth/dashboard/summary/"),
         staleTime: 60_000,
     });
+
+/** The same charts for the signed-in user (teacher, student, parent...), limited to what their role may see. */
+export const useMyDashboard = () =>
+    useQuery({
+        queryKey: ["dashboard-mine"],
+        queryFn: () => api.get<DashboardSummary>("/auth/dashboard/mine/"),
+        staleTime: 60_000,
+    });

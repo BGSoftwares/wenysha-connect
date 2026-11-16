@@ -1,16 +1,19 @@
-"""Real numbers for the admin dashboard charts and events list."""
+"""Real numbers for the dashboard charts and events list, limited to what each role may see."""
 from collections import defaultdict
 from datetime import date
 
 from django.db.models import Avg, Count, ExpressionWrapper, F, FloatField
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
+from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from attendance.models import AttendanceRecord, SchoolCalendarDay
 from exams.models import Exam, ExamMark
 from .permissions import IsPortalAdmin
+from .roles import portal_role, teacher_class_ids
+from .scopes import teacher_marks_filter
 
 ATTENDED = ('present', 'late')
 MONTHS_SHOWN = 7
@@ -29,11 +32,11 @@ def _month_starts(today: date, count: int):
     return list(reversed(starts))
 
 
-def attendance_trend(today: date):
+def attendance_trend(today: date, records):
     starts = _month_starts(today, MONTHS_SHOWN)
     totals, attended = defaultdict(int), defaultdict(int)
     rows = (
-        AttendanceRecord.objects.filter(date__gte=starts[0], date__lte=today)
+        records.filter(date__gte=starts[0], date__lte=today)
         .annotate(month=TruncMonth('date'))
         .values('month', 'status')
         .annotate(n=Count('id'))
@@ -52,9 +55,9 @@ def attendance_trend(today: date):
     ]
 
 
-def marks_by_subject():
+def marks_by_subject(marks):
     rows = (
-        ExamMark.objects.filter(total_marks__gt=0)
+        marks.filter(total_marks__gt=0)
         .values('subject__name')
         .annotate(avg=Avg(ExpressionWrapper(F('scored') * 100.0 / F('total_marks'), output_field=FloatField())))
         .order_by('-avg')[:SUBJECTS_SHOWN]
@@ -72,13 +75,57 @@ def upcoming_events(today: date):
     return events[:EVENTS_SHOWN]
 
 
+def academic_scope(user):
+    """Return (attendance records, marks) this user may see, or None for roles with no academic data.
+
+    Students and parents only ever see marks from exams whose results have been published.
+    """
+    from school.models import Student, Teacher
+
+    role = portal_role(user)
+    if role == 'admin':
+        return AttendanceRecord.objects.all(), ExamMark.objects.all()
+    if role == 'teacher':
+        teacher = Teacher.objects.filter(user=user).first()
+        class_ids = teacher_class_ids(user)
+        marks_filter = teacher_marks_filter(teacher) if teacher else None
+        marks = ExamMark.objects.filter(marks_filter) if marks_filter is not None else ExamMark.objects.none()
+        return AttendanceRecord.objects.filter(student__school_class_id__in=class_ids), marks
+    if role in ('student', 'parent'):
+        students = (
+            Student.objects.filter(user=user) if role == 'student'
+            else Student.objects.filter(parents_link__parent__user=user)
+        )
+        ids = list(students.values_list('id', flat=True))
+        return (
+            AttendanceRecord.objects.filter(student_id__in=ids),
+            ExamMark.objects.filter(student_id__in=ids, exam__results_published=True),
+        )
+    return None
+
+
+def build_summary(user):
+    today = timezone.localdate()
+    scope = academic_scope(user)
+    if scope is None:
+        trend, subjects = [], []
+    else:
+        records, marks = scope
+        trend, subjects = attendance_trend(today, records), marks_by_subject(marks)
+    return {'attendance_trend': trend, 'marks_by_subject': subjects, 'events': upcoming_events(today)}
+
+
 class DashboardSummaryView(APIView):
+    """School-wide numbers for the admin dashboard."""
     permission_classes = [IsPortalAdmin]
 
     def get(self, request):
-        today = timezone.localdate()
-        return Response({
-            'attendance_trend': attendance_trend(today),
-            'marks_by_subject': marks_by_subject(),
-            'events': upcoming_events(today),
-        })
+        return Response(build_summary(request.user))
+
+
+class DashboardMineView(APIView):
+    """The same charts for the signed-in user, limited to the records their role may see."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(build_summary(request.user))

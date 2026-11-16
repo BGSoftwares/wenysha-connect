@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Activity, Bell, CalendarDays, CheckCircle2, CreditCard, GraduationCap, Inbox, Sparkles, type LucideIcon } from "lucide-react";
+import { Activity, Bell, CalendarDays, Inbox, Sparkles, type LucideIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
+import { useMyDashboard } from "@/lib/hooks";
 
 type Action = { label: string; onClick: () => void };
 
@@ -46,15 +47,6 @@ export const WelcomeBanner = ({ name, role, actions = [] }: { name?: string; rol
   );
 };
 
-const attendance = [
-  { m: "Jan", v: 91 }, { m: "Feb", v: 93 }, { m: "Mar", v: 89 }, { m: "Apr", v: 94 },
-  { m: "May", v: 96 }, { m: "Jun", v: 92 }, { m: "Jul", v: 95 },
-];
-const performance = [
-  { s: "Maths", v: 72 }, { s: "English", v: 78 }, { s: "Science", v: 69 },
-  { s: "History", v: 81 }, { s: "Shona", v: 85 }, { s: "Geo", v: 74 },
-];
-
 type TrendPoint = { m: string; v: number | null };
 type SubjectPoint = { s: string; v: number };
 
@@ -70,8 +62,8 @@ const ChartState = ({ loading, message }: { loading?: boolean; message: string }
 export const StatsCharts = ({
   title1 = "Attendance trend (%)",
   title2 = "Average marks by subject",
-  attendanceData = attendance,
-  performanceData = performance,
+  attendanceData = [],
+  performanceData = [],
   loading = false,
 }: {
   title1?: string;
@@ -85,7 +77,7 @@ export const StatsCharts = ({
       <h3 className="mb-4 font-heading text-lg font-semibold text-foreground">{title1}</h3>
       <div className="h-56">
         {loading || !attendanceData.some((p) => p.v !== null) ? (
-          <ChartState loading={loading} message="No attendance has been recorded yet. Mark a register to see the trend." />
+          <ChartState loading={loading} message="No attendance has been recorded yet." />
         ) : (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={attendanceData}>
@@ -109,7 +101,7 @@ export const StatsCharts = ({
       <h3 className="mb-4 font-heading text-lg font-semibold text-foreground">{title2}</h3>
       <div className="h-56">
         {loading || performanceData.length === 0 ? (
-          <ChartState loading={loading} message="No marks have been entered yet. Averages appear once teachers submit marks." />
+          <ChartState loading={loading} message="No marks to show yet. Averages appear once results are available." />
         ) : (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={performanceData}>
@@ -141,16 +133,8 @@ const toneStyles: Record<NonNullable<ActivityItem["tone"]>, { chip: string; labe
   pinned: { chip: "bg-accent/10 text-accent", label: "Pinned" },
 };
 
-const defaultActivities: ActivityItem[] = [
-  { icon: Bell, title: "New notice: Term 3 opening dates published", time: "2h ago", tone: "info" },
-  { icon: CreditCard, title: "Fee payment received for Form 3", time: "5h ago", tone: "success" },
-  { icon: GraduationCap, title: "Mid-term results uploaded for Form 2", time: "Yesterday", tone: "info" },
-  { icon: CheckCircle2, title: "Attendance register completed for all classes", time: "Yesterday", tone: "success" },
-  { icon: Bell, title: "Chess team qualifies for NICAZ provincials", time: "2 days ago", tone: "info" },
-];
-
 export const ActivityFeed = ({
-  items = defaultActivities,
+  items = [],
   loading = false,
   className = "",
 }: { items?: ActivityItem[]; loading?: boolean; className?: string }) => (
@@ -206,15 +190,9 @@ export const ActivityFeed = ({
 
 export type CalendarEvent = { date: Date; title: string };
 
-const sampleEvents: CalendarEvent[] = [
-  { date: new Date(new Date().getFullYear(), new Date().getMonth(), 14), title: "Sports Day" },
-  { date: new Date(new Date().getFullYear(), new Date().getMonth(), 20), title: "Parents' Meeting" },
-  { date: new Date(new Date().getFullYear(), new Date().getMonth(), 27), title: "Mid-term Exams" },
-];
-
 export const EventsCalendar = ({
   className = "",
-  events = sampleEvents,
+  events = [],
   loading = false,
 }: { className?: string; events?: CalendarEvent[]; loading?: boolean }) => {
   const [day, setDay] = useState<Date | undefined>(new Date());
@@ -237,7 +215,7 @@ export const EventsCalendar = ({
           <div className="h-32 animate-pulse rounded-xl bg-muted" aria-busy="true" />
         ) : events.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-            No upcoming exams or school closures. Schedule an exam or mark a holiday to see it here.
+            No upcoming exams or school closures.
           </p>
         ) : (
           <ul className="space-y-2">
@@ -259,19 +237,36 @@ export const EventsCalendar = ({
   );
 };
 
-export const ActivityAndCalendar = () => (
-  <div className="grid items-stretch gap-4 xl:grid-cols-3">
-    <ActivityFeed className="xl:col-span-2" />
-    <EventsCalendar />
-  </div>
-);
+const chartTitles: Record<string, { attendance: string; marks: string }> = {
+  Student: { attendance: "My attendance (%)", marks: "My average marks by subject" },
+  Teacher: { attendance: "Attendance in my classes (%)", marks: "Average marks in my classes" },
+  Parent: { attendance: "My children's attendance (%)", marks: "My children's average marks" },
+};
 
-export const DashboardExtras = (props: { name?: string; role: string; actions?: Action[] }) => (
-  <div className="space-y-6">
-    <WelcomeBanner {...props} />
-    <StatsCharts />
-    <ActivityAndCalendar />
-  </div>
-);
+/** Welcome banner plus charts and events from the signed-in user's own records (never sample numbers). */
+export const DashboardExtras = (props: { name?: string; role: string; actions?: Action[] }) => {
+  const { data, isLoading, error } = useMyDashboard();
+  const titles = chartTitles[props.role];
+  const attendance = useMemo(() => (data?.attendance_trend ?? []).map((p) => ({ m: p.month, v: p.rate })), [data]);
+  const performance = useMemo(() => (data?.marks_by_subject ?? []).map((p) => ({ s: p.subject, v: p.average })), [data]);
+  const events = useMemo<CalendarEvent[]>(
+    () => (data?.events ?? []).map((e) => ({ title: e.title, date: new Date(`${e.date}T00:00:00`) })),
+    [data],
+  );
+  return (
+    <div className="space-y-6">
+      <WelcomeBanner {...props} />
+      {error && (
+        <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          Charts and events could not be loaded. Refresh the page to try again.
+        </p>
+      )}
+      {titles && (
+        <StatsCharts title1={titles.attendance} title2={titles.marks} attendanceData={attendance} performanceData={performance} loading={isLoading} />
+      )}
+      <EventsCalendar events={events} loading={isLoading} />
+    </div>
+  );
+};
 
 export default DashboardExtras;

@@ -94,8 +94,8 @@ Clients must download them with the bearer token (`downloadAuthenticatedFile` in
   add any blocked origin you legitimately use to the policy (for example your
   Supabase project), then rename `Content-Security-Policy-Report-Only` to
   `Content-Security-Policy` to enforce.
-- nginx resolves `backend` at start-up. After scaling or recreating backend
-  containers: `docker compose exec frontend nginx -s reload`.
+- nginx re-resolves `backend` through Docker's DNS every 10 seconds, so scaling or
+  recreating backend containers needs no reload.
 - Backend containers run as an unprivileged user (uid 10001). A pre-existing
   media volume owned by root must be fixed once:
   `docker compose run --rm --user root backend chown -R 10001:10001 /app/media`.
@@ -142,3 +142,10 @@ weekly update PRs.
 ## Reporting a vulnerability
 
 Report privately to the school's system administrator; do not open a public issue.
+
+## Known gaps
+
+- **Refresh token storage.** The browser keeps the long-lived refresh token in `localStorage`, so a cross-site-scripting bug could steal it.
+  Mitigations in place: report-only CSP, patched DOMPurify and React Router, short access tokens, rotating and blacklisted refresh tokens,
+  and one shared refresh call. Moving it to an HttpOnly cookie is a larger change (cookie flags, CSRF protection, credentialed CORS for local
+  development) that should be built and tested against a running stack.
