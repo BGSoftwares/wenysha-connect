@@ -51,3 +51,7 @@ deploy.env
 
 # Local databases
 *.sqlite3
+
+# local backups and generated secrets
+backups/
+deploy.env.old

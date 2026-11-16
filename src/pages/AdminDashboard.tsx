@@ -1,4 +1,5 @@
-import DashboardExtras from "@/components/dashboard/DashboardExtras";
+import { WelcomeBanner } from "@/components/dashboard/DashboardExtras";
+import AdminDashboardCharts from "@/components/admin/AdminDashboardCharts";
 import { useState } from "react";
 import { useStudents, useTeachers, useClasses, useSubjects, useCreateStudent, useCreateTeacher, useCreateClass, useCreateSubject, useAllocations, useUpdateStudent, useDeleteStudent, type Student, type Teacher, type SchoolClass, type Subject } from "@/lib/hooks";
 import { Toaster } from "@/components/ui/sonner";
@@ -10,6 +11,7 @@ import AdminHeader from "@/components/admin/AdminHeader";
 
 // Modular Sections
 import DashboardOverview from "@/components/admin/DashboardOverview";
+import BackupSection from "@/components/admin/BackupSection";
 import StudentsSection from "@/components/admin/StudentsSection";
 import TeachersSection from "@/components/admin/TeachersSection";
 import ClassesSection from "@/components/admin/ClassesSection";
@@ -359,7 +361,7 @@ const AdminDashboard = () => {
 
   const renderContent = () => {
     switch (activeNav) {
-      case "dashboard": return (<><DashboardExtras role="Admin" actions={[{ label: "Students", onClick: () => setActiveNav("students") }, { label: "Notices", onClick: () => setActiveNav("notice") }]} /><DashboardOverview /></>);
+      case "dashboard": return (<div className="space-y-6"><WelcomeBanner role="Admin" actions={[{ label: "Students", onClick: () => setActiveNav("students") }, { label: "Notices", onClick: () => setActiveNav("notice") }]} /><DashboardOverview /><AdminDashboardCharts /></div>);
       case "students": return (
         <StudentsSection
           students={students}
@@ -435,6 +437,7 @@ const AdminDashboard = () => {
       case "settings":
       case "system-setup":
       case "cache": return <SettingsSection activeSubNav={activeNav} />;
+      case "backups": return <BackupSection />;
       case "profile": return <ProfileSection />;
       case "parents": return <ParentsSection />;
       case "library": return <LibrarySection classes={(classes || []).map((c) => ({ id: c.id, name: c.name }))} subjects={(subjects || []).map((s) => ({ id: s.id, name: s.name }))} />;

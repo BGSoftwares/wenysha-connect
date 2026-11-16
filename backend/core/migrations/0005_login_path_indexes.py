@@ -69,5 +69,6 @@ class Migration(migrations.Migration):
             model_name='pendingapproval',
             index=models.Index(fields=['status', 'requested_at'], name='idx_pending_stat_req'),
         ),
-        migrations.RunPython(add_auth_user_email_index, drop_auth_user_email_index),
+        # atomic=False: MySQL cannot run schema changes (CREATE INDEX) inside a transaction.
+        migrations.RunPython(add_auth_user_email_index, drop_auth_user_email_index, atomic=False),
     ]

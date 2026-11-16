@@ -24,7 +24,9 @@ x-backend: &backend
     REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in deploy.env}@redis:6379/0
     # nginx is the one trusted proxy in front of Django (used for real client IPs).
     NUM_PROXIES: "1"
-    MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES-Admin}
+    MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES-}
+    DJANGO_BACKUP_ROOT: /app/backups
+    BACKUP_MAX_FILES: ${BACKUP_MAX_FILES:-30}
 
 services:
   redis:
@@ -63,6 +65,7 @@ services:
       - "8000"
     volumes:
       - media_data:/app/media
+      - portal_backups:/app/backups
     healthcheck:
       test:
         - CMD
@@ -97,5 +100,31 @@ services:
       - media_data:/usr/share/nginx/html/media:ro
     restart: unless-stopped
 
+  # Daily database + media backup, optionally encrypted and copied off the server.
+  # Files land in BACKUP_DIR on the host (default ./backups). RCLONE_CONFIG_* values in deploy.env
+  # configure the off-server destination (see docs/OPERATIONS.md).
+  backup:
+    build:
+      context: ./backup
+    env_file:
+      - path: ./deploy.env
+        required: false
+    environment:
+      MYSQL_HOST: ${MYSQL_HOST:?Set MYSQL_HOST in deploy.env}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in deploy.env}
+      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER in deploy.env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in deploy.env}
+      BACKUP_HOUR: ${BACKUP_HOUR:-2}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_REMOTE: ${BACKUP_REMOTE-}
+      BACKUP_REMOTE_KEEP_DAYS: ${BACKUP_REMOTE_KEEP_DAYS:-30}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${BACKUP_ENCRYPTION_PASSPHRASE-}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+      - media_data:/media:ro
+    restart: unless-stopped
+
 volumes:
   media_data:
+  portal_backups:

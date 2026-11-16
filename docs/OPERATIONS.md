@@ -1,0 +1,107 @@
+# Operations guide
+
+Everything needed to deploy, secure, back up and test the school portal.
+
+## 1. First deploy (Docker)
+
+Run these on the server, in the folder that holds `docker-compose.yml`:
+
+```sh
+sh scripts/generate-secrets.sh        # writes deploy.env with fresh random secrets
+nano deploy.env                       # set DOMAIN, TLS_CERT_DIR and the MYSQL_* values (and BACKUP_REMOTE, see section 3)
+bash scripts/preflight.sh             # checks settings, certificate, MySQL reachability; lists what to fix
+docker compose --env-file deploy.env up --build -d
+docker compose --env-file deploy.env ps                    # migrate = exited (0), the rest = running/healthy
+sh scripts/smoke-test.sh https://YOUR_DOMAIN               # health, headers, sign-in refusal, private paths
+```
+
+The whole sequence above (build, start, smoke test, backup, restore) is rehearsed on every pull request by the
+"Docker stack" job in CI, on a throw-away MySQL, so a broken compose file or Dockerfile is caught before it reaches you.
+It cannot test your own domain, certificate or MySQL server, which is what `preflight.sh` and `smoke-test.sh` are for.
+For a real sign-in check, add `SMOKE_USER=name SMOKE_PASS=... ` before `sh scripts/smoke-test.sh` (use an account without two-step verification).
+
+If `up` fails, `docker compose --env-file deploy.env logs migrate backend` shows why. The most common causes are a
+missing value in `deploy.env`, a MySQL host the server cannot reach, or a TLS folder without `fullchain.pem` / `privkey.pem`.
+
+## 2. Rotate secrets and default passwords
+
+- **Secrets:** `sh scripts/generate-secrets.sh` keeps the old file as `deploy.env.old`, then restart with
+  `docker compose --env-file deploy.env up -d`. Changing `DJANGO_SECRET_KEY` signs everyone out. If `MFA_ENCRYPTION_KEY`
+  was empty, it also resets everyone's authenticator app, so set that key once and keep it.
+  Change the MySQL password inside MySQL first, then update `MYSQL_PASSWORD`.
+- **Default passwords:**
+  ```sh
+  docker compose --env-file deploy.env run --rm backend python manage.py rotate_default_passwords --dry-run
+  docker compose --env-file deploy.env run --rm backend python manage.py rotate_default_passwords
+  ```
+  It finds accounts still using a seed or username-based password, gives each a random one (printed once), signs them out
+  and forces a new password at next sign-in. Delete `deploy.env.old` and any chat messages that contained old secrets.
+
+## 3. Daily backups
+
+The `backup` service dumps the database and zips the uploaded files every day at `BACKUP_HOUR` (UTC) into `BACKUP_DIR`
+(default `./backups`), keeping `BACKUP_KEEP_DAYS` days. A failed dump never replaces an older good one.
+
+**Copy them off the server.** Set `BACKUP_REMOTE` in `deploy.env` and every backup is uploaded after it is made, the upload size is
+checked, and copies older than `BACKUP_REMOTE_KEEP_DAYS` are removed from the destination. Any rclone destination works
+(S3-compatible buckets such as Backblaze, Wasabi, Cloudflare R2 or AWS; SFTP; Google Drive; Dropbox; OneDrive; another server's folder).
+`deploy.env.example` has a ready S3 example; for other types see https://rclone.org/docs/ and write the options as
+`RCLONE_CONFIG_<NAME>_<OPTION>=value`. If the upload fails, the local backup is kept and the status turns to failed.
+
+**Encrypt them.** Set `BACKUP_ENCRYPTION_PASSPHRASE` (`generate-secrets.sh` creates one) and every file is encrypted with AES-256
+before it is stored or uploaded, so a stolen bucket or disk reveals nothing. Store the passphrase in a password manager:
+without it the backups cannot be opened. Encrypted files end in `.enc`.
+
+```sh
+docker compose --env-file deploy.env logs backup               # shows "next run in ...s" and each result
+docker compose --env-file deploy.env run --rm -e BACKUP_ONCE=1 backup   # take a backup right now
+sh scripts/backup-status.sh                                    # OK only if the last backup worked and is under 26h old
+sh scripts/restore.sh backups/db-YYYYMMDD-HHMMSS.sql.gz.enc    # replace live data (asks you to type RESTORE)
+```
+
+`backup-status.sh` exits non-zero when the last backup failed, is too old, or never ran. Run it from cron or point an uptime
+monitor at it so a silent failure is noticed the same day. To restore from the off-server copy, download the file first
+(for example `docker compose --env-file deploy.env run --rm --entrypoint rclone backup copy offsite:my-bucket/db-....sql.gz.enc /backups`),
+then run `restore.sh` on it. A wrong passphrase or damaged file stops before anything is changed. Test a restore on a spare
+database at least once a term.
+
+Local development with SQLite: copy `backend/db.sqlite3` while the server is stopped. It is no longer tracked by git.
+
+### Backups from the portals
+
+- **Admin portal → Backups:** Back up now saves a ZIP of the school's records (one JSON file per table) on the server,
+  optionally with uploaded files. The list shows each backup with Download and Delete. The newest `BACKUP_MAX_FILES`
+  (default 30) are kept, and a second backup within 30 seconds is refused.
+  Passwords, hashes, tokens, authenticator secrets and per-user preferences are never written, and accounts are saved
+  without passwords. So this is a records backup: restore from the daily database backup after a failure.
+- **Teacher portal → Backup:** downloads a ZIP of CSV files (students, marks, attendance, allocations) for that
+  teacher's own classes and subjects only. No addresses, birth dates, contacts or fees.
+- Archives live in `DJANGO_BACKUP_ROOT` (`/app/backups`, the `portal_backups` volume), outside the media folder, so nginx
+  never serves them. They are only reachable through the signed-in admin endpoints below.
+
+| Endpoint | Who | What |
+|---|---|---|
+| `GET /api/auth/backups/` | Admin | List saved backups |
+| `POST /api/auth/backups/` | Admin | Make one (`{"include_files": true}` adds uploads) |
+| `GET /api/auth/backups/<name>/` | Admin | Download |
+| `DELETE /api/auth/backups/<name>/` | Admin | Delete |
+| `GET /api/auth/backups/my-data/` | Teacher | Download own teaching data |
+
+## 4. Dashboard data
+
+The admin dashboard charts and events come from `GET /api/auth/dashboard/summary/` (admins only):
+
+- Attendance trend: share of present and late marks per month, last 7 months.
+- Average marks: mean percentage per subject from entered exam marks, top 8.
+- Upcoming events: exams that have not ended, plus holidays and closures from the school calendar.
+
+Empty data shows an empty state, never made-up numbers. The teacher, parent and student dashboards still show sample charts.
+
+## 5. Tests
+
+- Backend: `cd backend && python manage.py test`
+- Frontend: install the test tools once, then run them. CI does the same.
+  ```sh
+  npm install --no-save --no-package-lock vitest@2.1.9 jsdom@25.0.1 @testing-library/react@16.1.0 @testing-library/dom@10.4.0
+  npm run test:ui
+  ```
