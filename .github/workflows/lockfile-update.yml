@@ -1,0 +1,34 @@
+# TEMPORARY helper: runs on a push to the ci/lockfile-update branch only. Applies `npm audit fix` where npm has network
+# access and commits the updated package.json / package-lock.json back to that branch. Never merged to main.
+name: Lockfile update
+on:
+  push:
+    branches: [ci/lockfile-update]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Audit before
+        run: npm audit --omit=dev --audit-level=high || true
+      - name: Fix without breaking changes
+        run: npm audit fix
+      - name: Audit after (production dependencies)
+        run: npm audit --omit=dev --audit-level=high || true
+      - name: Build still works
+        run: npm run build
+      - name: Commit the result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git diff --cached --quiet && { echo "nothing changed"; exit 0; }
+          git commit -m "Update dependencies with npm audit fix"
+          git push
