@@ -292,24 +292,48 @@ export async function signup(payload: {
   return api.post<{ detail: string }>("/auth/signup/", payload);
 }
 
-export async function refreshAccessToken(): Promise<string> {
-  const refresh = getRefreshToken();
-  if (!refresh) throw new Error("No refresh token");
+let refreshInFlight: Promise<string> | null = null;
+
+/**
+ * Get a new access token. Refresh tokens rotate and the old one is blacklisted, so two requests that
+ * expire together must share ONE refresh call: the second call with the same token would be rejected
+ * and sign the user out. Everything that needs a refresh waits for the same promise.
+ */
+export function refreshAccessToken(): Promise<string> {
+  if (!refreshInFlight) {
+    refreshInFlight = requestNewTokens().finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
+
+async function requestNewTokens(): Promise<string> {
+  const used = getRefreshToken();
+  if (!used) throw new Error("No refresh token");
   const base = getApiBaseUrl();
   const refreshUrl = `${base.replace(/\/$/, "")}/auth/token/refresh/`;
-  const res = await fetch(refreshUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh }),
-  });
-  const data = await res.json().catch(() => ({}));
+
+  const attempt = async (refresh: string) => {
+    const res = await fetch(refreshUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  };
+
+  let { res, data } = await attempt(used);
+  if (!res.ok) {
+    // Another browser tab may have just rotated the token. If storage now holds a different one, use it once.
+    const latest = getRefreshToken();
+    if (latest && latest !== used) ({ res, data } = await attempt(latest));
+  }
   if (!res.ok) throw new Error(String((data as ApiError).detail) || "Refresh failed");
   const tokens = data as { access?: string; refresh?: string };
   if (!tokens.access) throw new Error("Refresh response did not include an access token");
   const access = tokens.access;
   localStorage.setItem(ACCESS_TOKEN_KEY, access);
-  // Simple JWT can rotate the refresh token. Persist it so a later renewal
-  // does not reuse an expired token.
+  // Simple JWT rotates the refresh token. Persist it so the next renewal does not reuse a used token.
   if (tokens.refresh) localStorage.setItem(REFRESH_KEY, tokens.refresh);
   return access;
 }

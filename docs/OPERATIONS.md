@@ -95,9 +95,26 @@ The admin dashboard charts and events come from `GET /api/auth/dashboard/summary
 - Average marks: mean percentage per subject from entered exam marks, top 8.
 - Upcoming events: exams that have not ended, plus holidays and closures from the school calendar.
 
-Empty data shows an empty state, never made-up numbers. The teacher, parent and student dashboards still show sample charts.
+Teacher, student and accounts dashboards use `GET /api/auth/dashboard/mine/`, which returns the same charts limited to the
+signed-in user's own records:
 
-## 5. Tests
+- **Teacher:** attendance for their classes, marks for the classes and subjects they teach.
+- **Student:** their own attendance and marks. **Parent:** their children's. Both see marks only from exams whose results are published.
+- **Accounts:** no academic charts, just the events calendar.
+
+Empty data shows an empty state, never made-up numbers.
+
+## 5. Dependencies and updates
+
+- CI fails on any high or critical advisory in production npm packages (`scripts/audit-gate.mjs`) and on Python advisories (`pip-audit`).
+  An advisory can be accepted only by adding it to the `ACCEPTED` list in `scripts/audit-gate.mjs` with a reason and a review date;
+  the check fails again once that date passes. Today there is one: a zod memory-exhaustion advisory that does not apply to our forms.
+- Dependabot opens weekly update pull requests. Merge them once CI is green.
+- The frontend builds on Node 22 (Dockerfile and CI).
+- nginx re-resolves the `backend` name every 10 seconds, so recreating or scaling backend containers needs no nginx reload.
+- Refresh tokens rotate, so the browser shares one refresh call between requests that expire together; two tabs recover from each other's rotation.
+
+## 6. Tests
 
 - Backend: `cd backend && python manage.py test`
 - Frontend: install the test tools once, then run them. CI does the same.
