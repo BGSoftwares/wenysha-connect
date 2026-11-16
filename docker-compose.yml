@@ -100,10 +100,15 @@ services:
       - media_data:/usr/share/nginx/html/media:ro
     restart: unless-stopped
 
-  # Daily database + media backup. Files land in BACKUP_DIR on the host (default ./backups).
+  # Daily database + media backup, optionally encrypted and copied off the server.
+  # Files land in BACKUP_DIR on the host (default ./backups). RCLONE_CONFIG_* values in deploy.env
+  # configure the off-server destination (see docs/OPERATIONS.md).
   backup:
-    image: mysql:8.0
-    entrypoint: ["sh", "/scripts/backup.sh"]
+    build:
+      context: ./backup
+    env_file:
+      - path: ./deploy.env
+        required: false
     environment:
       MYSQL_HOST: ${MYSQL_HOST:?Set MYSQL_HOST in deploy.env}
       MYSQL_PORT: ${MYSQL_PORT:-3306}
@@ -112,8 +117,10 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in deploy.env}
       BACKUP_HOUR: ${BACKUP_HOUR:-2}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_REMOTE: ${BACKUP_REMOTE-}
+      BACKUP_REMOTE_KEEP_DAYS: ${BACKUP_REMOTE_KEEP_DAYS:-30}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${BACKUP_ENCRYPTION_PASSPHRASE-}
     volumes:
-      - ./scripts/backup.sh:/scripts/backup.sh:ro
       - ${BACKUP_DIR:-./backups}:/backups
       - media_data:/media:ro
     restart: unless-stopped

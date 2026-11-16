@@ -9,7 +9,9 @@ sed \
   -e "s|^DJANGO_SECRET_KEY=.*|DJANGO_SECRET_KEY=$(rand 64)|" \
   -e "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=$(rand 32)|" \
   -e "s|^MFA_ENCRYPTION_KEY=.*|MFA_ENCRYPTION_KEY=$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')|" \
+  -e "s|^BACKUP_ENCRYPTION_PASSPHRASE=.*|BACKUP_ENCRYPTION_PASSPHRASE=$(rand 40)|" \
   deploy.env.example > deploy.env
 chmod 600 deploy.env
 echo "Wrote deploy.env. Still edit DOMAIN, TLS_CERT_DIR and the MYSQL_* values."
 echo "Set the MySQL password in MySQL itself first, then paste it as MYSQL_PASSWORD."
+echo "IMPORTANT: copy BACKUP_ENCRYPTION_PASSPHRASE into a password manager now. Without it, encrypted backups cannot be opened."
