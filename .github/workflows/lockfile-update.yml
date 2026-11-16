@@ -18,8 +18,10 @@ jobs:
       - run: npm ci
       - name: Audit before
         run: npm audit --omit=dev --audit-level=high || true
-      - name: Fix without breaking changes
-        run: npm audit fix
+      - name: React Router 7 (the fix for its open-redirect and XSS advisories needs the new major version)
+        run: npm install react-router-dom@^7.18.5
+      - name: Fix everything else that does not need a breaking change
+        run: npm audit fix || true
       - name: Audit after (production dependencies)
         run: npm audit --omit=dev --audit-level=high || true
       - name: Build still works
