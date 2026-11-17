@@ -5,8 +5,6 @@ import {
     FileText,
     MessageSquare,
     CreditCard,
-    Activity,
-    TrendingUp,
     CheckCircle2,
     Clock,
     AlertCircle,
@@ -41,6 +39,8 @@ import { Progress } from "@/components/ui/progress";
 import NotificationsFeed from "@/components/dashboard/NotificationsFeed";
 import PaymentModal from "@/components/student/PaymentModal";
 import PendingPaymentsNotice from "@/components/finance/PendingPaymentsNotice";
+import ParentFeesPanel from "@/components/parent/ParentFeesPanel";
+import ChildSwitcher from "@/components/parent/ChildSwitcher";
 import ProfileSection from "@/components/admin/ProfileSection";
 import ParentELearningSection from "@/components/parent/ParentELearningSection";
 import { formatLocalDateKey } from "@/lib/zimbabweSchoolCalendar";
@@ -104,7 +104,7 @@ const ParentPortal = () => {
     const { data: attendanceNotifications = [] } = useAttendanceNotifications();
     const markAttendanceNotificationRead = useMarkAttendanceNotificationRead();
     const { data: attendanceSettings } = useAttendanceSettings();
-    const { data: invoices = [] } = useInvoices(
+    const { data: invoices = [], isLoading: invoicesLoading } = useInvoices(
         { student: selectedChildId || 0 }
     );
     const { data: payments = [] } = usePayments(
@@ -112,6 +112,11 @@ const ParentPortal = () => {
     );
 
     const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
+    const [activeTab, setActiveTab] = useState("academics");
+    const showFeesTab = () => {
+        setActiveTab("fees");
+        window.setTimeout(() => document.getElementById("parent-details")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    };
     const selectedChild = useMemo(() =>
         parentLinks?.find(link => link.student === selectedChildId),
         [parentLinks, selectedChildId]);
@@ -200,24 +205,32 @@ const ParentPortal = () => {
     return (
         <Layout>
             <div className="portal-dashboard portal-parent-dashboard">
-            <section className="portal-parent-hero py-12 bg-forest relative overflow-hidden">
+            <section className="portal-parent-hero relative overflow-hidden pb-24 pt-10 md:pb-28">
                 <div className="absolute inset-0 bg-noise opacity-10" />
-                <div className="container mx-auto px-4 relative z-10">
-                    <div className="max-w-3xl">
-                        <Badge variant="outline" className="text-accent border-accent/30 mb-6 bg-accent/10 px-4 py-1">
-                            PARENT COMMAND CENTER
-                        </Badge>
-                        <h1 className="text-4xl md:text-5xl font-heading font-black text-white mb-4 drop-shadow-sm">
-                            Welcome back, <span className="text-accent">{parentProfile?.name?.split(' ')[0] || "Parent"}.</span>
-                        </h1>
-                        <p className="text-lg text-white/90 mb-0 font-normal">
-                            Monitoring the academic growth and well-being of your children.
+                <div className="container relative z-10 mx-auto space-y-6 px-4">
+                    <div>
+                        <p className="text-sm text-white/75">{new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening"}</p>
+                        <h1 className="font-heading text-3xl font-semibold text-white md:text-5xl">{parentProfile?.name?.split(" ")[0] || "Parent"}</h1>
+                        <p className="mt-1 text-white/80">
+                            {parentLinks?.length
+                                ? `${parentLinks.length} ${parentLinks.length === 1 ? "child" : "children"} at Able God College`
+                                : "No children are linked to your account yet."}
                         </p>
                     </div>
+                    {!!parentLinks?.length && (
+                        <ChildSwitcher
+                            selectedId={selectedChildId}
+                            onSelect={setSelectedChildId}
+                            kids={parentLinks.map(link => {
+                                const student = linkedStudents.find(item => item.id === link.student);
+                                return { id: link.student, name: link.student_name, detail: [student?.class_name, student?.student_id].filter(Boolean).join(" · ") };
+                            })}
+                        />
+                    )}
                 </div>
             </section>
 
-            <section className="portal-parent-content py-8 bg-secondary/10 min-h-screen">
+            <section className="portal-parent-content relative z-10 -mt-16 min-h-screen bg-secondary/10 pb-10 md:-mt-20">
                 <div className="container mx-auto px-4">
                     {isLoadingParent ? (
                         <div className="space-y-4">
@@ -230,119 +243,68 @@ const ParentPortal = () => {
                         </div>
                     ) : (
                         <div className="space-y-8">
-                            {/* Children Selector */}
-                            <div className="bg-card border border-border rounded-3xl p-6 shadow-elegant">
-                                <div className="flex items-center gap-4 mb-6">
-                                    <div className="p-3 rounded-2xl bg-primary/10 text-primary">
-                                        <Activity className="h-6 w-6" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h1 className="text-2xl font-heading font-bold text-foreground">Welcome back, {parentProfile.name.split(' ')[0]}</h1>
-                                        <p className="text-muted-foreground">You are viewing information for {parentLinks?.length || 0} registered {parentLinks?.length === 1 ? 'child' : 'children'}</p>
-                                    </div>
+                            {(!parentLinks || parentLinks.length === 0) && (
+                                <div className="p-10 text-center w-full bg-card rounded-3xl border-dashed border-2 border-border shadow-xl">
+                                    <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                                    <p className="text-muted-foreground">No students linked to your account yet. Please contact the administration.</p>
                                 </div>
-                                <div className="flex flex-wrap gap-4">
-                                    {parentLinks?.map(link => (
-                                        <button
-                                            key={link.student}
-                                            onClick={() => setSelectedChildId(link.student)}
-                                            className={`flex items-center gap-3 px-6 py-4 rounded-2xl border transition-all ${selectedChildId === link.student
-                                                ? 'bg-accent border-accent text-accent-foreground shadow-lg shadow-accent/30 font-bold scale-105'
-                                                : 'bg-background border-border text-foreground hover:border-accent hover:bg-accent/5'}`}
-                                        >
-                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${selectedChildId === link.student ? 'bg-white/20' : 'bg-secondary'}`}>
-                                                <User className="h-5 w-5" />
-                                            </div>
-                                            <span className="text-left">
-                                                <span className="block">{link.student_name}</span>
-                                                <span className="block font-mono text-xs font-normal opacity-80">
-                                                    {linkedStudents.find((student) => student.id === link.student)?.student_id || ""}
-                                                </span>
-                                            </span>
-                                        </button>
-                                    ))}
-                                    {(!parentLinks || parentLinks.length === 0) && (
-                                        <div className="p-10 text-center w-full bg-secondary/20 rounded-2xl border-dashed border-2 border-border">
-                                            <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                                            <p className="text-muted-foreground">No students linked to your account yet. Please contact the administration.</p>
+                            )}
+
+                            {selectedChildId && (
+                                <div className="grid items-stretch gap-6 lg:grid-cols-3">
+                                    <div className="lg:col-span-2">
+                                        <ParentFeesPanel
+                                            childName={selectedChild?.student_name || "your child"}
+                                            invoices={invoices}
+                                            loading={invoicesLoading}
+                                            onPay={setPayingInvoice}
+                                            onViewAll={showFeesTab}
+                                        />
+                                        <div className="mt-4"><PendingPaymentsNotice invoiceIds={invoices.map(invoice => invoice.id)} /></div>
+                                    </div>
+                                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-1">
+                                        <div className="rounded-3xl border border-border bg-card p-6">
+                                            <p className="text-sm text-muted-foreground">Academic average</p>
+                                            <p className="mt-1 font-heading text-4xl font-semibold tabular-nums text-foreground">{grades.length ? `${averageScore.toFixed(1)}%` : "No marks yet"}</p>
+                                            <Progress value={averageScore} className="mt-4 h-2 bg-secondary" />
+                                            <p className="mt-2 text-xs text-muted-foreground">{grades.length ? `Across ${grades.length} published ${grades.length === 1 ? "result" : "results"}` : "Results appear here once the school publishes them."}</p>
                                         </div>
-                                    )}
+                                        <div className="rounded-3xl border border-border bg-card p-6">
+                                            <p className="text-sm text-muted-foreground">Attendance</p>
+                                            <p className="mt-1 font-heading text-4xl font-semibold tabular-nums text-foreground">{attendance.length || attendanceSummaries.length ? `${attendanceRate.toFixed(0)}%` : "No records"}</p>
+                                            <Progress value={attendanceRate} className="mt-4 h-2 bg-secondary" />
+                                            <p className="mt-2 text-xs text-muted-foreground">
+                                                {todayAttendanceAlerts.length ? `Today: marked ${todayAttendanceAlerts[0].status}` : "Present or late, over the school days recorded"}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <NotificationsFeed title="School notifications" />
 
                             {selectedChildId && (
                                 <div className="animate-in fade-in slide-in-from-bottom duration-500">
-                                    {/* Quick Stats Grid */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                                        <Card className="bg-gradient-to-br from-accent/10 to-transparent border-accent/20">
-                                            <CardContent className="pt-6">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div className="h-12 w-12 rounded-xl bg-accent/15 flex items-center justify-center">
-                                                        <TrendingUp className="h-6 w-6 text-accent" />
-                                                    </div>
-                                                    <Badge className="bg-accent/10 text-accent hover:bg-accent/10">Top 15%</Badge>
-                                                </div>
-                                                <h3 className="text-muted-foreground text-sm font-medium">Academic Average</h3>
-                                                <p className="text-3xl font-black text-foreground mt-1">{averageScore.toFixed(1)}%</p>
-                                                <Progress value={averageScore} className="h-2 mt-4 bg-accent/10" />
-                                            </CardContent>
-                                        </Card>
-
-                                        <Card className="bg-gradient-to-br from-green-500/5 to-transparent border-green-500/20">
-                                            <CardContent className="pt-6">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div className="h-12 w-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                                                        <CheckCircle2 className="h-6 w-6 text-green-600" />
-                                                    </div>
-                                                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Consistent</Badge>
-                                                </div>
-                                                <h3 className="text-muted-foreground text-sm font-medium">Attendance Rate</h3>
-                                                <p className="text-3xl font-black text-foreground mt-1">{attendanceRate.toFixed(0)}%</p>
-                                                <Progress value={attendanceRate} className="h-2 mt-4 bg-green-100" />
-                                            </CardContent>
-                                        </Card>
-
-                                        <Card className="bg-gradient-to-br from-amber-500/5 to-transparent border-amber-500/20">
-                                            <CardContent className="pt-6">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div className="h-12 w-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                                                        <CreditCard className="h-6 w-6 text-amber-600" />
-                                                    </div>
-                                                    <Badge variant={hasPendingFees ? "destructive" : "default"} className={!hasPendingFees ? "bg-green-100 text-green-700" : ""}>
-                                                        {hasPendingFees ? "Attention" : "Cleared"}
-                                                    </Badge>
-                                                </div>
-                                                <h3 className="text-muted-foreground text-sm font-medium">Outstanding Balance</h3>
-                                                {Object.entries(pendingBalances).length > 0
-                                                    ? Object.entries(pendingBalances).map(([currency, amount]) => <p key={currency} className="text-xl font-black text-foreground mt-1">{formatMoney(amount, currency as "USD" | "ZWG")}</p>)
-                                                    : <p className="text-3xl font-black text-foreground mt-1">{formatMoney(0)}</p>}
-                                                <p className="text-xs text-muted-foreground mt-2">Live Accounts balance</p>
-                                            </CardContent>
-                                        </Card>
-                                    </div>
-
                                     {/* Detailed Sections */}
-                                    <Tabs defaultValue="academics" className="space-y-6">
-                                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl bg-secondary/40 p-1 sm:grid-cols-3 xl:grid-cols-5">
-                                            <TabsTrigger value="academics" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
+                                    <Tabs id="parent-details" value={activeTab} onValueChange={setActiveTab} className="scroll-mt-6 space-y-6">
+                                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-sm sm:grid-cols-3 xl:grid-cols-5">
+                                            <TabsTrigger value="academics" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">
                                                 <FileText className="h-4 w-4 mr-2" />
                                                 Recent Grades
                                             </TabsTrigger>
-                                            <TabsTrigger value="attendance" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
+                                            <TabsTrigger value="attendance" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">
                                                 <Calendar className="h-4 w-4 mr-2" />
                                                 Attendance Log
                                             </TabsTrigger>
-                                            <TabsTrigger value="fees" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
+                                            <TabsTrigger value="fees" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">
                                                 <CreditCard className="h-4 w-4 mr-2" />
-                                                Financials
+                                                Fees &amp; payments
                                             </TabsTrigger>
-                                            <TabsTrigger value="elearning" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
+                                            <TabsTrigger value="elearning" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">
                                                 <FileText className="h-4 w-4 mr-2" />
                                                 E-Learning
                                             </TabsTrigger>
-                                            <TabsTrigger value="profile" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-card shadow-sm">
+                                            <TabsTrigger value="profile" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">
                                                 <User className="h-4 w-4 mr-2" />
                                                 My Account
                                             </TabsTrigger>
