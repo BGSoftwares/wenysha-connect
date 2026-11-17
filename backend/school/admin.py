@@ -22,6 +22,7 @@ class StudentAdmin(admin.ModelAdmin):
     list_display = ('student_id', 'name', 'school_class', 'gender', 'status')
     list_filter = ('school_class', 'status')
     search_fields = ('student_id', 'name')
+    readonly_fields = ('student_id',)  # issued automatically and never changes
 
 
 @admin.register(TeacherSubjectClass)

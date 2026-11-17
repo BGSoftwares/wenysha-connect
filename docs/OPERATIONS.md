@@ -148,3 +148,15 @@ where Accounts picks the invoice. The bank's transaction id is unique, so re-imp
 **Not verified here:** the EcoCash and ZimSwitch calls follow the adapters already in `backend/finance/gateways.py`, but they have never been run
 against the live providers from this environment. Test with sandbox credentials before taking real money. Whether your bank offers a push feed is
 the bank's decision; the CSV import works with any bank.
+
+## 8. Student numbers
+
+Every student has one student number (for example `AbleGodStudent00042`). It is issued automatically when the student is created,
+by a counter that only moves forward, so:
+- two students never share a number (case differences count as the same number);
+- a number is never given to another child, even after the first student is deleted;
+- the number cannot be edited (API, admin or code). Invoices, receipts, report cards, attendance and the parent portal all show it,
+  and bank deposits are matched to the student by it.
+
+On the first deploy of this change the migration numbers every student who had none and leaves existing numbers untouched. To check
+at any time: `docker compose run --rm backend python manage.py audit_student_numbers --dry-run` (drop `--dry-run` to issue missing numbers).

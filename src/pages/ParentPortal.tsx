@@ -249,7 +249,12 @@ const ParentPortal = () => {
                                             <div className={`h-10 w-10 rounded-full flex items-center justify-center ${selectedChildId === link.student ? 'bg-white/20' : 'bg-secondary'}`}>
                                                 <User className="h-5 w-5" />
                                             </div>
-                                            {link.student_name}
+                                            <span className="text-left">
+                                                <span className="block">{link.student_name}</span>
+                                                <span className="block font-mono text-xs font-normal opacity-80">
+                                                    {linkedStudents.find((student) => student.id === link.student)?.student_id || ""}
+                                                </span>
+                                            </span>
                                         </button>
                                     ))}
                                     {(!parentLinks || parentLinks.length === 0) && (
