@@ -3,7 +3,7 @@ import { AlertCircle, CheckCircle, CreditCard, Download, FileText, Loader2, Rece
 import { Button } from "@/components/ui/button";
 import PaymentModal from "./PaymentModal";
 import { exportFeeStatementPdf, type FeeStatementPdfData } from "@/lib/pdfExport";
-import { useInvoices, usePayments, useStudentProfile, type Invoice } from "@/lib/hooks";
+import { useInvoices, useOnlinePaymentConfig, usePayments, useStudentProfile, type Invoice } from "@/lib/hooks";
 import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, type FinanceCurrency } from "@/lib/finance";
 
 interface StudentFeesSectionProps {
@@ -15,6 +15,8 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const { data: profile } = useStudentProfile();
+  const { data: paymentConfig } = useOnlinePaymentConfig();
+  const bank = paymentConfig?.bank_account;
   const { data: invoices = [], isLoading: invoicesLoading } = useInvoices({ student: studentId });
   const { data: payments = [], isLoading: paymentsLoading } = usePayments({ student: studentId });
 
@@ -121,7 +123,7 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
             <div className="space-y-3 text-sm">
               <div className="flex gap-3 rounded-lg bg-secondary/30 p-3"><span className="text-lg">📱</span><div><p className="font-medium">EcoCash</p><p className="text-xs text-muted-foreground">Enter your Zimbabwe mobile number and approve the payment prompt.</p></div></div>
               <div className="flex gap-3 rounded-lg bg-secondary/30 p-3"><span className="text-lg">💳</span><div><p className="font-medium">ZimSwitch</p><p className="text-xs text-muted-foreground">Use the secure hosted checkout for a ZimSwitch enabled card.</p></div></div>
-              <div className="flex gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3"><span className="text-lg">🏦</span><div><p className="font-medium text-primary">NBS Direct Bank Transfer</p><p className="text-xs text-foreground font-semibold">ABLE GOD COLLEGE · Acc: 3252015253451</p><p className="text-[11px] text-muted-foreground">Bank: NBS · Branch: MASVINGO · Use Invoice No as reference</p></div></div>
+              <div className="flex gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3"><span className="text-lg">🏦</span><div><p className="font-medium text-primary">Direct bank transfer</p><p className="text-xs text-foreground font-semibold">{bank?.account_name} · Acc: {bank?.account_number}</p><p className="text-[11px] text-muted-foreground">Bank: {bank?.bank} · Branch: {bank?.branch} · Use the invoice number as the reference and it is credited automatically</p></div></div>
               <p className="text-xs text-muted-foreground">Online methods appear during checkout when the school merchant is enabled for that invoice currency. Cash and bank payments can still be recorded by Accounts.</p>
             </div>
           </section>

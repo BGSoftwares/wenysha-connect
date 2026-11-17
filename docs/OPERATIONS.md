@@ -122,3 +122,29 @@ Empty data shows an empty state, never made-up numbers.
   npm install --no-save --no-package-lock vitest@2.1.9 jsdom@25.0.1 @testing-library/react@16.1.0 @testing-library/dom@10.4.0
   npm run test:ui
   ```
+
+## 7. Fee payments (EcoCash, ZimSwitch and the bank)
+
+Every route ends in the same place: a `Payment` row on the invoice. The student's account, the parent's view and the
+Accounts portal all read those rows, so a payment shows everywhere within about 15 seconds of being recorded.
+
+| How the parent pays | What credits it | Needs |
+|---|---|---|
+| EcoCash (portal) | The provider confirms the charge. The portal polls, and the `payments-worker` service also checks every 60 s, so it is credited even if the parent closes the browser. | `ECOCASH_*` in `deploy.env` |
+| ZimSwitch card (portal) | Same as above, after the hosted checkout returns. The amount and currency are checked against the invoice. | `ZIMSWITCH_*` in `deploy.env` |
+| Bank deposit or transfer | A bank credit matched by the **invoice number** (or student ID) in the bank reference. | Statement CSV import, or the bank feed below |
+
+Bank deposits are never matched on guesswork. A deposit is credited automatically only when its reference names exactly one
+invoice, the currency matches and the amount fits the balance. Everything else waits in **Accounts → Bank Deposits → Needs review**,
+where Accounts picks the invoice. The bank's transaction id is unique, so re-importing a statement or a webhook retry never credits twice.
+
+**Turning it on**
+1. Put the merchant values in `deploy.env` (see `deploy.env.example`), then `docker compose --env-file deploy.env up -d`. The `payments-worker` service starts with the stack.
+2. Ask EcoCash/your acquiring bank for the sandbox first and make one small test payment per method before going live.
+3. For bank deposits, either upload the CSV statement from internet banking in Accounts → Bank Deposits, or, if your bank can push credits, give it
+   `https://<your domain>/api/finance/bank-deposits/webhook/` and set `BANK_WEBHOOK_SECRET`. The bank signs the raw body with HMAC-SHA256 and sends it
+   as `X-Bank-Signature`. Body: `{"transactions":[{"transaction_id","amount","currency","date","reference","payer_name"}]}`.
+
+**Not verified here:** the EcoCash and ZimSwitch calls follow the adapters already in `backend/finance/gateways.py`, but they have never been run
+against the live providers from this environment. Test with sandbox credentials before taking real money. Whether your bank offers a push feed is
+the bank's decision; the CSV import works with any bank.
