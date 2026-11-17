@@ -27,6 +27,7 @@ import {
     useAttendanceSettings,
     useInvoices,
     usePayments,
+    type Invoice,
 } from "@/lib/hooks";
 import { getStoredUser } from "@/lib/api";
 import { api, getErrorMessage } from "@/lib/api";
@@ -38,6 +39,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import NotificationsFeed from "@/components/dashboard/NotificationsFeed";
+import PaymentModal from "@/components/student/PaymentModal";
+import PendingPaymentsNotice from "@/components/finance/PendingPaymentsNotice";
 import ProfileSection from "@/components/admin/ProfileSection";
 import ParentELearningSection from "@/components/parent/ParentELearningSection";
 import { formatLocalDateKey } from "@/lib/zimbabweSchoolCalendar";
@@ -108,6 +111,7 @@ const ParentPortal = () => {
         { student: selectedChildId || 0 }
     );
 
+    const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
     const selectedChild = useMemo(() =>
         parentLinks?.find(link => link.student === selectedChildId),
         [parentLinks, selectedChildId]);
@@ -558,6 +562,7 @@ const ParentPortal = () => {
                                                 </CardHeader>
                                                 <CardContent>
                                                     <div className="space-y-6">
+                                                        <PendingPaymentsNotice invoiceIds={invoices.map(invoice => invoice.id)} />
                                                         {invoices.map(invoice => {
                                                             const balance = Math.max(0, Number(invoice.amount) - Number(invoice.paid));
                                                             const progress = Number(invoice.amount) > 0 ? Math.min(100, Number(invoice.paid) / Number(invoice.amount) * 100) : 0;
@@ -577,6 +582,11 @@ const ParentPortal = () => {
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-3"><Progress value={progress} className="h-2 bg-secondary" /><span className="w-12 text-right text-xs text-muted-foreground">{progress.toFixed(0)}%</span></div>
+                                                                {balance > 0 && (
+                                                                    <div className="flex justify-end">
+                                                                        <Button onClick={() => setPayingInvoice(invoice)}>Pay {formatMoney(balance, invoice.currency)} now</Button>
+                                                                    </div>
+                                                                )}
                                                             </div>;
                                                         })}
                                                         {!invoices.length && <div className="py-8 text-center text-muted-foreground">No Accounts invoices found for this student.</div>}
@@ -593,6 +603,7 @@ const ParentPortal = () => {
                                                     </div>
                                                 </CardContent>
                                             </Card>
+                                        <PaymentModal isOpen={Boolean(payingInvoice)} onClose={() => setPayingInvoice(null)} invoice={payingInvoice} studentName={selectedChild?.student_name || payingInvoice?.student_name || "Student"} />
                                         </TabsContent>
 
                                         <TabsContent value="elearning">
