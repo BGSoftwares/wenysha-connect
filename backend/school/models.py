@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.db.models import Sum
 from django.conf import settings
@@ -89,20 +90,40 @@ class Subject(models.Model):
         return self.name
 
 
+STUDENT_ID_PREFIX = 'AbleGodStudent'
+
+
+class StudentNumberSequence(models.Model):
+    """One row that hands out student numbers in order.
+
+    The counter only ever goes up, so a number is never given to a second child, even after the
+    first one has been deleted. Receipts, bank references and report cards stay tied to one student.
+    """
+    last_number = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"Last student number issued: {self.last_number}"
+
+
+@transaction.atomic
+def allocate_student_id():
+    """Issue the next free student number (AbleGodStudent00001, 00002, ...). Safe under concurrent signups."""
+    user_model = get_user_model()
+    sequence, _ = StudentNumberSequence.objects.select_for_update().get_or_create(pk=1)
+    while True:
+        sequence.last_number += 1
+        candidate = f"{STUDENT_ID_PREFIX}{sequence.last_number:05d}"
+        # Skip numbers already taken by hand-typed IDs or by a login that uses the number as its username.
+        if (
+            not Student.objects.filter(student_id__iexact=candidate).exists()
+            and not user_model.objects.filter(username__iexact=candidate).exists()
+        ):
+            sequence.save(update_fields=['last_number'])
+            return candidate
+
+
 def generate_next_student_id():
-    import re
-    prefix = 'AbleGodStudent'
-    existing_ids = list(Student.objects.values_list('student_id', flat=True))
-    existing_ids.extend(
-        get_user_model().objects.filter(username__startswith=prefix).values_list('username', flat=True)
-    )
-    max_num = 0
-    pattern = re.compile(rf'^{re.escape(prefix)}(\d+)$', re.IGNORECASE)
-    for sid in existing_ids:
-        match = pattern.fullmatch(sid or '')
-        if match:
-            max_num = max(max_num, int(match.group(1)))
-    return f"{prefix}{max_num + 1:05d}"
+    return allocate_student_id()
 
 
 class Student(models.Model):
@@ -110,7 +131,10 @@ class Student(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='student_profile'
     )
-    student_id = models.CharField(max_length=32, unique=True, blank=True)  # STU001
+    student_id = models.CharField(
+        max_length=32, unique=True, blank=True,
+        help_text='Issued automatically when the student is created. It is unique and never changes.',
+    )
     name = models.CharField(max_length=255)
     school_class = models.ForeignKey(SchoolClass, on_delete=models.PROTECT, related_name='students')
     gender = models.CharField(max_length=16, blank=True)
@@ -123,18 +147,23 @@ class Student(models.Model):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
-        if not self.student_id or not self.student_id.strip():
-            for attempt in range(10):
-                candidate = generate_next_student_id()
-                try:
-                    with transaction.atomic():
-                        self.student_id = candidate
-                        return super().save(*args, **kwargs)
-                except IntegrityError:
-                    if not type(self).objects.filter(student_id=candidate).exists() or attempt == 9:
-                        raise
-                    self.student_id = ''
-            return
+        self.student_id = (self.student_id or '').strip()
+        if self.pk:
+            current = (type(self).objects.filter(pk=self.pk).values_list('student_id', flat=True).first() or '').strip()
+            if current:
+                if not self.student_id:
+                    self.student_id = current
+                elif self.student_id != current:
+                    raise ValidationError({'student_id': 'A student number never changes once it has been issued.'})
+        issued = False
+        if not self.student_id:
+            self.student_id = allocate_student_id()
+            issued = True
+        elif type(self).objects.filter(student_id__iexact=self.student_id).exclude(pk=self.pk).exists():
+            raise ValidationError({'student_id': 'This student number is already in use.'})
+        update_fields = kwargs.get('update_fields')
+        if issued and update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'student_id'}
         super().save(*args, **kwargs)
 
     def __str__(self):

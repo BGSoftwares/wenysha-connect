@@ -135,7 +135,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
 
         <div className="space-y-4 p-4">
           <div className="rounded-lg bg-secondary/30 p-4">
-            <p className="text-sm text-muted-foreground">Student</p><p className="font-medium">{studentName}</p>
+            <p className="text-sm text-muted-foreground">Student</p><p className="font-medium">{studentName}{invoice.student_id_display ? <span className="ml-2 font-mono text-xs text-muted-foreground">{invoice.student_id_display}</span> : null}</p>
             <div className="mt-3 flex flex-wrap items-end justify-between gap-2">
               <div><p className="text-sm text-muted-foreground">Invoice</p><p className="font-medium">{invoice.invoice_no} · {invoice.term}</p></div>
               <div className="text-right"><p className="text-sm text-muted-foreground">Outstanding</p><p className="text-xl font-bold text-primary">{formatMoney(balance, invoice.currency)}</p></div>

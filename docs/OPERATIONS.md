@@ -122,3 +122,15 @@ Empty data shows an empty state, never made-up numbers.
   npm install --no-save --no-package-lock vitest@2.1.9 jsdom@25.0.1 @testing-library/react@16.1.0 @testing-library/dom@10.4.0
   npm run test:ui
   ```
+
+## 8. Student numbers
+
+Every student has one student number (for example `AbleGodStudent00042`). It is issued automatically when the student is created,
+by a counter that only moves forward, so:
+- two students never share a number (case differences count as the same number);
+- a number is never given to another child, even after the first student is deleted;
+- the number cannot be edited (API, admin or code). Invoices, receipts, report cards, attendance and the parent portal all show it,
+  and bank deposits are matched to the student by it.
+
+On the first deploy of this change the migration numbers every student who had none and leaves existing numbers untouched. To check
+at any time: `docker compose run --rm backend python manage.py audit_student_numbers --dry-run` (drop `--dry-run` to issue missing numbers).
