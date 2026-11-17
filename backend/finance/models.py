@@ -160,3 +160,39 @@ class OnlinePayment(models.Model):
 
     def __str__(self):
         return f"{self.provider} {self.client_reference} - {self.status}"
+
+
+class BankDeposit(models.Model):
+    """A credit seen on the school's bank account (from a bank feed or a statement import).
+
+    ``bank_txn_id`` is the bank's own transaction id, so importing the same line twice, or the
+    bank retrying a webhook, can never credit a student twice.
+    """
+    STATUS_CHOICES = [('matched', 'Matched'), ('unmatched', 'Needs review'), ('ignored', 'Ignored')]
+    SOURCE_CHOICES = [('webhook', 'Bank feed'), ('csv', 'Statement import')]
+
+    bank_txn_id = models.CharField(max_length=64, unique=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, choices=FeeStructure.CURRENCY_CHOICES, default='USD')
+    value_date = models.DateField()
+    reference = models.CharField(max_length=255, blank=True)
+    payer_name = models.CharField(max_length=128, blank=True)
+    source = models.CharField(max_length=16, choices=SOURCE_CHOICES, default='csv')
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='unmatched', db_index=True)
+    note = models.CharField(max_length=255, blank=True)
+    invoice = models.ForeignKey(Invoice, on_delete=models.SET_NULL, null=True, blank=True, related_name='bank_deposits')
+    payment = models.OneToOneField(Payment, on_delete=models.SET_NULL, null=True, blank=True, related_name='bank_deposit')
+    matched_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='matched_bank_deposits'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-value_date', '-id']
+        constraints = [
+            models.CheckConstraint(check=models.Q(amount__gt=0), name='bank_deposit_amount_positive'),
+        ]
+
+    def __str__(self):
+        return f"{self.bank_txn_id} - {self.amount} {self.currency} - {self.status}"

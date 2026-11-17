@@ -1594,6 +1594,75 @@ export const useRefreshOnlinePayment = (reference: string, enabled = true) => {
     });
 };
 
+export interface BankDeposit {
+    id: number;
+    bank_txn_id: string;
+    amount: string;
+    currency: FinanceCurrency;
+    value_date: string;
+    reference: string;
+    payer_name: string;
+    source: "webhook" | "csv";
+    status: "matched" | "unmatched" | "ignored";
+    note: string;
+    invoice: number | null;
+    invoice_no: string;
+    student_name: string;
+    receipt_no: string;
+    created_at: string;
+}
+
+export interface BankImportSummary {
+    created: number;
+    duplicates: number;
+    matched: number;
+    needs_review: number;
+    skipped: number;
+    errors: string[];
+}
+
+const invalidateMoney = (queryClient: ReturnType<typeof useQueryClient>) => {
+    for (const key of ["bank-deposits", "online-payments", "payments", "invoices", "student-balances"]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+    }
+};
+
+export const useBankDeposits = (status?: BankDeposit["status"]) => useQuery({
+    queryKey: ["bank-deposits", status ?? "all"],
+    queryFn: async () => extractArray<BankDeposit>(await api.get<unknown>("/finance/bank-deposits/", status ? { status } : undefined)),
+    refetchInterval: 20000,
+});
+
+export const useImportBankStatement = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ file, currency }: { file: File; currency: FinanceCurrency }) => {
+            const form = new FormData();
+            form.append("file", file);
+            form.append("currency", currency);
+            return api.postForm<BankImportSummary>("/finance/bank-deposits/import/", form);
+        },
+        onSuccess: () => invalidateMoney(queryClient),
+    });
+};
+
+export const useAssignBankDeposit = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, invoice }: { id: number; invoice: number }) =>
+            api.post<BankDeposit>(`/finance/bank-deposits/${id}/assign/`, { invoice }),
+        onSuccess: () => invalidateMoney(queryClient),
+    });
+};
+
+export const useIgnoreBankDeposit = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: number) => api.post<BankDeposit>(`/finance/bank-deposits/${id}/ignore/`),
+        onSuccess: () => invalidateMoney(queryClient),
+    });
+};
+
 export interface Notice {
     id: number;
     title: string;
