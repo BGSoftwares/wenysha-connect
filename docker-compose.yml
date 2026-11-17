@@ -78,6 +78,18 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  # Confirms pending EcoCash/ZimSwitch payments in the background, so a parent who closes the
+  # browser is still credited and the student's account and the accounts portal update by themselves.
+  payments-worker:
+    <<: *backend
+    command: python manage.py reconcile_payments --loop --interval 60
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   frontend:
     build:
       context: .

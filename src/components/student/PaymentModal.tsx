@@ -122,7 +122,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
   const methodOptions: { id: Provider; name: string; description: string; Icon: typeof Smartphone }[] = [
     { id: "ecocash", name: "EcoCash", description: "Approve a wallet prompt on your Zimbabwe mobile number.", Icon: Smartphone },
     { id: "zimswitch", name: "ZimSwitch", description: "Pay securely in the hosted card checkout.", Icon: CreditCard },
-    { id: "bank_transfer", name: "NBS Bank Transfer", description: "Direct deposit or transfer to the school NBS account.", Icon: Landmark },
+    { id: "bank_transfer", name: "Bank transfer", description: "Deposit or transfer to the school bank account.", Icon: Landmark },
   ];
 
   return (
@@ -196,18 +196,21 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
 
               {provider === "bank_transfer" && (
                 <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
-                  <p className="font-semibold text-primary">School NBS Bank Account Details</p>
+                  <p className="font-semibold text-primary">School bank account details</p>
                   <div className="grid gap-2 text-xs">
-                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Account Name:</span><span className="font-bold">ABLE GOD COLLEGE</span></div>
-                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Account Number:</span><span className="font-mono font-bold text-primary">3252015253451</span></div>
-                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Bank:</span><span className="font-semibold">NBS (National Building Society)</span></div>
-                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Branch:</span><span className="font-semibold">MASVINGO</span></div>
-                    <div className="flex justify-between pt-0.5"><span className="text-muted-foreground">Reference:</span><span className="font-mono font-semibold">{invoice.invoice_no}</span></div>
+                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Account name:</span><span className="font-bold">{config?.bank_account?.account_name}</span></div>
+                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Account number:</span><span className="font-mono font-bold text-primary">{config?.bank_account?.account_number || "Ask the school office"}</span></div>
+                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Bank:</span><span className="font-semibold">{config?.bank_account?.bank}</span></div>
+                    <div className="flex justify-between border-b border-border/50 pb-1.5"><span className="text-muted-foreground">Branch:</span><span className="font-semibold">{config?.bank_account?.branch}</span></div>
+                    <div className="flex justify-between pt-0.5"><span className="text-muted-foreground">Payment reference:</span><span className="font-mono font-semibold">{invoice.invoice_no}</span></div>
                   </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Always type <span className="font-mono font-semibold">{invoice.invoice_no}</span> as the payment reference. When the bank shows your deposit, it is credited to {studentName}'s account automatically.
+                  </p>
                   <div>
-                    <label htmlFor="bank-transfer-ref" className="mt-2 mb-1 block text-xs font-medium">Bank Transaction / Deposit Slip Reference</label>
-                    <input id="bank-transfer-ref" type="text" value={phone} onChange={(event) => setPhone(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground" placeholder="e.g. NBS-TXN-12345 or Teller Slip No." />
-                    <p className="mt-1 text-[11px] text-muted-foreground">Enter your transaction or deposit slip number. Once verified by Accounts, it will immediately reflect in your portal.</p>
+                    <label htmlFor="bank-transfer-ref" className="mt-2 mb-1 block text-xs font-medium">Deposit slip or transaction number (optional)</label>
+                    <input id="bank-transfer-ref" type="text" value={phone} onChange={(event) => setPhone(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground" placeholder="e.g. teller slip number" />
+                    <p className="mt-1 text-[11px] text-muted-foreground">Helps Accounts find your deposit if the reference is missing. Use “Continue” to tell the school you have paid.</p>
                   </div>
                 </div>
               )}
@@ -215,11 +218,11 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
               {clientReference && !paymentStatus && checkingPaymentStatus && <p className="text-sm text-muted-foreground" aria-live="polite">Checking the existing payment status…</p>}
               {currentStatus === "pending" && clientReference && (
                 <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950">
-                  <p className="font-semibold">{provider === "bank_transfer" ? "NBS Bank Transfer recorded" : "Payment request sent"}</p>
+                  <p className="font-semibold">{provider === "bank_transfer" ? "Bank transfer noted" : "Payment request sent"}</p>
                   <p className="mt-1 text-xs">Reference: <span className="font-mono font-semibold">{clientReference}</span></p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {provider === "bank_transfer"
-                      ? "Pay into ABLE GOD COLLEGE, NBS Masvingo Branch (Acc: 3252015253451). Accounts will verify your deposit and credit your invoice."
+                      ? "Your deposit is credited automatically once it shows on the school's bank account. This can take until the bank reports it; Accounts can also match it by hand."
                       : "Approve the prompt on your phone; the invoice changes after provider confirmation."}
                   </p>
                 </div>

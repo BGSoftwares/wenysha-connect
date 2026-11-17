@@ -40,14 +40,14 @@ const OnlinePaymentsSection = () => {
               <div className="rounded-xl bg-primary/10 p-3 text-primary"><Landmark className="h-6 w-6" /></div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-foreground">Official NBS Bank Account (Direct Transfers)</h3>
+                  <h3 className="font-bold text-foreground">School bank account (direct transfers)</h3>
                   <Badge className="bg-emerald-100 text-emerald-800">Active</Badge>
                 </div>
                 <div className="mt-1 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
-                  <div><span className="text-muted-foreground">Account Name:</span> <span className="font-semibold">ABLE GOD COLLEGE</span></div>
-                  <div><span className="text-muted-foreground">Account Number:</span> <span className="font-mono font-bold text-primary">3252015253451</span></div>
-                  <div><span className="text-muted-foreground">Bank:</span> <span className="font-semibold">NBS (National Building Society)</span></div>
-                  <div><span className="text-muted-foreground">Branch:</span> <span className="font-semibold">MASVINGO</span></div>
+                  <div><span className="text-muted-foreground">Account Name:</span> <span className="font-semibold">{config?.bank_account?.account_name}</span></div>
+                  <div><span className="text-muted-foreground">Account Number:</span> <span className="font-mono font-bold text-primary">{config?.bank_account?.account_number}</span></div>
+                  <div><span className="text-muted-foreground">Bank:</span> <span className="font-semibold">{config?.bank_account?.bank}</span></div>
+                  <div><span className="text-muted-foreground">Branch:</span> <span className="font-semibold">{config?.bank_account?.branch}</span></div>
                 </div>
               </div>
             </div>
