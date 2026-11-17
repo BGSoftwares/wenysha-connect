@@ -84,9 +84,9 @@ export const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-start gap-3 text-sm">
                 <MapPin className="h-4 w-4 mt-0.5 text-accent shrink-0" />
-                <span className="text-primary-foreground/80">
+                <a href={schoolContact.mapUrl} target="_blank" rel="noreferrer" className="text-primary-foreground/80 hover:text-accent transition-colors">
                   {schoolContact.address}
-                </span>
+                </a>
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <Phone className="h-4 w-4 text-accent shrink-0" />

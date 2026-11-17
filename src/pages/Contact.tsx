@@ -117,10 +117,20 @@ const Contact = () => {
                 <p className="text-xs font-bold uppercase tracking-widest text-accent mb-1">Campus Location</p>
                 <h3 className="font-heading text-lg font-bold text-foreground mb-2">Our Masvingo Campus</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{schoolContact.address}</p>
+                <div className="mt-4 overflow-hidden rounded-xl border border-border">
+                  <iframe
+                    title={`Map showing ${schoolContact.name}`}
+                    src={schoolContact.mapEmbedUrl}
+                    className="h-48 w-full"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
+                </div>
               </div>
               <div className="mt-6 pt-4 border-t border-border">
                 <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(schoolContact.address)}`}
+                  href={schoolContact.mapUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-accent transition-colors"
@@ -345,7 +355,7 @@ const Contact = () => {
                     className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold h-11"
                   >
                     <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(schoolContact.address)}`}
+                      href={schoolContact.directionsUrl}
                       target="_blank"
                       rel="noreferrer"
                     >
