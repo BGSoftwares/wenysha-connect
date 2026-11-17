@@ -1540,7 +1540,8 @@ export const useOnlinePayments = (
         return extractArray<OnlinePayment>(await api.get<unknown>("/finance/online-payments/", cleanParams));
     },
     enabled,
-    refetchInterval: params ? false : 15000,
+    // A single invoice is watched by its own status query; broader lists refresh on their own.
+    refetchInterval: params?.invoice ? false : 15000,
 });
 
 export const useStartOnlinePayment = () => {

@@ -3,12 +3,15 @@ import { CheckCircle2, CircleX, Clock3, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRefreshOnlinePayment } from "@/lib/hooks";
 import { formatMoney } from "@/lib/finance";
+import { getStoredUser } from "@/lib/api";
 
 const PaymentReturn = () => {
   const [params] = useSearchParams();
   const reference = params.get("ref") || "";
   const { data: payment, isLoading, isError, error } = useRefreshOnlinePayment(reference, Boolean(reference));
 
+  const isParent = (getStoredUser()?.role || "").toLowerCase() === "parent";
+  const portalPath = isParent ? "/parent" : "/student";
   const paid = payment?.status === "paid";
   const failed = payment?.status === "failed" || payment?.status === "cancelled";
   const Icon = paid ? CheckCircle2 : failed ? CircleX : isLoading ? Loader2 : Clock3;
@@ -36,7 +39,7 @@ const PaymentReturn = () => {
         {isError && <p className="mt-4 text-xs text-muted-foreground">If you are signed out, sign in and check Fees &amp; Payments for the current status.</p>}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           {isError && <Button asChild variant="outline"><Link to="/auth">Sign in</Link></Button>}
-          <Button asChild><Link to="/student">Return to student portal</Link></Button>
+          <Button asChild><Link to={portalPath}>{isParent ? "Return to parent portal" : "Return to student portal"}</Link></Button>
         </div>
       </section>
     </main>

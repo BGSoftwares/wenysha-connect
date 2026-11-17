@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { AlertCircle, CheckCircle, CreditCard, Download, FileText, Loader2, Receipt, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PaymentModal from "./PaymentModal";
+import PendingPaymentsNotice from "@/components/finance/PendingPaymentsNotice";
 import { exportFeeStatementPdf, type FeeStatementPdfData } from "@/lib/pdfExport";
 import { useInvoices, useOnlinePaymentConfig, usePayments, useStudentProfile, type Invoice } from "@/lib/hooks";
 import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, type FinanceCurrency } from "@/lib/finance";
@@ -86,6 +87,8 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
         </div>
       </div>
 
+      <PendingPaymentsNotice />
+
       <div className="grid gap-4 sm:grid-cols-2">
         {accountTotals.map((summary) => (
           <div key={summary.currency} className="rounded-xl border border-border bg-card p-5">
@@ -164,7 +167,7 @@ const StudentFeesSection = ({ studentId }: StudentFeesSectionProps) => {
         </div>
       )}
 
-      {outstandingInvoices.length > 0 && activeTab === "overview" && <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><p>You have {outstandingInvoices.length} invoice{outstandingInvoices.length === 1 ? "" : "s"} with a remaining balance. Select an invoice to pay by EcoCash or ZimSwitch when online payments are enabled.</p></div>}
+      {outstandingInvoices.length > 0 && activeTab === "overview" && <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><p>You have {outstandingInvoices.length} invoice{outstandingInvoices.length === 1 ? "" : "s"} with a remaining balance. Choose Pay on an invoice to pay by EcoCash, ZimSwitch card or bank transfer.</p></div>}
 
       <PaymentModal isOpen={Boolean(selectedInvoice)} onClose={() => setSelectedInvoice(null)} invoice={selectedInvoice} studentName={profile?.name || invoices[0]?.student_name || "Student"} />
     </div>
