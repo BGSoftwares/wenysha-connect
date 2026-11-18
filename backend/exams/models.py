@@ -134,3 +134,6 @@ class MarkSubmission(models.Model):
 
     class Meta:
         ordering = ['-submitted_at']
+
+
+from . import ranking_cache  # noqa: E402,F401  (registers the cache-invalidation signals)

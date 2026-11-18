@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from . import ranking_cache
 from .models import Exam, ExamSchedule, ExamMark, MarkSubmission, ReportCardReview
 from .serializers import (
     ExamSerializer, ExamScheduleSerializer, ExamMarkSerializer,
@@ -381,6 +382,7 @@ class ExamMarkSheetView(APIView):
                     },
                 )
 
+        ranking_cache.bump_version()  # bulk saves do not fire per-row signals
         saved_marks_by_student = {
             mark.student_id: mark
             for mark in ExamMark.objects.filter(
@@ -462,7 +464,7 @@ class ExamRankingView(APIView):
                 return 'E'
             return 'U'
 
-        def calculate_positions(class_ids_for_ranking):
+        def build_ranking(class_ids_for_ranking):
             active_students = Student.objects.filter(
                 status='Active',
                 school_class_id__in=class_ids_for_ranking,
@@ -508,12 +510,16 @@ class ExamRankingView(APIView):
                         total_scored,
                     )
 
+            return candidate_keys, active_students.count()
+
+        def calculate_positions(class_ids_for_ranking):
+            candidate_keys, active_total = ranking_cache.cached_ranking(
+                exam.pk, class_ids_for_ranking, lambda: build_ranking(class_ids_for_ranking),
+            )
             target_key = candidate_keys.get(student.id)
             if target_key is None:
-                return None, active_students.count()
-
-            position = 1 + sum(key > target_key for key in candidate_keys.values())
-            return position, active_students.count()
+                return None, active_total
+            return 1 + sum(key > target_key for key in candidate_keys.values()), active_total
 
         class_position, class_total = calculate_positions(class_ids)
         level_position, level_total = calculate_positions(level_class_ids)
