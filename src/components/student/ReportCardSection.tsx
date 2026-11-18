@@ -377,7 +377,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
               : "No results are available yet for this report."}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Teacher-saved marks appear here as soon as the administrator completes and unlocks the report. This page checks for updates every 5 seconds.
+            Teacher-saved marks appear here as soon as the administrator completes and unlocks the report. This page checks for updates every minute.
           </p>
         </div>
       )}

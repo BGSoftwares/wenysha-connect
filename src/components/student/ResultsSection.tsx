@@ -2,7 +2,7 @@ import { DashboardTable } from "@/components/dashboard/DashboardTable";
 import { useTableNavigation } from "@/hooks/useTableNavigation";
 import { useState } from "react";
 import { calculateGrade, calculatePercentageFromScore, getGradeColorClasses } from "@/lib/grading";
-import { useGrades, useStudentPerformanceSummary, useStudentProfile } from "@/lib/hooks";
+import { useGrades, useStudentPerformanceSummary } from "@/lib/hooks";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,11 +17,14 @@ export interface ResultsSectionProps {
   studentId: number;
 }
 
+/** Open results re-check the server this often; returning to the tab or pressing Refresh updates straight away. */
+const RESULTS_REFRESH_MS = 60_000;
+
 const ResultsSection = ({ studentId }: ResultsSectionProps) => {
-  const [selectedTerm, setSelectedTerm] = useState("All");
+  // null means "the latest term that has results"; the student can still pick another term or All.
+  const [chosenTerm, setChosenTerm] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: profile } = useStudentProfile();
   const {
     data: grades = [],
     isLoading,
@@ -29,7 +32,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
     error: gradesError,
     dataUpdatedAt,
     refetch: refreshGrades,
-  } = useGrades({ student: studentId }, 5000);
+  } = useGrades({ student: studentId }, RESULTS_REFRESH_MS);
 
   const filteredResults = grades.filter(result =>
     result.subject_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -38,6 +41,15 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
 
   const historyNavigation = useTableNavigation(filteredResults, searchQuery);
   const termLabel = (grade: typeof grades[number]) => `${grade.assessment_term_name} ${grade.academic_year_name}`.trim();
+  // Terms ordered by when their most recent result was recorded, newest first.
+  const termOptions = Array.from(
+    grades.reduce((latest, grade) => {
+      const label = termLabel(grade);
+      if (label) latest.set(label, Math.max(latest.get(label) ?? 0, new Date(grade.date_recorded).getTime() || 0));
+      return latest;
+    }, new Map<string, number>()),
+  ).sort((a, b) => b[1] - a[1]).map(([label]) => label);
+  const selectedTerm = chosenTerm ?? termOptions[0] ?? "All";
   const currentTermGrades = selectedTerm === "All" ? grades : grades.filter((grade) => termLabel(grade) === selectedTerm);
   const selectedTermId = selectedTerm === "All" ? undefined : currentTermGrades[0]?.assessment_term_id;
   const {
@@ -46,7 +58,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
     error: summaryError,
     dataUpdatedAt: summaryUpdatedAt,
     refetch: refreshSummary,
-  } = useStudentPerformanceSummary(studentId, selectedTermId, 5000);
+  } = useStudentPerformanceSummary(studentId, selectedTermId, RESULTS_REFRESH_MS);
   const currentNavigation = useTableNavigation(currentTermGrades, selectedTerm);
 
   if (isLoading) {
@@ -58,14 +70,22 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
     );
   }
 
-  const termOptions = Array.from(new Set(grades.map((grade) => termLabel(grade)))).filter(Boolean).sort().reverse();
-
   const percentageFor = (grade: typeof grades[number]) =>
     calculatePercentageFromScore(grade.score, grade.assessment_total_marks);
   const averageScore = currentTermGrades.length
     ? currentTermGrades.reduce((sum, grade) => sum + percentageFor(grade), 0) / currentTermGrades.length
     : null;
-  const bestSubject = [...currentTermGrades].sort((a, b) => percentageFor(b) - percentageFor(a))[0]?.subject_name ?? "N/A";
+  // Best subject is judged on its average across the term's assessments, not on a single test.
+  const bestSubject = (() => {
+    const bySubject = new Map<string, { sum: number; count: number }>();
+    for (const grade of currentTermGrades) {
+      const entry = bySubject.get(grade.subject_name) ?? { sum: 0, count: 0 };
+      entry.sum += percentageFor(grade);
+      entry.count += 1;
+      bySubject.set(grade.subject_name, entry);
+    }
+    return Array.from(bySubject.entries()).sort((a, b) => b[1].sum / b[1].count - a[1].sum / a[1].count)[0]?.[0] ?? "N/A";
+  })();
   const rank = performanceSummary?.class_position;
   const totalStudents = performanceSummary?.class_total;
   const improvement = performanceSummary?.improvement;
@@ -115,7 +135,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-2xl font-bold text-foreground">My Results</h2>
-          <p className="text-muted-foreground">View your examination results and performance trends. Results refresh automatically every 5 seconds while this page is open.</p>
+          <p className="text-muted-foreground">View your examination results and performance trends. Results update automatically about once a minute, and whenever you come back to this page.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {updatedAt > 0 && (
@@ -216,7 +236,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
 
       <Tabs defaultValue="current" className="w-full">
         <TabsList>
-          <TabsTrigger value="current">Current Term</TabsTrigger>
+          <TabsTrigger value="current">By term</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
@@ -234,7 +254,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                   aria-label="Filter results by term"
                   className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                   value={selectedTerm}
-                  onChange={(event) => setSelectedTerm(event.target.value)}
+                  onChange={(event) => setChosenTerm(event.target.value)}
                 >
                   <option value="All">All terms</option>
                   {termOptions.map((term) => <option key={term} value={term}>{term}</option>)}
@@ -262,7 +282,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                       const gradeInfo = calculateGrade(percentage);
 
                       return (
-                        <tr key={index} className="border-b border-border/50 hover:bg-secondary/30">
+                        <tr key={`${subject.subject_name}-${subject.assessment_name}-${index}`} className="border-b border-border/50 hover:bg-secondary/30">
                           <td className="py-3 px-4 font-medium text-foreground">{subject.subject_name}</td>
                           <td className="py-3 px-4 text-center">
                             <span className="font-semibold text-foreground">{percentage.toFixed(1)}%</span>
@@ -278,7 +298,7 @@ const ResultsSection = ({ studentId }: ResultsSectionProps) => {
                     })}
                     {currentTermGrades.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground italic">No results for the current term.</td>
+                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground italic">No results recorded for this term yet.</td>
                       </tr>
                     )}
                   </tbody>
