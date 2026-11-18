@@ -1,14 +1,14 @@
 import { DashboardTable } from "@/components/dashboard/DashboardTable";
 import { useTableNavigation } from "@/hooks/useTableNavigation";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Users } from "lucide-react";
+import { Check, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { StudentPortalCredentialsDialog, type StudentPortalCredentials } from "@/components/admin/StudentPortalCredentials";
 import { getErrorMessage } from "@/lib/api";
-import { useCreateStudent, useDeleteStudent, type SchoolClass, type Student } from "@/lib/hooks";
+import { useCreateStudent, useDeleteStudent, useUpdateStudent, type SchoolClass, type Student } from "@/lib/hooks";
 
 type Props = { classes: SchoolClass[]; students: Student[] };
 type StudentDraft = {
@@ -26,7 +26,12 @@ const emptyDraft: StudentDraft = {
   next_of_kin: { name: "", relationship: "", phone: "", email: "", address: "" },
 };
 
+type RowEdit = { name: string; gender: string; date_of_birth: string; address: string; status: string };
+
 const ClassRegisterSection = ({ classes, students }: Props) => {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [rowEdit, setRowEdit] = useState<RowEdit>({ name: "", gender: "", date_of_birth: "", address: "", status: "Active" });
+  const updateStudent = useUpdateStudent();
   const [classId, setClassId] = useState<number | "">(classes[0]?.id ?? "");
   const [draft, setDraft] = useState<StudentDraft>(emptyDraft);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -82,6 +87,41 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
     }
   };
 
+  const startEdit = (student: Student) => {
+    setEditingId(student.id);
+    setRowEdit({
+      name: student.name,
+      gender: student.gender || "",
+      date_of_birth: student.date_of_birth || "",
+      address: student.address || "",
+      status: student.status || "Active",
+    });
+  };
+
+  const saveEdit = async (student: Student) => {
+    if (!rowEdit.name.trim()) {
+      toast.error("The student's name cannot be empty.");
+      return;
+    }
+    try {
+      await updateStudent.mutateAsync({
+        id: student.id,
+        data: {
+          name: rowEdit.name.trim(),
+          gender: rowEdit.gender,
+          status: rowEdit.status as Student["status"],
+          address: rowEdit.address.trim(),
+          // An empty date clears it; the server stores no date as null.
+          date_of_birth: (rowEdit.date_of_birth || null) as Student["date_of_birth"],
+        },
+      });
+      toast.success(`${rowEdit.name.trim()} updated.`);
+      setEditingId(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
   const removeStudent = async (student: Student) => {
     if (!window.confirm(`Remove ${student.name} from ${selectedClass?.name}? The administrator will receive an alert.`)) return;
     try {
@@ -107,21 +147,41 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
         </div>
       </div>
 
-      <Card><CardContent className="flex items-start gap-3 p-4 text-sm text-muted-foreground"><Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><p>Changes save directly to the school database and appear in the administrator portal. Removing a student sends an alert to the administrator.</p></CardContent></Card>
+      <Card><CardContent className="flex items-start gap-3 p-4 text-sm text-muted-foreground"><Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><p>Use Edit on a row to change a learner's details, including the house address; changes save directly to the school database and appear in the administrator portal. Removing a student sends an alert to the administrator.</p></CardContent></Card>
 
       {!selectedClass
         ? <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">No class has been assigned to you as class teacher yet.</p>
-        : <div className="space-y-3"><Input aria-label="Search class students" placeholder="Search name or student ID…" value={studentSearch} onChange={event => setStudentSearch(event.target.value)} className="max-w-sm" /><DashboardTable navigation={tableNavigation} label="Class register"><table className="w-full min-w-[680px]">
-          <thead className="bg-secondary/50"><tr>{["Student ID", "Student", "Gender", "Date of birth", "Status", "Actions"].map(label => <th key={label} className="px-4 py-3 text-left text-sm font-semibold">{label}</th>)}</tr></thead>
-          <tbody className="divide-y divide-border">{tableNavigation.visibleRows.map(student => <tr key={student.id}>
-            <td className="px-4 py-3 font-mono text-sm">{student.student_id || "—"}</td>
-            <td className="px-4 py-3 font-medium">{student.name}</td>
-            <td className="px-4 py-3 text-sm">{student.gender || "—"}</td>
-            <td className="px-4 py-3 text-sm">{student.date_of_birth || "—"}</td>
-            <td className="px-4 py-3 text-sm">{student.status}</td>
-            <td className="px-4 py-3"><Button variant="outline" size="sm" disabled={deleteStudent.isPending} onClick={() => void removeStudent(student)}><Trash2 className="mr-2 h-4 w-4 text-destructive" />Remove</Button></td>
-          </tr>)}
-            {tableNavigation.total === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No students match this class or search.</td></tr>}
+        : <div className="space-y-3"><Input aria-label="Search class students" placeholder="Search name or student ID…" value={studentSearch} onChange={event => setStudentSearch(event.target.value)} className="max-w-sm" /><DashboardTable navigation={tableNavigation} label="Class register"><table className="w-full min-w-[980px]">
+          <thead className="bg-secondary/50"><tr>{["Student ID", "Student", "Gender", "Date of birth", "House address", "Status", "Actions"].map(label => <th key={label} className="px-4 py-3 text-left text-sm font-semibold">{label}</th>)}</tr></thead>
+          <tbody className="divide-y divide-border">{tableNavigation.visibleRows.map(student => {
+            const editing = editingId === student.id;
+            const field = "w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm";
+            return <tr key={student.id} className={editing ? "bg-accent/5" : undefined}>
+              <td className="px-4 py-3 font-mono text-sm">{student.student_id || "—"}</td>
+              {editing ? <>
+                <td className="px-4 py-2"><input aria-label="Student name" className={field} value={rowEdit.name} onChange={event => setRowEdit({ ...rowEdit, name: event.target.value })} /></td>
+                <td className="px-4 py-2"><select aria-label="Gender" className={field} value={rowEdit.gender} onChange={event => setRowEdit({ ...rowEdit, gender: event.target.value })}><option value="">—</option><option value="Female">Female</option><option value="Male">Male</option><option value="Other">Other</option></select></td>
+                <td className="px-4 py-2"><input aria-label="Date of birth" type="date" className={field} value={rowEdit.date_of_birth} onChange={event => setRowEdit({ ...rowEdit, date_of_birth: event.target.value })} /></td>
+                <td className="px-4 py-2"><input aria-label="House address" className={field} value={rowEdit.address} onChange={event => setRowEdit({ ...rowEdit, address: event.target.value })} /></td>
+                <td className="px-4 py-2"><select aria-label="Status" className={field} value={rowEdit.status} onChange={event => setRowEdit({ ...rowEdit, status: event.target.value })}><option value="Active">Active</option><option value="Inactive">Inactive</option></select></td>
+                <td className="px-4 py-2"><div className="flex gap-2">
+                  <Button variant="gold" size="sm" disabled={updateStudent.isPending} onClick={() => void saveEdit(student)}><Check className="mr-1 h-4 w-4" />{updateStudent.isPending ? "Saving…" : "Save"}</Button>
+                  <Button variant="outline" size="sm" disabled={updateStudent.isPending} onClick={() => setEditingId(null)}><X className="mr-1 h-4 w-4" />Cancel</Button>
+                </div></td>
+              </> : <>
+                <td className="px-4 py-3 font-medium">{student.name}</td>
+                <td className="px-4 py-3 text-sm">{student.gender || "—"}</td>
+                <td className="px-4 py-3 text-sm">{student.date_of_birth || "—"}</td>
+                <td className="max-w-[16rem] px-4 py-3 text-sm">{student.address || "—"}</td>
+                <td className="px-4 py-3 text-sm">{student.status}</td>
+                <td className="px-4 py-3"><div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => startEdit(student)}><Pencil className="mr-2 h-4 w-4" />Edit</Button>
+                  <Button variant="outline" size="sm" disabled={deleteStudent.isPending} onClick={() => void removeStudent(student)}><Trash2 className="mr-2 h-4 w-4 text-destructive" />Remove</Button>
+                </div></td>
+              </>}
+            </tr>;
+          })}
+            {tableNavigation.total === 0 && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No students match this class or search.</td></tr>}
           </tbody>
         </table></DashboardTable></div>}
 
