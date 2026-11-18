@@ -192,7 +192,7 @@ export const useTimetable = (schoolClass?: number, extra?: { teacher?: number; a
         teacher: extra?.teacher,
     })),
     enabled: schoolClass !== undefined || extra?.teacher !== undefined || extra?.allClasses === true,
-    refetchInterval: 5000,
+    refetchInterval: POLL_REPORT_MS,
 });
 
 export const useCreateClass = () => {
@@ -589,6 +589,9 @@ export interface ExamSchedule {
     invigilator: string;
 }
 
+/** How often open report card screens re-check the server. Focus and reconnect also refresh, so this can be slow. */
+const POLL_REPORT_MS = 60000;
+
 export interface ExamMark {
     id: number;
     exam: number;
@@ -816,7 +819,7 @@ export interface StudentPerformanceSummary {
 export const useStudentPerformanceSummary = (
     student?: number,
     term?: number,
-    refetchIntervalMs: number | false = 5000,
+    refetchIntervalMs: number | false = POLL_REPORT_MS,
 ) => useQuery({
     queryKey: ["student-performance-summary", student, term],
     queryFn: () => api.get<StudentPerformanceSummary>(
@@ -882,7 +885,7 @@ export const useExamSchedules = (params?: { exam?: number; subject?: number; sch
 export const useExamMarks = (
     params?: { exam?: number; student?: number; subject?: number; school_class?: number },
     enabled = true,
-    refetchIntervalMs: number | false = params?.student ? 5000 : false,
+    refetchIntervalMs: number | false = params?.student ? POLL_REPORT_MS : false,
 ) => {
     return useQuery({
         queryKey: ["exam-marks", params],
@@ -911,7 +914,7 @@ export const useExamRanking = (exam?: number, student?: number) => {
             student: String(student),
         }),
         enabled: !!exam && !!student,
-        refetchInterval: exam && student ? 5000 : false,
+        refetchInterval: exam && student ? POLL_REPORT_MS : false,
     });
 };
 
@@ -974,7 +977,7 @@ export const useReportCardReviews = (
     exam?: number,
     student?: number,
     enabled = true,
-    refetchIntervalMs: number | false = student ? 5000 : false,
+    refetchIntervalMs: number | false = student ? POLL_REPORT_MS : false,
 ) => useQuery({
     queryKey: ["report-card-reviews", exam, student],
     queryFn: () => fetchAllPages<ReportCardReview>("/exams/report-card-reviews/", toQueryParams({
@@ -1079,7 +1082,7 @@ export const useAttendanceReportSnapshot = (exam?: number, student?: number, ena
         return extractArray<AttendanceReportSnapshot>(response)[0] ?? null;
     },
     enabled: !!exam && !!student && enabled,
-    refetchInterval: exam && student ? 5000 : false,
+    refetchInterval: exam && student ? POLL_REPORT_MS : false,
 });
 
 export const useAttendanceReportSnapshots = (exam?: number) => useQuery({

@@ -84,7 +84,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
   const { data: allMarks = [], isLoading: isLoadingMarks } = useExamMarks({ student: studentId }, !adminPrintReport);
   const { data: attendanceRecords = [] } = useAttendanceRecords({ student: studentId }, !adminPrintReport);
   const { data: exams = [], isLoading: isLoadingExams } = useExams(undefined, {
-    refetchInterval: 5000,
+    refetchInterval: 60000,
     enabled: !adminPrintReport,
   });
   const availableExams = exams
