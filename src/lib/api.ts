@@ -281,6 +281,18 @@ export function revokeSession(): void {
   }).catch(() => undefined);
 }
 
+/**
+ * The one way every Sign Out button ends a session: revoke this device's refresh token on the server,
+ * wipe the local session and cached portal data, then leave the portal with a full page load so nothing
+ * from the previous user stays in memory. Pass the click event when used from a link so the link itself does not navigate.
+ */
+export function signOutAndLeave(event?: { preventDefault: () => void }): void {
+  event?.preventDefault();
+  revokeSession();
+  clearAuth();
+  window.location.assign("/auth");
+}
+
 export async function signup(payload: {
   full_name: string;
   email: string;

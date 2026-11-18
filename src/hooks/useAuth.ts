@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, login as apiLogin, clearAuth, getStoredUser, getToken, getErrorMessage, isMfaChallenge } from '@/lib/api';
+import { api, login as apiLogin, clearAuth, revokeSession, getStoredUser, getToken, getErrorMessage, isMfaChallenge } from '@/lib/api';
 
 interface User {
   id: number;
@@ -71,6 +71,7 @@ export function useAuth() {
   };
 
   const logout = async () => {
+    revokeSession();
     clearAuth();
     setUser(null);
     navigate('/portal');

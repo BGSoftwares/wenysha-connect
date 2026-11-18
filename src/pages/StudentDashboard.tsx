@@ -37,7 +37,7 @@ import {
   useLearningAssignments,
   useLearningSubmissions,
 } from "@/lib/hooks";
-import { clearAuth, getStoredUser } from "@/lib/api";
+import { signOutAndLeave, getStoredUser } from "@/lib/api";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
 
 const navigation = [
@@ -396,7 +396,7 @@ const StudentDashboard = () => {
           </div>
           <Link
             to="/portal"
-            onClick={clearAuth}
+            onClick={signOutAndLeave}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-destructive/10 text-destructive font-bold hover:bg-destructive/20 transition-all border border-destructive/20 text-sm"
           >
             <LogOut className="h-4 w-4" />
@@ -427,7 +427,7 @@ const StudentDashboard = () => {
             <button aria-label="Open class notifications" onClick={() => setActiveNav("dashboard")} className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
               <Bell className="h-6 w-6 text-white/90" />
             </button>
-            <Link to="/portal" onClick={clearAuth} className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">
+            <Link to="/portal" onClick={signOutAndLeave} className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">
               <LogOut className="h-4 w-4" />Sign Out
             </Link>
           </div>
