@@ -1,4 +1,4 @@
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, act } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,7 @@ const apiMock = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/api", () => ({
+  AUTH_STATE_EVENT: "ablegodcollege:auth-state-changed",
   api: { get: apiMock.get },
   getToken: apiMock.getToken,
   clearAuth: apiMock.clearAuth,
@@ -54,6 +55,15 @@ describe("PortalRoute", () => {
     apiMock.get.mockResolvedValue({ role: "Admin" });
     renderAt("/admin", "admin");
     expect(await screen.findByText("admin portal")).toBeTruthy();
+  });
+
+  it("leaves the portal as soon as the session ends while it is open", async () => {
+    apiMock.get.mockResolvedValue({ role: "admin" });
+    renderAt("/admin", "admin");
+    expect(await screen.findByText("admin portal")).toBeTruthy();
+    apiMock.getToken.mockReturnValue(null);
+    act(() => { window.dispatchEvent(new Event("ablegodcollege:auth-state-changed")); });
+    expect(await screen.findByText("Sign in page")).toBeTruthy();
   });
 
   it("redirects a teacher who opens the admin portal to the teacher portal", async () => {
