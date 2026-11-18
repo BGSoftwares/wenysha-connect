@@ -1,6 +1,6 @@
 import { Bell, Search, MessageSquare, Settings, ChevronDown, Globe, Menu, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
-import { clearAuth } from "@/lib/api";
+import { signOutAndLeave } from "@/lib/api";
 
 interface AdminHeaderProps {
   title: string;
@@ -28,7 +28,7 @@ const AdminHeader = ({ title, breadcrumb, onMenuClick }: AdminHeaderProps) => {
       </div>
 
       <div className="flex items-center gap-6">
-        <Link to="/portal" onClick={clearAuth} className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive transition-colors hover:bg-destructive/20">
+        <Link to="/portal" onClick={signOutAndLeave} className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive transition-colors hover:bg-destructive/20">
           <LogOut className="h-4 w-4" />
           Sign Out
         </Link>
