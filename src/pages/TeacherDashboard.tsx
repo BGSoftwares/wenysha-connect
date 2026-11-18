@@ -65,7 +65,7 @@ import {
 import type { ExamReportType } from "@/lib/hooks";
 import { toast } from "sonner";
 import { buildAttendancePdf, sharePdfToWhatsApp } from "@/lib/pdfExport";
-import { calculateGrade } from "@/lib/grading";
+import { averagePercentage, calculateGrade } from "@/lib/grading";
 import { getTeacherComment, TEACHER_COMMENT_LIBRARY } from "@/lib/reportComments";
 import { formatLocalDateKey, getSchoolDateStatus } from "@/lib/zimbabweSchoolCalendar";
 import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
@@ -264,7 +264,7 @@ const TeacherDashboard = () => {
   ));
 
   useEffect(() => {
-    setGradeInputs(Object.fromEntries(examMarks.map(mark => [mark.student, String(mark.scored)])));
+    setGradeInputs(Object.fromEntries(examMarks.map(mark => [mark.student, mark.absent ? "" : String(mark.scored)])));
   }, [examMarks]);
   useEffect(() => {
     editedClassTeacherComments.current.clear();
@@ -314,11 +314,8 @@ const TeacherDashboard = () => {
   };
 
   const getStudentExamAverage = (studentId: number) => {
-    const savedMarks = classExamMarks.filter(mark => mark.student === studentId);
-    if (!savedMarks.length) return 0;
-    return savedMarks.reduce((sum, mark) => (
-      sum + (mark.total_marks > 0 ? Number(mark.scored) / mark.total_marks * 100 : 0)
-    ), 0) / savedMarks.length;
+    // Papers a learner did not sit are left out of the average rather than counted as 0.
+    return averagePercentage(classExamMarks.filter(mark => mark.student === studentId)) ?? 0;
   };
 
   const classReviewsByStudent = new Map(reportCardReviews
@@ -408,7 +405,7 @@ const TeacherDashboard = () => {
     const rows = subjectStudents.map(student => {
       const mark = examMarks.find(item => item.student === student.id && item.subject === selectedSubjectId);
       const draftScore = gradeInputs[student.id]?.trim();
-      const score = draftScore ? Number(draftScore) : mark ? Number(mark.scored) : null;
+      const score = draftScore ? Number(draftScore) : mark && !mark.absent ? Number(mark.scored) : null;
       const total = mark ? Number(mark.total_marks) : 100;
       const percentage = score !== null && total > 0 ? (score / total) * 100 : null;
       return {
@@ -637,7 +634,7 @@ const TeacherDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Avg. Class Performance</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{examMarks.length ? `${Math.round(examMarks.reduce((sum, mark) => sum + mark.scored / Math.max(mark.total_marks, 1) * 100, 0) / examMarks.length)}%` : "—"}</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{averagePercentage(examMarks) !== null ? `${Math.round(averagePercentage(examMarks) ?? 0)}%` : "—"}</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
               <TrendingUp className="h-6 w-6 text-green-600" />

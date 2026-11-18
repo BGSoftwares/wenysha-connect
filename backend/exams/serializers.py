@@ -30,16 +30,24 @@ class ExamScheduleSerializer(serializers.ModelSerializer):
 class ExamMarkSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.name', read_only=True)
     subject_name = serializers.CharField(source='subject.name', read_only=True)
+    # Sent to the browser as a number (67.5), not a string, so averages can be calculated directly.
+    scored = serializers.DecimalField(max_digits=6, decimal_places=2, min_value=0, coerce_to_string=False, required=False)
 
     class Meta:
         model = ExamMark
-        fields = ['id', 'exam', 'student', 'student_name', 'subject', 'subject_name', 'total_marks', 'scored', 'comment']
+        fields = ['id', 'exam', 'student', 'student_name', 'subject', 'subject_name', 'total_marks', 'scored', 'absent', 'comment']
 
     def validate(self, attrs):
         exam = attrs.get('exam', getattr(self.instance, 'exam', None))
         student = attrs.get('student', getattr(self.instance, 'student', None))
         subject = attrs.get('subject', getattr(self.instance, 'subject', None))
         total_marks = attrs.get('total_marks', getattr(self.instance, 'total_marks', None))
+        if 'absent' in attrs or 'scored' in attrs:
+            # Entering a score clears an earlier absence; marking absent forces the score to zero.
+            absent = attrs.get('absent', False if 'scored' in attrs else bool(getattr(self.instance, 'absent', False)))
+            attrs['absent'] = absent
+            if absent:
+                attrs['scored'] = 0
         scored = attrs.get('scored', getattr(self.instance, 'scored', None))
         if total_marks is not None and total_marks <= 0:
             raise serializers.ValidationError({'total_marks': 'Total marks must be greater than zero.'})
@@ -71,10 +79,15 @@ class ExamMarkSerializer(serializers.ModelSerializer):
 class ExamMarkSheetRowSerializer(serializers.Serializer):
     student = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all())
     total_marks = serializers.IntegerField(min_value=1)
-    scored = serializers.IntegerField(min_value=0)
+    scored = serializers.DecimalField(max_digits=6, decimal_places=2, min_value=0, required=False)
+    absent = serializers.BooleanField(required=False, default=False)
     comment = serializers.CharField(max_length=500, required=False, allow_blank=True, default='')
 
     def validate(self, attrs):
+        if attrs['absent']:
+            attrs['scored'] = 0
+        elif 'scored' not in attrs:
+            raise serializers.ValidationError({'scored': 'Enter the score, or mark the learner absent.'})
         if attrs['scored'] > attrs['total_marks']:
             raise serializers.ValidationError({'scored': 'Score cannot exceed total marks.'})
         return attrs

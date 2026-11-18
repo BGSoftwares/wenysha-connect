@@ -6,7 +6,7 @@ import { getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { calculateGrade } from "@/lib/grading";
+import { calculateGrade, formatScore } from "@/lib/grading";
 import { fetchAllPages, useExamMarks, useStudents } from "@/lib/hooks";
 import { drawSchoolLetterhead, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
 
@@ -70,7 +70,7 @@ const MarkSubmissionsSection = () => {
 
   const scoredMarks = classStudents
     .map((s) => marksByStudent.get(s.id))
-    .filter((m): m is NonNullable<typeof m> => m !== undefined && m.total_marks > 0);
+    .filter((m): m is NonNullable<typeof m> => m !== undefined && m.total_marks > 0 && !m.absent);
 
   const stats = useMemo(() => {
     if (scoredMarks.length === 0) return null;
@@ -149,7 +149,7 @@ const MarkSubmissionsSection = () => {
         y = 20;
       }
       const mark = marksByStudent.get(student.id);
-      const percentage = mark && mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : null;
+      const percentage = mark && !mark.absent && mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : null;
       if (index % 2 === 1) {
         doc.setFillColor(247, 244, 248);
         doc.rect(left, y, width, rowHeight, "F");
@@ -159,7 +159,7 @@ const MarkSubmissionsSection = () => {
       doc.setFontSize(8);
       doc.text(String(index + 1), left + 5, y + 5, { align: "center" });
       doc.text(doc.splitTextToSize(student.name, 70)[0], left + 12, y + 5);
-      doc.text(mark ? String(mark.scored) : "—", left + 88, y + 5, { align: "center" });
+      doc.text(mark ? (mark.absent ? "ABS" : formatScore(mark.scored)) : "—", left + 88, y + 5, { align: "center" });
       doc.text(mark ? String(mark.total_marks) : "—", left + 108, y + 5, { align: "center" });
       doc.text(percentage !== null ? `${percentage.toFixed(1)}%` : "—", left + 128, y + 5, { align: "center" });
       doc.setFont("helvetica", "bold");
@@ -302,13 +302,13 @@ const MarkSubmissionsSection = () => {
                   <tbody className="divide-y divide-border">
                     {classStudents.map((student, idx) => {
                       const mark = marksByStudent.get(student.id);
-                      const percentage = mark && mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : null;
+                      const percentage = mark && !mark.absent && mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : null;
                       const grade = percentage !== null ? calculateGrade(percentage).grade : "—";
                       return (
                         <tr key={student.id} className="odd:bg-card even:bg-secondary/15">
                           <td className="px-3 py-2 text-muted-foreground text-xs">{idx + 1}</td>
                           <td className="px-3 py-2 font-medium text-foreground">{student.name}</td>
-                          <td className="px-3 py-2 text-right font-semibold">{mark?.scored ?? "—"}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{mark ? (mark.absent ? "ABS" : formatScore(mark.scored)) : "—"}</td>
                           <td className="px-3 py-2 text-right text-muted-foreground">{mark?.total_marks ?? "—"}</td>
                           <td className="px-3 py-2 text-right font-medium">{percentage !== null ? `${percentage.toFixed(1)}%` : "—"}</td>
                           <td className="px-3 py-2 text-center">

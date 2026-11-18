@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { getErrorMessage } from "@/lib/api";
 import logo from "/able-god-college-logo.png";
 import { schoolContact } from "@/lib/schoolContact";
-import { calculateGrade } from "@/lib/grading";
+import { calculateGrade, formatScore } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
 import { EXAM_REPORT_TYPES, useAcademicYears, useAttendanceRecords, useAttendanceReportSnapshot, useAttendanceTermSummaries, useExamMarks, useExamRanking, useExams, useInvoices, useReportCardReviews, useSchoolTerms, useStudentProfile, type Exam, type ExamMark, type ExamReportType, type ReportCardReview, type Student } from "@/lib/hooks";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
@@ -25,11 +25,15 @@ interface SubjectResult {
   subject: string;
   marks: number;
   scored: number;
+  absent: boolean;
   comment: string;
 }
 
 export interface ReportCardSectionProps {
   studentId: number;
+  /** A parent views a child's card: use that child's record, and offer a way to pay when fees are outstanding. */
+  student?: Student;
+  onPayFees?: () => void;
   adminPrintReport?: {
     student: Student;
     exam: Exam;
@@ -39,8 +43,8 @@ export interface ReportCardSectionProps {
   };
 }
 
-const getPercentage = ({ marks, scored }: SubjectResult) =>
-  marks > 0 ? (scored / marks) * 100 : 0;
+const getPercentage = ({ marks, scored, absent }: SubjectResult) =>
+  !absent && marks > 0 ? (scored / marks) * 100 : 0;
 
 const formatPosition = (position: number | null | undefined, total: number | null | undefined) => {
   if (position == null || total == null) return "Not available";
@@ -50,7 +54,7 @@ const formatPosition = (position: number | null | undefined, total: number | nul
   return `${position}${suffix} of ${total}`;
 };
 
-const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionProps) => {
+const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverride, onPayFees }: ReportCardSectionProps) => {
   const localCalendarPeriod = useLocalSchoolPeriod();
   const { data: academicYears = [] } = useAcademicYears(!adminPrintReport);
   const currentAcademicYear = academicYears.find(year => year.name.trim() === localCalendarPeriod.year);
@@ -74,7 +78,8 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
   const reportCardRef = useRef<HTMLDivElement>(null);
   const previousLocalPeriod = useRef(localPeriod);
 
-  const { data: profile } = useStudentProfile(!adminPrintReport);
+  const { data: ownProfile } = useStudentProfile(!adminPrintReport && !studentOverride);
+  const profile = studentOverride ?? ownProfile;
   const { data: invoices = [] } = useInvoices({ student: studentId }, !adminPrintReport);
   const { data: allMarks = [], isLoading: isLoadingMarks } = useExamMarks({ student: studentId }, !adminPrintReport);
   const { data: attendanceRecords = [] } = useAttendanceRecords({ student: studentId }, !adminPrintReport);
@@ -142,8 +147,11 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
     subject: m.subject_name,
     marks: m.total_marks,
     scored: Number(m.scored),
+    absent: Boolean(m.absent),
     comment: m.comment?.trim() ?? "",
   })).sort((first, second) => first.subject.localeCompare(second.subject));
+
+  const satResults = results.filter(result => !result.absent);
 
   const handleDownloadPdf = async () => {
     setIsExporting(true);
@@ -165,7 +173,7 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
         average: averagePercentage,
         overallGrade: calculateGrade(averagePercentage).grade,
         passed: countPassed(),
-        totalSubjects: results.length,
+        totalSubjects: satResults.length,
         classPosition: isReportProvisional ? "Provisional" : formatPosition(ranking?.class_position, ranking?.class_total),
         levelPosition: isReportProvisional ? "Provisional" : formatPosition(ranking?.level_position, ranking?.level_total),
         teacherComment,
@@ -174,7 +182,7 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
         results: results.map(result => ({
           ...result,
           percentage: getPercentage(result),
-          grade: calculateGrade(getPercentage(result)).grade,
+          grade: result.absent ? "—" : calculateGrade(getPercentage(result)).grade,
         })),
       });
     } finally {
@@ -197,7 +205,7 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
   };
 
   const countPassed = () => {
-    return results.filter(result => getPercentage(result) >= 40).length;
+    return satResults.filter(result => getPercentage(result) >= 40).length;
   };
 
   const outstandingBalances = invoices.reduce<Record<string, number>>((totals, invoice) => {
@@ -210,8 +218,9 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
     .join(" · ");
   const resultsBlocked = !adminPrintReport && Object.values(outstandingBalances).some(balance => balance > 0);
 
-  const averagePercentage = results.length
-    ? results.reduce((sum, result) => sum + getPercentage(result), 0) / results.length
+  // Papers the learner did not sit are shown as ABS and are left out of the average, never counted as 0.
+  const averagePercentage = satResults.length
+    ? satResults.reduce((sum, result) => sum + getPercentage(result), 0) / satResults.length
     : 0;
 
   const teacherComment = reportReview?.class_teacher_comment || getTeacherComment(averagePercentage);
@@ -254,9 +263,13 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
           </div>
           <h3 className="font-heading text-2xl font-bold text-foreground mb-2">Results Locked</h3>
           <p className="text-muted-foreground mb-4">
-            This student portal is currently restricted because the account has an outstanding balance of {outstandingBalanceLabel}. Results and report cards are hidden until the balance is cleared.
+            {studentOverride ? `The report card for ${studentOverride.name} is held back` : "This student portal is currently restricted"} because the account has an outstanding balance of {outstandingBalanceLabel}. Results and report cards are hidden until the balance is cleared.
           </p>
-          <p className="text-sm text-muted-foreground">Please contact the school accounts office to clear the balance.</p>
+          {onPayFees ? (
+            <Button variant="gold" size="lg" className="rounded-xl px-8" onClick={onPayFees}>Pay now</Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">Please contact the school accounts office to clear the balance.</p>
+          )}
         </div>
       </div>
     );
@@ -439,7 +452,7 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
 
             <div className="flex flex-row items-center justify-between rounded-md border border-border bg-card p-3 sm:flex-col sm:items-start sm:justify-center">
               <p className="text-[10px] font-semibold uppercase text-muted-foreground">Passed</p>
-              <p className="font-heading text-2xl font-bold leading-none text-foreground">{countPassed()} / {results.length}</p>
+              <p className="font-heading text-2xl font-bold leading-none text-foreground">{countPassed()} / {satResults.length}</p>
               <p className="text-[9px] text-muted-foreground">subjects</p>
             </div>
           </div>
@@ -498,11 +511,12 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
                 {results.map((result, index) => {
                   const percentage = getPercentage(result);
                   const gradeInfo = calculateGrade(percentage);
+                  const absent = result.absent;
                   return (
                     <tr key={`${result.subject}-${index}`} className={index % 2 === 0 ? "bg-card" : "bg-secondary/50"}>
                       <td className="px-2 py-1.5 font-semibold text-foreground">{result.subject}</td>
                       <td className="px-2 py-1.5 text-center text-muted-foreground">{result.marks}</td>
-                      <td className="px-2 py-1.5 text-center font-semibold text-foreground">{result.scored.toFixed(2)}</td>
+                      <td className="px-2 py-1.5 text-center font-semibold text-foreground">{result.absent ? "ABS" : formatScore(result.scored)}</td>
                       <td className="px-2 py-1.5">
                         <div className="flex items-center gap-1.5">
                           <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted">
@@ -511,16 +525,16 @@ const ReportCardSection = ({ studentId, adminPrintReport }: ReportCardSectionPro
                               style={{ width: `${Math.min(Math.max(percentage, 0), 100)}%` }}
                             />
                           </div>
-                          <span className="w-12 shrink-0 text-right text-[10px] text-muted-foreground">{percentage.toFixed(2)}%</span>
+                          <span className="w-12 shrink-0 text-right text-[10px] text-muted-foreground">{absent ? "—" : `${percentage.toFixed(2)}%`}</span>
                         </div>
                       </td>
                       <td className="px-2 py-1.5 text-center">
                           <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold bg-secondary text-secondary-foreground`}>
-                          {gradeInfo.grade}
+                          {absent ? "—" : gradeInfo.grade}
                         </span>
                       </td>
                       <td className="px-2 py-1.5 text-muted-foreground" title={result.comment || undefined}>
-                        {result.comment || gradeInfo.meaning}
+                        {result.comment || (absent ? "Did not sit this paper" : gradeInfo.meaning)}
                       </td>
                     </tr>
                   );

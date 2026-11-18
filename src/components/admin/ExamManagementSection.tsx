@@ -144,13 +144,21 @@ const ExamManagementSection = () => {
   const handleSaveMarks = async () => {
     if (!selectedExam || !marksClassId || !marksSubjectId) { toast.error("Select a class and subject first"); return; }
     const classStudents = students.filter(s => s.school_class === Number(marksClassId) && s.status === "Active");
-    const pending = classStudents.filter(s => (marksDraft[s.id] ?? existingMarks.find(m => m.student === s.id && m.subject === Number(marksSubjectId))?.scored?.toString() ?? "") !== "");
+    // A draft of "ABS" means the learner did not sit the paper.
+    const entryFor = (studentId: number) => {
+      const saved = existingMarks.find(m => m.student === studentId && m.subject === Number(marksSubjectId));
+      return marksDraft[studentId] ?? (saved ? (saved.absent ? "ABS" : String(saved.scored)) : "");
+    };
+    const pending = classStudents.filter(s => entryFor(s.id) !== "");
     if (!pending.length) { toast.error("Enter at least one student score"); return; }
     const total = 100;
-    const invalid = pending.find(s => { const score = Number(marksDraft[s.id] ?? existingMarks.find(m => m.student === s.id && m.subject === Number(marksSubjectId))?.scored); return !Number.isFinite(score) || score < 0 || score > total; });
-    if (invalid) { toast.error(`Enter a score from 0 to ${total} for ${invalid.name}`); return; }
+    const invalid = pending.find(s => { const v = entryFor(s.id); if (v === "ABS") return false; const score = Number(v); return !Number.isFinite(score) || score < 0 || score > total || Math.round(score * 100) !== score * 100; });
+    if (invalid) { toast.error(`Enter a score from 0 to ${total} (up to 2 decimal places) for ${invalid.name}`); return; }
     try {
-      await Promise.all(pending.map(s => saveExamMark.mutateAsync({ exam: selectedExam.id, student: s.id, subject: Number(marksSubjectId), total_marks: total, scored: Number(marksDraft[s.id] ?? existingMarks.find(m => m.student === s.id && m.subject === Number(marksSubjectId))?.scored) })));
+      await Promise.all(pending.map(s => {
+        const v = entryFor(s.id);
+        return saveExamMark.mutateAsync({ exam: selectedExam.id, student: s.id, subject: Number(marksSubjectId), total_marks: total, scored: v === "ABS" ? 0 : Number(v), absent: v === "ABS" });
+      }));
       toast.success(`Saved marks for ${pending.length} student(s)`); setShowMarksModal(false); setMarksDraft({});
     } catch (error) { toast.error(getErrorMessage(error)); }
   };
@@ -570,7 +578,7 @@ const ExamManagementSection = () => {
             </div>
 
             <div className="mb-6 overflow-x-auto rounded-xl border">
-              {!marksClassId || !marksSubjectId ? <p className="p-6 text-center text-sm text-muted-foreground">Select a class and subject to load its students and saved scores.</p> : <table className="w-full"><thead className="bg-secondary/50"><tr><th className="p-3 text-left text-sm">Student</th><th className="p-3 text-left text-sm">Student ID</th><th className="p-3 text-left text-sm">Score (out of 100)</th></tr></thead><tbody>{students.filter(s => s.school_class === Number(marksClassId) && s.status === "Active").map(student => { const saved = existingMarks.find(m => m.student === student.id && m.subject === Number(marksSubjectId)); const value = marksDraft[student.id] ?? (saved ? String(saved.scored) : ""); const grade = value === "" ? null : calculateGrade(Number(value)); return <tr key={student.id} className="border-t"><td className="p-3 font-medium">{student.name}</td><td className="p-3 text-sm text-muted-foreground">{student.student_id}</td><td className="p-3"><div className="flex items-center gap-2"><input type="number" min="0" max="100" className="w-28 rounded-md border bg-background px-3 py-2" value={value} onChange={e => setMarksDraft({ ...marksDraft, [student.id]: e.target.value })}/>{grade&&<span className={`text-sm font-semibold ${grade.color}`}>{grade.grade}</span>}</div></td></tr>; })}</tbody></table>}
+              {!marksClassId || !marksSubjectId ? <p className="p-6 text-center text-sm text-muted-foreground">Select a class and subject to load its students and saved scores.</p> : <table className="w-full"><thead className="bg-secondary/50"><tr><th className="p-3 text-left text-sm">Student</th><th className="p-3 text-left text-sm">Student ID</th><th className="p-3 text-left text-sm">Score (out of 100)</th><th className="p-3 text-left text-sm">Absent</th></tr></thead><tbody>{students.filter(s => s.school_class === Number(marksClassId) && s.status === "Active").map(student => { const saved = existingMarks.find(m => m.student === student.id && m.subject === Number(marksSubjectId)); const value = marksDraft[student.id] ?? (saved ? (saved.absent ? "ABS" : String(saved.scored)) : ""); const isAbsent = value === "ABS"; const grade = value === "" || isAbsent ? null : calculateGrade(Number(value)); return <tr key={student.id} className="border-t"><td className="p-3 font-medium">{student.name}</td><td className="p-3 text-sm text-muted-foreground">{student.student_id}</td><td className="p-3"><div className="flex items-center gap-2"><input type="number" min="0" max="100" step="0.01" disabled={isAbsent} className="w-28 rounded-md border bg-background px-3 py-2 disabled:opacity-50" value={isAbsent ? "" : value} onChange={e => setMarksDraft({ ...marksDraft, [student.id]: e.target.value })}/>{grade&&<span className={`text-sm font-semibold ${grade.color}`}>{grade.grade}</span>}{isAbsent&&<span className="text-sm font-semibold text-muted-foreground">ABS</span>}</div></td><td className="p-3"><input type="checkbox" aria-label={`${student.name} was absent`} className="h-4 w-4" checked={isAbsent} onChange={e => setMarksDraft({ ...marksDraft, [student.id]: e.target.checked ? "ABS" : "" })}/></td></tr>; })}</tbody></table>}
             </div>
 
             <div className="flex gap-3">

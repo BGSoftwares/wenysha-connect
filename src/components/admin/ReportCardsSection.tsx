@@ -5,7 +5,7 @@ import { Download, FileSpreadsheet, Loader2, LockKeyhole, Printer, UnlockKeyhole
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
 import { EXAM_REPORT_TYPES, useAcademicYears, useAllocations, useAttendanceRecords, useAttendanceReportSnapshots, useExamMarks, useExams, useRegenerateAttendanceSnapshot, useReportCardReviews, useSchoolTerms, useStudents, useSubjects, useUpdateExam, useUpdateReportCardReview, type Exam, type ExamMark, type ReportCardReview, type SchoolClass, type Student } from "@/lib/hooks";
-import { calculateGrade } from "@/lib/grading";
+import { averagePercentage, calculateGrade, countedMarks, formatScore } from "@/lib/grading";
 import { getErrorMessage } from "@/lib/api";
 import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
 import { getReportAttendance, mapAttendanceSnapshot, type ReportAttendanceSummary } from "@/lib/reportAttendance";
@@ -172,12 +172,11 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       .filter((student) => Number(student.school_class) === activeClassId && marksByStudent.has(student.id))
       .map((student) => {
         const studentMarks = (marksByStudent.get(student.id) ?? []).sort((a, b) => a.subject_name.localeCompare(b.subject_name));
-        const percentages = studentMarks.map((mark) => mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0);
         const snapshot = snapshotByStudent.get(student.id);
         return {
           student,
           marks: studentMarks,
-          average: percentages.length ? percentages.reduce((sum, percentage) => sum + percentage, 0) / percentages.length : 0,
+          average: averagePercentage(studentMarks) ?? 0,
           attendance: snapshot && !snapshot.is_out_of_date && snapshot.summary.total_school_days > 0
             ? mapAttendanceSnapshot(snapshot.summary, snapshot.is_out_of_date)
             : selectedExam
@@ -214,7 +213,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
     reports.forEach((report) => {
       const grade = calculateGrade(report.average).grade;
       grades.set(grade, (grades.get(grade) ?? 0) + 1);
-      report.marks.forEach((mark) => {
+      countedMarks(report.marks).forEach((mark) => {
         const entry = subjectTotals.get(mark.subject) ?? { name: mark.subject_name, total: 0, count: 0 };
         entry.total += mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0;
         entry.count += 1;
@@ -363,9 +362,9 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
     if (!selectedExam || reports.length === 0) return;
     const headers = ["Report Type", "Student", "Student ID", "Class", "Term", "Year", "Examination", "Subject", "Score", "Out of", "Percentage", "Grade", "Teacher Subject Comment", "Class Teacher Comment", "Principal Comment", "Attendance marked days", "Present", "Unexcused absent", "Excused", "Late", "Sick bay", "Suspended", "Absent dates"];
     const rows = reports.flatMap((report) => report.marks.map((mark) => {
-      const percentage = mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0;
+      const percentage = mark.total_marks > 0 && !mark.absent ? (Number(mark.scored) / mark.total_marks) * 100 : 0;
       const className = report.student.class_name || classes.find((schoolClass) => schoolClass.id === report.student.school_class)?.name || "";
-      return [getReportTypeLabel(selectedExam), report.student.name, report.student.student_id, className, selectedExam.term, selectedExam.year, getExamDisplayName(selectedExam), mark.subject_name, mark.scored, mark.total_marks, `${percentage.toFixed(1)}%`, calculateGrade(percentage).grade, mark.comment || "", report.review?.class_teacher_comment || "", report.review?.principal_comment || "", report.attendance.totalDays, report.attendance.present, report.attendance.absent, report.attendance.excused, report.attendance.late, report.attendance.sickBay, report.attendance.suspended, report.attendance.absentDates.join(", ")];
+      return [getReportTypeLabel(selectedExam), report.student.name, report.student.student_id, className, selectedExam.term, selectedExam.year, getExamDisplayName(selectedExam), mark.subject_name, mark.absent ? "ABSENT" : mark.scored, mark.total_marks, mark.absent ? "" : `${percentage.toFixed(1)}%`, mark.absent ? "" : calculateGrade(percentage).grade, mark.comment || "", report.review?.class_teacher_comment || "", report.review?.principal_comment || "", report.attendance.totalDays, report.attendance.present, report.attendance.absent, report.attendance.excused, report.attendance.late, report.attendance.sickBay, report.attendance.suspended, report.attendance.absentDates.join(", ")];
     }));
     const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
     const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
@@ -432,19 +431,19 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
       report.marks.forEach((mark, index) => {
-        const percentage = mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0;
+        const percentage = mark.total_marks > 0 && !mark.absent ? (Number(mark.scored) / mark.total_marks) * 100 : 0;
         if (index % 2 === 1) {
           pdf.setFillColor(246, 242, 247);
           pdf.rect(left, y, right - left, rowHeight, "F");
         }
         pdf.text(pdf.splitTextToSize(mark.subject_name, 40)[0], left + 2, y + rowHeight * 0.7);
-        pdf.text(String(mark.scored), 86, y + rowHeight * 0.7, { align: "right" });
+        pdf.text(mark.absent ? "ABS" : formatScore(mark.scored), 86, y + rowHeight * 0.7, { align: "right" });
         pdf.text(String(mark.total_marks), 105, y + rowHeight * 0.7, { align: "right" });
-        pdf.text(`${percentage.toFixed(1)}%`, 128, y + rowHeight * 0.7, { align: "right" });
-        pdf.text(calculateGrade(percentage).grade, 147, y + rowHeight * 0.7, { align: "right" });
+        pdf.text(mark.absent ? "—" : `${percentage.toFixed(1)}%`, 128, y + rowHeight * 0.7, { align: "right" });
+        pdf.text(mark.absent ? "—" : calculateGrade(percentage).grade, 147, y + rowHeight * 0.7, { align: "right" });
         pdf.setFontSize(7);
         pdf.text(
-          pdf.splitTextToSize(mark.comment?.trim() || calculateGrade(percentage).meaning, right - 156)[0],
+          pdf.splitTextToSize(mark.comment?.trim() || (mark.absent ? "Did not sit this paper" : calculateGrade(percentage).meaning), right - 156)[0],
           154,
           y + rowHeight * 0.7,
         );
@@ -522,15 +521,10 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       const studentMarks = marks
         .filter((mark) => mark.student === report.student.id)
         .sort((first, second) => first.subject_name.localeCompare(second.subject_name));
-      const percentages = studentMarks.map((mark) => (
-        mark.total_marks > 0 ? (Number(mark.scored) / mark.total_marks) * 100 : 0
-      ));
       return {
         ...report,
         marks: studentMarks,
-        average: percentages.length
-          ? percentages.reduce((sum, percentage) => sum + percentage, 0) / percentages.length
-          : 0,
+        average: averagePercentage(studentMarks) ?? 0,
       };
     });
 

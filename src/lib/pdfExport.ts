@@ -14,6 +14,7 @@ export interface ReportCardPdfData {
     subject: string;
     marks: number;
     scored: number;
+    absent?: boolean;
     percentage: number;
     grade: string;
     comment: string;
@@ -89,7 +90,7 @@ export interface StudentReportCardPdfData {
     calendarLabel: string;
     isOutOfDate?: boolean;
   };
-  results: Array<{ subject: string; marks: number; scored: number; percentage: number; grade: string; comment: string }>;
+  results: Array<{ subject: string; marks: number; scored: number; absent?: boolean; percentage: number; grade: string; comment: string }>;
 }
 
 export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
@@ -177,9 +178,9 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
     pdf.setFontSize(9);
     const baseline = y + Math.min(currentRowHeight - 1.5, 4.4);
     pdf.text(pdf.splitTextToSize(result.subject, 50)[0], left + 3, baseline);
-    pdf.text(result.scored.toFixed(2), 88, baseline, { align: "right" });
+    pdf.text(result.absent ? "ABS" : String(Math.round(result.scored * 100) / 100), 88, baseline, { align: "right" });
     pdf.text(String(result.marks), 108, baseline, { align: "right" });
-    pdf.text(`${result.percentage.toFixed(1)}%`, 135, baseline, { align: "right" });
+    pdf.text(result.absent ? "—" : `${result.percentage.toFixed(1)}%`, 135, baseline, { align: "right" });
     pdf.setFont("helvetica", "bold");
     pdf.text(result.grade, 154, baseline, { align: "right" });
     pdf.setFont("helvetica", "normal");

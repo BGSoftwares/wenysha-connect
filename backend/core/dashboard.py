@@ -57,7 +57,7 @@ def attendance_trend(today: date, records):
 
 def marks_by_subject(marks):
     rows = (
-        marks.filter(total_marks__gt=0)
+        marks.filter(total_marks__gt=0, absent=False)
         .values('subject__name')
         .annotate(avg=Avg(ExpressionWrapper(F('scored') * 100.0 / F('total_marks'), output_field=FloatField())))
         .order_by('-avg')[:SUBJECTS_SHOWN]

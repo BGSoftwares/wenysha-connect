@@ -229,8 +229,8 @@ def build_teacher_export(user):
         'marks.csv': _csv(
             ['Exam', 'Term', 'Year', 'Student ID', 'Student', 'Class', 'Subject', 'Scored', 'Out of', 'Percent', 'Comment'],
             [(m.exam.name, m.exam.term, m.exam.year, m.student.student_id, m.student.name, m.student.school_class.name,
-              m.subject.name, m.scored, m.total_marks,
-              round(m.scored * 100 / m.total_marks, 1) if m.total_marks else '', m.comment) for m in marks]),
+              m.subject.name, 'ABSENT' if m.absent else m.scored, m.total_marks,
+              '' if m.absent or not m.total_marks else round(float(m.scored) * 100 / m.total_marks, 1), m.comment) for m in marks]),
         'attendance.csv': _csv(
             ['Date', 'Session', 'Student ID', 'Student', 'Class', 'Status', 'Minutes late', 'Excuse'],
             [(r.date, r.session, r.student.student_id, r.student.name, r.student.school_class.name, r.status,
