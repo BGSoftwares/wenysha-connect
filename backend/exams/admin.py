@@ -14,7 +14,7 @@ class ExamScheduleAdmin(admin.ModelAdmin):
 
 @admin.register(ExamMark)
 class ExamMarkAdmin(admin.ModelAdmin):
-    list_display = ('exam', 'student', 'subject', 'scored', 'total_marks')
+    list_display = ('exam', 'student', 'subject', 'scored', 'absent', 'total_marks')
 
 
 @admin.register(ReportCardReview)

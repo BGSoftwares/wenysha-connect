@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Download, Send, Save, Share2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api, getErrorMessage } from "@/lib/api";
-import { calculateGrade, getGradeComment } from "@/lib/grading";
+import { calculateGrade, formatScore, getGradeComment } from "@/lib/grading";
 import { EXAM_REPORT_TYPES, useSaveExamMarkSheet, type ExamMark, type ExamReportType } from "@/lib/hooks";
 import { formatLocalDateTime } from "@/lib/examDisplay";
 import { drawSchoolLetterhead, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
@@ -23,7 +23,7 @@ interface Props {
   onGradeChange: (studentId: number, score: string) => void;
 }
 
-type Row = { score: string; comment: string };
+type Row = { score: string; absent: boolean; comment: string };
 
 const MarkSheetSection = ({ students, marks, examId, examName, reportType, subjectId, subjectName, classId, className, teacherName, onGradeChange }: Props) => {
   const saveMarkSheet = useSaveExamMarkSheet();
@@ -46,7 +46,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
       students.forEach((student) => {
         if (dirtyRows.current.has(student.id) && current[student.id]) return;
         const mark = marks.find(savedMark => savedMark.student === student.id && savedMark.subject === subjectId);
-        next[student.id] = { score: mark ? String(mark.scored) : "", comment: mark?.comment ?? "" };
+        next[student.id] = { score: mark && !mark.absent ? formatScore(mark.scored) : "", absent: Boolean(mark?.absent), comment: mark?.comment ?? "" };
       });
       return next;
     });
@@ -56,15 +56,18 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
     dirtyRows.current.add(id);
     setRows((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
     if (patch.score !== undefined) onGradeChange(id, patch.score);
+    if (patch.absent) onGradeChange(id, "");
   };
 
-  const entered = students.filter((s) => rows[s.id]?.score?.trim());
+  const isEntered = (r?: Row) => Boolean(r && (r.absent || r.score.trim()));
+  const entered = students.filter((s) => isEntered(rows[s.id]));
+  const sat = entered.filter((s) => !rows[s.id].absent);
 
   const saveAll = async () => {
     if (!examId) return toast.error("Select an exam first.");
     if (entered.length === 0) return toast.error("Enter at least one mark.");
-    const bad = entered.find((s) => { const n = Number(rows[s.id].score); return !Number.isInteger(n) || n < 0 || n > 100; });
-    if (bad) return toast.error(`Mark for ${bad.name} must be a whole number between 0 and 100.`);
+    const bad = sat.find((s) => { const n = Number(rows[s.id].score); return !Number.isFinite(n) || n < 0 || n > 100 || Math.round(n * 100) !== n * 100; });
+    if (bad) return toast.error(`Mark for ${bad.name} must be between 0 and 100, with at most 2 decimal places.`);
     setBusy(true);
     try {
       await saveMarkSheet.mutateAsync({
@@ -74,7 +77,8 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
         marks: entered.map(student => ({
           student: student.id,
           total_marks: 100,
-          scored: Number(rows[student.id].score),
+          scored: rows[student.id].absent ? 0 : Number(rows[student.id].score),
+          absent: rows[student.id].absent,
           comment: rows[student.id].comment.trim(),
         })),
       });
@@ -150,7 +154,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
 
     let y = drawPageHeader();
     students.forEach((student, index) => {
-      const r = rows[student.id] ?? { score: "", comment: "" };
+      const r = rows[student.id] ?? { score: "", absent: false, comment: "" };
       const comment = r.comment.trim();
       const commentLines = doc.splitTextToSize(comment || "—", 64) as string[];
       const learnerLines = doc.splitTextToSize(student.name, 56) as string[];
@@ -172,16 +176,16 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
       const baseline = y + 5.2;
       doc.text(String(index + 1), left + 5, baseline, { align: "center" });
       doc.text(learnerLines, left + 12, baseline);
-      doc.text(r.score.trim() ? `${r.score}%` : "—", left + 84, baseline, { align: "center" });
+      doc.text(r.absent ? "ABS" : r.score.trim() ? `${formatScore(r.score)}%` : "—", left + 84, baseline, { align: "center" });
       doc.setFont("helvetica", "bold");
-      doc.text(r.score.trim() ? calculateGrade(Number(r.score)).grade : "—", left + 105, baseline, { align: "center" });
+      doc.text(!r.absent && r.score.trim() ? calculateGrade(Number(r.score)).grade : "—", left + 105, baseline, { align: "center" });
       doc.setFont("helvetica", "normal");
       doc.setTextColor(87, 82, 102);
       doc.text(commentLines, left + 114, baseline);
       y += rowHeight;
     });
 
-    const scored = entered.map((s) => Number(rows[s.id].score));
+    const scored = sat.map((s) => Number(rows[s.id].score));
     if (scored.length) {
       if (y + 18 > pageHeight - 18) {
         doc.addPage();
@@ -266,21 +270,23 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
                 <th className="px-3 py-2 text-left w-10">#</th>
                 <th className="px-3 py-2 text-left">Learner</th>
                 <th className="px-3 py-2 text-center w-28">Mark (%)</th>
+                <th className="px-3 py-2 text-center w-20">Absent</th>
                 <th className="px-3 py-2 text-center w-20">Grade</th>
                 <th className="px-3 py-2 text-left">Comment</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {students.map((s, i) => {
-                const r = rows[s.id] ?? { score: "", comment: "" };
+                const r = rows[s.id] ?? { score: "", absent: false, comment: "" };
                 const score = Number(r.score);
-                const canGenerateComment = r.score.trim() !== "" && Number.isInteger(score) && score >= 0 && score <= 100;
+                const canGenerateComment = !r.absent && r.score.trim() !== "" && Number.isFinite(score) && score >= 0 && score <= 100;
                 return (
                   <tr key={s.id} className="odd:bg-card even:bg-secondary/20">
                     <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
                     <td className="px-3 py-2 font-medium text-foreground">{s.name}</td>
-                    <td className="px-3 py-2"><input aria-label={`Mark for ${s.name}`} type="number" min={0} max={100} step={1} value={r.score} onChange={(e) => update(s.id, { score: e.target.value })} className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-center" /></td>
-                    <td className="px-3 py-2 text-center font-semibold">{r.score ? calculateGrade(Number(r.score)).grade : "—"}</td>
+                    <td className="px-3 py-2"><input aria-label={`Mark for ${s.name}`} type="number" min={0} max={100} step={0.01} inputMode="decimal" disabled={r.absent} value={r.absent ? "" : r.score} onChange={(e) => update(s.id, { score: e.target.value })} className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-center disabled:opacity-50" /></td>
+                    <td className="px-3 py-2 text-center"><input type="checkbox" aria-label={`${s.name} was absent`} checked={r.absent} onChange={(e) => update(s.id, e.target.checked ? { absent: true, score: "" } : { absent: false })} className="h-4 w-4" /></td>
+                    <td className="px-3 py-2 text-center font-semibold">{r.absent ? "ABS" : r.score ? calculateGrade(Number(r.score)).grade : "—"}</td>
                     <td className="px-3 py-2">
                       <div className="flex min-w-[300px] items-center gap-2">
                         <input aria-label={`Subject comment for ${s.name}`} value={r.comment} maxLength={500} onChange={(e) => update(s.id, { comment: e.target.value })} placeholder="Subject comment for report card" className="w-full min-w-0 px-2 py-1.5 rounded-md border border-border bg-background" />

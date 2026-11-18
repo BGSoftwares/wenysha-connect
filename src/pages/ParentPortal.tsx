@@ -6,6 +6,7 @@ import {
     MessageSquare,
     CreditCard,
     CheckCircle2,
+    GraduationCap,
     Clock,
     AlertCircle,
     User
@@ -42,6 +43,7 @@ import PendingPaymentsNotice from "@/components/finance/PendingPaymentsNotice";
 import ParentFeesPanel from "@/components/parent/ParentFeesPanel";
 import ChildSwitcher from "@/components/parent/ChildSwitcher";
 import ProfileSection from "@/components/admin/ProfileSection";
+import ReportCardSection from "@/components/student/ReportCardSection";
 import ParentELearningSection from "@/components/parent/ParentELearningSection";
 import { formatLocalDateKey } from "@/lib/zimbabweSchoolCalendar";
 
@@ -116,6 +118,13 @@ const ParentPortal = () => {
     const showFeesTab = () => {
         setActiveTab("fees");
         window.setTimeout(() => document.getElementById("parent-details")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    };
+    const payOldestOpenInvoice = () => {
+        const next = [...invoices]
+            .filter(invoice => Number(invoice.amount) > Number(invoice.paid))
+            .sort((a, b) => a.date.localeCompare(b.date))[0];
+        if (next) setPayingInvoice(next);
+        showFeesTab();
     };
     const selectedChild = useMemo(() =>
         parentLinks?.find(link => link.student === selectedChildId),
@@ -287,10 +296,14 @@ const ParentPortal = () => {
                                 <div className="animate-in fade-in slide-in-from-bottom duration-500">
                                     {/* Detailed Sections */}
                                     <Tabs id="parent-details" value={activeTab} onValueChange={setActiveTab} className="scroll-mt-6 space-y-6">
-                                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-sm sm:grid-cols-3 xl:grid-cols-5">
+                                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-sm sm:grid-cols-3 xl:grid-cols-6">
                                             <TabsTrigger value="academics" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">
                                                 <FileText className="h-4 w-4 mr-2" />
                                                 Recent Grades
+                                            </TabsTrigger>
+                                            <TabsTrigger value="report-card" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">
+                                                <GraduationCap className="h-4 w-4 mr-2" />
+                                                Report card
                                             </TabsTrigger>
                                             <TabsTrigger value="attendance" className="h-11 rounded-xl px-2 text-xs sm:px-5 sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">
                                                 <Calendar className="h-4 w-4 mr-2" />
@@ -351,6 +364,16 @@ const ParentPortal = () => {
                                                         </table>
                                                     </div>
                                                 </CardContent>
+                                            </Card>
+                                        </TabsContent>
+
+                                        <TabsContent value="report-card">
+                                            <Card className="rounded-3xl border-border p-4 shadow-md sm:p-6">
+                                                {selectedStudent ? (
+                                                    <ReportCardSection key={selectedStudent.id} studentId={selectedStudent.id} student={selectedStudent} onPayFees={payOldestOpenInvoice} />
+                                                ) : (
+                                                    <p className="py-8 text-center text-sm text-muted-foreground">Loading the report card…</p>
+                                                )}
                                             </Card>
                                         </TabsContent>
 

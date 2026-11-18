@@ -3,7 +3,7 @@ from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import connection, transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -18,6 +18,7 @@ from .serializers import (
     ReportCardClassSubmitSerializer,
 )
 from core.roles import display_name, is_admin, portal_role
+from parents.models import StudentParent
 from school.models import SchoolClass, Student, Teacher, TeacherSubjectClass
 
 
@@ -38,6 +39,11 @@ def expected_subject_ids_by_class(exam, class_ids):
         class_id: allocations_by_class[class_id] or exam_subject_ids
         for class_id in class_ids
     }
+
+
+def linked_student_ids(user):
+    """IDs of the children linked to this parent or guardian account."""
+    return StudentParent.objects.filter(parent__user=user).values_list('student_id', flat=True)
 
 
 class ExamViewSet(viewsets.ModelViewSet):
@@ -135,6 +141,14 @@ class ExamViewSet(viewsets.ModelViewSet):
                 results_published=True,
                 status='completed',
                 classes=student.school_class_id,
+            ).distinct()
+
+        if role == 'parent':
+            child_classes = Student.objects.filter(pk__in=linked_student_ids(user)).values('school_class_id')
+            return queryset.filter(
+                results_published=True,
+                status='completed',
+                classes__in=child_classes,
             ).distinct()
         return queryset.none()
 
@@ -273,6 +287,14 @@ class ExamMarkViewSet(viewsets.ModelViewSet):
                 exam__classes=student.school_class_id,
             ).distinct()
 
+        if role == 'parent':
+            return queryset.filter(
+                student_id__in=linked_student_ids(user),
+                exam__results_published=True,
+                exam__status='completed',
+                exam__classes=F('student__school_class_id'),
+            ).distinct()
+
         if role == 'teacher':
             teacher = Teacher.objects.filter(user=user).first()
             if not teacher:
@@ -326,7 +348,7 @@ class ExamMarkSheetView(APIView):
         if connection.features.supports_update_conflicts:
             bulk_create_options = {
                 'update_conflicts': True,
-                'update_fields': ['total_marks', 'scored', 'comment'],
+                'update_fields': ['total_marks', 'scored', 'absent', 'comment'],
             }
             if connection.features.supports_update_conflicts_with_target:
                 bulk_create_options['unique_fields'] = ['exam', 'student', 'subject']
@@ -338,6 +360,7 @@ class ExamMarkSheetView(APIView):
                         subject=values['subject'],
                         total_marks=row['total_marks'],
                         scored=row['scored'],
+                        absent=row['absent'],
                         comment=row['comment'],
                     )
                     for row in mark_rows
@@ -353,6 +376,7 @@ class ExamMarkSheetView(APIView):
                     defaults={
                         'total_marks': row['total_marks'],
                         'scored': row['scored'],
+                        'absent': row['absent'],
                         'comment': row['comment'],
                     },
                 )
@@ -397,6 +421,13 @@ class ExamRankingView(APIView):
             linked_student = Student.objects.filter(user=user).first()
             if not linked_student or linked_student.pk != student.pk or not exam.results_published or exam.status != 'completed':
                 raise PermissionDenied('You can only view your own published exam ranking.')
+        elif portal_role(user) == 'parent' and not is_admin(user):
+            if (
+                student.pk not in set(linked_student_ids(user))
+                or not exam.results_published
+                or exam.status != 'completed'
+            ):
+                raise PermissionDenied("You can only view your own child's published exam ranking.")
         elif portal_role(user) == 'teacher' and not is_admin(user):
             teacher = Teacher.objects.filter(user=user).first()
             if not teacher or not TeacherSubjectClass.objects.filter(
@@ -439,6 +470,7 @@ class ExamRankingView(APIView):
             totals = defaultdict(lambda: [Decimal('0'), 0, Decimal('0'), defaultdict(int)])
             marks = ExamMark.objects.filter(
                 exam=exam,
+                absent=False,
                 student__status='Active',
                 student__school_class_id__in=class_ids_for_ranking,
             ).values('student_id', 'scored', 'total_marks')
@@ -577,6 +609,12 @@ class ReportCardReviewViewSet(viewsets.ModelViewSet):
         if role == 'student':
             return queryset.filter(
                 student__user=user,
+                exam__results_published=True,
+                exam__status='completed',
+            )
+        if role == 'parent':
+            return queryset.filter(
+                student_id__in=linked_student_ids(user),
                 exam__results_published=True,
                 exam__status='completed',
             )

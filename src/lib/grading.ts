@@ -48,6 +48,28 @@ export const calculatePercentageFromScore = (scored: number | string, totalMarks
   return (score / total) * 100;
 };
 
+interface MarkLike {
+  scored: number | string;
+  total_marks: number | string;
+  absent?: boolean;
+}
+
+/** Marks that count towards averages and rankings: learners who did not sit are left out, never counted as 0. */
+export const countedMarks = <T extends MarkLike>(marks: T[]): T[] => marks.filter((m) => !m.absent && Number(m.total_marks) > 0);
+
+/** Average percentage over the papers a learner actually sat, or null when there is nothing to average. */
+export const averagePercentage = (marks: MarkLike[]): number | null => {
+  const counted = countedMarks(marks);
+  if (!counted.length) return null;
+  return counted.reduce((sum, m) => sum + calculatePercentageFromScore(m.scored, m.total_marks), 0) / counted.length;
+};
+
+/** Show decimals only when needed: 67 stays 67, 67.5 stays 67.5. */
+export const formatScore = (value: number | string): string => {
+  const n = Number(value);
+  return Number.isFinite(n) ? String(Math.round(n * 100) / 100) : "0";
+};
+
 /**
  * Get grade color classes for styling
  */

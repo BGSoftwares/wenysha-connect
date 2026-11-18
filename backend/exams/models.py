@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.conf import settings
 from school.models import SchoolClass, Subject, Student
@@ -106,7 +107,10 @@ class ExamMark(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='exam_marks')
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='exam_marks')
     total_marks = models.PositiveIntegerField(default=100)
-    scored = models.PositiveIntegerField(default=0)
+    # Marks may be fractional (67.5). An absent learner has absent=True and scored=0; the mark is kept so
+    # the sheet is complete, but it is left out of averages, grades and rankings.
+    scored = models.DecimalField(max_digits=6, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    absent = models.BooleanField(default=False)
     comment = models.CharField(max_length=500, blank=True, default='')
 
     class Meta:
@@ -114,6 +118,8 @@ class ExamMark(models.Model):
         ordering = ['student', 'subject']
 
     def __str__(self):
+        if self.absent:
+            return f"{self.student.name} - {self.subject.name} - absent"
         return f"{self.student.name} - {self.subject.name} - {self.scored}/{self.total_marks}"
 
 

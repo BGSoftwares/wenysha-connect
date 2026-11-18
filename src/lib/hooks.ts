@@ -598,6 +598,7 @@ export interface ExamMark {
     subject_name: string;
     total_marks: number;
     scored: number;
+    absent?: boolean;
     comment?: string;
 }
 
@@ -917,7 +918,7 @@ export const useExamRanking = (exam?: number, student?: number) => {
 export const useSaveExamMark = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (data: { exam: number; student: number; subject: number; total_marks: number; scored: number; comment?: string }) => {
+        mutationFn: async (data: { exam: number; student: number; subject: number; total_marks: number; scored: number; absent?: boolean; comment?: string }) => {
             const existing = await api.get<unknown>("/exams/exam-marks/", {
                 exam: String(data.exam),
                 student: String(data.student),
@@ -943,7 +944,7 @@ export const useSaveExamMarkSheet = () => {
             exam: number;
             school_class: number;
             subject: number;
-            marks: Array<{ student: number; total_marks: number; scored: number; comment: string }>;
+            marks: Array<{ student: number; total_marks: number; scored: number; absent?: boolean; comment: string }>;
         }) => api.post<ExamMark[]>('/exams/mark-sheets/', data),
         onSuccess: async () => {
             await Promise.all([
