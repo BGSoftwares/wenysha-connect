@@ -13,6 +13,13 @@ const ACCEPTED = {
       "contain no arrays or records, and the fix needs zod 4 plus a matching @hookform/resolvers upgrade.",
     reviewBy: "2027-02-01",
   },
+  "GHSA-fc5q-39xc-vjpf": {
+    package: "picomatch",
+    reason:
+      "ReDoS through repeated extglob patterns. picomatch only runs inside build tooling (tailwindcss, vite, eslint) on glob patterns " +
+      "we write ourselves, never on user input or in the shipped site. The only fix is a breaking tailwindcss 4 upgrade.",
+    reviewBy: "2027-02-01",
+  },
 };
 const BLOCKING = new Set(["high", "critical"]);
 
