@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { api, clearAuth, getErrorMessage, getStoredUser, getToken } from "@/lib/api";
+import { AUTH_STATE_EVENT, api, clearAuth, getErrorMessage, getStoredUser, getToken } from "@/lib/api";
 import { dashboardPathForRole } from "@/lib/portalRoles";
 import { FirstLoginPasswordChange } from "@/components/auth/FirstLoginPasswordChange";
 import { MfaSetupGate } from "@/components/auth/MfaSetupGate";
@@ -68,6 +68,18 @@ export function PortalRoute({ role, children }: { role: string; children: ReactE
     });
     return () => { active = false; };
   }, [role, retry]);
+
+  // The check above runs once. If the session ends later (Sign Out, an expired refresh token, another tab signing out),
+  // leave at once instead of staying on a portal that can only get 401 errors.
+  useEffect(() => {
+    const leaveIfSignedOut = () => { if (!getToken()) setStatus("unauthenticated"); };
+    window.addEventListener(AUTH_STATE_EVENT, leaveIfSignedOut);
+    window.addEventListener("storage", leaveIfSignedOut);
+    return () => {
+      window.removeEventListener(AUTH_STATE_EVENT, leaveIfSignedOut);
+      window.removeEventListener("storage", leaveIfSignedOut);
+    };
+  }, []);
 
   if (status === "checking") {
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground" aria-live="polite">Verifying your portal access…</div>;
