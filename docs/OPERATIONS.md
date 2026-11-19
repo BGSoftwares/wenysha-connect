@@ -132,6 +132,7 @@ Accounts portal all read those rows, so a payment shows everywhere within about 
 |---|---|---|
 | EcoCash (portal) | The provider confirms the charge. The portal polls, and the `payments-worker` service also checks every 60 s, so it is credited even if the parent closes the browser. | `ECOCASH_*` in `deploy.env` |
 | ZimSwitch card (portal) | Same as above, after the hosted checkout returns. The amount and currency are checked against the invoice. | `ZIMSWITCH_*` in `deploy.env` |
+| Paynow (portal) | Paynow confirms the payment. The result post is signature-checked and then verified by asking Paynow directly; the worker also polls. Amount is checked against the invoice. | `PAYNOW_*` in `deploy.env` |
 | Bank deposit or transfer | A bank credit matched by the **invoice number** (or student ID) in the bank reference. | Statement CSV import, or the bank feed below |
 
 Bank deposits are never matched on guesswork. A deposit is credited automatically only when its reference names exactly one
@@ -144,6 +145,10 @@ where Accounts picks the invoice. The bank's transaction id is unique, so re-imp
 3. For bank deposits, either upload the CSV statement from internet banking in Accounts → Bank Deposits, or, if your bank can push credits, give it
    `https://<your domain>/api/finance/bank-deposits/webhook/` and set `BANK_WEBHOOK_SECRET`. The bank signs the raw body with HMAC-SHA256 and sends it
    as `X-Bank-Signature`. Body: `{"transactions":[{"transaction_id","amount","currency","date","reference","payer_name"}]}`.
+
+**Paynow.** Create an *integration* in your Paynow merchant account, copy its ID and key into `deploy.env` (`PAYNOW_INTEGRATION_ID`, `PAYNOW_INTEGRATION_KEY`)
+and set the result URL in Paynow to `https://<your domain>/api/finance/paynow/result/`. Parents choose *Paynow* and then either the Paynow page (cards and wallets)
+or an EcoCash / OneMoney prompt on their phone. Test with Paynow's test mode first (see `PAYNOW_AUTH_EMAIL` in `deploy.env.example`).
 
 **Not verified here:** the EcoCash and ZimSwitch calls follow the adapters already in `backend/finance/gateways.py`, but they have never been run
 against the live providers from this environment. Test with sandbox credentials before taking real money. Whether your bank offers a push feed is

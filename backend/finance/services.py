@@ -38,6 +38,7 @@ def _method_label(provider):
     return {
         'bank_transfer': 'NBS Bank Transfer',
         'ecocash': 'EcoCash Online',
+        'paynow': 'Paynow Online',
     }.get(provider, 'ZimSwitch Online')
 
 
