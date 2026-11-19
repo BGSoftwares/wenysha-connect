@@ -1,6 +1,7 @@
 import { DashboardTable } from "@/components/dashboard/DashboardTable";
 import { useTableNavigation } from "@/hooks/useTableNavigation";
 import { api } from "@/lib/api";
+import { exportReceiptPdf } from "@/lib/pdfExport";
 import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Plus, Printer, Upload, CheckCircle2, Download, Search, CreditCard, Receipt, Loader2, Calendar, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
+import { Plus, Printer, Upload, CheckCircle2, Search, CreditCard, Receipt, Loader2, Calendar, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
 import { usePayments, useCreatePayment, useInvoices, Payment as PaymentType } from "@/lib/hooks";
 import { paymentSchema, type PaymentFormData } from "@/lib/validations";
 import { toast } from "sonner";
@@ -242,11 +243,18 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
                       <TableCell className="text-sm">{formatSchoolDate(payment.date)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="hover:text-primary">
+                          <Button variant="ghost" size="icon" className="hover:text-primary" aria-label={`Download receipt ${payment.receipt_no} as PDF`} title="Download receipt" onClick={() => exportReceiptPdf({
+                            receipt_no: payment.receipt_no,
+                            invoice_no: payment.invoice_no,
+                            student_name: payment.student_name,
+                            amount: payment.amount,
+                            currency: payment.currency,
+                            method: payment.method,
+                            reference: payment.reference,
+                            date: formatSchoolDate(payment.date),
+                            recorded_by: payment.recorded_by_name,
+                          })}>
                             <Printer className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="hover:text-accent">
-                            <Download className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>

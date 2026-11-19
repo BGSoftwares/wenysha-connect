@@ -27,7 +27,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, DollarSign, FileText, Download, Printer, Eye, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
+import { Search, DollarSign, Download, Printer, Eye, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
+import { exportFeeStatementPdf } from "@/lib/pdfExport";
 import { useStudentBalances, useInvoices, usePayments, StudentBalance as StudentBalanceType } from "@/lib/hooks";
 import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate } from "@/lib/finance";
 
@@ -83,17 +84,23 @@ const BalancesSection = () => {
     ...selectedInvoices.map((invoice) => ({ date: invoice.date, label: `Invoice ${invoice.invoice_no} · ${invoice.term}`, debit: Number(invoice.amount), credit: 0 })),
     ...selectedPayments.map((payment) => ({ date: payment.date, label: `${payment.method} · Receipt ${payment.receipt_no}`, debit: 0, credit: Number(payment.amount) })),
   ].sort((a, b) => a.date.localeCompare(b.date));
-  const downloadStatementCsv = () => {
-    if (!selectedStudent) return;
+  const downloadStatementCsv = (target: StudentBalanceType | null = selectedStudent) => {
+    if (!target) return;
+    const targetInvoices = invoices.filter((invoice) => invoice.student === target.id && invoice.currency === target.currency);
+    const targetInvoiceIds = new Set(targetInvoices.map((invoice) => invoice.id));
+    const entries = [
+      ...targetInvoices.map((invoice) => ({ date: invoice.date, label: `Invoice ${invoice.invoice_no} · ${invoice.term}`, debit: Number(invoice.amount), credit: 0 })),
+      ...payments.filter((payment) => targetInvoiceIds.has(payment.invoice)).map((payment) => ({ date: payment.date, label: `${payment.method} · Receipt ${payment.receipt_no}`, debit: 0, credit: Number(payment.amount) })),
+    ].sort((a, b) => a.date.localeCompare(b.date));
     const rows = [
       ["Date", "Entry", "Debit", "Credit", "Currency"],
-      ...statementEntries.map((entry) => [entry.date, entry.label, entry.debit.toFixed(2), entry.credit.toFixed(2), selectedStudent.currency]),
+      ...entries.map((entry) => [entry.date, entry.label, entry.debit.toFixed(2), entry.credit.toFixed(2), target.currency]),
     ];
     const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `fee-statement-${selectedStudent.student_id}-${selectedStudent.currency}.csv`;
+    link.download = `fee-statement-${target.student_id}-${target.currency}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -221,10 +228,7 @@ const BalancesSection = () => {
                             >
                               <Eye className="h-5 w-5" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/10 hover:text-accent transition-colors">
-                              <FileText className="h-5 w-5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg transition-colors">
+                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg transition-colors" aria-label={`Download statement for ${balance.student}`} title="Download statement (CSV)" onClick={() => downloadStatementCsv(balance)}>
                               <Download className="h-5 w-5" />
                             </Button>
                           </div>
@@ -320,11 +324,26 @@ const BalancesSection = () => {
                     </h4>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Button variant="gold" className="h-full rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-accent/20" onClick={() => window.print()}>
+                    <Button variant="gold" className="h-full rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-accent/20" onClick={() => void exportFeeStatementPdf({
+                      studentName: selectedStudent.student,
+                      studentId: selectedStudent.student_id,
+                      grade: selectedStudent.class_name,
+                      date: formatSchoolDate(new Date()),
+                      summary: { totalFees: Number(selectedStudent.totalBilled), totalPaid: Number(selectedStudent.totalPaid), balance: Math.max(0, Number(selectedStudent.balance)), arrears: Math.max(0, Number(selectedStudent.balance)) },
+                      currencyBreakdown: [{ currency: selectedStudent.currency, totalFees: Number(selectedStudent.totalBilled), totalPaid: Number(selectedStudent.totalPaid), balance: Math.max(0, Number(selectedStudent.balance)) }],
+                      transactions: statementEntries.map((entry) => ({
+                        date: formatSchoolDate(entry.date),
+                        description: entry.label,
+                        amount: entry.debit || entry.credit,
+                        type: entry.debit ? "invoice" : "payment",
+                        reference: "",
+                        currency: selectedStudent.currency,
+                      })),
+                    })}>
                       <Printer className="mr-3 h-5 w-5" />
-                      Print Official Record
+                      Download Statement PDF
                     </Button>
-                    <Button variant="outline" className="h-full rounded-2xl font-black uppercase text-[10px] tracking-widest border-border text-muted-foreground hover:bg-muted/50" onClick={downloadStatementCsv}>
+                    <Button variant="outline" className="h-full rounded-2xl font-black uppercase text-[10px] tracking-widest border-border text-muted-foreground hover:bg-muted/50" onClick={() => downloadStatementCsv()}>
                       <Download className="mr-3 h-5 w-5" />
                       Secure Export
                     </Button>
