@@ -16,13 +16,14 @@ const PaymentReturn = () => {
   const failed = payment?.status === "failed" || payment?.status === "cancelled";
   const Icon = paid ? CheckCircle2 : failed ? CircleX : isLoading ? Loader2 : Clock3;
   const iconClass = paid ? "text-emerald-600" : failed ? "text-destructive" : "text-amber-600";
+  const providerName = payment?.provider === "paynow" ? "Paynow" : payment?.provider === "ecocash" ? "EcoCash" : "ZimSwitch";
   const message = paid
-    ? "ZimSwitch confirmed your payment. The school fee ledger has been updated."
+    ? `${providerName} confirmed your payment. The school fee ledger has been updated.`
     : failed
-      ? "ZimSwitch did not confirm this payment. If your account was debited, contact the school Accounts office with this reference."
+      ? `${providerName} did not confirm this payment. If your account was debited, contact the school Accounts office with this reference.`
       : isError
         ? error instanceof Error ? error.message : "Sign in to view the confirmed payment status."
-        : "We are checking the payment securely with ZimSwitch. This page will update when confirmation arrives.";
+        : `We are checking the payment securely with ${providerName}. This page will update when confirmation arrives.`;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-4">

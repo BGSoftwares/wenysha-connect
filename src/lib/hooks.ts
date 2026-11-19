@@ -1352,7 +1352,7 @@ export interface OnlinePayment {
     invoice: number;
     invoice_no: string;
     student_name: string;
-    provider: "ecocash" | "zimswitch" | "bank_transfer";
+    provider: "ecocash" | "zimswitch" | "paynow" | "bank_transfer";
     status: "pending" | "paid" | "failed" | "cancelled";
     amount: string;
     currency: FinanceCurrency;
@@ -1365,6 +1365,7 @@ export interface OnlinePayment {
     widget_url?: string;
     brands?: string;
     shopper_result_url?: string;
+    redirect_url?: string;
 }
 
 export interface BankAccountDetails {
@@ -1378,6 +1379,7 @@ export interface OnlinePaymentConfig {
     currencies: FinanceCurrency[];
     providers: {
         ecocash: { enabled: boolean; currencies: FinanceCurrency[] };
+        paynow?: { enabled: boolean; currencies: FinanceCurrency[]; methods: Array<"web" | "ecocash" | "onemoney"> };
         zimswitch: {
             enabled: boolean;
             currencies: FinanceCurrency[];
@@ -1551,7 +1553,7 @@ export const useOnlinePayments = (
 export const useStartOnlinePayment = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: { invoice: number; amount: number; provider: OnlinePayment["provider"]; phone?: string; reference?: string }) =>
+        mutationFn: (data: { invoice: number; amount: number; provider: OnlinePayment["provider"]; phone?: string; reference?: string; paynow_method?: "web" | "ecocash" | "onemoney" }) =>
             api.post<OnlinePayment>("/finance/online-payments/", data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["online-payments"] });
