@@ -2,7 +2,7 @@ import { Clock3 } from "lucide-react";
 import { useOnlinePayments } from "@/lib/hooks";
 import { formatMoney } from "@/lib/finance";
 
-const providerNames = { ecocash: "EcoCash", zimswitch: "ZimSwitch", bank_transfer: "Bank transfer" } as const;
+const providerNames = { ecocash: "EcoCash", zimswitch: "ZimSwitch", paynow: "Paynow", bank_transfer: "Bank transfer" } as const;
 
 /** Tells a parent or student that a payment was started and is waiting for confirmation. It disappears by itself. */
 const PendingPaymentsNotice = ({ invoiceIds }: { invoiceIds?: number[] }) => {

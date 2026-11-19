@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CheckCircle2, CreditCard, Landmark, Smartphone } from "lucide-react";
+import { CheckCircle2, CreditCard, Globe, Landmark, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOnlinePaymentConfig, type Invoice } from "@/lib/hooks";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
@@ -34,10 +34,11 @@ const ParentFeesPanel = ({ childName, invoices, loading, onPay, onViewAll }: Par
   const owing = totals.filter((row) => row.balance > 0);
   const methods = [
     { label: "EcoCash", Icon: Smartphone, on: Boolean(config?.providers.ecocash.enabled) },
+    { label: "Paynow", Icon: Globe, on: Boolean(config?.providers.paynow?.enabled) },
     { label: "ZimSwitch card", Icon: CreditCard, on: Boolean(config?.providers.zimswitch.enabled) },
     { label: "Bank transfer", Icon: Landmark, on: true },
   ];
-  const onlineReady = methods[0].on || methods[1].on;
+  const onlineReady = methods.slice(0, 3).some((method) => method.on);
 
   return (
     <section aria-labelledby="parent-fees-title" className="rounded-3xl border border-border bg-card p-6 shadow-xl md:p-8">

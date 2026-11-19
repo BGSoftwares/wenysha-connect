@@ -21,7 +21,7 @@ from core.roles import portal_role
 from .models import BankDeposit, FeeStructure, Invoice, Payment, Discount, OnlinePayment
 from .gateways import (
     GatewayError, GatewayNotConfigured, online_payment_config,
-    start_ecocash_payment, start_zimswitch_checkout,
+    parse_paynow_message, start_ecocash_payment, start_paynow_payment, start_zimswitch_checkout,
 )
 from .services import DepositError, ingest_deposits, post_deposit, record_verified_online_payment, refresh_intent
 from .serializers import (
@@ -226,8 +226,8 @@ class OnlinePaymentListCreateView(APIView):
             return Response({'detail': 'You cannot pay this student invoice.'}, status=status.HTTP_403_FORBIDDEN)
 
         provider = str(request.data.get('provider', '')).strip().lower()
-        if provider not in {'ecocash', 'zimswitch', 'bank_transfer'}:
-            return Response({'detail': 'Choose EcoCash or ZimSwitch Online.'}, status=status.HTTP_400_BAD_REQUEST)
+        if provider not in {'ecocash', 'zimswitch', 'paynow', 'bank_transfer'}:
+            return Response({'detail': 'Choose EcoCash, Paynow or ZimSwitch Online.'}, status=status.HTTP_400_BAD_REQUEST)
         provider_config = online_payment_config()['providers'][provider]
         if not provider_config['enabled']:
             return Response({'detail': f"{provider.title()} Online Payments is not configured for this school yet."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -243,8 +243,12 @@ class OnlinePaymentListCreateView(APIView):
         if amount <= 0:
             return Response({'detail': 'Payment amount must be greater than zero.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        paynow_method = str(request.data.get('paynow_method', 'web')).strip().lower() if provider == 'paynow' else ''
+        if provider == 'paynow' and paynow_method not in {'web', 'ecocash', 'onemoney'}:
+            return Response({'detail': 'Choose how you want to pay with Paynow.'}, status=status.HTTP_400_BAD_REQUEST)
+
         phone = ''
-        if provider == 'ecocash':
+        if provider == 'ecocash' or (provider == 'paynow' and paynow_method != 'web'):
             raw_phone = re.sub(r'[^0-9]', '', str(request.data.get('phone', '')))
             if raw_phone.startswith('0'):
                 raw_phone = f"263{raw_phone[1:]}"
@@ -288,6 +292,26 @@ class OnlinePaymentListCreateView(APIView):
                 intent.status = 'failed'
                 intent.save(update_fields=['status', 'updated_at'])
                 return Response({'detail': 'The secure checkout return address is not allowed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if provider == 'paynow':
+                started = start_paynow_payment(
+                    intent,
+                    return_url=f"{origin}/payment/return?ref={reference}",
+                    result_url=os.environ.get('PAYNOW_RESULT_URL', '').strip() or f"{origin}/api/finance/paynow/result/",
+                    method=paynow_method,
+                    # Paynow wants the local format, e.g. 0771234567.
+                    phone=f"0{phone[-9:]}" if phone else '',
+                    auth_email=request.user.email or '',
+                )
+                intent.checkout_id = started['poll_url'][:128]
+                intent.provider_reference = started['provider_reference'][:64]
+                intent.save(update_fields=['checkout_id', 'provider_reference', 'updated_at'])
+                return Response({
+                    **_online_payment_payload(intent),
+                    'redirect_url': started['redirect_url'],
+                    'message': started['instructions'] or 'Continue on the Paynow page to pay.',
+                }, status=status.HTTP_201_CREATED)
+
             return_url = f"{origin}/payment/return?ref={reference}"
             checkout = start_zimswitch_checkout(intent, return_url)
             intent.checkout_id = checkout['checkout_id'][:128]
@@ -307,6 +331,28 @@ class OnlinePaymentListCreateView(APIView):
             intent.status = 'failed'
             intent.save(update_fields=['status', 'updated_at'])
             return Response({'detail': str(exc), 'client_reference': reference}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+class PaynowResultView(APIView):
+    """Paynow posts the result of a payment here. The signature is checked, then the payment is confirmed
+    by asking Paynow directly, so a forged or replayed post can never credit a student."""
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = []
+
+    def post(self, request):
+        raw = request.body.decode('utf-8', 'replace')
+        try:
+            fields = parse_paynow_message(raw)
+        except GatewayError:
+            return Response({'detail': 'Invalid signature.'}, status=status.HTTP_400_BAD_REQUEST)
+        intent = OnlinePayment.objects.select_related('invoice__student').filter(
+            client_reference=fields.get('reference', ''), provider='paynow',
+        ).first()
+        if intent is None:
+            return Response({'detail': 'Unknown payment.'}, status=status.HTTP_404_NOT_FOUND)
+        refresh_intent(intent)
+        return Response({'status': 'ok'})
 
 
 class OnlinePaymentRefreshView(APIView):

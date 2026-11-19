@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CreditCard, Landmark, Loader2, Smartphone, X } from "lucide-react";
+import { CreditCard, Globe, Landmark, Loader2, Smartphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOnlinePaymentConfig, useOnlinePayments, useRefreshOnlinePayment, useStartOnlinePayment, type Invoice, type OnlinePayment } from "@/lib/hooks";
 import { formatMoney } from "@/lib/finance";
@@ -13,11 +13,13 @@ interface PaymentModalProps {
 }
 
 type Provider = OnlinePayment["provider"];
+type PaynowMethod = "web" | "ecocash" | "onemoney";
 
 const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalProps) => {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
+  const [paynowMethod, setPaynowMethod] = useState<PaynowMethod>("web");
   const [clientReference, setClientReference] = useState("");
   const [checkout, setCheckout] = useState<OnlinePayment | null>(null);
   const [error, setError] = useState("");
@@ -41,6 +43,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
     setAmount(balance.toFixed(2));
     setProvider(null);
     setPhone("");
+    setPaynowMethod("web");
     setClientReference("");
     setCheckout(null);
     setError("");
@@ -96,16 +99,26 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
       setError(`Enter an amount above zero and no greater than ${formatMoney(balance, invoice.currency)}.`);
       return;
     }
-    if (provider === "ecocash" && !phone.trim()) {
-      setError("Enter the EcoCash number that should receive the payment prompt.");
+    const needsPhone = provider === "ecocash" || (provider === "paynow" && paynowMethod !== "web");
+    if (needsPhone && !phone.trim()) {
+      setError("Enter the mobile number that should receive the payment prompt.");
       return;
     }
 
     setError("");
     try {
-      const result = await startPayment.mutateAsync({ invoice: invoice.id, amount: value, provider, ...(provider === "ecocash" ? { phone } : {}), ...(provider === "bank_transfer" ? { reference: phone } : {}) });
+      const result = await startPayment.mutateAsync({
+        invoice: invoice.id,
+        amount: value,
+        provider,
+        ...(needsPhone ? { phone } : {}),
+        ...(provider === "paynow" ? { paynow_method: paynowMethod } : {}),
+        ...(provider === "bank_transfer" ? { reference: phone } : {}),
+      });
       setClientReference(result.client_reference);
       if (provider === "zimswitch") setCheckout(result);
+      // Paynow's own page takes the card or wallet details; the payer comes back to /payment/return.
+      if (provider === "paynow" && paynowMethod === "web" && result.redirect_url) window.location.assign(result.redirect_url);
     } catch (caught) {
       setError(getErrorMessage(caught));
     }
@@ -121,6 +134,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
   const currentStatus = paymentStatus?.status || checkout?.status;
   const methodOptions: { id: Provider; name: string; description: string; Icon: typeof Smartphone }[] = [
     { id: "ecocash", name: "EcoCash", description: "Approve a wallet prompt on your Zimbabwe mobile number.", Icon: Smartphone },
+    { id: "paynow", name: "Paynow", description: "Pay with EcoCash, OneMoney or a card through Paynow.", Icon: Globe },
     { id: "zimswitch", name: "ZimSwitch", description: "Pay securely in the hosted card checkout.", Icon: CreditCard },
     { id: "bank_transfer", name: "Bank transfer", description: "Deposit or transfer to the school bank account.", Icon: Landmark },
   ];
@@ -194,6 +208,31 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
                 </div>
               )}
 
+              {provider === "paynow" && (
+                <div className="space-y-3">
+                  <fieldset>
+                    <legend className="mb-2 text-sm font-medium">How do you want to pay on Paynow?</legend>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {([["web", "Paynow page"], ["ecocash", "EcoCash prompt"], ["onemoney", "OneMoney prompt"]] as const).map(([id, label]) => (
+                        <label key={id} className={`cursor-pointer rounded-lg border p-2 text-center text-sm ${paynowMethod === id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
+                          <input type="radio" name="paynow-method" className="sr-only" checked={paynowMethod === id} onChange={() => setPaynowMethod(id)} />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  {paynowMethod === "web" ? (
+                    <p className="text-xs text-muted-foreground">You will be taken to Paynow's secure page to finish paying, then brought back here.</p>
+                  ) : (
+                    <div>
+                      <label htmlFor="paynow-phone" className="mb-2 block text-sm font-medium">{paynowMethod === "ecocash" ? "EcoCash" : "OneMoney"} mobile number</label>
+                      <input id="paynow-phone" type="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground" placeholder="077 123 4567" />
+                      <p className="mt-1 text-xs text-muted-foreground">You will receive a prompt on your phone to approve the payment.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {provider === "bank_transfer" && (
                 <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
                   <p className="font-semibold text-primary">School bank account details</p>
@@ -240,7 +279,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, studentName }: PaymentModalPro
               </Button>
             )}
           </footer>
-          <p className="text-center text-xs text-muted-foreground">Payments are processed by EcoCash or ZimSwitch. Never share your PIN or card security code with school staff.</p>
+          <p className="text-center text-xs text-muted-foreground">Payments are processed by EcoCash, Paynow or ZimSwitch. Never share your PIN or card security code with school staff.</p>
         </div>
       </section>
     </div>

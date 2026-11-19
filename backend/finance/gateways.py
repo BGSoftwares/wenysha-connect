@@ -1,11 +1,13 @@
-"""Server-side adapters for EcoCash Online Payments and ZimSwitch COPYandPAY."""
+"""Server-side adapters for EcoCash Online Payments, ZimSwitch COPYandPAY and Paynow."""
 
 import base64
+import hashlib
+import hmac
 import json
 import os
 from decimal import Decimal, InvalidOperation
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 
@@ -46,6 +48,12 @@ def online_payment_config():
                 "currencies": _currency_list("ZIMSWITCH_SUPPORTED_CURRENCIES"),
                 "widget_url": f"{zimswitch_base}/v1/paymentWidgets.js" if zimswitch_base else "",
                 "brands": _env("ZIMSWITCH_WIDGET_BRANDS", "VISA MASTER PRIVATE_LABEL"),
+            },
+            "paynow": {
+                "enabled": bool(_env("PAYNOW_INTEGRATION_ID") and _env("PAYNOW_INTEGRATION_KEY")),
+                "currencies": _currency_list("PAYNOW_SUPPORTED_CURRENCIES"),
+                # "web" sends the payer to Paynow's secure page (cards, wallets); the others send a prompt to a phone.
+                "methods": ["web", "ecocash", "onemoney"],
             },
             "bank_transfer": {
                 "enabled": True,
@@ -193,6 +201,14 @@ def refresh_provider_status(intent):
     if not config.get("enabled"):
         raise GatewayNotConfigured(f"{intent.get_provider_display()} has not been configured for this school.")
 
+    if intent.provider == "paynow":
+        if not _paynow_url_allowed(intent.checkout_id):
+            raise GatewayError("Paynow status address is missing.")
+        fields = parse_paynow_message(_paynow_post(intent.checkout_id))
+        if fields.get("reference") and fields["reference"] != intent.client_reference:
+            raise GatewayError("Paynow returned a different payment reference.")
+        return interpret_paynow_status(fields, intent)
+
     if intent.provider == "ecocash":
         result = _request_json(_ecocash_lookup_url(intent), headers=_ecocash_headers())
         provider_status = result.get("transactionOperationStatus")
@@ -222,3 +238,116 @@ def refresh_provider_status(intent):
     if code.startswith("000.200.") or not code:
         return {"status": "pending", "provider_reference": str(result.get("id", ""))}
     return {"status": "failed", "error_code": code[:64] or "DECLINED"}
+
+
+# --------------------------------------------------------------------------- Paynow
+
+PAYNOW_PAID = {"paid", "awaiting delivery", "delivered"}
+PAYNOW_FAILED = {"cancelled", "failed", "refunded", "disputed"}
+PAYNOW_MOBILE_METHODS = {"ecocash", "onemoney"}
+
+
+def _paynow_base():
+    return (_env("PAYNOW_BASE_URL") or "https://www.paynow.co.zw/interface").rstrip("/")
+
+
+def paynow_hash(values):
+    """Paynow signs a message by hashing the field values in order, followed by the integration key."""
+    text = "".join(str(value) for value in values) + _env("PAYNOW_INTEGRATION_KEY")
+    return hashlib.sha512(text.encode("utf-8")).hexdigest().upper()
+
+
+def parse_paynow_message(raw):
+    """Parse and verify a Paynow reply or result post. Raises GatewayError if the signature is wrong."""
+    pairs = parse_qsl(raw if isinstance(raw, str) else raw.decode("utf-8", "replace"), keep_blank_values=True)
+    fields = {}
+    received_hash = ""
+    values = []
+    for key, value in pairs:
+        if key.lower() == "hash":
+            received_hash = value
+            continue
+        fields[key.lower()] = value
+        values.append(value)
+    if not received_hash or not hmac.compare_digest(paynow_hash(values), received_hash.upper()):
+        raise GatewayError("Paynow returned a message that could not be verified.")
+    return fields
+
+
+def _paynow_post(url, data=None):
+    body = urlencode(data or {}).encode("utf-8")
+    request = Request(url, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"}, method="POST")
+    try:
+        with urlopen(request, timeout=25) as response:
+            return response.read().decode("utf-8")
+    except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+        raise GatewayError("Could not reach Paynow. Please retry or contact Accounts.") from exc
+
+
+def start_paynow_payment(intent, return_url, result_url, method="web", phone="", auth_email=""):
+    """Start a Paynow payment. Returns the Paynow page to open (web) or instructions for the phone prompt."""
+    config = online_payment_config()["providers"]["paynow"]
+    if not config["enabled"]:
+        raise GatewayNotConfigured("Paynow has not been configured for this school.")
+    if intent.currency not in config["currencies"]:
+        raise GatewayNotConfigured(f"Paynow is not enabled for {intent.currency} invoices.")
+    mobile = method in PAYNOW_MOBILE_METHODS
+    if not mobile and method != "web":
+        raise GatewayError("Choose how you want to pay with Paynow.")
+    email = _env("PAYNOW_AUTH_EMAIL") or auth_email
+    if mobile and not email:
+        raise GatewayError("Paynow needs an email address for mobile payments. Add one to your profile or contact Accounts.")
+
+    fields = [
+        ("id", _env("PAYNOW_INTEGRATION_ID")),
+        ("reference", intent.client_reference),
+        ("amount", f"{intent.amount:.2f}"),
+        ("additionalinfo", f"School fees {intent.invoice.invoice_no}"),
+        ("returnurl", return_url),
+        ("resulturl", result_url),
+        ("authemail", email),
+    ]
+    if mobile:
+        fields += [("phone", phone), ("method", method)]
+    fields.append(("status", "Message"))
+    data = dict(fields)
+    data["hash"] = paynow_hash([value for _, value in fields])
+    endpoint = "remotetransaction" if mobile else "initiatetransaction"
+    reply = parse_paynow_message(_paynow_post(f"{_paynow_base()}/{endpoint}", data))
+    if reply.get("status", "").lower() != "ok":
+        raise GatewayError((reply.get("error") or "Paynow did not accept the payment.")[:200])
+    poll_url = reply.get("pollurl", "")
+    if not _paynow_url_allowed(poll_url):
+        raise GatewayError("Paynow returned an unexpected status address.")
+    return {
+        "poll_url": poll_url,
+        "redirect_url": reply.get("browserurl", ""),
+        "instructions": reply.get("instructions", ""),
+        "provider_reference": reply.get("paynowreference", ""),
+    }
+
+
+def _paynow_url_allowed(url):
+    """Only ever call back to Paynow itself."""
+    allowed = urlparse(_paynow_base()).hostname
+    parsed = urlparse(url or "")
+    return bool(parsed.scheme == "https" and parsed.hostname and parsed.hostname == allowed) or (
+        bool(parsed.hostname) and parsed.hostname == allowed and parsed.scheme in {"http", "https"} and allowed in {"localhost", "127.0.0.1"}
+    )
+
+
+def interpret_paynow_status(fields, intent):
+    """Turn a verified Paynow status message into paid / failed / pending, checking the amount."""
+    status = fields.get("status", "").strip().lower()
+    reference = fields.get("paynowreference", "")
+    if status in PAYNOW_PAID:
+        try:
+            paid_amount = Decimal(fields.get("amount", "")).quantize(Decimal("0.01"))
+        except (InvalidOperation, ValueError):
+            return {"status": "pending", "provider_reference": reference}
+        if paid_amount != intent.amount.quantize(Decimal("0.01")):
+            raise GatewayError("Paynow reported a different amount; the payment is not marked paid.")
+        return {"status": "paid", "provider_reference": reference}
+    if status in PAYNOW_FAILED:
+        return {"status": "failed", "error_code": status.upper()[:64], "provider_reference": reference}
+    return {"status": "pending", "provider_reference": reference}

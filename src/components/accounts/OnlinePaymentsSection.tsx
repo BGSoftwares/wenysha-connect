@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Loader2, RefreshCw, Smartphone, CreditCard, Landmark, Check, CircleCheck, CircleX, Clock3 } from "lucide-react";
+import { Loader2, RefreshCw, Smartphone, CreditCard, Landmark, Check, CircleCheck, CircleX, Clock3, Globe } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOnlinePaymentConfig, useOnlinePayments, useRefreshOnlinePayment, useConfirmOnlinePayment } from "@/lib/hooks";
 import { formatMoney, formatSchoolDate } from "@/lib/finance";
 
-const providerLabels = { ecocash: "EcoCash", zimswitch: "ZimSwitch", bank_transfer: "NBS Bank Transfer" } as const;
+const providerLabels = { ecocash: "EcoCash", zimswitch: "ZimSwitch", paynow: "Paynow", bank_transfer: "NBS Bank Transfer" } as const;
 
 const OnlinePaymentsSection = () => {
   const { data: config, isLoading: loadingConfig } = useOnlinePaymentConfig();
@@ -30,7 +30,7 @@ const OnlinePaymentsSection = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-foreground">Online fee payments</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Track verified EcoCash and ZimSwitch payments and see which Zimbabwe payment channels are configured.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Track verified EcoCash, Paynow and ZimSwitch payments and see which Zimbabwe payment channels are configured.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -55,6 +55,7 @@ const OnlinePaymentsSection = () => {
         </Card>
         {([
           { key: "ecocash", name: "EcoCash", Icon: Smartphone, hint: "Mobile wallet prompt to the payer's Zimbabwe number." },
+          { key: "paynow", name: "Paynow", Icon: Globe, hint: "Paynow page (cards, wallets) or an EcoCash / OneMoney prompt." },
           { key: "zimswitch", name: "ZimSwitch", Icon: CreditCard, hint: "Secure hosted checkout for ZimSwitch enabled bank cards." },
         ] as const).map(({ key, name, Icon, hint }) => {
           const provider = config?.providers[key];
@@ -80,7 +81,7 @@ const OnlinePaymentsSection = () => {
         })}
       </div>
 
-      {!loadingConfig && (!config?.providers.ecocash.enabled || !config?.providers.zimswitch.enabled) && (
+      {!loadingConfig && (!config?.providers.ecocash.enabled || !config?.providers.zimswitch.enabled || !config?.providers.paynow?.enabled) && (
         <Card className="border-amber-300 bg-amber-50/70 dark:bg-amber-950/20">
           <CardContent className="p-5 text-sm text-amber-950 dark:text-amber-100">
             <p className="font-semibold">Merchant credentials are required before checkout can accept money.</p>
