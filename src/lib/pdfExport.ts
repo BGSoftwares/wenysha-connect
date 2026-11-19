@@ -449,3 +449,105 @@ export async function sharePdfToWhatsApp(opts: {
   window.open(destination, "_blank", "noopener,noreferrer");
   return "opened";
 }
+
+
+const money = (value: number | string, currency: string) =>
+  `${currency} ${Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const schoolHeader = (pdf: jsPDF, title: string) => {
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(18);
+  pdf.text("ABLE GOD COLLEGE", 105, 20, { align: "center" });
+  pdf.setFontSize(14);
+  pdf.text(title, 105, 29, { align: "center" });
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+};
+
+const detailRows = (pdf: jsPDF, rows: Array<[string, string]>, startY: number) => {
+  let y = startY;
+  for (const [label, value] of rows) {
+    pdf.setFont("helvetica", "bold");
+    pdf.text(label, 20, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(value || "—", 70, y);
+    y += 8;
+  }
+  return y;
+};
+
+export interface InvoicePdfData {
+  invoice_no: string;
+  student_name: string;
+  student_id?: string;
+  class_name?: string;
+  term: string;
+  amount: string | number;
+  paid: string | number;
+  currency: string;
+  status: string;
+  date: string;
+}
+
+/** A one page invoice the accounts office can print or send. */
+export const exportInvoicePdf = (data: InvoicePdfData) => {
+  const pdf = new jsPDF("p", "mm", "a4");
+  schoolHeader(pdf, "INVOICE");
+  const balance = Number(data.amount) - Number(data.paid);
+  const y = detailRows(pdf, [
+    ["Invoice number", data.invoice_no],
+    ["Date", data.date],
+    ["Student", data.student_name],
+    ["Student ID", data.student_id ?? ""],
+    ["Class", data.class_name ?? ""],
+    ["Term", data.term],
+    ["Status", data.status.toUpperCase()],
+  ], 48);
+  pdf.setDrawColor(200);
+  pdf.line(20, y + 2, 190, y + 2);
+  detailRows(pdf, [
+    ["Amount billed", money(data.amount, data.currency)],
+    ["Paid so far", money(data.paid, data.currency)],
+    ["Balance due", money(Math.max(0, balance), data.currency)],
+  ], y + 12);
+  pdf.setFontSize(9);
+  pdf.text("Pay using the invoice number as your reference. Payments are credited automatically.", 105, 280, { align: "center" });
+  pdf.save(`invoice-${data.invoice_no}.pdf`);
+};
+
+export interface ReceiptPdfData {
+  receipt_no: string;
+  invoice_no: string;
+  student_name: string;
+  amount: string | number;
+  currency: string;
+  method: string;
+  reference?: string;
+  date: string;
+  recorded_by?: string;
+}
+
+/** The receipt handed to a parent after a payment. */
+export const exportReceiptPdf = (data: ReceiptPdfData) => {
+  const pdf = new jsPDF("p", "mm", "a4");
+  schoolHeader(pdf, "PAYMENT RECEIPT");
+  const y = detailRows(pdf, [
+    ["Receipt number", data.receipt_no],
+    ["Date", data.date],
+    ["Student", data.student_name],
+    ["Invoice", data.invoice_no],
+    ["Payment method", data.method],
+    ["Reference", data.reference ?? ""],
+    ["Received by", data.recorded_by ?? ""],
+  ], 48);
+  pdf.setDrawColor(200);
+  pdf.line(20, y + 2, 190, y + 2);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(13);
+  pdf.text("Amount received", 20, y + 14);
+  pdf.text(money(data.amount, data.currency), 190, y + 14, { align: "right" });
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.text("Thank you. Please keep this receipt for your records.", 105, 280, { align: "center" });
+  pdf.save(`receipt-${data.receipt_no}.pdf`);
+};

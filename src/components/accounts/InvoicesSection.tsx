@@ -21,6 +21,7 @@ import { Plus, Eye, Printer, Search, FileText, Loader2, AlertTriangle } from "lu
 import { useInvoices, useCreateInvoice, useStudents, Invoice as InvoiceType } from "@/lib/hooks";
 import { invoiceSchema, type InvoiceFormData } from "@/lib/validations";
 import { toast } from "sonner";
+import { exportInvoicePdf } from "@/lib/pdfExport";
 import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, schoolDateInput } from "@/lib/finance";
 
 interface InvoicesSectionProps {
@@ -80,6 +81,21 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
     } catch {
       toast.error("Failed to generate invoice. Please try again.");
     }
+  };
+
+  const downloadInvoice = (invoice: InvoiceType) => {
+    exportInvoicePdf({
+      invoice_no: invoice.invoice_no,
+      student_name: invoice.student_name,
+      student_id: invoice.student_id_display,
+      class_name: invoice.class_name,
+      term: invoice.term,
+      amount: invoice.amount,
+      paid: invoice.paid,
+      currency: invoice.currency,
+      status: invoice.status,
+      date: formatSchoolDate(invoice.date),
+    });
   };
 
   const handleViewInvoice = (invoice: InvoiceType) => {
@@ -168,7 +184,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
                           <Button variant="ghost" size="icon" onClick={() => handleViewInvoice(invoice)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" aria-label={`Download invoice ${invoice.invoice_no} as PDF`} title="Download PDF" onClick={() => downloadInvoice(invoice)}>
                             <Printer className="h-4 w-4" />
                           </Button>
                         </div>
@@ -353,7 +369,7 @@ const InvoicesSection = ({ activeSubNav }: InvoicesSectionProps) => {
             </div>
           )}
           <DialogFooter className="gap-3">
-            <Button variant="outline" className="flex-1 h-14 rounded-xl font-bold uppercase tracking-widest text-[10px]" onClick={() => window.print()}>
+            <Button variant="outline" className="flex-1 h-14 rounded-xl font-bold uppercase tracking-widest text-[10px]" onClick={() => selectedInvoice && downloadInvoice(selectedInvoice)}>
               <Printer className="mr-2 h-4 w-4" />
               Generate PDF
             </Button>
