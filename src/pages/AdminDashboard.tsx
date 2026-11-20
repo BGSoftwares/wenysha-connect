@@ -43,6 +43,7 @@ import PromotionSection from "@/components/admin/PromotionSection";
 import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
 import LearningAssignmentsSection from "@/components/teacher/LearningAssignmentsSection";
 import AdminReportCardsSection from "@/components/admin/ReportCardsSection";
+import ProjectsSection from "@/components/admin/ProjectsSection";
 
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
@@ -340,6 +341,7 @@ const AdminDashboard = () => {
       exam: "Exam Management",
       "exam-management": "Exam Management",
       "pending-approvals": "Pending Approvals",
+      projects: "Projects",
       transport: "Transport",
       hostel: "Hostel",
       notice: "Communications",
@@ -456,6 +458,7 @@ const AdminDashboard = () => {
       case "exam":
       case "exam-management": return <div className="space-y-6"><MarkSubmissionsSection /><ExamManagementSection /></div>;
       case "pending-approvals": return <PendingApprovalsSection />;
+      case "projects": return <ProjectsSection />;
       case "transport": return <TransportSection />;
       case "hostel": return <HostelSection />;
       case "notice": return <CommunicationSection role="admin" classes={classes || []} students={students || []} />;

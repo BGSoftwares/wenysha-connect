@@ -23,7 +23,8 @@ import {
   MessageSquare,
   MapPin,
   CreditCard,
-  FileText
+  FileText,
+  FolderKanban,
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { useState } from "react";
@@ -98,6 +99,7 @@ const navigation: NavItem[] = [
     icon: UserCog,
     id: "pending-approvals",
   },
+  { name: "Projects", icon: FolderKanban, id: "projects" },
   { name: "Transport", icon: Bus, id: "transport" },
   { name: "Hostel", icon: Building, id: "hostel" },
   { name: "Communications", icon: MessageSquare, id: "notice" },
