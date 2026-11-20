@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Smartphone,
   Landmark,
+  TrendingDown,
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { useState } from "react";
@@ -62,6 +63,7 @@ const navigation: NavItem[] = [
   { name: "Balances & Statements", icon: DollarSign, id: "balances" },
   { name: "Online Payments", icon: Smartphone, id: "online-payments" },
   { name: "Bank Deposits", icon: Landmark, id: "bank-deposits" },
+  { name: "Expenses", icon: TrendingDown, id: "expenses" },
   { 
     name: "Discounts & Adjustments", 
     icon: Percent, 

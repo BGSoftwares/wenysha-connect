@@ -12,6 +12,7 @@ import ReportsSection from "@/components/accounts/ReportsSection";
 import AccountsProfileSection from "@/components/accounts/AccountsProfileSection";
 import OnlinePaymentsSection from "@/components/accounts/OnlinePaymentsSection";
 import BankDepositsSection from "@/components/accounts/BankDepositsSection";
+import ExpensesSection from "@/components/accounts/ExpensesSection";
 import LearningMaterialsSection from "@/components/dashboard/LearningMaterialsSection";
 import CommunicationSection from "@/components/dashboard/CommunicationSection";
 import { useClasses, useStudents } from "@/lib/hooks";
@@ -35,6 +36,7 @@ const AccountsDashboard = () => {
       balances: "Balances & Statements",
       "online-payments": "Online Payments",
       "bank-deposits": "Bank Deposits",
+      expenses: "Expenses & Income",
       discounts: "Discounts & Adjustments",
       arrears: "Arrears & Compliance",
       reports: "Reports & Analytics",
@@ -62,6 +64,8 @@ const AccountsDashboard = () => {
         return <BalancesSection />;
       case "online-payments":
         return <OnlinePaymentsSection />;
+      case "expenses":
+        return <ExpensesSection />;
       case "bank-deposits":
         return <BankDepositsSection />;
       case "discounts":
