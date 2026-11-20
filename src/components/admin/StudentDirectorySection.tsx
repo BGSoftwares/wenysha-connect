@@ -6,7 +6,7 @@ import { api, getErrorMessage } from "@/lib/api";
 import { useStudents, type Student } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { exportStudentContactsPdf } from "@/lib/idCardPdf";
+import { exportStudentIdCardsPdf } from "@/lib/idCardPdf";
 
 type Account = { id: number; username: string; email: string; full_name: string; role_name?: string };
 type AccountResponse = Account[] | { results?: Account[] };
@@ -36,7 +36,7 @@ const StudentDirectorySection = ({ onManageGuardians }: { onManageGuardians: () 
     onError: error => toast.error(getErrorMessage(error)),
   });
   const printCards = (list: Student[], fileName: string) => {
-    exportStudentContactsPdf(list, fileName).catch(error => toast.error(getErrorMessage(error)));
+    exportStudentIdCardsPdf(list, fileName).catch(error => toast.error(getErrorMessage(error)));
   };
   const studentAccounts = accounts.filter(account => account.role_name?.trim().toLowerCase() === "student");
   const filtered = useMemo(() => students.filter(student => {
