@@ -173,3 +173,16 @@ at any time: `docker compose run --rm backend python manage.py audit_student_num
 - **iPhone / iPad:** an App Store app needs a Mac and a paid Apple Developer account. Until then iPhone users open the portal in Safari and choose Share, Add to Home Screen.
 - **Windows and Linux computers:** the "Desktop app" workflow builds a Windows installer (`.exe`) and Linux packages (`.AppImage`, `.deb`) and publishes them as the `desktop-latest` release. It uses the same `APP_URL` variable; run it from the Actions tab. The installers are unsigned, so Windows SmartScreen shows a warning the first time (More info, Run anyway); a code-signing certificate removes it. Chrome and Edge users can also install straight from the address bar with no download.
 - To host the APK somewhere else, set `VITE_ANDROID_APK_URL` when building the frontend (likewise `VITE_WINDOWS_INSTALLER_URL`, `VITE_LINUX_APPIMAGE_URL`, `VITE_LINUX_DEB_URL`).
+
+## Fixed report card positions
+
+When an exam's results are published, every active learner's class and year-group position is saved (`PublishedRanking`).
+Parents, students and teachers then see those saved positions, so correcting a mark later changes the marks but never moves a
+published position. Republishing an exam (unpublish, then publish again) replaces the saved positions with fresh ones.
+
+Exams published before this change have no saved positions and keep using live rankings. To fix their positions as they stand now:
+
+```sh
+docker compose --env-file deploy.env run --rm backend python manage.py freeze_published_rankings --dry-run
+docker compose --env-file deploy.env run --rm backend python manage.py freeze_published_rankings
+```

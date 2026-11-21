@@ -1,12 +1,6 @@
-import re
 from collections import defaultdict
 from parents.models import StudentParent
 from school.models import TeacherSubjectClass
-
-
-def get_level_name(class_name):
-    match = re.match(r'^\s*(.+?\d+)', class_name)
-    return match.group(1).strip() if match else None
 
 
 def expected_subject_ids_by_class(exam, class_ids):
