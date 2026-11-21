@@ -1,3 +1,4 @@
+import GetAppButton from "@/components/GetAppButton";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Menu, X, LogOut, User as UserIcon, Shield } from "lucide-react";
@@ -87,6 +88,7 @@ export const Header = () => {
 
           {/* Portal Button / User Menu */}
           <div className="hidden items-center gap-3 md:flex">
+            <GetAppButton className="border-white/20 bg-white/10 text-white hover:bg-white/20" />
             {user ? (
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20">

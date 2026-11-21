@@ -1,6 +1,7 @@
 import { Menu, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getStoredUser, signOutAndLeave } from "@/lib/api";
+import GetAppButton from "@/components/GetAppButton";
 
 interface AdminHeaderProps {
   title: string;
@@ -26,7 +27,8 @@ const AdminHeader = ({ title, breadcrumb, onMenuClick }: AdminHeaderProps) => {
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 sm:gap-6">
+        <GetAppButton className="border-white/20 bg-white/10 text-white hover:bg-white/20" />
         <Link to="/portal" onClick={signOutAndLeave} className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive transition-colors hover:bg-destructive/20">
           <LogOut className="h-4 w-4" />
           Sign Out

@@ -165,3 +165,10 @@ by a counter that only moves forward, so:
 
 On the first deploy of this change the migration numbers every student who had none and leaves existing numbers untouched. To check
 at any time: `docker compose run --rm backend python manage.py audit_student_numbers --dry-run` (drop `--dry-run` to issue missing numbers).
+
+## Mobile apps (Android and iPhone)
+
+- **Everyone:** the site is installable (web app manifest and service worker in `public/`). The "Get the app" button in every dashboard header explains how.
+- **Android:** the "Android app" GitHub workflow builds an `.apk` and publishes it as the `android-latest` release. One-time setup: add a repository variable `APP_URL` (Settings, Secrets and variables, Actions, Variables) holding the live portal address, then run the workflow from the Actions tab. The app is a thin wrapper that opens the live portal, so portal updates reach the app without a new build. It is a debug-signed APK for direct install; the Google Play Store would need a release-signed build and a Play developer account.
+- **iPhone / iPad:** an App Store app needs a Mac and a paid Apple Developer account. Until then iPhone users open the portal in Safari and choose Share, Add to Home Screen.
+- To host the APK somewhere else, set `VITE_ANDROID_APK_URL` when building the frontend.
