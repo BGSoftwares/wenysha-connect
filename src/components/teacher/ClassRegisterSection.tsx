@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StudentPortalCredentialsDialog, type StudentPortalCredentials } from "@/components/admin/StudentPortalCredentials";
 import { getErrorMessage } from "@/lib/api";
 import { useCreateStudent, useDeleteStudent, useUpdateStudent, type SchoolClass, type Student } from "@/lib/hooks";
+import ModalShell from "@/components/ui/modal-shell";
 
 type Props = { classes: SchoolClass[]; students: Student[] };
 type StudentDraft = {
@@ -185,7 +186,7 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
           </tbody>
         </table></DashboardTable></div>}
 
-      {showAddForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowAddForm(false)}><div className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-xl bg-card p-6" onClick={event => event.stopPropagation()}>
+      {showAddForm && <ModalShell onClose={() => setShowAddForm(false)} overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-xl bg-card p-6">
         <div><h3 className="text-xl font-bold">Add a student</h3><p className="text-sm text-muted-foreground">Class: {selectedClass?.name}. Student ID is generated automatically.</p></div>
         <label className="block text-sm">Full name<Input autoComplete="name" value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -204,7 +205,7 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
           <label className="block text-sm">Address (optional)<Input autoComplete="street-address" value={draft.next_of_kin.address} onChange={event => setDraft({ ...draft, next_of_kin: { ...draft.next_of_kin, address: event.target.value } })} /></label>
         </div>
         <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowAddForm(false)}>Cancel</Button><Button variant="gold" disabled={!draft.name.trim() || createStudent.isPending} onClick={() => void addStudent()}>{createStudent.isPending ? "Saving…" : "Save Student"}</Button></div>
-      </div></div>}
+      </ModalShell>}
       {portalCredentials && <StudentPortalCredentialsDialog credentials={portalCredentials} onClose={() => setPortalCredentials(null)} />}
     </div>
   );

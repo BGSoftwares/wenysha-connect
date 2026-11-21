@@ -7,6 +7,7 @@ import { api, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import ModalShell from "@/components/ui/modal-shell";
 
 type Application = {
   id: number;
@@ -245,8 +246,7 @@ const AdmissionSection = () => {
 
       {/* Record New Application Modal */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setOpen(false)}>
-          <div className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-xl bg-card border border-border p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <ModalShell onClose={() => setOpen(false)} overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-xl bg-card border border-border p-6 shadow-2xl">
             <h3 className="text-xl font-bold">Record New Application</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {(["full_name", "email", "phone", "gender", "date_of_birth", "applying_for", "guardian_name", "guardian_phone", "previous_school", "address"] as const).map((key) => (
@@ -268,14 +268,12 @@ const AdmissionSection = () => {
                 {create.isPending ? "Saving…" : "Save Application"}
               </Button>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
 
       {/* Edit Application Modal */}
       {editingApplication && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setEditingApplication(null)}>
-          <div className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-xl bg-card border border-border p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <ModalShell onClose={() => setEditingApplication(null)} overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-xl bg-card border border-border p-6 shadow-2xl">
             <div className="border-b border-border pb-3">
               <h3 className="text-xl font-bold">Edit Student Application</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Modify admission records, applicant info, and guardian details</p>
@@ -380,8 +378,7 @@ const AdmissionSection = () => {
                 {update.isPending ? "Saving changes…" : "Save Changes"}
               </Button>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { Search, CheckCircle, XCircle, Clock, User, Mail, Calendar, Shield, Eye,
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { api, getErrorMessage } from "@/lib/api";
+import ModalShell from "@/components/ui/modal-shell";
 
 interface PendingUser {
   id: string;
@@ -270,8 +271,7 @@ const PendingApprovalsSection = () => {
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowConfirmModal(null)}>
-          <div className="bg-card rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setShowConfirmModal(null)} overlayClassName="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" className="bg-card rounded-xl p-6 max-w-md w-full">
             <div className={`h-16 w-16 rounded-full mx-auto mb-4 flex items-center justify-center ${
               showConfirmModal.type === "approve" ? "bg-green-100" : "bg-red-100"
             }`}>
@@ -302,14 +302,12 @@ const PendingApprovalsSection = () => {
                 {showConfirmModal.type === "approve" ? "Approve" : "Reject"}
               </Button>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
 
       {/* User Details Modal */}
       {showDetailsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowDetailsModal(null)}>
-          <div className="bg-card rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setShowDetailsModal(null)} overlayClassName="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" className="bg-card rounded-xl p-6 max-w-md w-full">
             <div className="flex items-center gap-4 mb-6">
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="h-8 w-8 text-primary" />
@@ -374,8 +372,7 @@ const PendingApprovalsSection = () => {
                 Approve
               </Button>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
     </div>
   );
