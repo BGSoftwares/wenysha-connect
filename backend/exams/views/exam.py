@@ -174,3 +174,5 @@ class ExamViewSet(viewsets.ModelViewSet):
                 updated_exam,
                 through_date=timezone.localdate(updated_exam.results_published_at),
             )
+            from ..rankings import freeze_rankings
+            freeze_rankings(updated_exam)

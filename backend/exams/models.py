@@ -137,3 +137,25 @@ class MarkSubmission(models.Model):
 
 
 from . import ranking_cache  # noqa: E402,F401  (registers the cache-invalidation signals)
+
+
+class PublishedRanking(models.Model):
+    """A learner's class and year-group positions exactly as they stood when the exam's results were published.
+
+    Parents and students see these fixed positions, so a mark corrected after publishing changes the marks, never
+    the positions already shown on report cards.
+    """
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name='published_rankings')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='published_rankings')
+    class_position = models.PositiveIntegerField(null=True, blank=True)
+    class_total = models.PositiveIntegerField(default=0)
+    level_position = models.PositiveIntegerField(null=True, blank=True)
+    level_total = models.PositiveIntegerField(null=True, blank=True)
+    level_name = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['exam', 'student'], name='exams_one_published_ranking_per_student')]
+
+    def __str__(self):
+        return f'{self.exam_id}/{self.student_id}: {self.class_position}'
