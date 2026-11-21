@@ -1,0 +1,98 @@
+name: Desktop app
+
+# Builds the Windows installer (.exe) and the Linux packages (.AppImage and .deb) and publishes
+# them as the desktop-latest release, so the "Get the app" window has files to download.
+#
+# One-time setup: the repository variable APP_URL (the address of the live portal), the same one
+# the Android app uses. Then run this workflow from the Actions tab (Run workflow).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "desktop-app/**"
+      - ".github/workflows/desktop-app.yml"
+  pull_request:
+    paths:
+      - "desktop-app/**"
+      - ".github/workflows/desktop-app.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            args: --win nsis
+          - name: Linux
+            os: ubuntu-latest
+            args: --linux AppImage deb
+    runs-on: ${{ matrix.os }}
+    env:
+      APP_URL: ${{ vars.APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require the live portal address
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "::error::Set the repository variable APP_URL to the live portal address (https://...) and run this workflow again."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Point the app at the portal
+        shell: bash
+        working-directory: desktop-app
+        run: |
+          node -e "const u = process.env.APP_URL || 'https://app.invalid'; require('fs').writeFileSync('app-config.json', JSON.stringify({ url: u }))"
+
+      - name: Build
+        shell: bash
+        working-directory: desktop-app
+        run: |
+          npm install
+          npx electron-builder ${{ matrix.args }} --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            desktop-app/dist/Able-God-College-Setup.exe
+            desktop-app/dist/Able-God-College.AppImage
+            desktop-app/dist/Able-God-College.deb
+          if-no-files-found: error
+
+  publish:
+    name: Publish downloads
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - name: Publish the downloads
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -l files
+          gh release delete desktop-latest --yes --cleanup-tag || true
+          gh release create desktop-latest files/* \
+            --title "Able God College desktop app" \
+            --notes "Windows installer (.exe) and Linux packages (.AppImage, .deb). Built from commit ${GITHUB_SHA::7}." \
+            --target "$GITHUB_SHA"

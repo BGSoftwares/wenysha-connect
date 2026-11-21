@@ -1,0 +1,26 @@
+{
+  "name": "able-god-college",
+  "productName": "Able God College",
+  "version": "1.0.0",
+  "description": "Able God College school portal",
+  "main": "main.js",
+  "author": "BGSoftwares <noreply@github.com>",
+  "homepage": "https://github.com/BGSoftwares/wenysha-connect",
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "electron": "31.7.7",
+    "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "zw.ac.ablegodcollege.portal",
+    "productName": "Able God College",
+    "files": ["main.js", "app-config.json", "icon.png"],
+    "directories": { "output": "dist" },
+    "win": { "target": ["nsis"], "icon": "icon.png" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "Able-God-College-Setup.${ext}" },
+    "linux": { "target": ["AppImage", "deb"], "icon": "icon.png", "category": "Education", "maintainer": "BGSoftwares <noreply@github.com>" },
+    "appImage": { "artifactName": "Able-God-College.${ext}" },
+    "deb": { "artifactName": "Able-God-College.${ext}" }
+  }
+}

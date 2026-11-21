@@ -149,6 +149,7 @@ export const Header = () => {
                 </Link>
               ))}
               <div className="pt-3 mt-2 border-t border-white/20 flex flex-col gap-3">
+                <GetAppButton alwaysLabel className="w-full justify-center border-white/20 bg-white/10 py-3 text-sm text-white hover:bg-white/20" />
                 {user ? (
                   <>
                     <div className="px-4 py-3 bg-white/5 rounded-xl flex items-center justify-between">
