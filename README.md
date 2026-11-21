@@ -102,6 +102,8 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/c
 
 ### Self-hosted Docker deployment
 
+**First time going live? Follow [docs/GO_LIVE.md](docs/GO_LIVE.md)**, a step-by-step checklist (domain, server, certificate, first admin, backups, payments, apps). The sections below are the reference.
+
 The Compose deployment serves the frontend and API through Nginx over HTTPS.
 It requires a public DNS name, an externally managed MySQL database, and a
 certificate directory containing `fullchain.pem` and `privkey.pem` as regular
