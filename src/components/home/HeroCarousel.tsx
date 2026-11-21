@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { hasFinePointer, prefersReducedMotion } from "@/components/motion/useMotion";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, GraduationCap, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -78,6 +79,18 @@ const HeroCarousel = () => {
 
   const active = slides[currentSlide] ?? slides[0];
 
+  // Pointer parallax: the words sit at different depths and shift a little against the pointer.
+  const onStageMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse" || !hasFinePointer() || prefersReducedMotion()) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty("--px", String(((event.clientX - box.left) / box.width - 0.5).toFixed(3)));
+    event.currentTarget.style.setProperty("--py", String(((event.clientY - box.top) / box.height - 0.5).toFixed(3)));
+  };
+  const onStageLeave = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.style.setProperty("--px", "0");
+    event.currentTarget.style.setProperty("--py", "0");
+  };
+
   return (
     <div
       className="relative min-h-[600px] md:h-[92vh] w-full flex items-center justify-center overflow-hidden bg-[#10264f] select-none"
@@ -99,7 +112,7 @@ const HeroCarousel = () => {
               <img
                 src={slide.image}
                 alt={slide.title}
-                className="w-full h-full object-cover object-center transform scale-100 transition-transform duration-1000 ease-out"
+                className={`w-full h-full object-cover object-center ${isActive ? "hero-drift" : ""}`}
                 loading={index === 0 ? "eager" : "lazy"}
               />
             </div>
@@ -111,25 +124,25 @@ const HeroCarousel = () => {
       </div>
 
       {/* Gateway High Centered Collegiate Content */}
-      <div className="container relative z-10 mx-auto px-4 text-center py-20 sm:pb-28 lg:pb-32">
+      <div className="container relative z-10 mx-auto px-4 text-center py-20 sm:pb-28 lg:pb-32 hero-stage" onPointerMove={onStageMove} onPointerLeave={onStageLeave}>
         <div className="max-w-5xl mx-auto space-y-6">
           {/* Pill Badge */}
-          <div className="inline-block bg-[#c51f67] text-white px-5 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-widest uppercase mb-2 shadow-md">
+          <div className="hero-layer hero-rise inline-block bg-[#c51f67] text-white px-5 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-widest uppercase mb-2 shadow-md" style={{ ["--depth" as string]: "-10px", animationDelay: "100ms" }}>
             Able God College • Masvingo
           </div>
 
           {/* Heading */}
-          <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.08] drop-shadow-sm">
+          <h1 className="hero-layer hero-rise font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.08] drop-shadow-sm" style={{ ["--depth" as string]: "-26px", animationDelay: "250ms" }}>
             A Place Where Every Student Thrives
           </h1>
 
           {/* Subheading */}
-          <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-4xl mx-auto font-light leading-relaxed">
+          <p className="hero-layer hero-rise text-base sm:text-lg md:text-xl text-white/90 max-w-4xl mx-auto font-light leading-relaxed" style={{ ["--depth" as string]: "-14px", animationDelay: "450ms" }}>
             Excellence in Christian secondary education, disciplined character formation, and holistic academic growth. Motto: <span className="font-semibold italic text-pink-300">B&apos;EZRAT HESHAM</span>.
           </p>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
+          <div className="hero-layer hero-rise flex flex-col sm:flex-row items-center justify-center gap-4 pt-6" style={{ ["--depth" as string]: "-6px", animationDelay: "650ms" }}>
             <Link
               to="/admissions"
               className="inline-flex items-center justify-center gap-2 bg-[#c51f67] text-white hover:bg-[#a61755] px-10 h-14 text-base sm:text-lg font-bold rounded-xl shadow-lg transition-transform hover:-translate-y-0.5 w-full sm:w-auto"

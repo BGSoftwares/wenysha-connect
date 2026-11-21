@@ -10,6 +10,9 @@ import SchoolHighlightsSection from "@/components/public/SchoolHighlightsSection
 import PrincipalRemarksSection from "@/components/public/PrincipalRemarksSection";
 import SchoolStructureSection from "@/components/home/SchoolStructureSection";
 import HomePurposeSection from "@/components/home/HomePurposeSection";
+import Reveal from "@/components/motion/Reveal";
+import TiltCard from "@/components/motion/TiltCard";
+import CountUp from "@/components/motion/CountUp";
 
 const quickLinks = [
   { icon: GraduationCap, title: "Admissions", description: "Enrolment details & US$ 200/term fees", path: "/admissions" },
@@ -37,7 +40,7 @@ const Index = () => (
     {/* Gateway High Floating Stats Card Banner */}
     <section className="relative z-20 mt-0 lg:-mt-12 mb-6 sm:mb-10">
       <div className="container mx-auto px-4">
-        <div className="bg-white rounded-2xl shadow-2xl border border-[#dedbe3] overflow-hidden">
+        <TiltCard max={3} className="bg-white rounded-2xl shadow-2xl border border-[#dedbe3] overflow-hidden">
           <div className="grid grid-cols-2 md:grid-cols-4">
             {stats.map((stat, i) => (
               <div
@@ -46,8 +49,8 @@ const Index = () => (
                   i < 3 ? "border-r border-[#dedbe3]" : ""
                 } ${i >= 2 ? "border-t md:border-t-0 border-[#dedbe3]" : ""}`}
               >
-                <div className={`font-serif text-3xl sm:text-4xl md:text-5xl font-bold ${stat.color} mb-1.5`}>
-                  {stat.value}
+                <div className={`tilt-lift font-serif text-3xl sm:text-4xl md:text-5xl font-bold ${stat.color} mb-1.5`}>
+                  <CountUp value={stat.value} />
                 </div>
                 <div className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-[#5e5873]">
                   {stat.label}
@@ -55,26 +58,26 @@ const Index = () => (
               </div>
             ))}
           </div>
-        </div>
+        </TiltCard>
       </div>
     </section>
 
-    <SchoolHighlightsSection />
+    <Reveal><SchoolHighlightsSection /></Reveal>
 
-    <PrincipalRemarksSection />
+    <Reveal><PrincipalRemarksSection /></Reveal>
 
-    <HomePurposeSection />
+    <Reveal><HomePurposeSection /></Reveal>
 
     {/* Gateway High Full-Width Campus Photo Carousel */}
-    <PhotoCarouselSection />
+    <Reveal><PhotoCarouselSection /></Reveal>
 
-    <SchoolStructureSection />
+    <Reveal><SchoolStructureSection /></Reveal>
 
-    <SchoolInformationPosters sections={["mission-vision"]} />
+    <Reveal><SchoolInformationPosters sections={["mission-vision"]} /></Reveal>
 
-    <SchoolCommunitySection />
+    <Reveal><SchoolCommunitySection /></Reveal>
 
-    <AdmissionsSection />
+    <Reveal><AdmissionsSection /></Reveal>
 
     <section className="bg-[#f3f1f5] py-16 md:py-20">
       <div className="container mx-auto px-4">
@@ -88,10 +91,11 @@ const Index = () => (
           </Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {quickLinks.map((item) => (
-            <Link key={item.path} to={item.path} className="group rounded-xl border border-[#dedbe3] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#c51f67]/40 hover:shadow-lg flex flex-col justify-between">
+          {quickLinks.map((item, index) => (
+            <Reveal key={item.path} delay={index * 70} className="h-full">
+            <TiltCard as={Link} to={item.path} className="group h-full rounded-xl border border-[#dedbe3] bg-white p-6 shadow-sm hover:border-[#c51f67]/40 hover:shadow-xl flex flex-col justify-between">
               <div>
-                <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#10264f] text-white transition group-hover:bg-[#c51f67]">
+                <span className="tilt-lift mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#10264f] text-white transition group-hover:bg-[#c51f67]">
                   <item.icon className="h-5 w-5" />
                 </span>
                 <h3 className="text-lg font-bold text-[#10264f]">{item.title}</h3>
@@ -101,7 +105,8 @@ const Index = () => (
                 <span>View</span>
                 <ArrowRight className="h-3 w-3" />
               </div>
-            </Link>
+            </TiltCard>
+            </Reveal>
           ))}
         </div>
       </div>
