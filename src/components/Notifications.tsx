@@ -46,7 +46,7 @@ const Notifications = ({ className, compact = false }: NotificationsProps) => {
             {connected ? "Live" : "Offline"}
           </span>
           {!connected && (
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={reconnect}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={reconnect} aria-label="Reconnect live updates">
               <RefreshCw className="h-3 w-3" />
             </Button>
           )}

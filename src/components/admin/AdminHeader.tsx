@@ -17,7 +17,7 @@ const AdminHeader = ({ title, breadcrumb, onMenuClick }: AdminHeaderProps) => {
     <header className="portal-header bg-[hsl(var(--forest-dark))] border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-lg">
       <div className="flex items-center gap-4 flex-1">
         {onMenuClick && (
-          <button onClick={onMenuClick} className="lg:hidden p-2 rounded-xl hover:bg-white/10 transition-colors">
+          <button onClick={onMenuClick} aria-label="Open menu" className="lg:hidden p-2 rounded-xl hover:bg-white/10 transition-colors">
             <Menu className="h-5 w-5 text-white" />
           </button>
         )}
