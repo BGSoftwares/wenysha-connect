@@ -39,10 +39,11 @@ class RankingCacheTests(TestCase):
 
     def test_a_repeat_request_is_served_from_the_cache(self):
         from unittest import mock
-        from exams import views
+        from exams import ranking_cache
+        from exams.models import ExamMark
 
         self.position(self.a)
-        with mock.patch.object(views.ranking_cache, 'cached_ranking', wraps=views.ranking_cache.cached_ranking) as spy:
-            with mock.patch.object(views.ExamMark.objects, 'filter', side_effect=AssertionError('marks were re-read')):
+        with mock.patch.object(ranking_cache, 'cached_ranking', wraps=ranking_cache.cached_ranking) as spy:
+            with mock.patch.object(ExamMark.objects, 'filter', side_effect=AssertionError('marks were re-read')):
                 self.assertEqual(self.position(self.a), 1)
         self.assertTrue(spy.called)
