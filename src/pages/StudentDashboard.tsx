@@ -38,6 +38,7 @@ import {
   useLearningSubmissions,
 } from "@/lib/hooks";
 import { signOutAndLeave, getStoredUser } from "@/lib/api";
+import GetAppButton from "@/components/GetAppButton";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
 
 const navigation = [
@@ -427,6 +428,7 @@ const StudentDashboard = () => {
             <button aria-label="Open class notifications" onClick={() => setActiveNav("dashboard")} className="relative p-2 rounded-xl hover:bg-white/10 transition-colors">
               <Bell className="h-6 w-6 text-white/90" />
             </button>
+            <GetAppButton className="border-white/20 bg-white/10 text-white hover:bg-white/20" />
             <Link to="/portal" onClick={signOutAndLeave} className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">
               <LogOut className="h-4 w-4" />Sign Out
             </Link>

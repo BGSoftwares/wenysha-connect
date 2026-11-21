@@ -1,0 +1,95 @@
+name: Android app
+
+# Builds the Android app (an installable .apk) and publishes it as a GitHub release,
+# so the "Get the app" button in the portal always has a file to download.
+#
+# One-time setup: GitHub > Settings > Secrets and variables > Actions > Variables >
+# New repository variable named APP_URL, with the address of the live portal,
+# for example https://portal.ablegodcollege.ac.zw  (no trailing slash).
+# Then run this workflow from the Actions tab (Run workflow).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "android-app/**"
+      - ".github/workflows/android-apk.yml"
+      - "public/able-god-college-logo.png"
+  pull_request:
+    paths:
+      - "android-app/**"
+      - ".github/workflows/android-apk.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    name: Build Android app
+    runs-on: ubuntu-latest
+    env:
+      APP_URL: ${{ vars.APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require the live portal address
+        if: github.event_name != 'pull_request'
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "::error::Set the repository variable APP_URL to the live portal address (https://...) and run this workflow again."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Create the Android project
+        run: |
+          mkdir -p wrapper && cd wrapper
+          npm init -y >/dev/null
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          mkdir -p www && echo '<!doctype html><title>Able God College</title>' > www/index.html
+          URL="${APP_URL:-https://app.invalid}"
+          cat > capacitor.config.json <<JSON
+          {
+            "appId": "zw.ac.ablegodcollege.portal",
+            "appName": "Able God College",
+            "webDir": "www",
+            "server": { "url": "$URL", "cleartext": false, "androidScheme": "https" }
+          }
+          JSON
+          npx cap add android
+
+      - name: Use the college logo as the app icon
+        run: |
+          pip install pillow
+          python android-app/make_icons.py public/able-god-college-logo.png wrapper/android/app/src/main/res
+
+      - name: Build the app
+        working-directory: wrapper/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Keep the file
+        run: cp wrapper/android/app/build/outputs/apk/debug/app-debug.apk able-god-college.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: able-god-college-apk
+          path: able-god-college.apk
+
+      - name: Publish the download
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete android-latest --yes --cleanup-tag || true
+          gh release create android-latest able-god-college.apk \
+            --title "Able God College Android app" \
+            --notes "Latest Android app. Open the file on an Android phone to install. Built from commit ${GITHUB_SHA::7}." \
+            --target "$GITHUB_SHA"
