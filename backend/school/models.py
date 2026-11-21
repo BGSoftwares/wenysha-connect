@@ -357,3 +357,43 @@ class Timetable(models.Model):
 
     class Meta:
         ordering = ['day_of_week', 'period_start']
+
+
+class Project(models.Model):
+    STATUS_CHOICES = [('planned', 'Planned'), ('active', 'Active'), ('on_hold', 'On hold'), ('completed', 'Completed')]
+    CURRENCY_CHOICES = [('USD', 'US dollars'), ('ZWG', 'Zimbabwe Gold')]
+
+    name = models.CharField(max_length=160)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='planned')
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    lead = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True, related_name='led_projects')
+    budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+
+class ProjectItem(models.Model):
+    """One activity (something to do) or resource (something needed) inside a project."""
+    KIND_CHOICES = [('activity', 'Activity'), ('resource', 'Resource')]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='items')
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default='activity')
+    title = models.CharField(max_length=200)
+    notes = models.CharField(max_length=500, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    done = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['done', 'due_date', 'id']
+
+    def __str__(self):
+        return f'{self.project_id}: {self.title}'

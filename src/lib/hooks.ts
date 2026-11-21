@@ -1939,3 +1939,117 @@ export const useMyDashboard = () =>
         queryFn: () => api.get<DashboardSummary>("/auth/dashboard/mine/"),
         staleTime: 60_000,
     });
+
+
+export type ExpenseCategory = "salaries" | "utilities" | "supplies" | "maintenance" | "transport" | "food" | "events" | "other";
+
+export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
+    { value: "salaries", label: "Salaries and wages" },
+    { value: "utilities", label: "Utilities" },
+    { value: "supplies", label: "Teaching supplies" },
+    { value: "maintenance", label: "Repairs and maintenance" },
+    { value: "transport", label: "Transport and fuel" },
+    { value: "food", label: "Kitchen and food" },
+    { value: "events", label: "Events and activities" },
+    { value: "other", label: "Other" },
+];
+
+export interface Expense {
+    id: number;
+    date: string;
+    category: ExpenseCategory;
+    category_label: string;
+    description: string;
+    paid_to: string;
+    amount: string;
+    currency: FinanceCurrency;
+    method: string;
+    reference: string;
+    recorded_by: string;
+}
+
+export interface IncomeExpenseSummary {
+    year: number;
+    totals: Partial<Record<FinanceCurrency, { income: string; expenses: string; net: string }>>;
+    months: { month: string; currencies: Partial<Record<FinanceCurrency, { income: string; expenses: string; net: string }>> }[];
+    categories: { category: ExpenseCategory; label: string; totals: Partial<Record<FinanceCurrency, string>> }[];
+}
+
+export const useExpenses = () => useQuery({
+    queryKey: ["expenses"],
+    queryFn: async () => extractArray<Expense>(await api.get<unknown>("/finance/expenses/")),
+});
+
+export const useIncomeExpenseSummary = (year: number) => useQuery({
+    queryKey: ["expenses", "summary", year],
+    queryFn: () => api.get<IncomeExpenseSummary>("/finance/expenses/summary/", { year: String(year) }),
+});
+
+export const useCreateExpense = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (body: { date: string; category: ExpenseCategory; description: string; paid_to?: string; amount: string; currency: FinanceCurrency; method?: string; reference?: string }) =>
+            api.post<Expense>("/finance/expenses/", body),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+    });
+};
+
+export const useDeleteExpense = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: number) => api.delete<void>(`/finance/expenses/${id}/`),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+    });
+};
+
+// School projects
+export type ProjectStatus = "planned" | "active" | "on_hold" | "completed";
+export interface ProjectItem { id: number; project: number; kind: "activity" | "resource"; title: string; notes: string; due_date: string | null; cost: string; done: boolean }
+export interface SchoolProject {
+    id: number; name: string; description: string; status: ProjectStatus; start_date: string | null; end_date: string | null;
+    lead: number | null; lead_name: string; budget: string | null; currency: "USD" | "ZWG"; items: ProjectItem[];
+    spent: string; progress: { done: number; total: number };
+}
+export const PROJECT_STATUSES: { value: ProjectStatus; label: string }[] = [
+    { value: "planned", label: "Planned" }, { value: "active", label: "Active" },
+    { value: "on_hold", label: "On hold" }, { value: "completed", label: "Completed" },
+];
+
+export const useProjects = () => useQuery({
+    queryKey: ["projects"],
+    queryFn: async () => extractArray<SchoolProject>(await api.get<unknown>("/school/projects/")),
+});
+
+export const useSaveProject = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, ...body }: Partial<Omit<SchoolProject, "items">> & { id?: number }) =>
+            id ? api.patch<SchoolProject>(`/school/projects/${id}/`, body) : api.post<SchoolProject>("/school/projects/", body),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+    });
+};
+
+export const useDeleteProject = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: number) => api.delete<void>(`/school/projects/${id}/`),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+    });
+};
+
+export const useSaveProjectItem = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, ...body }: Partial<ProjectItem> & { id?: number }) =>
+            id ? api.patch<ProjectItem>(`/school/project-items/${id}/`, body) : api.post<ProjectItem>("/school/project-items/", body),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+    });
+};
+
+export const useDeleteProjectItem = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: number) => api.delete<void>(`/school/project-items/${id}/`),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+    });
+};

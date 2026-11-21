@@ -4,6 +4,7 @@ from .views import (
     FeeStructureViewSet, InvoiceViewSet, PaymentViewSet, DiscountViewSet, BalancesViewSet,
     OnlinePaymentConfigView, OnlinePaymentListCreateView, OnlinePaymentRefreshView, OnlinePaymentConfirmView, PaynowResultView,
     BankDepositListView, BankDepositImportView, BankDepositAssignView, BankDepositIgnoreView, BankWebhookView,
+    ExpenseListCreateView, ExpenseDetailView, IncomeExpenseSummaryView,
 )
 
 router = DefaultRouter()
@@ -24,5 +25,8 @@ urlpatterns = [
     path('bank-deposits/webhook/', BankWebhookView.as_view(), name='bank-deposit-webhook'),
     path('bank-deposits/<int:pk>/assign/', BankDepositAssignView.as_view(), name='bank-deposit-assign'),
     path('bank-deposits/<int:pk>/ignore/', BankDepositIgnoreView.as_view(), name='bank-deposit-ignore'),
+    path('expenses/', ExpenseListCreateView.as_view(), name='expense-list-create'),
+    path('expenses/summary/', IncomeExpenseSummaryView.as_view(), name='expense-summary'),
+    path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'),
     path('', include(router.urls)),
 ]

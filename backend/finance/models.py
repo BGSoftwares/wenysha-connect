@@ -196,3 +196,34 @@ class BankDeposit(models.Model):
 
     def __str__(self):
         return f"{self.bank_txn_id} - {self.amount} {self.currency} - {self.status}"
+
+
+class Expense(models.Model):
+    """Money the school spends. Together with payments received it gives the income-versus-expenses picture."""
+    CATEGORY_CHOICES = [
+        ('salaries', 'Salaries and wages'), ('utilities', 'Utilities'), ('supplies', 'Teaching supplies'),
+        ('maintenance', 'Repairs and maintenance'), ('transport', 'Transport and fuel'), ('food', 'Kitchen and food'),
+        ('events', 'Events and activities'), ('other', 'Other'),
+    ]
+
+    date = models.DateField()
+    category = models.CharField(max_length=16, choices=CATEGORY_CHOICES, default='other', db_index=True)
+    description = models.CharField(max_length=255)
+    paid_to = models.CharField(max_length=128, blank=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, choices=FeeStructure.CURRENCY_CHOICES, default='USD')
+    method = models.CharField(max_length=32, blank=True)
+    reference = models.CharField(max_length=64, blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='recorded_expenses'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date', '-id']
+        constraints = [
+            models.CheckConstraint(check=models.Q(amount__gt=0), name='finance_expense_amount_positive'),
+        ]
+
+    def __str__(self):
+        return f"{self.description} - {self.amount} {self.currency}"

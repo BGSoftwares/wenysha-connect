@@ -7,6 +7,8 @@ from .views import (
     AttendanceViewSet, TimetableViewSet
 )
 
+from .projects import ProjectViewSet, ProjectItemViewSet
+
 router = DefaultRouter()
 router.register(r'classes', SchoolClassViewSet, basename='class')
 router.register(r'teachers', TeacherViewSet)
@@ -28,6 +30,8 @@ router.register(r'payments', PaymentViewSet)
 # Operations
 router.register(r'attendance', AttendanceViewSet)
 router.register(r'timetable', TimetableViewSet)
+router.register(r'projects', ProjectViewSet, basename='project')
+router.register(r'project-items', ProjectItemViewSet, basename='project-item')
 
 urlpatterns = [
     path('student-performance-summary/', StudentPerformanceSummaryView.as_view(), name='student-performance-summary'),

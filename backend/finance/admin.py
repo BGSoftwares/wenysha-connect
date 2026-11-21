@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import BankDeposit, FeeStructure, Invoice, Payment, Discount, OnlinePayment
+from .models import BankDeposit, Expense, FeeStructure, Invoice, Payment, Discount, OnlinePayment
 
 
 @admin.register(FeeStructure)
@@ -35,3 +35,10 @@ class BankDepositAdmin(admin.ModelAdmin):
     list_display = ('bank_txn_id', 'amount', 'currency', 'value_date', 'status', 'invoice', 'source')
     list_filter = ('status', 'source', 'currency')
     search_fields = ('bank_txn_id', 'reference', 'payer_name')
+
+
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = ('date', 'category', 'description', 'amount', 'currency', 'recorded_by')
+    list_filter = ('category', 'currency')
+    search_fields = ('description', 'paid_to', 'reference')
