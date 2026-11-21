@@ -1,6 +1,7 @@
 import { schoolContact } from "@/lib/schoolContact";
 import DashboardExtras from "@/components/dashboard/DashboardExtras";
 import AIFeedbackSection from "@/components/teacher/AIFeedbackSection";
+import AttendanceRegisterPanel from "@/components/teacher/AttendanceRegisterPanel";
 import { Fragment, useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -23,8 +24,6 @@ import {
   TrendingUp,
   Upload,
   Share2,
-  Check,
-  X,
   Trash2,
   Sparkles,
   MessageSquare,
@@ -1059,133 +1058,25 @@ const TeacherDashboard = () => {
   );
 
   const renderAttendance = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h2 className="font-heading text-xl font-bold text-foreground">Attendance</h2>
-        <div className="flex gap-3">
-          <select
-            value={selectedClassId || ""}
-            onChange={(e) => setSelectedClassId(Number(e.target.value))}
-            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
-          >
-            {uniqueClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <input
-            type="date"
-            value={attendanceDate}
-            onChange={(e) => setAttendanceDate(e.target.value)}
-            aria-label="Attendance date"
-            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
-          />
-          <select
-            value={attendanceSession}
-            onChange={(event) => setAttendanceSession(event.target.value as typeof attendanceSession)}
-            aria-label="Attendance session"
-            className="px-4 py-2 rounded-lg border border-border bg-background text-foreground"
-          >
-            <option value="morning">Morning</option>
-            <option value="afternoon">Afternoon</option>
-            <option value="evening">Evening</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="p-4 border-b border-border bg-secondary/30 flex items-center justify-between">
-          <div>
-            <h3 className="font-medium text-foreground">{uniqueClasses.find(c => c.id === selectedClassId)?.name || "Select Class"} - Attendance</h3>
-            <p className="text-sm text-muted-foreground">{new Date(`${attendanceDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <p className="text-xs text-muted-foreground">
-              {attendanceDrafts.length ? `${attendanceDrafts.length} offline draft${attendanceDrafts.length === 1 ? "" : "s"} saved on this device.` : "Register changes save immediately."}
-            </p>
-            <Button size="sm" onClick={() => void markClassPresent()} disabled={!attendanceDateStatus.isSchoolDay || !classStudents.length || bulkAttendanceMutation.isPending}>
-              {bulkAttendanceMutation.isPending ? "Saving…" : "Mark all present"}
-            </Button>
-          </div>
-          <div className="flex gap-4 text-sm">
-            <span className="text-green-600">Present: {classAttendance.filter(item => item.status === "present").length}</span>
-            <span className="text-red-500">Absent: {classAttendance.filter(item => item.status === "absent").length}</span>
-            <span className="text-amber-600">Late: {classAttendance.filter(item => item.status === "late").length}</span>
-            <span className="text-muted-foreground">Unmarked: {classAttendance.filter(item => item.status === "unmarked").length}</span>
-          </div>
-        </div>
-        {!attendanceDateStatus.isSchoolDay && (
-          <p role="status" className="border-b border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            {attendanceDateStatus.reason} Attendance controls are disabled for this date.
-          </p>
-        )}
-        {attendanceDateStatus.isSchoolDay && attendanceDateStatus.sessionLabel && (
-          <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{attendanceDateStatus.sessionLabel}</p>
-        )}
-        <table className="w-full">
-          <thead className="bg-secondary/50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Student</th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Status</th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Overall %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {classStudents.map((student) => {
-              const status = attendanceDraftByStudent.get(student.id)?.status || attendanceByStudent.get(student.id)?.status || "unmarked";
-
-              return (
-                <tr key={student.id} className="border-t border-border">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="h-4 w-4 text-primary" />
-                      </div>
-                      <span className="text-sm text-foreground">{student.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-center gap-2">
-                      <span className="min-w-20 self-center text-center text-xs text-muted-foreground">
-                        {status === "unmarked" ? "Not marked" : status.charAt(0).toUpperCase() + status.slice(1)}
-                      </span>
-                      <button
-                        onClick={() => void saveAttendanceStatus(student.id, "present")}
-                        disabled={!attendanceDateStatus.isSchoolDay || updateAttendanceMutation.isPending}
-                        aria-label={`Mark ${student.name} present`}
-                        className={`p-1.5 rounded-lg transition-colors ${status === "present" ? "bg-green-500 text-white" : "bg-secondary text-muted-foreground hover:bg-green-100"}`}
-                      >
-                        <Check className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => void saveAttendanceStatus(student.id, "absent")}
-                        disabled={!attendanceDateStatus.isSchoolDay || updateAttendanceMutation.isPending}
-                        aria-label={`Mark ${student.name} absent`}
-                        className={`p-1.5 rounded-lg transition-colors ${status === "absent" ? "bg-destructive text-white" : "bg-secondary text-muted-foreground hover:bg-red-100"}`}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => void saveAttendanceStatus(student.id, "late")}
-                        disabled={!attendanceDateStatus.isSchoolDay || updateAttendanceMutation.isPending}
-                        aria-label={`Mark ${student.name} late`}
-                        className={`p-1.5 rounded-lg transition-colors ${status === "late" ? "bg-amber-500 text-white" : "bg-secondary text-muted-foreground hover:bg-amber-100"}`}
-                      >
-                        <Clock className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="text-sm font-medium text-muted-foreground">-</span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <div className="p-4 border-t border-border flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={() => void shareAttendanceToParents()} disabled={!attendanceDateStatus.isSchoolDay || !anyAttendanceMarked}>Share PDF to WhatsApp</Button>
-          <Button variant="gold" onClick={exportClassAttendance} disabled={!attendanceDateStatus.isSchoolDay || !anyAttendanceMarked}>Download Attendance PDF</Button>
-        </div>
-      </div>
-    </div>
+    <AttendanceRegisterPanel
+      classes={uniqueClasses}
+      selectedClassId={selectedClassId}
+      onClassChange={setSelectedClassId}
+      date={attendanceDate}
+      onDateChange={setAttendanceDate}
+      session={attendanceSession}
+      onSessionChange={setAttendanceSession}
+      dateStatus={attendanceDateStatus}
+      rows={classAttendance}
+      offlineDraftCount={attendanceDrafts.length}
+      anyMarked={anyAttendanceMarked}
+      bulkSaving={bulkAttendanceMutation.isPending}
+      statusSaving={updateAttendanceMutation.isPending}
+      onMarkStatus={saveAttendanceStatus}
+      onMarkAllPresent={markClassPresent}
+      onShareToParents={shareAttendanceToParents}
+      onExportPdf={exportClassAttendance}
+    />
   );
 
   const renderContent = () => (
