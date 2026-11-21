@@ -5,6 +5,11 @@ export const ANDROID_APK_URL: string =
   import.meta.env.VITE_ANDROID_APK_URL
   || "https://github.com/BGSoftwares/wenysha-connect/releases/download/android-latest/able-god-college.apk";
 
+const DESKTOP_BASE = "https://github.com/BGSoftwares/wenysha-connect/releases/download/desktop-latest";
+export const WINDOWS_INSTALLER_URL: string = import.meta.env.VITE_WINDOWS_INSTALLER_URL || `${DESKTOP_BASE}/Able-God-College-Setup.exe`;
+export const LINUX_APPIMAGE_URL: string = import.meta.env.VITE_LINUX_APPIMAGE_URL || `${DESKTOP_BASE}/Able-God-College.AppImage`;
+export const LINUX_DEB_URL: string = import.meta.env.VITE_LINUX_DEB_URL || `${DESKTOP_BASE}/Able-God-College.deb`;
+
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -25,13 +30,16 @@ export const isInstalledApp = () => {
   return standalone || Boolean((window as unknown as { Capacitor?: unknown }).Capacitor);
 };
 
-export type DevicePlatform = "android" | "ios" | "other";
+export type DevicePlatform = "android" | "ios" | "windows" | "linux" | "mac" | "other";
 export const detectPlatform = (): DevicePlatform => {
   if (typeof navigator === "undefined") return "other";
   const agent = navigator.userAgent;
   // iPadOS 13+ pretends to be a Mac, so look for a touch screen too.
   if (/iPhone|iPad|iPod/i.test(agent) || (/Macintosh/i.test(agent) && navigator.maxTouchPoints > 1)) return "ios";
   if (/Android/i.test(agent)) return "android";
+  if (/Windows/i.test(agent)) return "windows";
+  if (/Macintosh|Mac OS X/i.test(agent)) return "mac";
+  if (/Linux|X11|CrOS/i.test(agent)) return "linux";
   return "other";
 };
 

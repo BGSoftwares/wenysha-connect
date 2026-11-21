@@ -1,11 +1,14 @@
 {
   "name": "Able God College",
   "short_name": "Able God",
+  "id": "/portal",
+  "categories": ["education"],
+  "display_override": ["window-controls-overlay", "standalone"],
   "description": "Able God College school portal: results, fees, attendance and notices.",
   "start_url": "/portal",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#10264f",
   "icons": [

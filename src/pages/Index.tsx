@@ -11,6 +11,7 @@ import PrincipalRemarksSection from "@/components/public/PrincipalRemarksSection
 import SchoolStructureSection from "@/components/home/SchoolStructureSection";
 import HomePurposeSection from "@/components/home/HomePurposeSection";
 import Reveal from "@/components/motion/Reveal";
+import GetAppButton from "@/components/GetAppButton";
 import TiltCard from "@/components/motion/TiltCard";
 import CountUp from "@/components/motion/CountUp";
 
@@ -78,6 +79,16 @@ const Index = () => (
     <Reveal><SchoolCommunitySection /></Reveal>
 
     <Reveal><AdmissionsSection /></Reveal>
+
+    <section className="bg-[#10264f] py-10 text-white">
+      <div className="container mx-auto flex flex-col items-center justify-between gap-5 px-4 text-center md:flex-row md:text-left">
+        <div>
+          <h2 className="font-heading text-2xl font-bold">Take the portal with you</h2>
+          <p className="mt-1 max-w-xl text-white/80">Install the Able God College app on your Android phone, iPhone, Windows laptop or Linux computer to check results, fees and notices in one tap.</p>
+        </div>
+        <GetAppButton alwaysLabel className="border-[#d4a017] bg-[#d4a017] px-6 py-3 text-sm text-[#10264f] hover:bg-[#e0b030]" />
+      </div>
+    </section>
 
     <section className="bg-[#f3f1f5] py-16 md:py-20">
       <div className="container mx-auto px-4">
