@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { signOutAndLeave } from "@/lib/api";
-import { 
-  Home, 
+import {
+  Home,
   LogOut,
   User,
   ChevronDown,
@@ -13,7 +13,6 @@ import {
   DollarSign,
   Percent,
   BarChart3,
-  AlertTriangle,
   Wallet,
   MessageSquare,
   Smartphone,

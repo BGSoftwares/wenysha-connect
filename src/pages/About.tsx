@@ -11,17 +11,7 @@ import {
   complaintsCommittee,
 } from "@/lib/schoolInformation";
 import { schoolContact } from "@/lib/schoolContact";
-import {
-  ShieldCheck,
-  Award,
-  Heart,
-  Users,
-  CheckCircle2,
-  ArrowRight,
-  Sparkles,
-  MapPin,
-  GraduationCap,
-} from "lucide-react";
+import { ShieldCheck, Award, Users, CheckCircle2, ArrowRight, Sparkles, GraduationCap } from "lucide-react";
 
 const valuesDetails = [
   {

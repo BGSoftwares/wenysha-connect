@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Plus, Printer, Upload, CheckCircle2, Search, CreditCard, Receipt, Loader2, Calendar, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
-import { usePayments, useCreatePayment, useInvoices, Payment as PaymentType } from "@/lib/hooks";
+import { usePayments, useCreatePayment, useInvoices } from "@/lib/hooks";
 import { paymentSchema, type PaymentFormData } from "@/lib/validations";
 import { toast } from "sonner";
 import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, schoolDateInput } from "@/lib/finance";

@@ -5,16 +5,6 @@ import { Search, Edit, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SchoolClass, Student as StudentRecord } from "@/lib/hooks";
 
-interface Student {
-    id: number | string;
-    name: string;
-    student_id: string;
-    class_name?: string;
-    school_class?: string;
-    gender: string;
-    status: string;
-}
-
 interface StudentsSectionProps {
     students: StudentRecord[] | undefined;
     isLoading: boolean;

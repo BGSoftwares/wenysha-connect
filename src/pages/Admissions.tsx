@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import AdmissionFormModal from "@/components/home/AdmissionFormModal";
 import { schoolContact } from "@/lib/schoolContact";
-import { schoolIdentity, zimsecPassRates } from "@/lib/schoolInformation";
+import { schoolIdentity } from "@/lib/schoolInformation";
 import { downloadEnrolmentFormPdf } from "@/lib/enrolmentPdf";
 import {
   Accordion,

@@ -132,9 +132,6 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
     : activeReportType === "fortnightly_tests"
       ? "Fortnightly Test Report Card"
       : "End-of-term Report Card";
-  const reportPeriod = activeReportType === "monthly_report_card"
-    ? issueMonthYear
-    : selectedExam ? `${selectedExam.term} ${selectedExam.year}` : "";
   const isReportProvisional = !!selectedExam && (selectedExam.status !== "completed" || !selectedExam.results_published);
   const selectedTerm = selectedExam
     ? `${isReportProvisional ? "PROVISIONAL · " : ""}${selectedTypeLabel} · ${getExamDisplayName(selectedExam)} · ${selectedExam.term} ${selectedExam.year}`

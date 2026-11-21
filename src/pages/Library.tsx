@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { Book as BookIcon, Search, Library as LibraryIcon, ExternalLink, ArrowRight, Filter, Info, CheckCircle2, Clock } from "lucide-react";
+import {
+  Book as BookIcon,
+  Search,
+  Library as LibraryIcon,
+  ExternalLink,
+  Filter,
+  Info,
+  CheckCircle2,
+  Clock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBooks, useBorrowBook } from "@/lib/hooks";

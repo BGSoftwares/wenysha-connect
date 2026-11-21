@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Bell, CalendarDays, MapPin, Phone, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarDays, MapPin, Phone, Sparkles } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import preparationProgram from "@/assets/new-school-media/grade7-form1-preparation.jpeg";

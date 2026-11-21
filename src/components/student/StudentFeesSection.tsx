@@ -5,7 +5,7 @@ import PaymentModal from "./PaymentModal";
 import PendingPaymentsNotice from "@/components/finance/PendingPaymentsNotice";
 import { exportFeeStatementPdf, type FeeStatementPdfData } from "@/lib/pdfExport";
 import { useInvoices, useOnlinePaymentConfig, usePayments, useStudentProfile, type Invoice } from "@/lib/hooks";
-import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, type FinanceCurrency } from "@/lib/finance";
+import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate } from "@/lib/finance";
 
 interface StudentFeesSectionProps {
   studentId: number;

@@ -180,12 +180,6 @@ const ParentPortal = () => {
         }
     };
 
-    const pendingBalances = useMemo(() => invoices.reduce<Record<string, number>>((totals, invoice) => {
-        totals[invoice.currency] = (totals[invoice.currency] || 0) + Math.max(0, Number(invoice.amount) - Number(invoice.paid));
-        return totals;
-    }, {}), [invoices]);
-    const hasPendingFees = Object.values(pendingBalances).some(amount => amount > 0);
-
     if (isLoadingParent) {
         return <Layout><div className="min-h-[60vh] flex items-center justify-center text-muted-foreground" aria-live="polite">Loading parent portal…</div></Layout>;
     }

@@ -19,15 +19,9 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Plus, Search, Percent, AlertTriangle, Ban, CheckCircle, Loader2, Sparkles, UserPlus } from "lucide-react";
-import { useDiscounts, useCreateDiscount, useStudentBalances, useStudents, Discount } from "@/lib/hooks";
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Plus, Search, Percent, AlertTriangle, Loader2 } from "lucide-react";
+import { useDiscounts, useCreateDiscount, useStudentBalances, useStudents } from "@/lib/hooks";
 import { toast } from "sonner";
 import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, schoolDateInput } from "@/lib/finance";
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bus as BusIcon, Clock, MapPin, Plus, Search, Trash2, Edit } from "lucide-react";
+import { Clock, MapPin, Plus, Search, Trash2, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { api, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";

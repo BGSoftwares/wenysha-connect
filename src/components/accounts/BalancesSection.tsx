@@ -20,13 +20,7 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Search, DollarSign, Download, Printer, Eye, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
 import { exportFeeStatementPdf } from "@/lib/pdfExport";
 import { useStudentBalances, useInvoices, usePayments, StudentBalance as StudentBalanceType } from "@/lib/hooks";

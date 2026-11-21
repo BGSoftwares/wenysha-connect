@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import jsPDF from "jspdf";
-import { Download, Eye, FileText, Loader2, Printer } from "lucide-react";
+import { Download, Eye, Loader2, Printer } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

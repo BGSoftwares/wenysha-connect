@@ -8,7 +8,6 @@ import {
   Home,
   BookOpen,
   Menu as MenuIcon,
-  GraduationCap,
   Calendar,
   Settings,
   Bell,
@@ -18,17 +17,14 @@ import {
   Users,
   Edit,
   Eye,
-  Plus,
   Clock,
   User,
   TrendingUp,
   Upload,
-  Share2,
-  Trash2,
   Sparkles,
   MessageSquare,
   ClipboardList,
-  Database
+  Database,
 } from "lucide-react";
 import logo from "/able-god-college-logo.png";
 import { signOutAndLeave, getErrorMessage } from "@/lib/api";
@@ -120,9 +116,9 @@ const TeacherDashboard = () => {
   const [attendanceDraftKeyLoaded, setAttendanceDraftKeyLoaded] = useState<string | null>(null);
 
   // Data Hooks
-  const { data: teacher, isLoading: isLoadingProfile } = useTeacherProfile();
+  const { data: teacher } = useTeacherProfile();
   const { data: teacherTimetable = [] } = useTimetable(undefined, { teacher: teacher?.id });
-  const { data: allocations = [], isLoading: isLoadingAllocations } = useAllocations({
+  const { data: allocations = [] } = useAllocations({
     teacher: teacher?.id
   });
 

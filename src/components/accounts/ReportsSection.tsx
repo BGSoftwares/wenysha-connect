@@ -9,7 +9,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  BarChart3,
   Download,
   FileSpreadsheet,
   FileText,
@@ -22,7 +21,7 @@ import {
   PieChart as PieChartIcon,
   ArrowUpRight,
   ShieldCheck,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
 import {
   BarChart,
@@ -35,9 +34,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
-  Legend
 } from "recharts";
 import { usePayments, useInvoices, useDiscounts } from "@/lib/hooks";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";

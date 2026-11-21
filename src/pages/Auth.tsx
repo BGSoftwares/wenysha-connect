@@ -64,7 +64,7 @@ const Auth = () => {
                     setIsLoading(false);
                     return;
                 }
-                const res = await signup({
+                await signup({
                     full_name: fullName,
                     email,
                     password,

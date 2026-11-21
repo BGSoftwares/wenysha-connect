@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BookOpen, CalendarDays, CheckCircle, Clock3, Download, FileText, Search, Upload, X } from "lucide-react";
+import { BookOpen, CalendarDays, Clock3, Download, FileText, Search, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

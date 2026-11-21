@@ -13,7 +13,6 @@ import {
   ClipboardList,
   User,
   ChevronDown,
-  ChevronRight,
   Shield,
   Database,
   UserCog,

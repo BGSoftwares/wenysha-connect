@@ -23,7 +23,7 @@ const ExamManagementSection = () => {
   const queryClient = useQueryClient();
 
   // Logic Hooks
-  const { data: exams = [], isLoading: isLoadingExams } = useExams();
+  const { data: exams = [] } = useExams();
   const { data: schedules = [] } = useExamSchedules({ exam: selectedExamId || undefined });
   const { data: classes = [] } = useClasses();
   const { data: subjects = [] } = useSubjects();

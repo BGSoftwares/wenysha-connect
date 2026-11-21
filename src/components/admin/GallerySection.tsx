@@ -1,6 +1,17 @@
 import { useState, useRef, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Edit, Image as ImageIcon, Upload, Video as VideoIcon, Link as LinkIcon, X, CheckCircle2, Search, SlidersHorizontal, Sparkles } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Edit,
+  Image as ImageIcon,
+  Upload,
+  Video as VideoIcon,
+  Link as LinkIcon,
+  X,
+  CheckCircle2,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
 import { api, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";

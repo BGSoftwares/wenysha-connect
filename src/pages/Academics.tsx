@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import heroImg from "@/assets/slides/slide-6252.jpeg";
 import { zimsecPassRates, schoolRules, complaintsCommittee } from "@/lib/schoolInformation";
 import {
-  GraduationCap,
-  Award,
   BookOpen,
   ArrowRight,
   Sparkles,
@@ -14,13 +12,11 @@ import {
   Clock,
   Clock3,
   TrendingUp,
-  FileText,
   Compass,
   Heart,
   Shirt,
   ShieldCheck,
   Scale,
-  Users,
 } from "lucide-react";
 
 const academicLevels = [

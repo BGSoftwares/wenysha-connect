@@ -61,7 +61,7 @@ const AdminDashboard = () => {
   const { data: students, isLoading: isLoadingStudents, error: studentsError } = useStudents();
   const { data: classes } = useClasses();
   const { data: teachers, isLoading: isLoadingTeachers } = useTeachers();
-  const { data: subjects, isLoading: isLoadingSubjects } = useSubjects();
+  const { data: subjects } = useSubjects();
   const { data: allocations = [] } = useAllocations();
 
   const createStudentMutation = useCreateStudent();

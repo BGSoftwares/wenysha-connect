@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,14 +18,8 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Plus, Edit2, Trash2, Search, Filter, DollarSign, Loader2, Landmark, ShieldCheck } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Plus, Edit2, Trash2, Search, DollarSign, Loader2, Landmark, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useFeeStructures, useUpdateFeeStructure, useDeleteFeeStructure, useCreateFeeStructure, FeeStructure } from "@/lib/hooks";
 import { toast } from "sonner";
