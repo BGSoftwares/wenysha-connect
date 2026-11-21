@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { api, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import ModalShell from "@/components/ui/modal-shell";
 
 type GalleryImage = {
   id: number;
@@ -432,8 +433,7 @@ const GallerySection = () => {
 
       {/* Add Media Modal */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-lg space-y-4 rounded-2xl bg-card border border-border p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <ModalShell onClose={() => setOpen(false)} overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto" className="w-full max-w-lg space-y-4 rounded-2xl bg-card border border-border p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
                 <h3 className="text-xl font-bold text-foreground">Add Picture or Media</h3>
@@ -601,14 +601,12 @@ const GallerySection = () => {
                 {isSubmitting ? "Uploading..." : "Add Picture"}
               </Button>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
 
       {/* Edit Media Modal */}
       {editingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto" onClick={() => setEditingItem(null)}>
-          <div className="w-full max-w-lg space-y-4 rounded-2xl bg-card border border-border p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <ModalShell onClose={() => setEditingItem(null)} overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto" className="w-full max-w-lg space-y-4 rounded-2xl bg-card border border-border p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
                 <h3 className="text-xl font-bold text-foreground">Edit Picture Details</h3>
@@ -787,8 +785,7 @@ const GallerySection = () => {
                 {isSubmitting ? "Saving changes..." : "Save Changes"}
               </Button>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
     </div>
   );

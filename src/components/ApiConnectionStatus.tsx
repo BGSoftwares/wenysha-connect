@@ -36,6 +36,7 @@ const ApiConnectionStatus = ({ showDetails = false, className }: ApiConnectionSt
           size="sm"
           onClick={checkConnection}
           className="h-8 px-2"
+          aria-label="Check the connection again"
         >
           <RefreshCw className="h-4 w-4" />
         </Button>

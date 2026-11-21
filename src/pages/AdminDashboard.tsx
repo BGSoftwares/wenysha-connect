@@ -48,6 +48,7 @@ import ProjectsSection from "@/components/admin/ProjectsSection";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, getErrorMessage } from "@/lib/api";
+import ModalShell from "@/components/ui/modal-shell";
 
 const AdminDashboard = () => {
   const queryClient = useQueryClient();
@@ -498,8 +499,7 @@ const AdminDashboard = () => {
 
       {/* Dynamic Modals */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" onClick={() => setShowModal(null)}>
-          <div className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setShowModal(null)} overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-heading text-2xl font-bold text-foreground">
                 {showModal === "addStudent" && "Enroll New Student"}
@@ -640,14 +640,12 @@ const AdminDashboard = () => {
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
 
       {/* Edit Student Modal */}
       {editingStudent && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" onClick={() => setEditingStudent(null)}>
-          <div className="bg-card rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setEditingStudent(null)} overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" className="bg-card rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-heading text-2xl font-bold text-foreground">Edit Student Record</h3>
             </div>
@@ -731,14 +729,12 @@ const AdminDashboard = () => {
                 <Button variant="gold" onClick={handleSaveStudentEdit} className="flex-1 rounded-xl h-11 font-bold shadow-lg shadow-accent/20">Save Changes</Button>
               </div>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
 
       {/* Edit Teacher Modal */}
       {editingTeacher && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" onClick={() => setEditingTeacher(null)}>
-          <div className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setEditingTeacher(null)} overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-heading text-2xl font-bold text-foreground">Edit Teacher Profile</h3>
             </div>
@@ -775,14 +771,12 @@ const AdminDashboard = () => {
                 <Button variant="gold" onClick={handleSaveTeacherEdit} className="flex-1 rounded-xl h-11 font-bold shadow-lg shadow-accent/20">Save Changes</Button>
               </div>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
 
       {/* Edit Class Modal */}
       {editingClass && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" onClick={() => setEditingClass(null)}>
-          <div className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setEditingClass(null)} overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-heading text-2xl font-bold text-foreground">Edit Class</h3>
             </div>
@@ -811,14 +805,12 @@ const AdminDashboard = () => {
                 <Button variant="gold" onClick={handleSaveClassEdit} className="flex-1 rounded-xl h-11 font-bold shadow-lg shadow-accent/20">Save Changes</Button>
               </div>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
 
       {/* Edit Subject Modal */}
       {editingSubject && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" onClick={() => setEditingSubject(null)}>
-          <div className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setEditingSubject(null)} overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-heading text-2xl font-bold text-foreground">Edit Subject</h3>
             </div>
@@ -857,8 +849,7 @@ const AdminDashboard = () => {
                 <Button variant="gold" onClick={handleSaveSubjectEdit} className="flex-1 rounded-xl h-11 font-bold shadow-lg shadow-accent/20">Save Changes</Button>
               </div>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
       {studentPortalCredentials && <StudentPortalCredentialsDialog credentials={studentPortalCredentials} onClose={() => setStudentPortalCredentials(null)} />}
     </div>

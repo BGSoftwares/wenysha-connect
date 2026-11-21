@@ -7,6 +7,7 @@ import { useExams, useExamSchedules, useExamMarks, useSaveExamMark, useCreateExa
 import { api, getErrorMessage } from "@/lib/api";
 import { buildExamName, getExamDisplayName } from "@/lib/examDisplay";
 import { useQueryClient } from "@tanstack/react-query";
+import ModalShell from "@/components/ui/modal-shell";
 
 const ExamManagementSection = () => {
   const [activeTab, setActiveTab] = useState<"exams" | "schedules" | "marks">("exams");
@@ -428,8 +429,7 @@ const ExamManagementSection = () => {
 
       {/* Create Exam Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCreateModal(false)}>
-          <div className="bg-card rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setShowCreateModal(false)} overlayClassName="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" className="bg-card rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h3 className="font-heading text-xl font-bold text-foreground mb-6">Create New Exam</h3>
 
             <div className="space-y-4">
@@ -538,14 +538,12 @@ const ExamManagementSection = () => {
               <Button variant="outline" onClick={() => setShowCreateModal(false)} className="flex-1">Cancel</Button>
               <Button variant="gold" onClick={handleCreateExam} className="flex-1">Create Exam</Button>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
 
       {/* Marks Entry Modal */}
       {showMarksModal && selectedExam && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowMarksModal(false)}>
-          <div className="bg-card rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setShowMarksModal(false)} overlayClassName="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" className="bg-card rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <h3 className="font-heading text-xl font-bold text-foreground mb-2">Enter Marks</h3>
             <p className="text-sm text-muted-foreground mb-6">{getExamDisplayName(selectedExam)}</p>
 
@@ -585,14 +583,12 @@ const ExamManagementSection = () => {
               <Button variant="outline" onClick={() => setShowMarksModal(false)} className="flex-1">Cancel</Button>
               <Button variant="gold" disabled={!marksClassId || !marksSubjectId || saveExamMark.isPending} onClick={() => void handleSaveMarks()} className="flex-1">{saveExamMark.isPending ? "Saving…" : "Save Marks"}</Button>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
 
       {/* Edit Exam Modal */}
       {editingExam && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300" onClick={() => setEditingExam(null)}>
-          <div className="bg-card rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-border animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setEditingExam(null)} overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300" className="bg-card rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-border animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-heading text-xl font-bold text-foreground">Edit Examination</h3>
             </div>
@@ -684,8 +680,7 @@ const ExamManagementSection = () => {
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
     </div>
   );

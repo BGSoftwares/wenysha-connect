@@ -5,6 +5,7 @@ import { api, getErrorMessage } from "@/lib/api";
 import { useTeachers, useSubjects, useTimetable, type SchoolClass, type TimetableEntry } from "@/lib/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import ModalShell from "@/components/ui/modal-shell";
 
 interface Props { classes: SchoolClass[] }
 
@@ -192,8 +193,7 @@ const TimetableSection = ({ classes }: Props) => {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300" onClick={() => setShowModal(false)}>
-          <div className="w-full max-w-md space-y-4 rounded-2xl bg-card p-6 border border-border shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+        <ModalShell onClose={() => setShowModal(false)} overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300" className="w-full max-w-md space-y-4 rounded-2xl bg-card p-6 border border-border shadow-2xl animate-in zoom-in-95 duration-300">
             <h3 className="text-xl font-bold text-foreground">
               {editingId ? "Edit Timetable Period" : "Add Timetable Period"}
             </h3>
@@ -278,8 +278,7 @@ const TimetableSection = ({ classes }: Props) => {
                 {editingId ? "Save Changes" : "Save Period"}
               </Button>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
     </div>
   );

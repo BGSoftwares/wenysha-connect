@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { api, getErrorMessage } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTeachers, useSubjects, useClasses, type Allocation } from "@/lib/hooks";
+import ModalShell from "@/components/ui/modal-shell";
 
 interface AllocationsSectionProps {
     allocations: Allocation[];
@@ -134,8 +135,7 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
 
             {/* Edit Allocation Modal */}
             {editingAllocation && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" onClick={() => setEditingAllocation(null)}>
-                    <div className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                <ModalShell onClose={() => setEditingAllocation(null)} overlayClassName="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300" className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border animate-in zoom-in-95 duration-300">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="font-heading text-2xl font-bold text-foreground">Edit Allocation</h3>
                         </div>
@@ -203,8 +203,7 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
                                 </Button>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </ModalShell>
             )}
         </div>
     );

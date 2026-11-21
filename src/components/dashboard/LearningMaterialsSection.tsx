@@ -10,6 +10,7 @@ import {
   useUpdateLearningMaterial,
   type LearningMaterial,
 } from "@/lib/hooks";
+import ModalShell from "@/components/ui/modal-shell";
 
 const ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp,.mp4,.mov,.webm,.zip";
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -219,8 +220,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setEditing(null)}>
-          <div className="w-full max-w-lg space-y-4 rounded-xl bg-card border border-border p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <ModalShell onClose={() => setEditing(null)} overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" className="w-full max-w-lg space-y-4 rounded-xl bg-card border border-border p-6 shadow-2xl">
             <div className="border-b border-border pb-3">
               <h3 className="text-xl font-bold">Edit Learning Material</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Update details or replace the file from this computer</p>
@@ -310,8 +310,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
                 {updateMaterial.isPending ? "Saving changes…" : "Save Changes"}
               </Button>
             </div>
-          </div>
-        </div>
+          </ModalShell>
       )}
     </div>
   );

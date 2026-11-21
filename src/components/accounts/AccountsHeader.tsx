@@ -17,7 +17,7 @@ const AccountsHeader = ({ title, breadcrumb, onMenuClick }: AccountsHeaderProps)
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {onMenuClick && (
-            <button onClick={onMenuClick} className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors">
+            <button onClick={onMenuClick} aria-label="Open menu" className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors">
               <Menu className="h-5 w-5 text-foreground" />
             </button>
           )}
