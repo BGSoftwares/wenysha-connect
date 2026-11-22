@@ -25,7 +25,7 @@ Architecture and constraints
 - Read AGENTS.md and relevant local instructions before editing.
 - The frontend is React + TypeScript built with Vite; its source is under src/.
 - School APIs and role-based authorization are Django-backed. AI features run
-  in Lovable Cloud functions under supabase/functions, not Django.
+  in backend functions under supabase/functions, not Django.
 - Preserve existing user changes. Do not discard unrelated edits or modify
   generated node_modules, build output, local databases, or environment
   secrets.
