@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 interface Props { classes: SchoolClass[] }
 
 const emptyDraft = {
@@ -93,7 +94,7 @@ const TimetableSection = ({ classes }: Props) => {
   };
 
   const remove = async (id: number) => {
-    if (!window.confirm("Delete this timetable period?")) return;
+    if (!(await confirmAction("Delete this timetable period?"))) return;
     try {
       await api.delete(`/school/timetable/${id}/`);
       await queryClient.invalidateQueries({ queryKey: ["timetable"] });

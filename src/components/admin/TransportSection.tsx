@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 type SchoolBus = { id: number; number: string; route_name: string; driver: string; phone: string; capacity: number; students: number; status: string };
 type Route = { id: number; name: string; bus: number; bus_number: string; stops: string[]; departure_am: string | null; departure_pm: string | null };
 type BusForm = Omit<SchoolBus, "id"> & { id?: number };
@@ -30,7 +31,7 @@ const TransportSection = () => {
   const refresh = () => { void client.invalidateQueries({ queryKey: ["transport-buses"] }); void client.invalidateQueries({ queryKey: ["transport-routes"] }); };
   const saveBus = useMutation({ mutationFn: (b: BusForm) => b.id ? api.patch(`/transport/buses/${b.id}/`, b) : api.post("/transport/buses/", b), onSuccess: () => { refresh(); setForm(null); toast.success("Bus saved"); }, onError: e => toast.error(getErrorMessage(e)) });
   const saveRoute = useMutation({ mutationFn: (r: RouteForm) => r.id ? api.patch(`/transport/routes/${r.id}/`, r) : api.post("/transport/routes/", r), onSuccess: () => { refresh(); setForm(null); toast.success("Route saved"); }, onError: e => toast.error(getErrorMessage(e)) });
-  const remove = async (type: "bus" | "route", id: number) => { if (!window.confirm(`Delete this ${type}?`)) return; try { await api.delete(`/transport/${type === "bus" ? "buses" : "routes"}/${id}/`); refresh(); toast.success(`${type === "bus" ? "Bus" : "Route"} deleted`); } catch (e) { toast.error(getErrorMessage(e)); } };
+  const remove = async (type: "bus" | "route", id: number) => { if (!(await confirmAction(`Delete this ${type}?`))) return; try { await api.delete(`/transport/${type === "bus" ? "buses" : "routes"}/${id}/`); refresh(); toast.success(`${type === "bus" ? "Bus" : "Route"} deleted`); } catch (e) { toast.error(getErrorMessage(e)); } };
   const filtered = useMemo(() => buses.filter(b => `${b.number} ${b.route_name} ${b.driver}`.toLowerCase().includes(search.toLowerCase())), [buses, search]);
   const openRoute = (route?: Route) => { setKind("route"); setStopsText(route?.stops.join(", ") ?? ""); setForm(route ? { id: route.id, name: route.name, bus: route.bus, stops: route.stops, departure_am: route.departure_am ?? "06:30", departure_pm: route.departure_pm ?? "15:30" } : { ...defaultsRoute, bus: buses[0]?.id ?? 0 }); };
   const save = () => { if (!form) return; if (kind === "bus") { const b = form as BusForm; if (!b.number.trim() || !b.route_name.trim() || !b.driver.trim()) { toast.error("Bus number, route, and driver are required"); return; } saveBus.mutate(b); } else { const r = form as RouteForm; const stops = stopsText.split(",").map(s => s.trim()).filter(Boolean); if (!r.name.trim() || !r.bus || !stops.length) { toast.error("Route name, bus, and at least one stop are required"); return; } saveRoute.mutate({ ...r, stops }); } };

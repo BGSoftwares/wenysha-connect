@@ -11,6 +11,7 @@ import {
 import { getErrorMessage } from "@/lib/api";
 import { formatMoney, formatSchoolDate } from "@/lib/finance";
 
+import { confirmAction } from "@/lib/confirm";
 const selectClass = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
 const emptyProject = { name: "", description: "", status: "planned" as ProjectStatus, start_date: "", end_date: "", lead: "", budget: "", currency: "USD" as "USD" | "ZWG" };
 
@@ -60,7 +61,7 @@ const ProjectCard = ({ project }: { project: SchoolProject }) => {
               {PROJECT_STATUSES.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
             </select>
             <Button type="button" variant="ghost" size="icon" aria-label={`Delete ${project.name}`}
-              onClick={() => { if (window.confirm(`Delete "${project.name}" and everything in it?`)) run(() => removeProject.mutateAsync(project.id), "Project deleted"); }}>
+              onClick={async () => { if ((await confirmAction(`Delete "${project.name}" and everything in it?`))) run(() => removeProject.mutateAsync(project.id), "Project deleted"); }}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>

@@ -12,6 +12,7 @@ import {
 } from "@/lib/hooks";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 const ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp,.mp4,.mov,.webm,.zip";
 const MAX_BYTES = 20 * 1024 * 1024;
 
@@ -139,7 +140,7 @@ const LearningMaterialsSection = ({ classes, subjects, uploadedBy, emptyHint, vi
                       size="sm"
                       aria-label={`Delete ${material.title}`}
                       onClick={async () => {
-                        if (!window.confirm(`Delete "${material.title}"?`)) return;
+                        if (!(await confirmAction(`Delete "${material.title}"?`))) return;
                         try {
                           await deleteMaterial.mutateAsync(material.id);
                           toast.success("Material deleted.");

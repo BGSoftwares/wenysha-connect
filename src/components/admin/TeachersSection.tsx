@@ -18,6 +18,7 @@ import {
     type Allocation
 } from "@/lib/hooks";
 
+import { confirmAction } from "@/lib/confirm";
 type PortalAccount = {
     id: number;
     username: string;
@@ -178,7 +179,7 @@ const TeachersSection = ({
     };
 
     const handleRemoveSubjectAllocation = async (alloc: Allocation, teacherName: string) => {
-        if (!window.confirm(`Remove ${alloc.subject_name} in ${alloc.class_name} from ${teacherName}?`)) {
+        if (!(await confirmAction(`Remove ${alloc.subject_name} in ${alloc.class_name} from ${teacherName}?`))) {
             return;
         }
 

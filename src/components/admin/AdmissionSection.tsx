@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 type Application = {
   id: number;
   full_name: string;
@@ -224,7 +225,7 @@ const AdmissionSection = () => {
                         variant="outline"
                         size="icon"
                         aria-label={`Delete ${a.full_name}`}
-                        onClick={() => window.confirm(`Delete the application for ${a.full_name}?`) && remove.mutate(a.id)}
+                        onClick={async () => (await confirmAction(`Delete the application for ${a.full_name}?`)) && remove.mutate(a.id)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

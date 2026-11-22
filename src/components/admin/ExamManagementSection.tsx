@@ -9,6 +9,7 @@ import { buildExamName, getExamDisplayName } from "@/lib/examDisplay";
 import { useQueryClient } from "@tanstack/react-query";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 const ExamManagementSection = () => {
   const [activeTab, setActiveTab] = useState<"exams" | "schedules" | "marks">("exams");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -121,7 +122,7 @@ const ExamManagementSection = () => {
 
   const handlePublishResults = async (exam: Exam) => {
     const resultsPublished = !exam.results_published;
-    if (resultsPublished && !window.confirm(`Unlock and publish ${getExamDisplayName(exam)} report cards to students?`)) return;
+    if (resultsPublished && !(await confirmAction(`Unlock and publish ${getExamDisplayName(exam)} report cards to students?`))) return;
     try {
       await updateExamMutation.mutateAsync({
         id: exam.id,
@@ -137,7 +138,7 @@ const ExamManagementSection = () => {
   };
 
   const handleDeleteExam = async (exam: Exam) => {
-    if (!window.confirm(`Delete “${getExamDisplayName(exam)}” and its schedules and marks?`)) return;
+    if (!(await confirmAction(`Delete “${getExamDisplayName(exam)}” and its schedules and marks?`))) return;
     try { await api.delete(`/exams/exams/${exam.id}/`); await queryClient.invalidateQueries({ queryKey: ["exams"] }); toast.success("Exam deleted"); }
     catch (error) { toast.error(getErrorMessage(error)); }
   };

@@ -50,6 +50,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api, getErrorMessage } from "@/lib/api";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 const AdminDashboard = () => {
   const queryClient = useQueryClient();
   const [activeNav, setActiveNav] = useState("dashboard");
@@ -107,7 +108,7 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteStudent = async (student: Student) => {
-    if (!window.confirm(`Delete ${student.name}'s student record? This cannot be undone.`)) return;
+    if (!(await confirmAction(`Delete ${student.name}'s student record? This cannot be undone.`))) return;
     try {
       await deleteStudentMutation.mutateAsync(student.id);
       toast.success("Student record deleted");
@@ -121,7 +122,7 @@ const AdminDashboard = () => {
     catch (error) { toast.error(getErrorMessage(error)); }
   };
   const deleteRecord = async (path: string, id: number, label: string, queryKey: string) => {
-    if (!window.confirm(`Delete this ${label.toLowerCase()}? This may be blocked if it is in use.`)) return;
+    if (!(await confirmAction(`Delete this ${label.toLowerCase()}? This may be blocked if it is in use.`))) return;
     try { await api.delete(`${path}${id}/`); await queryClient.invalidateQueries({ queryKey: [queryKey] }); toast.success(`${label} deleted`); }
     catch (error) { toast.error(getErrorMessage(error)); }
   };
