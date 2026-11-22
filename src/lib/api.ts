@@ -161,6 +161,8 @@ async function request<T>(
     // Keep DRF's field errors intact. Replacing them with the HTTP status text
     // made valid-looking form submissions surface only as "Bad Request".
     if (!Object.keys(err).length) err.detail = res.statusText || `Request failed (${res.status})`;
+    // Not enumerable, so it never shows up among the form-field errors.
+    Object.defineProperty(err, "status", { value: res.status, enumerable: false });
     throw err;
   }
   return data as T;

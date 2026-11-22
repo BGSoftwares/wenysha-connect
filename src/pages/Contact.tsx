@@ -1,3 +1,4 @@
+import CampusMap from "@/components/CampusMap";
 import { Layout } from "@/components/layout/Layout";
 import {
   Phone,
@@ -117,16 +118,7 @@ const Contact = () => {
                 <p className="text-xs font-bold uppercase tracking-widest text-accent mb-1">Campus Location</p>
                 <h3 className="font-heading text-lg font-bold text-foreground mb-2">Our Masvingo Campus</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{schoolContact.address}</p>
-                <div className="mt-4 overflow-hidden rounded-xl border border-border">
-                  <iframe
-                    title={`Map showing ${schoolContact.name}`}
-                    src={schoolContact.mapEmbedUrl}
-                    className="h-48 w-full"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    allowFullScreen
-                  />
-                </div>
+                <CampusMap campuses={schoolContact.campuses} className="mt-4" />
               </div>
               <div className="mt-6 pt-4 border-t border-border">
                 <a
@@ -136,6 +128,14 @@ const Contact = () => {
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-accent transition-colors"
                 >
                   Open in Google Maps <ArrowRight className="h-3.5 w-3.5" />
+                </a>
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${schoolContact.campuses[1].lat},${schoolContact.campuses[1].lng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-accent transition-colors"
+                >
+                  Directions to the Arts Campus <ArrowRight className="h-3.5 w-3.5" />
                 </a>
               </div>
             </div>

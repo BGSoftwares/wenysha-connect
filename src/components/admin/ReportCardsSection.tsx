@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Download, FileSpreadsheet, Loader2, LockKeyhole, Printer, UnlockKeyhole } from "lucide-react";
-import jsPDF from "jspdf";
+import type jsPDF from "jspdf";
+import { loadJsPdf } from "@/lib/loadJsPdf";
 import { Button } from "@/components/ui/button";
 import { EXAM_REPORT_TYPES, useAcademicYears, useAllocations, useAttendanceRecords, useAttendanceReportSnapshots, useExamMarks, useExams, useRegenerateAttendanceSnapshot, useReportCardReviews, useSchoolTerms, useStudents, useSubjects, useUpdateExam, useUpdateReportCardReview, type Exam, type ExamMark, type ReportCardReview, type SchoolClass, type Student } from "@/lib/hooks";
 import { averagePercentage, calculateGrade, countedMarks, formatScore } from "@/lib/grading";
@@ -382,9 +383,10 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!selectedExam || reports.length === 0) return;
-    const pdf = new jsPDF("p", "mm", "a4");
+    const JsPdf = await loadJsPdf();
+    const pdf = new JsPdf("p", "mm", "a4");
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const left = 14;

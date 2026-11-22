@@ -548,13 +548,13 @@ const TeacherDashboard = () => {
     rows: classAttendance.map(({ student, status }) => ({ name: student.name, status })),
   });
 
-  const exportClassAttendance = () => {
+  const exportClassAttendance = async () => {
     if (!attendanceDateStatus.isSchoolDay || !anyAttendanceMarked) {
       toast.error(attendanceDateStatus.reason || "Mark at least one learner before exporting attendance.");
       return;
     }
     const fileName = `${selectedClass?.name || "class"}-attendance-${attendanceDate}.pdf`.replace(/\s+/g, "_");
-    buildClassAttendancePdf().save(fileName);
+    (await buildClassAttendancePdf()).save(fileName);
     toast.success("Attendance PDF downloaded.");
   };
 
@@ -568,7 +568,7 @@ const TeacherDashboard = () => {
       return;
     }
     const className = selectedClass?.name || "Class";
-    const pdf = buildClassAttendancePdf();
+    const pdf = await buildClassAttendancePdf();
     const result = await sharePdfToWhatsApp({
       pdf,
       fileName: `${className}-attendance-${attendanceDate}.pdf`.replace(/\s+/g, "_"),

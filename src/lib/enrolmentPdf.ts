@@ -1,4 +1,4 @@
-import jsPDF from "jspdf";
+import { loadJsPdf } from "@/lib/loadJsPdf";
 import { schoolContact } from "@/lib/schoolContact";
 import { schoolIdentity } from "@/lib/schoolInformation";
 import { loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
@@ -8,7 +8,8 @@ import { loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
  * Able God College Student Enrolment & Admission Application Form.
  */
 export async function downloadEnrolmentFormPdf(): Promise<void> {
-  const doc = new jsPDF({
+  const JsPdf = await loadJsPdf();
+  const doc = new JsPdf({
     orientation: "portrait",
     unit: "mm",
     format: "a4",
