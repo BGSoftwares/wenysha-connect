@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import jsPDF from "jspdf";
+import type jsPDF from "jspdf";
+import { loadJsPdf } from "@/lib/loadJsPdf";
 import { toast } from "sonner";
 import { Download, Send, Save, Share2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -92,7 +93,8 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
   };
 
   const buildPdf = async () => {
-    const doc = new jsPDF("p", "mm", "a4");
+    const JsPdf = await loadJsPdf();
+    const doc = new JsPdf("p", "mm", "a4");
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const left = 14;

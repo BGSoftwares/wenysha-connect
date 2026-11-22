@@ -1,4 +1,5 @@
-import jsPDF from "jspdf";
+import type jsPDF from "jspdf";
+import { loadJsPdf } from "@/lib/loadJsPdf";
 import { formatLocalDateKey } from "@/lib/zimbabweSchoolCalendar";
 import { drawSchoolLetterhead, getReportPalette, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
 
@@ -94,7 +95,8 @@ export interface StudentReportCardPdfData {
 }
 
 export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
-  const pdf = new jsPDF("p", "mm", "a4");
+  const JsPdf = await loadJsPdf();
+  const pdf = new JsPdf("p", "mm", "a4");
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const left = 14;
@@ -260,7 +262,8 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
 };
 
 export const exportFeeStatementPdf = async (data: FeeStatementPdfData) => {
-  const pdf = new jsPDF("p", "mm", "a4");
+  const JsPdf = await loadJsPdf();
+  const pdf = new JsPdf("p", "mm", "a4");
   const pageWidth = 210;
   const margin = 15;
   let yPos = 20;
@@ -369,13 +372,14 @@ export interface AttendancePdfRow {
   status: string;
 }
 
-export const buildAttendancePdf = (opts: {
+export const buildAttendancePdf = async (opts: {
   className: string;
   date: string;
   teacherName: string;
   rows: AttendancePdfRow[];
 }) => {
-  const pdf = new jsPDF("p", "mm", "a4");
+  const JsPdf = await loadJsPdf();
+  const pdf = new JsPdf("p", "mm", "a4");
   const pageWidth = pdf.internal.pageSize.getWidth();
   let y = 18;
 
@@ -490,8 +494,9 @@ export interface InvoicePdfData {
 }
 
 /** A one page invoice the accounts office can print or send. */
-export const exportInvoicePdf = (data: InvoicePdfData) => {
-  const pdf = new jsPDF("p", "mm", "a4");
+export const exportInvoicePdf = async (data: InvoicePdfData) => {
+  const JsPdf = await loadJsPdf();
+  const pdf = new JsPdf("p", "mm", "a4");
   schoolHeader(pdf, "INVOICE");
   const balance = Number(data.amount) - Number(data.paid);
   const y = detailRows(pdf, [
@@ -528,8 +533,9 @@ export interface ReceiptPdfData {
 }
 
 /** The receipt handed to a parent after a payment. */
-export const exportReceiptPdf = (data: ReceiptPdfData) => {
-  const pdf = new jsPDF("p", "mm", "a4");
+export const exportReceiptPdf = async (data: ReceiptPdfData) => {
+  const JsPdf = await loadJsPdf();
+  const pdf = new JsPdf("p", "mm", "a4");
   schoolHeader(pdf, "PAYMENT RECEIPT");
   const y = detailRows(pdf, [
     ["Receipt number", data.receipt_no],

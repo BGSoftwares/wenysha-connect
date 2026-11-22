@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import jsPDF from "jspdf";
+import type jsPDF from "jspdf";
+import { loadJsPdf } from "@/lib/loadJsPdf";
 import { Download, Eye, FileText, Loader2, Printer } from "lucide-react";
 import { getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,8 @@ const MarkSubmissionsSection = () => {
 
   const handleDownloadPdf = async () => {
     if (!selectedSubmission) return;
-    const doc = new jsPDF("p", "mm", "a4");
+    const JsPdf = await loadJsPdf();
+    const doc = new JsPdf("p", "mm", "a4");
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const left = 14;

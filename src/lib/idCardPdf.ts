@@ -1,4 +1,4 @@
-import jsPDF from "jspdf";
+import { loadJsPdf } from "@/lib/loadJsPdf";
 import { getReportPalette, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
 import { layoutCode128 } from "@/lib/code128";
 import { schoolContact } from "@/lib/schoolContact";
@@ -19,7 +19,8 @@ export async function exportStudentIdCardsPdf(students: IdCardStudent[], fileNam
   if (!students.length) throw new Error("There are no students to print cards for.");
   const palette = getReportPalette();
   const logo = await loadSchoolLogoDataUrl();
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const JsPdf = await loadJsPdf();
+  const doc = new JsPdf({ unit: "mm", format: "a4" });
   const left = (doc.internal.pageSize.getWidth() - (CARD_W * 2 + GAP)) / 2;
   const top = (doc.internal.pageSize.getHeight() - (CARD_H * 5 + GAP * 4)) / 2;
 

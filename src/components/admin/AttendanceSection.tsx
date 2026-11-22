@@ -343,12 +343,12 @@ const AttendanceSection = () => {
     rows: attendanceData.map(record => ({ name: record.name, status: record.status })),
   });
 
-  const exportAttendance = () => {
+  const exportAttendance = async () => {
     if (!attendanceDateStatus.isSchoolDay || !anyAttendanceMarked) {
       toast.error(attendanceDateStatus.reason || "Mark at least one learner before exporting attendance.");
       return;
     }
-    attendancePdf().save(`${selectedClass?.name || "class"}-attendance-${selectedDate}.pdf`.replace(/\s+/g, "_"));
+    (await attendancePdf()).save(`${selectedClass?.name || "class"}-attendance-${selectedDate}.pdf`.replace(/\s+/g, "_"));
     toast.success("Attendance PDF downloaded");
   };
 
@@ -359,7 +359,7 @@ const AttendanceSection = () => {
     }
     try {
       const result = await sharePdfToWhatsApp({
-        pdf: attendancePdf(),
+        pdf: await attendancePdf(),
         fileName: `${selectedClass.name}-attendance-${selectedDate}.pdf`.replace(/\s+/g, "_"),
         text: `${selectedClass.name} attendance for ${selectedDate}.`,
         groupUrl: selectedClass.parents_whatsapp_group,
