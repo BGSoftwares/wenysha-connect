@@ -11,7 +11,7 @@ Audit and repair the Admin, Teacher, Student, Parent, and Accounts portals so th
 Architecture and constraints
 - Read AGENTS.md and relevant local instructions before editing.
 - Portal authentication and school data APIs are implemented in Django under backend/.
-- AI features belong in Lovable Cloud functions under supabase/functions; never add AI provider keys or AI execution to Django.
+- AI features belong in backend functions under supabase/functions; never add AI provider keys or AI execution to Django.
 - Preserve existing user changes. Do not stage local databases, environment files, generated build output, or unrelated scratch files.
 - Keep role-based access scoped on the server. Frontend filtering is not authorization.
 - Do not expose passwords, tokens, or other secrets in logs. Show a one-time credential only in the intended account-creation response and UI.

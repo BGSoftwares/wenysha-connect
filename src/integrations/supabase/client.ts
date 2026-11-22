@@ -1,6 +1,6 @@
 import { getToken } from "@/lib/api";
 
-/** Invoke a Lovable Cloud function without exposing its server-side AI key. */
+/** Invoke an AI edge function without exposing its server-side AI key. */
 export async function invokeSupabaseFunction<T>(functionName: string, body: unknown): Promise<T> {
   const url = import.meta.env.VITE_SUPABASE_URL;
   const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
