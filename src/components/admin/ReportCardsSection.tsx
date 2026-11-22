@@ -22,6 +22,7 @@ import {
   useLocalSchoolPeriod,
 } from "@/lib/reportPeriod";
 
+import { confirmAction } from "@/lib/confirm";
 type ReportViewMode = "class" | "subject";
 type ExportFormat = "pdf" | "csv";
 
@@ -328,7 +329,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       );
       return;
     }
-    if (publish && !window.confirm("Unlock and publish these verified report cards to the student portal?")) return;
+    if (publish && !(await confirmAction("Unlock and publish these verified report cards to the student portal?"))) return;
     try {
       await updateExam.mutateAsync({
         id: selectedExam.id,

@@ -25,6 +25,7 @@ import { paymentSchema, type PaymentFormData } from "@/lib/validations";
 import { toast } from "sonner";
 import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, schoolDateInput } from "@/lib/finance";
 
+import { confirmAction } from "@/lib/confirm";
 interface PaymentsSectionProps {
   activeSubNav: string;
 }
@@ -84,9 +85,7 @@ const PaymentsSection = ({ activeSubNav }: PaymentsSectionProps) => {
 
     // Edge case: warn on overpayment
     if (selectedInvoice && amount > maxPayable) {
-      const confirmed = window.confirm(
-        `This payment of $${amount.toLocaleString()} exceeds the outstanding balance of $${maxPayable.toLocaleString()}. The excess will be recorded as an overpayment. Continue?`
-      );
+      const confirmed = (await confirmAction(`This payment of $${amount.toLocaleString()} exceeds the outstanding balance of $${maxPayable.toLocaleString()}. The excess will be recorded as an overpayment. Continue?`));
       if (!confirmed) return;
     }
 

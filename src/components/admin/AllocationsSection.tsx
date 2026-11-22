@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTeachers, useSubjects, useClasses, type Allocation } from "@/lib/hooks";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 interface AllocationsSectionProps {
     allocations: Allocation[];
     onAddAllocation: () => void;
@@ -22,7 +23,7 @@ const AllocationsSection = ({ allocations, onAddAllocation }: AllocationsSection
     const [isSaving, setIsSaving] = useState(false);
 
     const removeAllocation = async (allocation: Allocation) => {
-        if (!window.confirm(`Remove ${allocation.teacher_name}'s ${allocation.subject_name} allocation for ${allocation.class_name}?`)) return;
+        if (!(await confirmAction(`Remove ${allocation.teacher_name}'s ${allocation.subject_name} allocation for ${allocation.class_name}?`))) return;
         try {
             await api.delete(`/school/allocations/${allocation.id}/`);
             await queryClient.invalidateQueries({ queryKey: ["allocations"] });

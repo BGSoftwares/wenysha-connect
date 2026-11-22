@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 type GalleryImage = {
   id: number;
   title: string;
@@ -418,7 +419,7 @@ const GallerySection = () => {
                         size="sm"
                         className="h-8 w-8 p-0 hover:bg-destructive/10"
                         aria-label={`Delete ${img.title}`}
-                        onClick={() => window.confirm(`Remove "${img.title}" from the school gallery?`) && remove.mutate(img.id)}
+                        onClick={async () => (await confirmAction(`Remove "${img.title}" from the school gallery?`)) && remove.mutate(img.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>

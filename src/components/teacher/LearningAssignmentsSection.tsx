@@ -16,6 +16,7 @@ import {
   type LearningSubmission,
 } from "@/lib/hooks";
 
+import { confirmAction } from "@/lib/confirm";
 type Draft = { allocation: string; title: string; instructions: string; dueAt: string };
 const emptyDraft: Draft = { allocation: "", title: "", instructions: "", dueAt: "" };
 const maxFileBytes = 20 * 1024 * 1024;
@@ -116,7 +117,7 @@ const LearningAssignmentsSection = ({ allocations, adminMode = false }: { alloca
   };
 
   const remove = async (id: number, title: string) => {
-    if (!window.confirm(`Delete “${title}” and its student submissions?`)) return;
+    if (!(await confirmAction(`Delete “${title}” and its student submissions?`))) return;
     try {
       await deleteAssignment.mutateAsync(id);
       toast.success("Assignment deleted.");

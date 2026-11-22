@@ -10,6 +10,7 @@ import {
 import { getErrorMessage } from "@/lib/api";
 import { FINANCE_CURRENCIES, formatMoney, formatSchoolDate, schoolDateInput, type FinanceCurrency } from "@/lib/finance";
 
+import { confirmAction } from "@/lib/confirm";
 const emptyForm = () => ({
   date: schoolDateInput(), category: "other" as ExpenseCategory, description: "", paid_to: "", amount: "",
   currency: "USD" as FinanceCurrency, method: "", reference: "",
@@ -128,7 +129,7 @@ const ExpensesSection = () => {
                       <td className="py-2 text-right">
                         <Button
                           size="sm" variant="ghost" aria-label={`Delete ${item.description}`} disabled={remove.isPending}
-                          onClick={() => { if (window.confirm(`Delete "${item.description}"? This cannot be undone.`)) void remove.mutateAsync(item.id).then(() => toast.success("Expense deleted")).catch((err) => toast.error(getErrorMessage(err))); }}
+                          onClick={async () => { if ((await confirmAction(`Delete "${item.description}"? This cannot be undone.`))) void remove.mutateAsync(item.id).then(() => toast.success("Expense deleted")).catch((err) => toast.error(getErrorMessage(err))); }}
                         ><Trash2 className="h-4 w-4" /></Button>
                       </td>
                     </tr>

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 
+import { confirmAction } from "@/lib/confirm";
 const PromotionSection = () => {
   const client = useQueryClient();
   const { data: students = [], isLoading, error } = useStudents();
@@ -20,7 +21,7 @@ const PromotionSection = () => {
   const toggle = (id: number) => setSelected(current => current.includes(id) ? current.filter(x => x !== id) : [...current, id]);
   const promote = async () => {
     if (!selected.length || !targetClass || selected.some(id => students.find(s => s.id === id)?.school_class === Number(targetClass))) { toast.error("Select students and a different destination class"); return; }
-    if (!window.confirm(`Move ${selected.length} selected student record(s) to ${classes.find(c => c.id === Number(targetClass))?.name}?`)) return;
+    if (!(await confirmAction(`Move ${selected.length} selected student record(s) to ${classes.find(c => c.id === Number(targetClass))?.name}?`))) return;
     const results = await Promise.allSettled(selected.map(id => api.patch(`/school/students/${id}/`, { school_class: Number(targetClass) })));
     const failed = results.filter(x => x.status === "rejected");
     await client.invalidateQueries({ queryKey: ["students"] });

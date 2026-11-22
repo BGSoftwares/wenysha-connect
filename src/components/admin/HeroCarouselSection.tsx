@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { api, getErrorMessage } from "@/lib/api";
 import { defaultHeroSlides } from "@/lib/heroCarouselDefaults";
 
+import { confirmAction } from "@/lib/confirm";
 type HeroSlide = {
   id: number;
   title: string;
@@ -255,7 +256,7 @@ const HeroCarouselSection = () => {
                           className="h-8 w-8 p-0 hover:bg-destructive/10"
                           aria-label={`Remove ${slide.title} from the carousel`}
                           disabled={removeSlide.isPending}
-                          onClick={() => window.confirm(`Remove “${slide.title}” from the homepage carousel?`) && removeSlide.mutate(slide.id)}
+                          onClick={async () => (await confirmAction(`Remove “${slide.title}” from the homepage carousel?`)) && removeSlide.mutate(slide.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>

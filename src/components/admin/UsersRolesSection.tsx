@@ -11,6 +11,7 @@ import { normalizePortalRole } from "@/lib/portalRoles";
 import { StudentPortalCredentialsDialog, type StudentPortalCredentials } from "@/components/admin/StudentPortalCredentials";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 type Role = { id: number; name: string; description: string; permissions: string[]; users_count: number };
 type Allocation = { subject: number; school_class: number };
 type AccountAllocation = { subject_id: number; subject__name: string; school_class_id: number; school_class__name: string };
@@ -128,12 +129,12 @@ const UsersRolesSection = ({ activeSubNav }: { activeSubNav: string }) => {
   });
 
   const deactivate = async (account: Account) => {
-    if (!window.confirm(`Deactivate ${account.full_name || account.username}? The account and school records will be kept.`)) return;
+    if (!(await confirmAction(`Deactivate ${account.full_name || account.username}? The account and school records will be kept.`))) return;
     try { await api.delete(`/auth/accounts/${account.id}/`); refresh(); toast.success("Account deactivated"); }
     catch (error) { toast.error(getErrorMessage(error)); }
   };
   const permanentlyDelete = async (account: Account) => {
-    if (!window.confirm(`Permanently delete ${account.full_name || account.username}? This cannot be undone. Linked school records are protected and will block deletion.`)) return;
+    if (!(await confirmAction(`Permanently delete ${account.full_name || account.username}? This cannot be undone. Linked school records are protected and will block deletion.`))) return;
     try { await api.delete(`/auth/accounts/${account.id}/permanent-delete/`); refresh(); toast.success("Account deleted"); }
     catch (error) { toast.error(getErrorMessage(error)); }
   };

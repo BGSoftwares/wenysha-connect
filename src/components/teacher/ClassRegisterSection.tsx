@@ -11,6 +11,7 @@ import { getErrorMessage } from "@/lib/api";
 import { useCreateStudent, useDeleteStudent, useUpdateStudent, type SchoolClass, type Student } from "@/lib/hooks";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 type Props = { classes: SchoolClass[]; students: Student[] };
 type StudentDraft = {
   name: string;
@@ -124,7 +125,7 @@ const ClassRegisterSection = ({ classes, students }: Props) => {
   };
 
   const removeStudent = async (student: Student) => {
-    if (!window.confirm(`Remove ${student.name} from ${selectedClass?.name}? The administrator will receive an alert.`)) return;
+    if (!(await confirmAction(`Remove ${student.name} from ${selectedClass?.name}? The administrator will receive an alert.`))) return;
     try {
       await deleteStudent.mutateAsync(student.id);
       toast.success("Student removed. The administrator has been alerted.");

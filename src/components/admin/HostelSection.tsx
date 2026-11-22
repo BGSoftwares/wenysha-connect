@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ModalShell from "@/components/ui/modal-shell";
 
+import { confirmAction } from "@/lib/confirm";
 type Hostel = { id: number; name: string; hostel_type: string; capacity: number; occupied: number; warden: string; phone: string };
 type Room = { id: number; hostel: number; hostel_name: string; room_code: string; beds: number; occupied: number };
 type Request = { id: number; student: number; student_name: string; request_type: string; issue: string; room: number | null; room_code: string; date: string; status: string };
@@ -36,7 +37,7 @@ const HostelSection = () => {
   const refresh = () => { void client.invalidateQueries({ queryKey: ["hostels"] }); void client.invalidateQueries({ queryKey: ["hostel-rooms"] }); void client.invalidateQueries({ queryKey: ["hostel-requests"] }); };
   const saveHostel = useMutation({ mutationFn: (f: Extract<Form, { kind: "hostel" }>) => f.id ? api.patch(`/hostel/hostels/${f.id}/`, f) : api.post("/hostel/hostels/", f), onSuccess: () => { refresh(); setForm(null); toast.success("Hostel saved"); }, onError: e => toast.error(getErrorMessage(e)) });
   const saveRoom = useMutation({ mutationFn: (f: Extract<Form, { kind: "room" }>) => f.id ? api.patch(`/hostel/rooms/${f.id}/`, f) : api.post("/hostel/rooms/", f), onSuccess: () => { refresh(); setForm(null); toast.success("Room saved"); }, onError: e => toast.error(getErrorMessage(e)) });
-  const deleteRecord = async (kind: "hostels" | "rooms", id: number) => { if (!window.confirm(`Delete this ${kind === "rooms" ? "room" : "hostel"}?`)) return; try { await api.delete(`/hostel/${kind}/${id}/`); refresh(); toast.success("Record deleted"); } catch (e) { toast.error(getErrorMessage(e)); } };
+  const deleteRecord = async (kind: "hostels" | "rooms", id: number) => { if (!(await confirmAction(`Delete this ${kind === "rooms" ? "room" : "hostel"}?`))) return; try { await api.delete(`/hostel/${kind}/${id}/`); refresh(); toast.success("Record deleted"); } catch (e) { toast.error(getErrorMessage(e)); } };
   const resolve = async (request: Request) => { try { await api.patch(`/hostel/hostel-requests/${request.id}/`, { status: "Resolved" }); refresh(); toast.success("Request resolved"); } catch (e) { toast.error(getErrorMessage(e)); } };
   const assign = async () => { if (!assignRoom || !studentId) return; try { await api.post("/hostel/room-students/", { room: assignRoom, student: Number(studentId) }); refresh(); setAssignRoom(null); setStudentId(""); toast.success("Student assigned to room"); } catch (e) { toast.error(getErrorMessage(e)); } };
   const filteredRooms = useMemo(() => rooms.filter(r => (hostelFilter === "all" || String(r.hostel) === hostelFilter) && `${r.room_code} ${r.hostel_name}`.toLowerCase().includes(search.toLowerCase())), [rooms, hostelFilter, search]);
