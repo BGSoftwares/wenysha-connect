@@ -96,6 +96,7 @@ const TeacherDashboard = () => {
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
   const [gradeInputs, setGradeInputs] = useState<Record<number, string>>({});
+  const [gradeTotals, setGradeTotals] = useState<Record<number, number>>({});
   const [classTeacherComments, setClassTeacherComments] = useState<Record<number, string>>({});
   const [classSubmissionError, setClassSubmissionError] = useState<string | null>(null);
   const editedClassTeacherComments = useRef(new Set<number>());
@@ -266,6 +267,7 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     setGradeInputs(Object.fromEntries(examMarks.map(mark => [mark.student, mark.absent ? "" : String(mark.scored)])));
+    setGradeTotals(Object.fromEntries(examMarks.map(mark => [mark.student, Number(mark.total_marks)])));
   }, [examMarks]);
   useEffect(() => {
     editedClassTeacherComments.current.clear();
@@ -418,7 +420,7 @@ const TeacherDashboard = () => {
       const mark = examMarks.find(item => item.student === student.id && item.subject === selectedSubjectId);
       const draftScore = gradeInputs[student.id]?.trim();
       const score = draftScore ? Number(draftScore) : mark && !mark.absent ? Number(mark.scored) : null;
-      const total = mark ? Number(mark.total_marks) : 100;
+      const total = draftScore ? (gradeTotals[student.id] ?? (mark ? Number(mark.total_marks) : 100)) : mark ? Number(mark.total_marks) : 100;
       const percentage = score !== null && total > 0 ? (score / total) * 100 : null;
       return {
         studentId: student.id,
@@ -834,7 +836,10 @@ const TeacherDashboard = () => {
             classId={selectedClassId}
             className={uniqueClasses.find(c => c.id === selectedClassId)?.name || "Class"}
             teacherName={teacher?.name || "Teacher"}
-            onGradeChange={(studentId, score) => setGradeInputs(current => ({ ...current, [studentId]: score }))}
+            onGradeChange={(studentId, score, total) => {
+              setGradeInputs(current => ({ ...current, [studentId]: score }));
+              setGradeTotals(current => ({ ...current, [studentId]: total }));
+            }}
           /> : isClassTeacherForSelectedClass ? (
             <div role="status" className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
               Marks for this subject are read-only for you. Subject teachers should use “Send marks to admin &amp; class teacher” after entering their marks; you can review the marks and complete the class-teacher comments below.

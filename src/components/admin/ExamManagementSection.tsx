@@ -19,6 +19,8 @@ const ExamManagementSection = () => {
   const [marksClassId, setMarksClassId] = useState("");
   const [marksSubjectId, setMarksSubjectId] = useState("");
   const [marksDraft, setMarksDraft] = useState<Record<number, string>>({});
+  // Papers are marked out of different totals (50, 80, 100…); grades always use the percentage.
+  const [marksTotalDraft, setMarksTotalDraft] = useState<string | null>(null);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
   const [isSavingExam, setIsSavingExam] = useState(false);
   const queryClient = useQueryClient();
@@ -30,6 +32,10 @@ const ExamManagementSection = () => {
   const { data: subjects = [] } = useSubjects();
   const { data: students = [] } = useStudents();
   const { data: existingMarks = [] } = useExamMarks({ exam: selectedExamId ?? undefined });
+  const savedMarksTotal = existingMarks.find(m => m.subject === Number(marksSubjectId) && students.some(student => student.id === m.student && student.school_class === Number(marksClassId)))?.total_marks;
+  const marksTotalText = marksTotalDraft ?? String(savedMarksTotal ?? 100);
+  const marksTotal = Number(marksTotalText);
+  const marksTotalValid = Number.isInteger(marksTotal) && marksTotal >= 1 && marksTotal <= 1000;
 
   const createExamMutation = useCreateExam();
   const updateExamMutation = useUpdateExam();
@@ -153,7 +159,8 @@ const ExamManagementSection = () => {
     };
     const pending = classStudents.filter(s => entryFor(s.id) !== "");
     if (!pending.length) { toast.error("Enter at least one student score"); return; }
-    const total = 100;
+    if (!marksTotalValid) { toast.error("Marks out of must be a whole number between 1 and 1000"); return; }
+    const total = marksTotal;
     const invalid = pending.find(s => { const v = entryFor(s.id); if (v === "ABS") return false; const score = Number(v); return !Number.isFinite(score) || score < 0 || score > total || Math.round(score * 100) !== score * 100; });
     if (invalid) { toast.error(`Enter a score from 0 to ${total} (up to 2 decimal places) for ${invalid.name}`); return; }
     try {
@@ -161,7 +168,7 @@ const ExamManagementSection = () => {
         const v = entryFor(s.id);
         return saveExamMark.mutateAsync({ exam: selectedExam.id, student: s.id, subject: Number(marksSubjectId), total_marks: total, scored: v === "ABS" ? 0 : Number(v), absent: v === "ABS" });
       }));
-      toast.success(`Saved marks for ${pending.length} student(s)`); setShowMarksModal(false); setMarksDraft({});
+      toast.success(`Saved marks for ${pending.length} student(s)`); setShowMarksModal(false); setMarksDraft({}); setMarksTotalDraft(null);
     } catch (error) { toast.error(getErrorMessage(error)); }
   };
 
@@ -549,14 +556,18 @@ const ExamManagementSection = () => {
             <p className="text-sm text-muted-foreground mb-6">{getExamDisplayName(selectedExam)}</p>
 
             <div className="flex gap-4 mb-6">
-              <select value={marksClassId} onChange={e => setMarksClassId(e.target.value)} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
+              <select value={marksClassId} onChange={e => { setMarksClassId(e.target.value); setMarksTotalDraft(null); }} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
                 <option value="">Select Class</option>
                 {classes.filter(c => selectedExam?.classes.includes(c.id)).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
               </select>
-              <select value={marksSubjectId} onChange={e => setMarksSubjectId(e.target.value)} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
+              <select value={marksSubjectId} onChange={e => { setMarksSubjectId(e.target.value); setMarksTotalDraft(null); }} className="px-4 py-2 rounded-lg border border-border bg-background text-foreground">
                 <option value="">Select Subject</option>
                 {subjects.filter(s => selectedExam?.subjects.includes(s.id)).map(subj => <option key={subj.id} value={subj.id}>{subj.name}</option>)}
               </select>
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <span className="font-medium">Marks out of</span>
+                <input aria-label="Marks out of" type="number" min={1} max={1000} step={1} inputMode="numeric" value={marksTotalText} onChange={e => setMarksTotalDraft(e.target.value)} aria-invalid={!marksTotalValid} className="w-20 rounded-md border border-border bg-background px-2 py-2 text-center aria-[invalid=true]:border-red-500" />
+              </label>
             </div>
 
             {/* Grading Scale Reference */}
@@ -577,7 +588,7 @@ const ExamManagementSection = () => {
             </div>
 
             <div className="mb-6 overflow-x-auto rounded-xl border">
-              {!marksClassId || !marksSubjectId ? <p className="p-6 text-center text-sm text-muted-foreground">Select a class and subject to load its students and saved scores.</p> : <table className="w-full"><thead className="bg-secondary/50"><tr><th className="p-3 text-left text-sm">Student</th><th className="p-3 text-left text-sm">Student ID</th><th className="p-3 text-left text-sm">Score (out of 100)</th><th className="p-3 text-left text-sm">Absent</th></tr></thead><tbody>{students.filter(s => s.school_class === Number(marksClassId) && s.status === "Active").map(student => { const saved = existingMarks.find(m => m.student === student.id && m.subject === Number(marksSubjectId)); const value = marksDraft[student.id] ?? (saved ? (saved.absent ? "ABS" : String(saved.scored)) : ""); const isAbsent = value === "ABS"; const grade = value === "" || isAbsent ? null : calculateGrade(Number(value)); return <tr key={student.id} className="border-t"><td className="p-3 font-medium">{student.name}</td><td className="p-3 text-sm text-muted-foreground">{student.student_id}</td><td className="p-3"><div className="flex items-center gap-2"><input type="number" min="0" max="100" step="0.01" disabled={isAbsent} className="w-28 rounded-md border bg-background px-3 py-2 disabled:opacity-50" value={isAbsent ? "" : value} onChange={e => setMarksDraft({ ...marksDraft, [student.id]: e.target.value })}/>{grade&&<span className={`text-sm font-semibold ${grade.color}`}>{grade.grade}</span>}{isAbsent&&<span className="text-sm font-semibold text-muted-foreground">ABS</span>}</div></td><td className="p-3"><input type="checkbox" aria-label={`${student.name} was absent`} className="h-4 w-4" checked={isAbsent} onChange={e => setMarksDraft({ ...marksDraft, [student.id]: e.target.checked ? "ABS" : "" })}/></td></tr>; })}</tbody></table>}
+              {!marksClassId || !marksSubjectId ? <p className="p-6 text-center text-sm text-muted-foreground">Select a class and subject to load its students and saved scores.</p> : <table className="w-full"><thead className="bg-secondary/50"><tr><th className="p-3 text-left text-sm">Student</th><th className="p-3 text-left text-sm">Student ID</th><th className="p-3 text-left text-sm">Score (out of {marksTotalValid ? marksTotal : "?"})</th><th className="p-3 text-left text-sm">Absent</th></tr></thead><tbody>{students.filter(s => s.school_class === Number(marksClassId) && s.status === "Active").map(student => { const saved = existingMarks.find(m => m.student === student.id && m.subject === Number(marksSubjectId)); const value = marksDraft[student.id] ?? (saved ? (saved.absent ? "ABS" : String(saved.scored)) : ""); const isAbsent = value === "ABS"; const grade = value === "" || isAbsent || !marksTotalValid ? null : calculateGrade((Number(value) / marksTotal) * 100); return <tr key={student.id} className="border-t"><td className="p-3 font-medium">{student.name}</td><td className="p-3 text-sm text-muted-foreground">{student.student_id}</td><td className="p-3"><div className="flex items-center gap-2"><input type="number" min="0" max={marksTotalValid ? marksTotal : undefined} step="0.01" disabled={isAbsent} className="w-28 rounded-md border bg-background px-3 py-2 disabled:opacity-50" value={isAbsent ? "" : value} onChange={e => setMarksDraft({ ...marksDraft, [student.id]: e.target.value })}/>{grade&&<span className={`text-sm font-semibold ${grade.color}`}>{grade.grade}</span>}{isAbsent&&<span className="text-sm font-semibold text-muted-foreground">ABS</span>}</div></td><td className="p-3"><input type="checkbox" aria-label={`${student.name} was absent`} className="h-4 w-4" checked={isAbsent} onChange={e => setMarksDraft({ ...marksDraft, [student.id]: e.target.checked ? "ABS" : "" })}/></td></tr>; })}</tbody></table>}
             </div>
 
             <div className="flex gap-3">
