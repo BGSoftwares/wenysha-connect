@@ -74,6 +74,8 @@ export interface StudentReportCardPdfData {
   totalSubjects: number;
   classPosition: string;
   levelPosition: string;
+  /** "Position in 3B1 & 3B2" when the class shares a level; the class position then already is the overall one. */
+  positionLabel?: string;
   teacherComment: string;
   principalComment: string;
   attendance: {
@@ -131,7 +133,7 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
     ["AVERAGE", `${data.average.toFixed(2)}%`],
     ["GRADE", data.overallGrade],
     ["PASSED", `${data.passed} / ${data.totalSubjects}`],
-    ["CLASS POSITION", data.classPosition],
+    [data.positionLabel ? data.positionLabel.toUpperCase() : "CLASS POSITION", data.classPosition],
   ];
   summary.forEach(([label, value], index) => {
     const x = left + index * summaryWidth;
@@ -202,7 +204,7 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   pdf.setTextColor(...palette.navy);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
-  pdf.text(`Level position: ${data.levelPosition}`, left, y);
+  if (!data.positionLabel) pdf.text(`Level position: ${data.levelPosition}`, left, y);
   y += 6;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);

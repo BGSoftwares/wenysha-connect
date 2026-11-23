@@ -83,6 +83,8 @@ class ReportCardReview(models.Model):
         related_name='submitted_report_card_reviews',
     )
     principal_reviewed_at = models.DateTimeField(null=True, blank=True)
+    # Entered by the class teacher: the day the next term opens, printed on the report card.
+    next_term_begins = models.DateField(null=True, blank=True)
     principal_reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

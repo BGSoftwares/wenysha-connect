@@ -64,6 +64,7 @@ class ExamRankingApiTests(TestCase):
             'level_position': 2,
             'level_total': 3,
             'level_name': 'Form 4',
+            'level_classes': ['Form 4A', 'Form 4B'],
         })
 
     def test_equal_averages_share_position(self):
@@ -108,3 +109,49 @@ class ExamRankingApiTests(TestCase):
         self.assertEqual(r_peer.data['class_position'], 1)
         self.assertEqual(r_target.data['class_position'], 2)
 
+
+
+class StreamLevelRankingTests(TestCase):
+    """3B1 and 3B2 are two classes of one level, so they share an overall position; 4B1 stands alone."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.client.force_authenticate(user=User.objects.create_superuser(
+            username='stream_admin', email='stream-admin@example.test', password='stream-password-123'
+        ))
+        self.exam = Exam.objects.create(
+            name='Final Examination', term='Term 1', year='2026',
+            start_date=date(2026, 1, 1), end_date=date(2026, 1, 31),
+        )
+        self.b1 = SchoolClass.objects.create(name='3B1')
+        self.b2 = SchoolClass.objects.create(name='3B2')
+        self.single = SchoolClass.objects.create(name='4B1')
+        self.exam.classes.add(self.b1, self.b2, self.single)
+        self.subject = Subject.objects.create(name='Mathematics')
+        self.students = {}
+        for name, school_class, score in (('Ann', self.b1, 90), ('Ben', self.b2, 80), ('Cara', self.b1, 70), ('Dan', self.single, 60)):
+            student = Student.objects.create(name=name, school_class=school_class)
+            ExamMark.objects.create(exam=self.exam, student=student, subject=self.subject, total_marks=100, scored=score)
+            self.students[name] = student
+
+    def ranking(self, name):
+        response = self.client.get('/api/exams/exam-rankings/', {'exam': self.exam.pk, 'student': self.students[name].pk})
+        self.assertEqual(response.status_code, 200, getattr(response, 'data', None))
+        return response.data
+
+    def test_level_names_group_classes_by_form_and_stream(self):
+        from exams.rankings import get_level_name
+        self.assertEqual(get_level_name('3B1'), get_level_name('3B2'))
+        self.assertNotEqual(get_level_name('3B1'), get_level_name('3A1'))
+        self.assertEqual(get_level_name('Form 4A'), 'Form 4')
+
+    def test_two_classes_of_a_level_share_one_overall_position(self):
+        ben = self.ranking('Ben')
+        self.assertEqual((ben['class_position'], ben['class_total']), (1, 1))
+        self.assertEqual((ben['level_position'], ben['level_total']), (2, 3))
+        self.assertEqual(ben['level_classes'], ['3B1', '3B2'])
+
+    def test_a_level_with_one_class_has_matching_positions(self):
+        dan = self.ranking('Dan')
+        self.assertEqual((dan['class_position'], dan['class_total']), (dan['level_position'], dan['level_total']))
+        self.assertEqual(dan['level_classes'], ['4B1'])

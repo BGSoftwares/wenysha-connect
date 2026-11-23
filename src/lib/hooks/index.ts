@@ -11,3 +11,4 @@ export * from "./admissions";
 export * from "./finance";
 export * from "./dashboard";
 export * from "./projects";
+export * from "./signature";

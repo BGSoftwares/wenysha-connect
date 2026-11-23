@@ -17,6 +17,7 @@ class ReportCardReviewViewSet(viewsets.ModelViewSet):
     queryset = ReportCardReview.objects.select_related(
         'exam', 'student', 'student__school_class',
         'class_teacher_submitted_by', 'principal_reviewed_by',
+        'class_teacher_submitted_by__signature', 'principal_reviewed_by__signature',
     ).all()
     serializer_class = ReportCardReviewSerializer
     filterset_fields = ['exam', 'student']
@@ -147,7 +148,11 @@ class ReportCardReviewViewSet(viewsets.ModelViewSet):
             if review.class_teacher_submitted_at:
                 raise ValidationError({'detail': 'This class report has already been submitted to the principal.'})
             review.class_teacher_comment = row['comment']
-            review.save(update_fields=['class_teacher_comment'])
+            fields = ['class_teacher_comment']
+            if 'next_term_begins' in values:
+                review.next_term_begins = values['next_term_begins']
+                fields.append('next_term_begins')
+            review.save(update_fields=fields)
             saved_reviews.append(review)
         return Response(
             ReportCardReviewSerializer(saved_reviews, many=True).data,
@@ -209,6 +214,11 @@ class ReportCardReviewViewSet(viewsets.ModelViewSet):
             raise ValidationError({
                 'marks': 'Complete every assigned subject mark before submitting the class reports.',
                 'missing_marks': incomplete,
+            })
+
+        if any(reviews[student.pk].next_term_begins is None for student in students):
+            raise ValidationError({
+                'next_term_begins': 'Enter the date the next term begins before submitting the class reports.',
             })
 
         submitted_at = timezone.now()

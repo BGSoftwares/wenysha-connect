@@ -463,6 +463,7 @@ class ReportCardReviewWorkflowTests(APITestCase):
         save_response = self.client.post('/api/exams/report-card-reviews/save-class-comments/', {
             'exam': self.exam.pk,
             'school_class': self.school_class.pk,
+            'next_term_begins': '2027-01-12',
             'comments': [{
                 'student': self.student.pk,
                 'comment': 'A thoughtful and hardworking learner.',
@@ -470,6 +471,7 @@ class ReportCardReviewWorkflowTests(APITestCase):
         }, format='json')
         self.assertEqual(save_response.status_code, 200, save_response.data)
         review = ReportCardReview.objects.get(exam=self.exam, student=self.student)
+        self.assertEqual(str(review.next_term_begins), '2027-01-12')
         self.assertEqual(review.class_teacher_comment, 'A thoughtful and hardworking learner.')
 
         submit_response = self.client.post('/api/exams/report-card-reviews/submit-class/', {

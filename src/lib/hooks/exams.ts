@@ -88,6 +88,10 @@ export interface ReportCardReview {
     principal_reviewed_at: string | null;
     principal_reviewed_by: number | null;
     principal_name: string | null;
+    /** Day the next term opens, entered by the class teacher. */
+    next_term_begins: string | null;
+    class_teacher_signature_url: string | null;
+    principal_signature_url: string | null;
 }
 
 export interface ExamRanking {
@@ -96,6 +100,8 @@ export interface ExamRanking {
     level_position: number | null;
     level_total: number | null;
     level_name: string | null;
+    /** Every class ranked together at this level, e.g. ["3B1", "3B2"]; one entry means the class stands alone. */
+    level_classes?: string[];
 }
 
 // Exam Hooks
@@ -261,6 +267,7 @@ export const useSaveClassReportComments = () => {
         mutationFn: (data: {
             exam: number;
             school_class: number;
+            next_term_begins?: string;
             comments: Array<{ student: number; comment: string }>;
         }) => api.post<ReportCardReview[]>("/exams/report-card-reviews/save-class-comments/", data),
         onSuccess: async () => {

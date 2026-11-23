@@ -99,6 +99,7 @@ const TeacherDashboard = () => {
   const [classTeacherComments, setClassTeacherComments] = useState<Record<number, string>>({});
   const [classSubmissionError, setClassSubmissionError] = useState<string | null>(null);
   const editedClassTeacherComments = useRef(new Set<number>());
+  const [nextTermEdit, setNextTermEdit] = useState<{ key: string; value: string } | null>(null);
   const [reportCardRows, setReportCardRows] = useState<Array<{
     studentId: number;
     studentName: string;
@@ -323,6 +324,9 @@ const TeacherDashboard = () => {
     .map(review => [review.student, review]));
   const classTeacherSubmission = Array.from(classReviewsByStudent.values())
     .find(review => review.class_teacher_submitted_at);
+  const savedNextTerm = Array.from(classReviewsByStudent.values()).find(review => review.next_term_begins)?.next_term_begins ?? "";
+  const nextTermKey = `${selectedExamId}-${selectedClassId}`;
+  const nextTermBegins = nextTermEdit?.key === nextTermKey ? nextTermEdit.value : savedNextTerm;
   const classCommentsSaved = classStudents.every(student => classTeacherComments[student.id]?.trim());
   const hasSavedClassComments = classStudents.length > 0 && classStudents.every(student => {
     const savedComment = classReviewsByStudent.get(student.id)?.class_teacher_comment.trim();
@@ -338,6 +342,7 @@ const TeacherDashboard = () => {
       await saveClassReportComments.mutateAsync({
         exam: selectedExamId,
         school_class: selectedClassId,
+        ...(nextTermBegins ? { next_term_begins: nextTermBegins } : {}),
         comments: classStudents.map(student => ({
           student: student.id,
           comment: classTeacherComments[student.id].trim(),
@@ -362,10 +367,17 @@ const TeacherDashboard = () => {
       toast.error(message);
       return;
     }
+    if (!nextTermBegins) {
+      const message = "Enter the date the next term begins before submitting. It is printed on every report card.";
+      setClassSubmissionError(message);
+      toast.error(message);
+      return;
+    }
     try {
       await saveClassReportComments.mutateAsync({
         exam: selectedExamId,
         school_class: selectedClassId,
+        ...(nextTermBegins ? { next_term_begins: nextTermBegins } : {}),
         comments: classStudents.map(student => ({
           student: student.id,
           comment: classTeacherComments[student.id].trim(),
@@ -848,7 +860,17 @@ const TeacherDashboard = () => {
                         : " Save comments, then send the completed reports to the admin."}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Next term begins
+                    <input
+                      type="date"
+                      value={nextTermBegins}
+                      disabled={Boolean(classTeacherSubmission)}
+                      onChange={(event) => setNextTermEdit({ key: nextTermKey, value: event.target.value })}
+                      className="mt-1 block h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                    />
+                  </label>
                   <Button
                     variant="outline"
                     size="sm"
