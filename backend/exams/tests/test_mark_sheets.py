@@ -406,17 +406,14 @@ class ReportTypeIsolationTests(APITestCase):
         )
         self.assertEqual(exam.name, 'End of Term 3')
 
-    def test_every_report_type_has_a_plain_name(self):
-        expected = {
-            'end_of_1st_term': 'End of Term 1',
-            'end_of_2nd_term': 'End of Term 2',
-            'end_of_3rd_term': 'End of Term 3',
-            'monthly_report_card': 'End of Month',
-            'fortnightly_tests': 'Fortnightly Test',
-        }
-        for report_type, name in expected.items():
+    def test_every_end_of_term_exam_has_a_plain_name(self):
+        for report_type, name in (
+            ('end_of_1st_term', 'End of Term 1'),
+            ('end_of_2nd_term', 'End of Term 2'),
+            ('end_of_3rd_term', 'End of Term 3'),
+        ):
             exam = Exam.objects.create(
-                name='2026 Something · 3 Nov, 10:00',
+                name='2026 Something',
                 report_type=report_type,
                 term='Term 3',
                 year='2026',
@@ -424,6 +421,17 @@ class ReportTypeIsolationTests(APITestCase):
                 end_date=date.today(),
             )
             self.assertEqual(exam.name, name, report_type)
+
+    def test_other_exams_keep_their_given_name(self):
+        exam = Exam.objects.create(
+            name='End of Month',
+            report_type='monthly_report_card',
+            term='Term 3',
+            year='2026',
+            start_date=date.today(),
+            end_date=date.today(),
+        )
+        self.assertEqual(exam.name, 'End of Month')
 
 
 class ReportCardReviewWorkflowTests(APITestCase):

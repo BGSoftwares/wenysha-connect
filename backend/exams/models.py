@@ -34,12 +34,12 @@ class Exam(models.Model):
     class Meta:
         ordering = ['-start_date']
 
+    # End-of-term exams always carry the standard title; other exams keep the name they were given
+    # (the portal suggests "End of Month" and "Fortnightly Test").
     CANONICAL_NAMES = {
         'end_of_1st_term': 'End of Term 1',
         'end_of_2nd_term': 'End of Term 2',
         'end_of_3rd_term': 'End of Term 3',
-        'monthly_report_card': 'End of Month',
-        'fortnightly_tests': 'Fortnightly Test',
     }
 
     def save(self, *args, **kwargs):
