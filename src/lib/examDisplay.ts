@@ -21,21 +21,18 @@ export const buildExamName = (
   createdAt = new Date(),
 ) => {
   const termNumber = END_OF_TERM_NUMBER[reportType];
-  if (termNumber) return `${year} End of Term ${termNumber} exam`;
+  if (termNumber) return `End of Term ${termNumber} ${year}`;
 
   const label = reportType === "monthly_report_card" ? "End of Month" : "Fortnightly Test";
   return `${year} ${label} · ${formatLocalDateTime(createdAt)}`;
 };
 
+/** Exam name as shown everywhere: "End of Term 3 2026" for term exams, the exam's own name otherwise. */
 export const getExamDisplayName = (exam: Pick<Exam, "name" | "report_type" | "term" | "year">) => {
-  const termNumber = END_OF_TERM_NUMBER[exam.report_type];
-  return termNumber
-    ? `${exam.year} End of Term ${termNumber} exam`
-    : exam.name;
-};
-
-/** Examination line on a report card: "End of Term 3 2026" for term exams, the exam's own name otherwise. */
-export const getReportExamLabel = (exam: Pick<Exam, "name" | "report_type" | "term" | "year">) => {
   const termNumber = END_OF_TERM_NUMBER[exam.report_type];
   return termNumber ? `End of Term ${termNumber} ${exam.year}` : exam.name;
 };
+
+/** Joins label parts, skipping any part the earlier text already says (so "End of Term 3 2026" is not followed by "Term 3 2026"). */
+export const joinDistinct = (parts: string[]) =>
+  parts.filter(Boolean).reduce((text, part) => (text.toLowerCase().includes(part.toLowerCase()) ? text : text ? `${text} · ${part}` : part), "");

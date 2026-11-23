@@ -8,7 +8,7 @@ import { exportReportCardPdf } from "@/lib/pdfExport";
 import { EXAM_REPORT_TYPES, useAcademicYears, useAttendanceRecords, useAttendanceReportSnapshot, useAttendanceTermSummaries, useExamMarks, useExamRanking, useExams, useInvoices, useReportCardReviews, useSchoolTerms, useStudentProfile, type Exam, type ExamMark, type ExamReportType, type ReportCardReview, type Student } from "@/lib/hooks";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
 import { getTeacherComment } from "@/lib/reportComments";
-import { formatLocalDateTime, getReportExamLabel } from "@/lib/examDisplay";
+import { formatLocalDateTime, getExamDisplayName, joinDistinct } from "@/lib/examDisplay";
 import { getReportAttendance, mapAttendanceSnapshot, type ReportAttendanceSummary } from "@/lib/reportAttendance";
 import {
   getLocalSchoolPeriod,
@@ -138,7 +138,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
     ? issueMonthYear
     : selectedExam ? `${selectedExam.term} ${selectedExam.year}` : "";
   const isReportProvisional = !!selectedExam && (selectedExam.status !== "completed" || !selectedExam.results_published);
-  const selectedTerm = selectedExam ? getReportExamLabel(selectedExam) : "No examination selected";
+  const selectedTerm = selectedExam ? getExamDisplayName(selectedExam) : "No examination selected";
   const marks = adminPrintReport?.marks ?? allMarks.filter(mark => mark.exam === selectedExam?.id);
   const { data: ranking, isLoading: isLoadingRanking, isError: isRankingError } =
     useExamRanking(isReportProvisional ? undefined : selectedExam?.id, studentId);
@@ -163,7 +163,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
         studentName: profile?.name || "Student",
         studentId: profile?.student_id || "",
         className: profile?.class_name || "—",
-        examName: getReportExamLabel(selectedExam),
+        examName: getExamDisplayName(selectedExam),
         termLabel: `${isReportProvisional ? "Provisional · " : ""}${EXAM_REPORT_TYPES.find(type => type.value === selectedExam.report_type)?.label ?? "Report card"} · ${selectedExam.term} ${selectedExam.year}`,
         reportHeading,
         reportPeriod: selectedExam.report_type === "monthly_report_card" ? generatedMonthYear : `${selectedExam.term} ${selectedExam.year}`,
@@ -357,7 +357,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
             {visibleExams.length === 0 && <option value="">No exam results</option>}
             {visibleExams.map(exam => (
               <option key={exam.id} value={exam.id}>
-                {getReportExamLabel(exam)}{getReportExamLabel(exam).includes(`${exam.term} ${exam.year}`) ? "" : ` · ${exam.term} ${exam.year}`}
+                {joinDistinct([getExamDisplayName(exam), `${exam.term} ${exam.year}`])}
               </option>
             ))}
           </select>
