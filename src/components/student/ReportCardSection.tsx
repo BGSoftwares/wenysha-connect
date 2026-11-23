@@ -129,7 +129,6 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
     ? formatLocalDateTime(issuedAt)
     : issuedAt.toLocaleDateString("en-GB");
   const issueMonthYear = issuedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const selectedTypeLabel = EXAM_REPORT_TYPES.find(type => type.value === activeReportType)?.label ?? "Report card";
   const reportHeading = activeReportType === "monthly_report_card"
     ? "End-of-month Examination Report Card"
     : activeReportType === "fortnightly_tests"
@@ -139,8 +138,13 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
     ? issueMonthYear
     : selectedExam ? `${selectedExam.term} ${selectedExam.year}` : "";
   const isReportProvisional = !!selectedExam && (selectedExam.status !== "completed" || !selectedExam.results_published);
+  // The exam name usually already says the term and year ("2026 End of Term 3 exam"); add them only when it doesn't.
+  const examName = selectedExam ? getExamDisplayName(selectedExam) : "";
+  const nameCoversPeriod = !!selectedExam
+    && examName.includes(String(selectedExam.year))
+    && examName.toLowerCase().includes(selectedExam.term.toLowerCase());
   const selectedTerm = selectedExam
-    ? `${selectedTypeLabel} · ${getExamDisplayName(selectedExam)} · ${selectedExam.term} ${selectedExam.year}`
+    ? nameCoversPeriod ? examName : `${examName} · ${selectedExam.term} ${selectedExam.year}`
     : "No examination selected";
   const marks = adminPrintReport?.marks ?? allMarks.filter(mark => mark.exam === selectedExam?.id);
   const { data: ranking, isLoading: isLoadingRanking, isError: isRankingError } =
