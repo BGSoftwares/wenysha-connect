@@ -404,7 +404,7 @@ class ReportTypeIsolationTests(APITestCase):
             start_date=date.today(),
             end_date=date.today(),
         )
-        self.assertEqual(exam.name, '2026 End of Term 3 exam')
+        self.assertEqual(exam.name, 'End of Term 3 2026')
 
 
 class ReportCardReviewWorkflowTests(APITestCase):

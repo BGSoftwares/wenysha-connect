@@ -41,7 +41,7 @@ class Exam(models.Model):
             'end_of_3rd_term': 3,
         }.get(self.report_type)
         if term_number:
-            self.name = f'{self.year} End of Term {term_number} exam'
+            self.name = f'End of Term {term_number} {self.year}'
             update_fields = kwargs.get('update_fields')
             if update_fields is not None:
                 kwargs['update_fields'] = set(update_fields) | {'name'}
