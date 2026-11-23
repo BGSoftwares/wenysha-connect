@@ -33,3 +33,9 @@ export const getExamDisplayName = (exam: Pick<Exam, "name" | "report_type" | "te
     ? `${exam.year} End of Term ${termNumber} exam`
     : exam.name;
 };
+
+/** Examination line on a report card: "End of Term 3 2026" for term exams, the exam's own name otherwise. */
+export const getReportExamLabel = (exam: Pick<Exam, "name" | "report_type" | "term" | "year">) => {
+  const termNumber = END_OF_TERM_NUMBER[exam.report_type];
+  return termNumber ? `End of Term ${termNumber} ${exam.year}` : exam.name;
+};

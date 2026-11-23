@@ -8,7 +8,7 @@ import { exportReportCardPdf } from "@/lib/pdfExport";
 import { EXAM_REPORT_TYPES, useAcademicYears, useAttendanceRecords, useAttendanceReportSnapshot, useAttendanceTermSummaries, useExamMarks, useExamRanking, useExams, useInvoices, useReportCardReviews, useSchoolTerms, useStudentProfile, type Exam, type ExamMark, type ExamReportType, type ReportCardReview, type Student } from "@/lib/hooks";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
 import { getTeacherComment } from "@/lib/reportComments";
-import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
+import { formatLocalDateTime, getReportExamLabel } from "@/lib/examDisplay";
 import { getReportAttendance, mapAttendanceSnapshot, type ReportAttendanceSummary } from "@/lib/reportAttendance";
 import {
   getLocalSchoolPeriod,
@@ -138,14 +138,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
     ? issueMonthYear
     : selectedExam ? `${selectedExam.term} ${selectedExam.year}` : "";
   const isReportProvisional = !!selectedExam && (selectedExam.status !== "completed" || !selectedExam.results_published);
-  // The exam name usually already says the term and year ("2026 End of Term 3 exam"); add them only when it doesn't.
-  const examName = selectedExam ? getExamDisplayName(selectedExam) : "";
-  const nameCoversPeriod = !!selectedExam
-    && examName.includes(String(selectedExam.year))
-    && examName.toLowerCase().includes(selectedExam.term.toLowerCase());
-  const selectedTerm = selectedExam
-    ? nameCoversPeriod ? examName : `${examName} · ${selectedExam.term} ${selectedExam.year}`
-    : "No examination selected";
+  const selectedTerm = selectedExam ? getReportExamLabel(selectedExam) : "No examination selected";
   const marks = adminPrintReport?.marks ?? allMarks.filter(mark => mark.exam === selectedExam?.id);
   const { data: ranking, isLoading: isLoadingRanking, isError: isRankingError } =
     useExamRanking(isReportProvisional ? undefined : selectedExam?.id, studentId);
@@ -170,7 +163,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
         studentName: profile?.name || "Student",
         studentId: profile?.student_id || "",
         className: profile?.class_name || "—",
-        examName: getExamDisplayName(selectedExam),
+        examName: getReportExamLabel(selectedExam),
         termLabel: `${isReportProvisional ? "Provisional · " : ""}${EXAM_REPORT_TYPES.find(type => type.value === selectedExam.report_type)?.label ?? "Report card"} · ${selectedExam.term} ${selectedExam.year}`,
         reportHeading,
         reportPeriod: selectedExam.report_type === "monthly_report_card" ? generatedMonthYear : `${selectedExam.term} ${selectedExam.year}`,
@@ -364,7 +357,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
             {visibleExams.length === 0 && <option value="">No exam results</option>}
             {visibleExams.map(exam => (
               <option key={exam.id} value={exam.id}>
-                {getExamDisplayName(exam)} · {exam.term} {exam.year}
+                {getReportExamLabel(exam)}{getReportExamLabel(exam).includes(`${exam.term} ${exam.year}`) ? "" : ` · ${exam.term} ${exam.year}`}
               </option>
             ))}
           </select>
@@ -418,7 +411,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
         <ReportCardSheet
           heading={reportHeading}
           issuedDate={issuedDate}
-          periodLabel={activeReportType === "monthly_report_card" ? issueMonthYear : undefined}
+          periodLabel={reportPeriod}
           learnerName={adminPrintReport?.student.name || profile?.name || "Student"}
           className={className}
           examination={selectedTerm}

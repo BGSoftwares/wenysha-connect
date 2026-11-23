@@ -32,7 +32,7 @@ export interface ReportCardSheetProps {
   heading: string;
   /** Date the report was issued, already formatted. */
   issuedDate: string;
-  /** Optional period such as "October 2026" (monthly reports). */
+  /** Period shown under the title, e.g. "Term 3 2026" or "October 2026". */
   periodLabel?: string;
   learnerName: string;
   className: string;
@@ -188,7 +188,8 @@ const ReportCardSheet = (props: ReportCardSheetProps) => {
   const attendanceTotal = Math.max(attendance.present + attendance.late + attendance.excused + attendance.absent, 0);
   const nextTerm = longDate(nextTermBegins);
 
-  const subtitle = periodLabel ? `${heading} · ${periodLabel}` : heading;
+  // The period alone ("Term 3 2026") sits under the title; the examination row names the exam.
+  const subtitle = periodLabel || heading;
   const sortedTerms = termAttendance
     .slice()
     .sort((first, second) => first.term_name.localeCompare(second.term_name, undefined, { numeric: true }));
