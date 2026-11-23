@@ -45,6 +45,10 @@ export interface ReportCardSectionProps {
 const getPercentage = ({ marks, scored, absent }: SubjectResult) =>
   !absent && marks > 0 ? (scored / marks) * 100 : 0;
 
+/** "3B1", "3B1 & 3B2", "3A1, 3A2 & 3A3". */
+const joinClassNames = (names: string[]) =>
+  names.length > 1 ? `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}` : names[0] ?? "";
+
 const formatPosition = (position: number | null | undefined, total: number | null | undefined) => {
   if (position == null || total == null) return "Not available";
   const suffix = position % 100 >= 11 && position % 100 <= 13
@@ -173,8 +177,9 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
         overallGrade: calculateGrade(averagePercentage).grade,
         passed: countPassed(),
         totalSubjects: satResults.length,
-        classPosition: isReportProvisional ? "Provisional" : formatPosition(ranking?.class_position, ranking?.class_total),
+        classPosition: isReportProvisional ? "Provisional" : formatPosition(overallPosition.position, overallPosition.total),
         levelPosition: isReportProvisional ? "Provisional" : formatPosition(ranking?.level_position, ranking?.level_total),
+        positionLabel: `Position in ${positionClasses}`,
         teacherComment,
         principalComment,
         attendance: publishedAttendance,
@@ -222,6 +227,15 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
     ? satResults.reduce((sum, result) => sum + getPercentage(result), 0) / satResults.length
     : 0;
 
+  // One overall position: across every class at the same level when there are several (3B1 and 3B2),
+  // otherwise the class's own position (4B1), which is the same thing.
+  const levelClassNames = ranking?.level_classes ?? [];
+  const sharesLevel = levelClassNames.length > 1;
+  const className = adminPrintReport?.student.class_name || profile?.class_name || "—";
+  const positionClasses = sharesLevel ? joinClassNames(levelClassNames) : className;
+  const overallPosition = sharesLevel
+    ? { position: ranking?.level_position, total: ranking?.level_total }
+    : { position: ranking?.class_position, total: ranking?.class_total };
   const teacherComment = reportReview?.class_teacher_comment || getTeacherComment(averagePercentage);
   const principalComment = reportReview?.principal_comment || "";
   const attendance = adminPrintReport?.attendance ?? (selectedExam
@@ -402,19 +416,25 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
           issuedDate={issuedDate}
           periodLabel={activeReportType === "monthly_report_card" ? issueMonthYear : undefined}
           learnerName={adminPrintReport?.student.name || profile?.name || "Student"}
-          className={adminPrintReport?.student.class_name || profile?.class_name || "—"}
+          className={className}
           examination={selectedTerm}
           isProvisional={isReportProvisional}
           results={results}
           averagePercentage={averagePercentage}
           passed={countPassed()}
           sat={satResults.length}
-          classPosition={isReportProvisional ? { status: "provisional" } : isLoadingRanking ? { status: "loading" } : { status: "ready", position: ranking?.class_position, total: ranking?.class_total }}
-          levelPosition={isReportProvisional ? { status: "provisional" } : isLoadingRanking ? { status: "loading" } : { status: "ready", position: ranking?.level_position, total: ranking?.level_total }}
-          levelName={ranking?.level_name}
+          positionLabel={`Position in ${positionClasses}`}
+          position={isReportProvisional ? { status: "provisional" } : isLoadingRanking ? { status: "loading" } : { status: "ready", ...overallPosition }}
           rankingFailed={isRankingError}
           teacherComment={teacherComment}
           principalComment={principalComment}
+          teacherCommentDate={reportReview?.class_teacher_submitted_at ?? null}
+          teacherName={reportReview?.class_teacher_name}
+          principalName={reportReview?.principal_name}
+          principalCommentDate={reportReview?.principal_reviewed_at ?? null}
+          nextTermBegins={reportReview?.next_term_begins ?? null}
+          teacherSignatureUrl={reportReview?.class_teacher_signature_url ?? null}
+          principalSignatureUrl={reportReview?.principal_signature_url ?? null}
           attendance={publishedAttendance}
           termAttendance={attendanceSummaries}
           termAttendanceYear={selectedExam?.year}

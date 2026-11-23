@@ -155,6 +155,19 @@ class ReportCardReviewSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    class_teacher_signature_url = serializers.SerializerMethodField()
+    principal_signature_url = serializers.SerializerMethodField()
+
+    @staticmethod
+    def _signature_url(user):
+        signature = getattr(user, 'signature', None) if user else None
+        return signature.image.url if signature and signature.image else None
+
+    def get_class_teacher_signature_url(self, obj):
+        return self._signature_url(obj.class_teacher_submitted_by)
+
+    def get_principal_signature_url(self, obj):
+        return self._signature_url(obj.principal_reviewed_by)
 
     class Meta:
         model = ReportCardReview
@@ -162,12 +175,14 @@ class ReportCardReviewSerializer(serializers.ModelSerializer):
             'id', 'exam', 'student', 'student_name', 'school_class', 'class_name',
             'class_teacher_comment', 'principal_comment', 'class_teacher_submitted_at',
             'class_teacher_submitted_by', 'class_teacher_name', 'principal_reviewed_at',
-            'principal_reviewed_by', 'principal_name',
+            'principal_reviewed_by', 'principal_name', 'next_term_begins',
+            'class_teacher_signature_url', 'principal_signature_url',
         ]
         read_only_fields = [
             'id', 'exam', 'student', 'student_name', 'school_class', 'class_name',
             'class_teacher_submitted_at', 'class_teacher_submitted_by', 'class_teacher_name',
-            'principal_reviewed_at', 'principal_reviewed_by', 'principal_name',
+            'principal_reviewed_at', 'principal_reviewed_by', 'principal_name', 'next_term_begins',
+            'class_teacher_signature_url', 'principal_signature_url',
         ]
 
 
@@ -180,6 +195,8 @@ class ReportCardCommentBatchSerializer(serializers.Serializer):
     exam = serializers.PrimaryKeyRelatedField(queryset=Exam.objects.all())
     school_class = serializers.PrimaryKeyRelatedField(queryset=SchoolClass.objects.all())
     comments = ReportCardCommentRowSerializer(many=True, allow_empty=False)
+    # Optional so comments can be saved before the date is known; it is required to submit the class.
+    next_term_begins = serializers.DateField(required=False, allow_null=True)
 
     def validate(self, attrs):
         student_ids = [row['student'].pk for row in attrs['comments']]

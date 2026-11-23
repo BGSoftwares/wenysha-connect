@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from school.models import Student, Teacher, TeacherSubjectClass
 from .. import ranking_cache
 from ..models import Exam, PublishedRanking
-from ..rankings import build_ranking, level_for, position_of
+from ..rankings import build_ranking, class_names, level_for, position_of
 from .helpers import linked_student_ids
 
 
@@ -53,6 +53,10 @@ class ExamRankingView(APIView):
         elif not is_admin(user):
             raise PermissionDenied('Your account cannot view examination rankings.')
 
+        exam_class_ids = set(exam.classes.values_list('id', flat=True))
+        level_name, level_class_ids = level_for(student.school_class, None, exam_class_ids)
+        level_classes = class_names(level_class_ids)
+
         if exam.results_published:
             stored = PublishedRanking.objects.filter(exam=exam, student=student).first()
             if stored:
@@ -63,9 +67,9 @@ class ExamRankingView(APIView):
                     'level_position': stored.level_position,
                     'level_total': stored.level_total,
                     'level_name': stored.level_name or None,
+                    'level_classes': level_classes,
                 })
 
-        level_name, level_class_ids = level_for(student.school_class)
         class_ids = [student.school_class_id]
 
         def calculate_positions(class_ids_for_ranking):
@@ -83,4 +87,5 @@ class ExamRankingView(APIView):
             'level_position': level_position if level_name else None,
             'level_total': level_total if level_name else None,
             'level_name': level_name,
+            'level_classes': level_classes,
         })

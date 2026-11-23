@@ -23,6 +23,23 @@ class UserProfile(models.Model):
         return f"{self.user.email} ({self.role.name if self.role else 'no role'})"
 
 
+def signature_upload_path(instance, filename):
+    """Random file name, so a signature's address cannot be guessed from the person's name or id."""
+    import uuid
+    from pathlib import Path
+    return f'signatures/{uuid.uuid4().hex}{Path(filename).suffix.lower()}'
+
+
+class UserSignature(models.Model):
+    """A teacher's or the principal's signature image, printed on the report cards they approve."""
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='signature')
+    image = models.FileField(upload_to=signature_upload_path)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'Signature of {self.user}'
+
+
 class PendingApproval(models.Model):
     """Sign-up requests awaiting admin approval."""
     ROLE_CHOICES = [

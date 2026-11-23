@@ -9,7 +9,14 @@ from school.models import SchoolClass, Student
 from .models import ExamMark, PublishedRanking
 
 
+# Names such as "3B1" and "3B2" are two classes of the same level, "3B": form 3, stream B, class 1 or 2.
+_STREAM_CLASS = re.compile(r'^\s*(\d+)\s*([A-Za-z]+)\s*\d+\s*$')
+
+
 def get_level_name(class_name):
+    stream = _STREAM_CLASS.match(class_name)
+    if stream:
+        return f'{stream.group(1)}{stream.group(2).upper()}'
     match = re.match(r'^\s*(.+?\d+)', class_name)
     return match.group(1).strip() if match else None
 
@@ -69,14 +76,25 @@ def position_of(candidate_keys, student_id):
     return 1 + sum(key > target_key for key in candidate_keys.values())
 
 
-def level_for(school_class, all_classes=None):
-    """The year group name (for example "Form 3") and the ids of every class in it."""
+def level_for(school_class, all_classes=None, exam_class_ids=None):
+    """The level name (for example "Form 3" or "3B") and the ids of every class in it.
+
+    When the exam's own classes are known, only those count, so a class that is not sitting this
+    exam never changes the learners' positions. A level with a single class ranks that class alone.
+    """
     level_name = get_level_name(school_class.name)
     classes = all_classes if all_classes is not None else SchoolClass.objects.only('id', 'name')
+    restrict = bool(exam_class_ids) and school_class.id in exam_class_ids
     level_class_ids = [
-        other.id for other in classes if level_name and get_level_name(other.name) == level_name
+        other.id for other in classes
+        if level_name and get_level_name(other.name) == level_name and (not restrict or other.id in exam_class_ids)
     ]
     return level_name, level_class_ids or [school_class.id]
+
+
+def class_names(class_ids):
+    """Sorted names of the given classes, for the "Position in 3B1 & 3B2" label on the report card."""
+    return list(SchoolClass.objects.filter(pk__in=class_ids).order_by('name').values_list('name', flat=True))
 
 
 @transaction.atomic
@@ -84,6 +102,7 @@ def freeze_rankings(exam):
     """Store every active learner's positions as they stand now, replacing any earlier copy. Returns how many were stored."""
     PublishedRanking.objects.filter(exam=exam).delete()
     all_classes = list(SchoolClass.objects.only('id', 'name'))
+    exam_class_ids = set(exam.classes.values_list('id', flat=True))
     built = {}
 
     def ranking(class_ids):
@@ -94,7 +113,7 @@ def freeze_rankings(exam):
 
     rows = []
     for school_class in exam.classes.all():
-        level_name, level_class_ids = level_for(school_class, all_classes)
+        level_name, level_class_ids = level_for(school_class, all_classes, exam_class_ids)
         class_keys, class_total = ranking([school_class.id])
         level_keys, level_total = ranking(level_class_ids)
         for student in Student.objects.filter(status='Active', school_class=school_class):
