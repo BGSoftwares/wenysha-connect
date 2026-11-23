@@ -72,7 +72,7 @@ const ExamManagementSection = () => {
         return;
       }
       await createExamMutation.mutateAsync({
-        name: buildExamName(newExam.report_type, newExam.year, newExam.term),
+        name: buildExamName(newExam.report_type),
         report_type: newExam.report_type,
         term: newExam.term,
         year: newExam.year,
@@ -448,7 +448,7 @@ const ExamManagementSection = () => {
                   </select>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Exam name: <span className="font-medium text-foreground">{buildExamName(newExam.report_type, newExam.year, newExam.term)}</span>
+                  Exam name: <span className="font-medium text-foreground">{buildExamName(newExam.report_type)}</span>
                 </p>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Year *</label>

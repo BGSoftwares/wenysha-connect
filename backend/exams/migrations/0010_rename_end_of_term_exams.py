@@ -1,29 +1,20 @@
 from django.db import migrations
 
-TERM_NUMBERS = (
-    ('end_of_1st_term', 1),
-    ('end_of_2nd_term', 2),
-    ('end_of_3rd_term', 3),
-)
+NAMES = {
+    'end_of_1st_term': 'End of Term 1',
+    'end_of_2nd_term': 'End of Term 2',
+    'end_of_3rd_term': 'End of Term 3',
+    'monthly_report_card': 'End of Month',
+    'fortnightly_tests': 'Fortnightly Test',
+}
 
 
-def rename_end_of_term_exams(apps, schema_editor):
-    """'2026 End of Term 3 exam' becomes 'End of Term 3 2026'."""
+def use_plain_exam_names(apps, schema_editor):
+    """'2026 End of Term 3 exam' becomes 'End of Term 3'; monthly and fortnightly exams lose their timestamps."""
     Exam = apps.get_model('exams', 'Exam')
     database = schema_editor.connection.alias
-    for report_type, number in TERM_NUMBERS:
-        exams = Exam.objects.using(database).filter(report_type=report_type)
-        for exam in exams.only('pk', 'year'):
-            exams.filter(pk=exam.pk).update(name=f'End of Term {number} {exam.year}')
-
-
-def restore_end_of_term_exams(apps, schema_editor):
-    Exam = apps.get_model('exams', 'Exam')
-    database = schema_editor.connection.alias
-    for report_type, number in TERM_NUMBERS:
-        exams = Exam.objects.using(database).filter(report_type=report_type)
-        for exam in exams.only('pk', 'year'):
-            exams.filter(pk=exam.pk).update(name=f'{exam.year} End of Term {number} exam')
+    for report_type, name in NAMES.items():
+        Exam.objects.using(database).filter(report_type=report_type).update(name=name)
 
 
 class Migration(migrations.Migration):
@@ -33,5 +24,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(rename_end_of_term_exams, restore_end_of_term_exams),
+        # Old names cannot be rebuilt exactly (timestamps), so this step is not reversible.
+        migrations.RunPython(use_plain_exam_names, migrations.RunPython.noop),
     ]

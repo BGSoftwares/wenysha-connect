@@ -427,7 +427,7 @@ const TeacherDashboard = () => {
         totalMarks: total,
         percentage,
         grade: percentage === null ? "—" : calculateGrade(percentage).grade,
-        comment: classTeacherComments[student.id] || (percentage === null ? "" : getTeacherComment(percentage)),
+        comment: classTeacherComments[student.id] ?? "",
       };
     });
 

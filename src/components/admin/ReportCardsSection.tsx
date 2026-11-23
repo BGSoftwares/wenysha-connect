@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EXAM_REPORT_TYPES, useAcademicYears, useAllocations, useAttendanceRecords, useAttendanceReportSnapshots, useExamMarks, useExams, useRegenerateAttendanceSnapshot, useReportCardReviews, useSchoolTerms, useStudents, useSubjects, useUpdateExam, useUpdateReportCardReview, type Exam, type ExamMark, type ReportCardReview, type SchoolClass, type Student } from "@/lib/hooks";
 import { averagePercentage, calculateGrade, countedMarks, formatScore } from "@/lib/grading";
 import { getErrorMessage } from "@/lib/api";
-import { formatLocalDateTime, getExamDisplayName, joinDistinct } from "@/lib/examDisplay";
+import { formatLocalDateTime, getExamDisplayName, getExamFullLabel } from "@/lib/examDisplay";
 import { getReportAttendance, mapAttendanceSnapshot, type ReportAttendanceSummary } from "@/lib/reportAttendance";
 import { toast } from "sonner";
 import { getPrincipalComment, PRINCIPAL_COMMENT_LIBRARY } from "@/lib/reportComments";
@@ -62,7 +62,7 @@ const getIssueStamp = (exam: Exam) => {
     ? formatLocalDateTime(now)
     : date;
 };
-const getExamLabel = (exam: Exam) => joinDistinct([getExamDisplayName(exam), getReportTypeLabel(exam), `${exam.term} ${exam.year}`]);
+const getExamLabel = (exam: Exam) => getExamFullLabel(exam);
 const safeFilePart = (value: string) => value.trim().replace(/[^a-z0-9-_]+/gi, "_").replace(/^_+|_+$/g, "") || "Report";
 const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
 
@@ -402,7 +402,7 @@ const AdminReportCardsSection = ({ classes }: { classes: SchoolClass[] }) => {
       pdf.text(getReportHeading(selectedExam).toUpperCase(), pageWidth / 2, 26, { align: "center" });
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
-      pdf.text(joinDistinct([getExamDisplayName(selectedExam), getReportTypeLabel(selectedExam)]), pageWidth / 2, 32, { align: "center", maxWidth: right - left });
+      pdf.text(getExamDisplayName(selectedExam), pageWidth / 2, 32, { align: "center", maxWidth: right - left });
       pdf.setDrawColor(185, 30, 100);
       pdf.line(left, 35, right, 35);
 

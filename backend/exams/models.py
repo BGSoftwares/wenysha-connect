@@ -34,14 +34,18 @@ class Exam(models.Model):
     class Meta:
         ordering = ['-start_date']
 
+    CANONICAL_NAMES = {
+        'end_of_1st_term': 'End of Term 1',
+        'end_of_2nd_term': 'End of Term 2',
+        'end_of_3rd_term': 'End of Term 3',
+        'monthly_report_card': 'End of Month',
+        'fortnightly_tests': 'Fortnightly Test',
+    }
+
     def save(self, *args, **kwargs):
-        term_number = {
-            'end_of_1st_term': 1,
-            'end_of_2nd_term': 2,
-            'end_of_3rd_term': 3,
-        }.get(self.report_type)
-        if term_number:
-            self.name = f'End of Term {term_number} {self.year}'
+        canonical = self.CANONICAL_NAMES.get(self.report_type)
+        if canonical:
+            self.name = canonical
             update_fields = kwargs.get('update_fields')
             if update_fields is not None:
                 kwargs['update_fields'] = set(update_fields) | {'name'}

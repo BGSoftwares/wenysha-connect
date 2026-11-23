@@ -1,11 +1,5 @@
 import type { Exam, ExamReportType } from "@/lib/hooks";
 
-const END_OF_TERM_NUMBER: Partial<Record<ExamReportType, number>> = {
-  end_of_1st_term: 1,
-  end_of_2nd_term: 2,
-  end_of_3rd_term: 3,
-};
-
 export const formatLocalDateTime = (date: Date) => date.toLocaleString(undefined, {
   year: "numeric",
   month: "short",
@@ -14,25 +8,23 @@ export const formatLocalDateTime = (date: Date) => date.toLocaleString(undefined
   minute: "2-digit",
 });
 
-export const buildExamName = (
-  reportType: ExamReportType,
-  year: string,
-  term: string,
-  createdAt = new Date(),
-) => {
-  const termNumber = END_OF_TERM_NUMBER[reportType];
-  if (termNumber) return `End of Term ${termNumber} ${year}`;
-
-  const label = reportType === "monthly_report_card" ? "End of Month" : "Fortnightly Test";
-  return `${year} ${label} · ${formatLocalDateTime(createdAt)}`;
+const PLAIN_NAMES: Record<ExamReportType, string> = {
+  end_of_1st_term: "End of Term 1",
+  end_of_2nd_term: "End of Term 2",
+  end_of_3rd_term: "End of Term 3",
+  monthly_report_card: "End of Month",
+  fortnightly_tests: "Fortnightly Test",
 };
 
-/** Exam name as shown everywhere: "End of Term 3 2026" for term exams, the exam's own name otherwise. */
-export const getExamDisplayName = (exam: Pick<Exam, "name" | "report_type" | "term" | "year">) => {
-  const termNumber = END_OF_TERM_NUMBER[exam.report_type];
-  return termNumber ? `End of Term ${termNumber} ${exam.year}` : exam.name;
-};
+/** Exam titles are plain: "End of Term 3", "End of Month", "Fortnightly Test". Term and year show beside them. */
+export const buildExamName = (reportType: ExamReportType) => PLAIN_NAMES[reportType];
 
-/** Joins label parts, skipping any part the earlier text already says (so "End of Term 3 2026" is not followed by "Term 3 2026"). */
-export const joinDistinct = (parts: string[]) =>
-  parts.filter(Boolean).reduce((text, part) => (text.toLowerCase().includes(part.toLowerCase()) ? text : text ? `${text} · ${part}` : part), "");
+export const getExamDisplayName = (exam: Pick<Exam, "name" | "report_type">) => PLAIN_NAMES[exam.report_type] ?? exam.name;
+
+const TERM_REPORT_TYPES: ExamReportType[] = ["end_of_1st_term", "end_of_2nd_term", "end_of_3rd_term"];
+
+/** Name plus when it was sat, without saying the term twice: "End of Term 3 · 2026" or "End of Month · Term 3 2026". */
+export const getExamFullLabel = (exam: Pick<Exam, "name" | "report_type" | "term" | "year">) =>
+  TERM_REPORT_TYPES.includes(exam.report_type)
+    ? `${getExamDisplayName(exam)} · ${exam.year}`
+    : `${getExamDisplayName(exam)} · ${exam.term} ${exam.year}`;

@@ -7,8 +7,7 @@ import { calculateGrade } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
 import { EXAM_REPORT_TYPES, useAcademicYears, useAttendanceRecords, useAttendanceReportSnapshot, useAttendanceTermSummaries, useExamMarks, useExamRanking, useExams, useInvoices, useReportCardReviews, useSchoolTerms, useStudentProfile, type Exam, type ExamMark, type ExamReportType, type ReportCardReview, type Student } from "@/lib/hooks";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
-import { getTeacherComment } from "@/lib/reportComments";
-import { formatLocalDateTime, getExamDisplayName, joinDistinct } from "@/lib/examDisplay";
+import { formatLocalDateTime, getExamDisplayName, getExamFullLabel } from "@/lib/examDisplay";
 import { getReportAttendance, mapAttendanceSnapshot, type ReportAttendanceSummary } from "@/lib/reportAttendance";
 import {
   getLocalSchoolPeriod,
@@ -233,7 +232,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
   const overallPosition = sharesLevel
     ? { position: ranking?.level_position, total: ranking?.level_total }
     : { position: ranking?.class_position, total: ranking?.class_total };
-  const teacherComment = reportReview?.class_teacher_comment || getTeacherComment(averagePercentage);
+  const teacherComment = reportReview?.class_teacher_comment?.trim() || "Awaiting the class teacher's comment.";
   const principalComment = reportReview?.principal_comment || "";
   const attendance = adminPrintReport?.attendance ?? (selectedExam
     ? getReportAttendance(selectedExam, studentId, attendanceRecords, issuedAt)
@@ -357,7 +356,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
             {visibleExams.length === 0 && <option value="">No exam results</option>}
             {visibleExams.map(exam => (
               <option key={exam.id} value={exam.id}>
-                {joinDistinct([getExamDisplayName(exam), `${exam.term} ${exam.year}`])}
+                {getExamFullLabel(exam)}
               </option>
             ))}
           </select>
