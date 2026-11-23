@@ -138,6 +138,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
     ? issueMonthYear
     : selectedExam ? `${selectedExam.term} ${selectedExam.year}` : "";
   const isReportProvisional = !!selectedExam && (selectedExam.status !== "completed" || !selectedExam.results_published);
+  const qrUrl = selectedExam ? `${window.location.origin}/student?open=report-card&exam=${selectedExam.id}&student=${studentId}` : null;
   const selectedTerm = selectedExam ? getExamDisplayName(selectedExam) : "No examination selected";
   const marks = adminPrintReport?.marks ?? allMarks.filter(mark => mark.exam === selectedExam?.id);
   const { data: ranking, isLoading: isLoadingRanking, isError: isRankingError } =
@@ -160,6 +161,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
       const generatedAt = new Date();
       const generatedMonthYear = generatedAt.toLocaleDateString(undefined, { month: "long", year: "numeric" });
       await exportReportCardPdf({
+        qrUrl: qrUrl ?? undefined,
         studentName: profile?.name || "Student",
         studentId: profile?.student_id || "",
         className: profile?.class_name || "—",
@@ -409,7 +411,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
         className={`report-card-content mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card text-foreground shadow-elegant print:max-w-none print:rounded-none print:border-0 print:shadow-none${adminPrintReport ? " admin-print-report-card" : ""}`}
       >
         <ReportCardSheet
-          qrUrl={selectedExam ? `${window.location.origin}/student?open=report-card&exam=${selectedExam.id}&student=${studentId}` : null}
+          qrUrl={qrUrl}
           heading={reportHeading}
           issuedDate={issuedDate}
           periodLabel={reportPeriod}

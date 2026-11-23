@@ -1,6 +1,7 @@
 import type jsPDF from "jspdf";
 import { loadJsPdf } from "@/lib/loadJsPdf";
 import { formatLocalDateKey } from "@/lib/zimbabweSchoolCalendar";
+import { qrMatrix } from "@/lib/qrCode";
 import { drawSchoolLetterhead, getReportPalette, loadSchoolLogoDataUrl } from "@/lib/pdfBranding";
 
 export interface ReportCardPdfData {
@@ -76,6 +77,8 @@ export interface StudentReportCardPdfData {
   levelPosition: string;
   /** "Position in 3B1 & 3B2" when the class shares a level; the class position then already is the overall one. */
   positionLabel?: string;
+  /** Link to the report in the student's portal account, printed as a QR code. */
+  qrUrl?: string;
   teacherComment: string;
   principalComment: string;
   attendance: {
@@ -258,6 +261,23 @@ export const exportReportCardPdf = async (data: StudentReportCardPdfData) => {
   pdf.setFontSize(8);
   pdf.setTextColor(...palette.muted);
   pdf.text(`Issued ${data.issuedDate} · Available in the student portal`, left, pageHeight - 9);
+
+  const qr = data.qrUrl ? qrMatrix(data.qrUrl) : null;
+  if (qr) {
+    const quiet = 2;
+    const modules = qr.length + quiet * 2;
+    const side = 22;
+    const unit = side / modules;
+    const qrLeft = right - side;
+    const qrTop = pageHeight - 12 - side;
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(qrLeft, qrTop, side, side, "F");
+    pdf.setFillColor(11, 27, 58);
+    qr.forEach((row, r) => row.forEach((dark, c) => {
+      if (dark) pdf.rect(qrLeft + (c + quiet) * unit, qrTop + (r + quiet) * unit, unit + 0.02, unit + 0.02, "F");
+    }));
+    pdf.text("Scan to open this report in the portal", qrLeft + side, pageHeight - 9, { align: "right" });
+  }
 
   const safeName = data.studentName.trim().replace(/[^a-z0-9-_]+/gi, "_") || "Student";
   pdf.save(`Report_Card_${safeName}_${formatLocalDateKey(new Date())}.pdf`);
