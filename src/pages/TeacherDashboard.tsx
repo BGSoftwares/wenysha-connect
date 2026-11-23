@@ -875,9 +875,11 @@ const TeacherDashboard = () => {
                     variant="outline"
                     size="sm"
                     disabled={Boolean(classTeacherSubmission) || loadingReportCardReviews}
-                    onClick={() => classStudents.forEach((student) => applyClassCommentTemplate(student.id, getStudentExamAverage(student.id)))}
+                    onClick={() => classStudents
+                      .filter((student) => !classTeacherComments[student.id]?.trim())
+                      .forEach((student) => applyClassCommentTemplate(student.id, getStudentExamAverage(student.id)))}
                   >
-                    Apply Built-in Comments
+                    Auto-fill empty comments
                   </Button>
                   <Button
                     variant="outline"
@@ -950,6 +952,16 @@ const TeacherDashboard = () => {
                             </optgroup>
                           ))}
                         </select>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="mt-1 h-7 px-2 text-xs"
+                          disabled={Boolean(classTeacherSubmission) || loadingReportCardReviews}
+                          onClick={() => applyClassCommentTemplate(student.id, getStudentExamAverage(student.id))}
+                        >
+                          Suggest from average
+                        </Button>
                       </div>
 
                       <textarea
