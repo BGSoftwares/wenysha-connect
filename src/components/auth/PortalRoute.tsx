@@ -85,7 +85,7 @@ export function PortalRoute({ role, children }: { role: string; children: ReactE
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground" aria-live="polite">Verifying your portal access…</div>;
   }
   if (status === "unauthenticated") {
-    return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/auth" replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
   if (status === "redirect" && destination) return <Navigate to={destination} replace />;
   if (status === "password-change") return <FirstLoginPasswordChange onComplete={() => { setStatus("checking"); setRetry((value) => value + 1); }} />;

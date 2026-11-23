@@ -3,6 +3,7 @@ import { calculateGrade } from "@/lib/grading";
 import type { ReportAttendanceSummary } from "@/lib/reportAttendance";
 import { schoolContact } from "@/lib/schoolContact";
 import logo from "/able-god-college-logo.png";
+import { QrCode } from "@/components/QrCode";
 
 export interface SheetResult {
   subject: string;
@@ -55,6 +56,8 @@ export interface ReportCardSheetProps {
   principalName?: string | null;
   teacherSignatureUrl: string | null;
   principalSignatureUrl: string | null;
+  /** Link to this report in the student's portal account; printed as a QR code. */
+  qrUrl?: string | null;
   /** Day the next term opens (ISO date), entered by the class teacher. */
   nextTermBegins: string | null;
   attendance: ReportAttendanceSummary;
@@ -181,7 +184,7 @@ const ReportCardSheet = (props: ReportCardSheetProps) => {
   const {
     heading, issuedDate, periodLabel, learnerName, className, examination, isProvisional, results, averagePercentage, passed, sat,
     positionLabel, position, rankingFailed, teacherComment, principalComment, teacherCommentDate, principalCommentDate,
-    teacherName, principalName, teacherSignatureUrl, principalSignatureUrl, nextTermBegins, attendance, termAttendance,
+    teacherName, principalName, teacherSignatureUrl, principalSignatureUrl, qrUrl, nextTermBegins, attendance, termAttendance,
     termAttendanceYear, showYearToDate,
   } = props;
   const averageGrade = calculateGrade(averagePercentage);
@@ -407,9 +410,15 @@ const ReportCardSheet = (props: ReportCardSheetProps) => {
             <span className="h-2 w-2 rotate-45 bg-gold" />
             <span className="h-px flex-1 bg-primary/40" />
           </div>
-          <p className="mt-2 text-center text-sm text-muted-foreground print:text-xs">
-            This report is electronically generated · Issued {issuedDate}
-          </p>
+          <div className="mt-3 flex items-center justify-center gap-4 print:mt-2">
+            {qrUrl && (
+              <QrCode value={qrUrl} label="QR code linking to this report in the student's portal account" className="h-24 w-24 shrink-0 rounded border border-primary/30 print:h-20 print:w-20" />
+            )}
+            <p className="text-center text-sm text-muted-foreground print:text-xs">
+              This report is electronically generated · Issued {issuedDate}
+              {qrUrl && <span className="mt-0.5 block text-xs">Scan the code to open this report in the student&apos;s portal account.</span>}
+            </p>
+          </div>
         </div>
       </div>
     </div>
