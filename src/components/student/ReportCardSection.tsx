@@ -399,7 +399,8 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
       >
         <ReportCardSheet
           heading={reportHeading}
-          issuedLine={`${activeReportType === "monthly_report_card" ? `${issueMonthYear} · ` : ""}Issued ${issuedDate}`}
+          issuedDate={issuedDate}
+          periodLabel={activeReportType === "monthly_report_card" ? issueMonthYear : undefined}
           learnerName={adminPrintReport?.student.name || profile?.name || "Student"}
           className={adminPrintReport?.student.class_name || profile?.class_name || "—"}
           examination={selectedTerm}

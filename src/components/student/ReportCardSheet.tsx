@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { calculateGrade, formatScore } from "@/lib/grading";
+import type { ReactNode } from "react";
+import { calculateGrade } from "@/lib/grading";
 import type { ReportAttendanceSummary } from "@/lib/reportAttendance";
 import { schoolContact } from "@/lib/schoolContact";
 import logo from "/able-god-college-logo.png";
@@ -30,8 +30,10 @@ export interface TermAttendance {
 
 export interface ReportCardSheetProps {
   heading: string;
-  /** "Issued 22/11/2026", already formatted. */
-  issuedLine: string;
+  /** Date the report was issued, already formatted. */
+  issuedDate: string;
+  /** Optional period such as "October 2026" (monthly reports). */
+  periodLabel?: string;
   learnerName: string;
   className: string;
   examination: string;
@@ -55,83 +57,11 @@ export interface ReportCardSheetProps {
 const percentageOf = ({ marks, scored, absent }: SheetResult) => (!absent && marks > 0 ? (scored / marks) * 100 : 0);
 const clamp = (value: number) => Math.min(100, Math.max(0, value));
 
-/** Bar colour for each grade, so a column of bars reads as a quick profile of strengths. */
-const BAR_BY_GRADE: Record<string, string> = {
-  A: "bg-emerald-500",
-  B: "bg-blue-500",
-  C: "bg-cyan-500",
-  D: "bg-amber-500",
-  E: "bg-orange-500",
-  U: "bg-red-500",
-};
-const RING_BY_GRADE: Record<string, string> = {
-  A: "text-emerald-400",
-  B: "text-blue-400",
-  C: "text-cyan-400",
-  D: "text-amber-400",
-  E: "text-orange-400",
-  U: "text-red-400",
-};
-
-const ordinalSuffix = (n: number) =>
-  n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] || "th";
-
-/** The learner's average as a ring that fills once when the card opens, with the overall grade at its centre. */
-const AverageRing = ({ value }: { value: number }) => {
-  const [shown, setShown] = useState(0);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setShown(value));
-    return () => cancelAnimationFrame(frame);
-  }, [value]);
-  const radius = 52;
-  const circumference = 2 * Math.PI * radius;
-  const grade = calculateGrade(value).grade;
-  return (
-    <div className="relative mx-auto h-36 w-36 shrink-0 print:h-28 print:w-28" role="img" aria-label={`Average ${value.toFixed(1)} percent, overall grade ${grade}`}>
-      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-        <circle cx="60" cy="60" r={radius} fill="none" strokeWidth="9" className="stroke-white/15" />
-        <circle
-          cx="60"
-          cy="60"
-          r={radius}
-          fill="none"
-          strokeWidth="9"
-          strokeLinecap="round"
-          stroke="currentColor"
-          className={`${RING_BY_GRADE[grade] ?? "text-accent"} transition-[stroke-dashoffset] duration-1000 ease-out motion-reduce:transition-none`}
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - clamp(shown) / 100)}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-heading text-3xl font-extrabold leading-none tabular-nums">{value.toFixed(1)}<span className="text-base font-bold">%</span></span>
-        <span className="mt-1 text-[11px] font-medium text-white/75">Grade {grade}</span>
-      </div>
-    </div>
-  );
-};
-
-const PositionTile = ({ label, state, note }: { label: string; state: PositionState; note: string }) => {
-  let body: JSX.Element;
-  if (state.status === "provisional") body = <span className="font-heading text-lg font-bold text-foreground/70">Provisional</span>;
-  else if (state.status === "loading") body = <span className="font-heading text-lg font-bold text-foreground/60">Calculating…</span>;
-  else if (state.position == null || state.total == null) body = <span className="font-heading text-lg font-bold text-foreground/60">Not available</span>;
-  else {
-    body = (
-      <span className="font-heading tabular-nums">
-        <span className="text-3xl font-extrabold leading-none text-primary">{state.position}</span>
-        <sup className="text-xs font-bold text-primary">{ordinalSuffix(state.position)}</sup>
-        <span className="ml-1.5 text-xs font-medium text-muted-foreground">of {state.total}</span>
-      </span>
-    );
-  }
-  return (
-    <div className="rounded-xl border border-border bg-card px-3 py-2.5">
-      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 leading-none">{body}</p>
-      <p className="mt-1.5 text-[10px] text-muted-foreground">{state.status === "provisional" ? "Computed when the exam is finalized" : note}</p>
-    </div>
-  );
+const positionText = (state: PositionState) => {
+  if (state.status === "provisional") return "Provisional (set when the examination is finalized)";
+  if (state.status === "loading") return "Calculating…";
+  if (state.position == null || state.total == null) return "Not available";
+  return `${state.position} out of ${state.total}`;
 };
 
 const ATTENDANCE_SEGMENTS = [
@@ -141,9 +71,17 @@ const ATTENDANCE_SEGMENTS = [
   { key: "absent", label: "Unexcused", color: "bg-rose-500" },
 ] as const;
 
+/** One labelled row of the learner details list, separated by a hairline like a printed form. */
+const Detail = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="grid grid-cols-[8.5rem_1fr] gap-x-3 border-b border-border py-2 text-sm print:py-1">
+    <dt className="text-muted-foreground">{label}</dt>
+    <dd className="min-w-0 break-words font-medium text-foreground">{children}</dd>
+  </div>
+);
+
 const ReportCardSheet = (props: ReportCardSheetProps) => {
   const {
-    heading, issuedLine, learnerName, className, examination, isProvisional, results, averagePercentage, passed, sat,
+    heading, issuedDate, periodLabel, learnerName, className, examination, isProvisional, results, averagePercentage, passed, sat,
     classPosition, levelPosition, levelName, rankingFailed, teacherComment, principalComment, attendance, termAttendance,
     termAttendanceYear, showYearToDate,
   } = props;
@@ -152,177 +90,119 @@ const ReportCardSheet = (props: ReportCardSheetProps) => {
 
   return (
     // Printing scales the sheet down slightly so a full card (with term attendance) stays on one A4 page.
-    <div className="print:[zoom:0.74]">
-      <header className="relative overflow-hidden bg-primary text-primary-foreground">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
-          style={{ backgroundImage: "repeating-linear-gradient(135deg, #fff 0 1px, transparent 1px 11px)" }}
-        />
-        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-accent/40 blur-3xl" />
-        <div className="relative flex flex-col items-center gap-4 px-6 py-6 sm:flex-row print:flex-row print:py-4">
-          <img src={logo} alt="Able God College crest" className="h-[72px] w-[72px] shrink-0 rounded-full bg-white p-2 object-contain ring-4 ring-accent/80" />
-          <div className="min-w-0 flex-1 text-center sm:text-left print:text-left">
-            <p className="font-heading text-3xl font-extrabold leading-tight tracking-tight">Able God College</p>
-            <p className="mt-0.5 font-heading text-sm italic text-primary-foreground/80">B&apos;Ezrat Hashem</p>
+    <div className="px-5 pb-6 pt-6 sm:px-9 print:[zoom:0.78] print:px-4 print:pb-2 print:pt-2">
+      <h1 className="text-center font-heading text-2xl font-extrabold tracking-tight text-primary sm:text-3xl">Student Online Report Card</h1>
+      <p className="mt-1 text-center text-sm text-muted-foreground">
+        {heading}{periodLabel ? ` · ${periodLabel}` : ""}
+      </p>
+      <div className="mt-3 h-1 rounded-full bg-gradient-to-r from-primary via-accent to-gold" aria-hidden="true" />
+
+      <div className="mt-5 grid gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] print:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] print:mt-3 print:gap-4">
+        <dl className="border-t border-border">
+          <div className="border-b border-border py-2 print:py-1">
+            <dt className="sr-only">Learner</dt>
+            <dd className="font-heading text-xl font-extrabold text-foreground">{learnerName}</dd>
           </div>
-          <div className="text-center text-[11px] leading-relaxed text-primary-foreground/85 sm:text-right print:text-right">
-            <p>{schoolContact.phones.map((phone) => phone.label).join(" / ")}</p>
+          <Detail label="Class">{className}</Detail>
+          <Detail label="Examination">{examination}</Detail>
+          <Detail label="Position in class">{positionText(classPosition)}</Detail>
+          <Detail label={levelName ? `Position in ${levelName}` : "Position in level"}>{positionText(levelPosition)}</Detail>
+          <Detail label="Passed">{passed} out of {sat}</Detail>
+          <Detail label="Average">
+            {averagePercentage.toFixed(1)}% · Grade {averageGrade.grade} ({averageGrade.meaning})
+          </Detail>
+          <Detail label="Date">{issuedDate}</Detail>
+          {isProvisional && (
+            <div className="py-2">
+              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">Provisional results</span>
+            </div>
+          )}
+        </dl>
+
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-end print:flex-row print:items-start print:justify-end">
+          <img src={logo} alt="Able God College crest" className="h-28 w-28 shrink-0 object-contain print:h-24 print:w-24" />
+          <address className="text-center text-sm not-italic leading-relaxed text-foreground sm:text-right print:text-right">
+            <p className="font-heading text-base font-extrabold text-primary">{schoolContact.name}</p>
+            <p className="font-heading text-xs italic text-muted-foreground">B&apos;Ezrat Hashem</p>
+            {schoolContact.phones.map((phone) => (
+              <p key={phone.label}>Phone: {phone.label}</p>
+            ))}
             <p>{schoolContact.address}</p>
-          </div>
+          </address>
         </div>
-        <div className="h-1.5 bg-gradient-to-r from-accent via-gold to-accent" />
-      </header>
+      </div>
+      {rankingFailed && <p role="alert" className="mt-3 text-xs text-red-700">Positions could not be calculated. Please try again later.</p>}
 
-      <div className="px-4 pb-5 pt-5 sm:px-7 print:pb-3 print:pt-3">
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h1 className="font-heading text-xl font-extrabold tracking-tight text-primary sm:text-2xl">{heading}</h1>
-          <p className="text-xs text-muted-foreground">{issuedLine}</p>
-        </div>
-
-        <section aria-label="Learner summary" className="grid gap-3 md:grid-cols-[minmax(0,1.25fr)_auto_minmax(0,1fr)] print:grid-cols-[minmax(0,1.25fr)_auto_minmax(0,1fr)]">
-          <div className="flex flex-col justify-center rounded-xl bg-secondary/60 p-4">
-            <p className="text-[11px] font-medium text-muted-foreground">Learner</p>
-            <p className="break-words font-heading text-2xl font-extrabold leading-tight text-foreground">{learnerName}</p>
-            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-              <dt className="text-muted-foreground">Class</dt>
-              <dd className="font-semibold text-foreground">{className}</dd>
-              <dt className="text-muted-foreground">Examination</dt>
-              <dd className="font-semibold text-foreground">{examination}</dd>
-            </dl>
-            {isProvisional && (
-              <p className="mt-3 w-fit rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-900">Provisional results</p>
+      <div className="mt-5 overflow-x-auto print:mt-3">
+        <table className="w-full min-w-[620px] border-collapse border border-border text-sm print:text-xs">
+          <caption className="sr-only">Subject results</caption>
+          <thead>
+            <tr className="bg-secondary/70">
+              {["Subject", "Marks", "Scored", "Perc (%)", "Grade", "Comment"].map((title) => (
+                <th key={title} scope="col" className="border border-border px-3 py-2.5 text-left font-bold text-foreground print:py-1.5">{title}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {results.map((result, index) => {
+              const percentage = percentageOf(result);
+              const info = calculateGrade(percentage);
+              return (
+                <tr key={`${result.subject}-${index}`}>
+                  <th scope="row" className="border border-border px-3 py-2.5 text-left font-normal text-foreground print:py-1.5">{result.subject}</th>
+                  <td className="border border-border px-3 py-2.5 tabular-nums print:py-1.5">{result.marks}</td>
+                  <td className="border border-border px-3 py-2.5 tabular-nums print:py-1.5">{result.absent ? "ABS" : result.scored.toFixed(2)}</td>
+                  <td className="border border-border px-3 py-2.5 tabular-nums print:py-1.5">{result.absent ? "—" : `${percentage.toFixed(2)}%`}</td>
+                  <td className="border border-border px-3 py-2.5 print:py-1.5">
+                    {result.absent ? "—" : <span className={`inline-flex min-w-6 justify-center rounded px-1.5 text-xs font-bold ${info.bgColor} ${info.color}`}>{info.grade}</span>}
+                  </td>
+                  <td className="border border-border px-3 py-2.5 print:py-1.5">{result.comment || (result.absent ? "Did not sit this paper" : info.meaning)}</td>
+                </tr>
+              );
+            })}
+            {results.length === 0 && (
+              <tr><td colSpan={6} className="border border-border px-3 py-8 text-center text-muted-foreground">No records found for this term.</td></tr>
             )}
-          </div>
+          </tbody>
+          {results.length > 0 && (
+            <tfoot>
+              <tr className="bg-secondary/70 font-bold">
+                <th scope="row" className="border border-border px-3 py-2.5 text-left print:py-1.5">Average</th>
+                <td className="border border-border px-3 py-2.5">—</td>
+                <td className="border border-border px-3 py-2.5 tabular-nums print:py-1.5">{averagePercentage.toFixed(2)}</td>
+                <td className="border border-border px-3 py-2.5 tabular-nums print:py-1.5">{averagePercentage.toFixed(2)}%</td>
+                <td className="border border-border px-3 py-2.5 print:py-1.5">
+                  <span className={`inline-flex min-w-6 justify-center rounded px-1.5 text-xs font-bold ${averageGrade.bgColor} ${averageGrade.color}`}>{averageGrade.grade}</span>
+                </td>
+                <td className="border border-border px-3 py-2.5 print:py-1.5">{averageGrade.meaning}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
 
-          <div className="rounded-xl bg-primary p-4 text-primary-foreground md:px-6">
-            <AverageRing value={averagePercentage} />
-            <p className="mt-2 text-center text-[11px] text-white/75">{averageGrade.meaning}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-1 print:grid-cols-1">
-            <PositionTile label="Class position" state={classPosition} note="Based on this examination" />
-            <PositionTile
-              label={levelName ? `${levelName} level position` : "Overall level position"}
-              state={levelPosition}
-              note="Across sections at the same level"
-            />
-            <div className="col-span-2 flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2.5 md:col-span-1 print:col-span-1">
-              <div>
-                <p className="text-[11px] font-medium text-muted-foreground">Subjects passed</p>
-                <p className="mt-1 font-heading text-3xl font-extrabold leading-none tabular-nums text-primary">
-                  {passed}<span className="text-base font-bold text-muted-foreground"> / {sat}</span>
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-full" style={{ background: `conic-gradient(hsl(var(--accent)) ${sat ? (passed / sat) * 360 : 0}deg, hsl(var(--muted)) 0)` }} aria-hidden="true">
-                <div className="m-1.5 h-7 w-7 rounded-full bg-card" />
+      <div className="mt-6 grid gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] print:mt-3 print:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] print:gap-4">
+        <div className="space-y-5 print:space-y-3">
+          {[
+            { title: "Teacher comment:", text: teacherComment },
+            { title: "Head comment:", text: principalComment || "Awaiting principal review." },
+          ].map((note) => (
+            <div key={note.title}>
+              <p className="text-sm font-semibold text-foreground">{note.title}</p>
+              <p className="mt-1 border-b border-border pb-2 text-sm leading-relaxed text-foreground/85">{note.text}</p>
+              <div className="mt-6 flex items-end justify-between gap-6 text-xs text-muted-foreground print:mt-4">
+                <span className="flex-1 border-t border-foreground/40 pt-1">Signature</span>
+                <span className="w-28 border-t border-foreground/40 pt-1">Date</span>
               </div>
             </div>
-          </div>
-        </section>
-        {rankingFailed && (
-          <p role="alert" className="mt-3 text-xs text-red-700">Positions could not be calculated. Please try again later.</p>
-        )}
-
-        <div className="mt-4 overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-[640px] border-collapse text-xs">
-            <caption className="sr-only">Subject results</caption>
-            <thead className="bg-primary text-primary-foreground">
-              <tr>
-                {["Subject", "Out of", "Score", "Percentage", "Grade", "Comment"].map((title, index) => (
-                  <th
-                    key={title}
-                    scope="col"
-                    className={`px-3 py-2.5 text-[11px] font-semibold ${index === 0 || index === 5 ? "text-left" : "text-center"} ${index === 3 ? "w-[24%]" : ""}`}
-                  >
-                    {title}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((result, index) => {
-                const percentage = percentageOf(result);
-                const info = calculateGrade(percentage);
-                return (
-                  <tr key={`${result.subject}-${index}`} className="border-t border-border/70 odd:bg-card even:bg-secondary/40">
-                    <th scope="row" className="px-3 py-2 text-left font-semibold text-foreground print:py-1">{result.subject}</th>
-                    <td className="px-3 py-2 print:py-1 text-center tabular-nums text-muted-foreground">{result.marks}</td>
-                    <td className="px-3 py-2 print:py-1 text-center font-bold tabular-nums text-foreground">{result.absent ? "ABS" : formatScore(result.scored)}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-2 min-w-8 flex-1 overflow-hidden rounded-full bg-muted"
-                          style={result.absent ? { backgroundImage: "repeating-linear-gradient(135deg, hsl(var(--border)) 0 3px, transparent 3px 6px)" } : undefined}
-                        >
-                          {!result.absent && (
-                            <div className={`h-full rounded-full ${BAR_BY_GRADE[info.grade] ?? "bg-accent"}`} style={{ width: `${clamp(percentage)}%` }} />
-                          )}
-                        </div>
-                        <span className="w-12 shrink-0 text-right tabular-nums text-muted-foreground">{result.absent ? "—" : `${percentage.toFixed(1)}%`}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 print:py-1 text-center">
-                      <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-[11px] font-extrabold ${result.absent ? "bg-muted text-muted-foreground" : `${info.bgColor} ${info.color}`}`}>
-                        {result.absent ? "—" : info.grade}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 print:py-1 text-muted-foreground" title={result.comment || undefined}>
-                      {result.comment || (result.absent ? "Did not sit this paper" : info.meaning)}
-                    </td>
-                  </tr>
-                );
-              })}
-              {results.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">No records found for this term.</td>
-                </tr>
-              )}
-            </tbody>
-            {results.length > 0 && (
-              <tfoot className="border-t-2 border-primary/30 bg-secondary/70">
-                <tr>
-                  <th scope="row" className="px-3 py-2.5 text-left font-extrabold text-primary">Average</th>
-                  <td className="px-3 py-2.5 text-center text-muted-foreground">—</td>
-                  <td className="px-3 py-2.5 text-center font-extrabold tabular-nums text-primary">{averagePercentage.toFixed(2)}</td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 min-w-8 flex-1 overflow-hidden rounded-full bg-card">
-                        <div className={`h-full rounded-full ${BAR_BY_GRADE[averageGrade.grade] ?? "bg-accent"}`} style={{ width: `${clamp(averagePercentage)}%` }} />
-                      </div>
-                      <span className="w-12 shrink-0 text-right font-bold tabular-nums text-primary">{averagePercentage.toFixed(1)}%</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5 text-center">
-                    <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-[11px] font-extrabold ${averageGrade.bgColor} ${averageGrade.color}`}>{averageGrade.grade}</span>
-                  </td>
-                  <td className="px-3 py-2.5 font-semibold text-primary">{averageGrade.meaning}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 print:grid-cols-2">
-          {[
-            { title: "Class teacher's comment", text: teacherComment },
-            { title: "Principal's overall comment", text: principalComment || "Awaiting principal review." },
-          ].map((note) => (
-            <figure key={note.title} className="relative overflow-hidden rounded-xl border border-border bg-card px-4 pb-3 pt-4">
-              <span aria-hidden="true" className="pointer-events-none absolute -top-3 left-2 font-heading text-6xl font-extrabold leading-none text-accent/20">“</span>
-              <figcaption className="relative text-[11px] font-semibold text-primary">{note.title}</figcaption>
-              <blockquote className="relative mt-1.5 text-xs leading-relaxed text-foreground/85">{note.text}</blockquote>
-            </figure>
           ))}
         </div>
 
-        <section aria-label="Attendance" className="mt-3 rounded-xl border border-border bg-card px-4 py-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-            <p className="text-[11px] font-semibold text-primary">
-              {attendance.calendarLabel} through {attendance.throughDate || "report period"}
-            </p>
-            <p className="text-[11px] text-muted-foreground">{attendance.totalDays} marked days of {attendance.schoolDays} scheduled school days</p>
-          </div>
+        <section aria-label="Attendance" className="self-start rounded-lg border border-border px-4 py-3">
+          <p className="text-sm font-semibold text-foreground">{attendance.calendarLabel}</p>
+          <p className="text-xs text-muted-foreground">
+            Through {attendance.throughDate || "report period"} · {attendance.totalDays} marked of {attendance.schoolDays} school days
+          </p>
           <div
             className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted"
             role="img"
@@ -332,59 +212,55 @@ const ReportCardSheet = (props: ReportCardSheetProps) => {
               <div key={segment.key} className={segment.color} style={{ width: `${(attendance[segment.key] / attendanceTotal) * 100}%` }} />
             ))}
           </div>
-          <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4 print:grid-cols-4">
+          <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
             {ATTENDANCE_SEGMENTS.map((segment) => (
               <li key={segment.key} className="flex items-center gap-1.5">
                 <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-sm ${segment.color}`} />
                 <span className="text-muted-foreground">{segment.label}</span>
-                <span className="ml-auto font-bold tabular-nums text-foreground sm:ml-1">{attendance[segment.key]}</span>
+                <span className="ml-auto font-bold tabular-nums text-foreground">{attendance[segment.key]}</span>
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[10px] text-muted-foreground">
-            {attendance.unrecorded} unmarked · {attendance.sickBay} sick bay · {attendance.suspended} suspended · Unexcused absence dates: {attendance.absentDates.length ? attendance.absentDates.join(", ") : "None recorded"}
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {attendance.unrecorded} unmarked · {attendance.sickBay} sick bay · {attendance.suspended} suspended
           </p>
-        </section>
+          <p className="text-[11px] text-muted-foreground">
+            Unexcused absence dates: {attendance.absentDates.length ? attendance.absentDates.join(", ") : "None recorded"}
+          </p>
 
-        {termAttendance.length > 0 && (
-          <section aria-label="Term attendance comparison" className="mt-3 rounded-xl border border-border bg-card px-4 py-3">
-            <p className="text-[11px] font-semibold text-primary">Attendance by term{termAttendanceYear ? ` · ${termAttendanceYear}` : ""}</p>
-            <div className="mt-2 grid gap-3 sm:grid-cols-3 print:grid-cols-3">
-              {termAttendance
-                .slice()
-                .sort((first, second) => first.term_name.localeCompare(second.term_name, undefined, { numeric: true }))
-                .map((summary) => (
-                  <div key={summary.id} className="text-[10px] text-muted-foreground">
-                    <div className="flex justify-between gap-2">
-                      <span className="font-semibold text-foreground">{summary.term_name}</span>
-                      <span className="font-bold tabular-nums text-foreground">{Number(summary.attendance_percentage).toFixed(1)}%</span>
-                    </div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${clamp(Number(summary.attendance_percentage))}%` }} />
-                    </div>
-                    <p className="mt-1">{summary.days_present} present · {summary.days_absent} absent · {summary.total_school_days} school days{summary.is_out_of_date ? " · needs refresh" : ""}</p>
-                  </div>
-                ))}
+          {termAttendance.length > 0 && (
+            <div className="mt-3 border-t border-border pt-2">
+              <p className="text-xs font-semibold text-foreground">Attendance by term{termAttendanceYear ? ` · ${termAttendanceYear}` : ""}</p>
+              <ul className="mt-1.5 space-y-1.5">
+                {termAttendance
+                  .slice()
+                  .sort((first, second) => first.term_name.localeCompare(second.term_name, undefined, { numeric: true }))
+                  .map((summary) => (
+                    <li key={summary.id} className="text-[11px] text-muted-foreground">
+                      <div className="flex justify-between gap-2">
+                        <span className="font-semibold text-foreground">{summary.term_name}</span>
+                        <span className="font-bold tabular-nums text-foreground">{Number(summary.attendance_percentage).toFixed(1)}%</span>
+                      </div>
+                      <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${clamp(Number(summary.attendance_percentage))}%` }} />
+                      </div>
+                      <p className="mt-0.5">{summary.days_present} present · {summary.days_absent} absent · {summary.total_school_days} school days{summary.is_out_of_date ? " · needs refresh" : ""}</p>
+                    </li>
+                  ))}
+              </ul>
+              {showYearToDate && (
+                <p className="mt-2 text-[11px] font-semibold text-foreground">
+                  Year to date: {termAttendance.reduce((total, summary) => total + summary.days_present + summary.days_late, 0)} present/late days from {termAttendance.reduce((total, summary) => total + summary.total_school_days, 0)} scheduled school days.
+                </p>
+              )}
             </div>
-            {showYearToDate && (
-              <p className="mt-2 text-[10px] font-semibold text-foreground">
-                Year to date: {termAttendance.reduce((total, summary) => total + summary.days_present + summary.days_late, 0)} present/late days from {termAttendance.reduce((total, summary) => total + summary.total_school_days, 0)} scheduled school days.
-              </p>
-            )}
-          </section>
-        )}
-
-        <div className="mt-8 grid grid-cols-2 gap-10 px-2 print:mt-5">
-          {["Class teacher", "Principal"].map((role) => (
-            <div key={role} className="border-t-2 border-primary/40 pt-1 text-[11px] font-medium text-muted-foreground">{role}</div>
-          ))}
-        </div>
-
-        <footer className="mt-4 print:mt-2 flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2 text-[10px] text-muted-foreground">
-          <p>This report is electronically generated.</p>
-          <p><span className="font-semibold text-foreground">Able God College</span> · {schoolContact.address}</p>
-        </footer>
+          )}
+        </section>
       </div>
+
+      <p className="mt-6 border-t border-border pt-3 text-center text-sm text-muted-foreground print:mt-3 print:pt-2 print:text-xs">
+        This report is electronically generated.
+      </p>
     </div>
   );
 };
