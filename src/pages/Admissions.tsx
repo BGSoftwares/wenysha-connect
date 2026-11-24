@@ -90,7 +90,7 @@ const applicationData: ApplicationTab[] = [
       "Certified copy of Grade 7 result slip (or Grade 6 & 7 school reports)",
       "Confidential conduct report or testimonial letter from previous primary school",
       "Certified copy of National ID / Passport of parent or legal guardian",
-      "Non-refundable application & assessment processing fee (US$ 20)",
+      "Non-refundable application & assessment processing fee (US$ 30)",
     ],
     timeline: [
       {
@@ -115,7 +115,7 @@ const applicationData: ApplicationTab[] = [
         icon: <CheckCircle2 className="h-5 w-5" />,
         label: "Registration & Placement Confirmation",
         detail:
-          "Successful applicants secure their place by paying the enrolment fee and Term 1 tuition (US$ 200), collect uniform specifications, and receive class allocations.",
+          "Successful applicants secure their place by paying Term 1 tuition (US$ 200), collect uniform specifications, and receive class allocations.",
       },
     ],
   },
@@ -133,7 +133,7 @@ const applicationData: ApplicationTab[] = [
       "Official ZIMSEC O-Level results slip (mandatory for A-Level / Lower 6 entry)",
       "Clearance and transfer letter from the current or previous secondary school head",
       "Certified copy of National ID / Passport of parent or legal guardian",
-      "Non-refundable application & assessment processing fee (US$ 20)",
+      "Non-refundable application & assessment processing fee (US$ 30)",
     ],
     timeline: [
       {
@@ -174,7 +174,7 @@ const officeHours = [
 const admissionsFaqs = [
   {
     q: "How much are the school fees at Able God College?",
-    a: "Tuition fees are US$ 200 per term across Forms 1 through 4 and A-Level. There is also a one-time application fee of US$ 20 and a new student enrolment fee of US$ 50.",
+    a: "Tuition fees are US$ 200 per term across Forms 1 through 4 and A-Level. There is also a one-time application fee of US$ 30.",
   },
   {
     q: "What payment methods are accepted for school fees?",
@@ -560,7 +560,7 @@ const Admissions = () => {
             </p>
           </div>
 
-          <div className="max-w-5xl mx-auto grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="max-w-3xl mx-auto grid sm:grid-cols-2 gap-6">
             {/* Application Fee */}
             <div className="bg-card rounded-2xl border border-border p-7 shadow-sm flex flex-col justify-between">
               <div>
@@ -568,29 +568,15 @@ const Admissions = () => {
                   <FileText className="w-6 h-6 text-accent" />
                 </div>
                 <p className="text-xs font-bold uppercase tracking-widest text-accent mb-1">Application Fee</p>
-                <p className="font-heading text-3xl font-bold text-primary">US$ 20</p>
+                <p className="font-heading text-3xl font-bold text-primary">US$ 30</p>
                 <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                   Non-refundable • Payable upon submitting application form &amp; covers entrance assessment administration.
                 </p>
               </div>
             </div>
 
-            {/* Enrolment Fee */}
-            <div className="bg-card rounded-2xl border border-border p-7 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                  <ShieldCheck className="w-6 h-6 text-primary" />
-                </div>
-                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-1">Enrolment Fee</p>
-                <p className="font-heading text-3xl font-bold text-primary">US$ 50</p>
-                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                  One-time non-refundable fee upon offer acceptance • Secures desk allocation and student file setup.
-                </p>
-              </div>
-            </div>
-
             {/* Tuition Fees - FEATURED CARD */}
-            <div className="bg-gradient-to-br from-[#10264f] to-[#1a3a75] text-white rounded-2xl border border-accent/40 p-7 shadow-xl flex flex-col justify-between relative overflow-hidden sm:col-span-2 lg:col-span-1">
+            <div className="bg-gradient-to-br from-[#10264f] to-[#1a3a75] text-white rounded-2xl border border-accent/40 p-7 shadow-xl flex flex-col justify-between relative overflow-hidden ">
               <div className="absolute top-3 right-3">
                 <span className="bg-accent text-accent-foreground text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow">
                   Approved Rate
