@@ -1,6 +1,6 @@
 import DashboardExtras from "@/components/dashboard/DashboardExtras";
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Menu } from "lucide-react";
 import {
   Home,
@@ -54,7 +54,9 @@ const navigation = [
 ];
 
 const StudentDashboard = () => {
-  const [activeNav, setActiveNav] = useState("dashboard");
+  const [searchParams] = useSearchParams();
+  // Report-card QR codes open the portal with ?open=report-card.
+  const [activeNav, setActiveNav] = useState(searchParams.get("open") === "report-card" ? "report-card" : "dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const user = getStoredUser();
 

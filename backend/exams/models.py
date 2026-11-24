@@ -34,14 +34,18 @@ class Exam(models.Model):
     class Meta:
         ordering = ['-start_date']
 
+    # End-of-term exams always carry the standard title; other exams keep the name they were given
+    # (the portal suggests "End of Month" and "Fortnightly Test").
+    CANONICAL_NAMES = {
+        'end_of_1st_term': 'End of Term 1',
+        'end_of_2nd_term': 'End of Term 2',
+        'end_of_3rd_term': 'End of Term 3',
+    }
+
     def save(self, *args, **kwargs):
-        term_number = {
-            'end_of_1st_term': 1,
-            'end_of_2nd_term': 2,
-            'end_of_3rd_term': 3,
-        }.get(self.report_type)
-        if term_number:
-            self.name = f'{self.year} End of Term {term_number} exam'
+        canonical = self.CANONICAL_NAMES.get(self.report_type)
+        if canonical:
+            self.name = canonical
             update_fields = kwargs.get('update_fields')
             if update_fields is not None:
                 kwargs['update_fields'] = set(update_fields) | {'name'}

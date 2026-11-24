@@ -43,6 +43,26 @@ class MarkSheetTests(APITestCase):
         self.assertEqual(mark.scored, 81)
         self.assertEqual(mark.comment, 'Updated comment')
 
+    def test_mark_sheet_can_be_marked_out_of_a_different_total(self):
+        response = self.client.post('/api/exams/mark-sheets/', {
+            'exam': self.exam.pk,
+            'school_class': self.cls.pk,
+            'subject': self.subject.pk,
+            'marks': [{'student': self.student.pk, 'total_marks': 50, 'scored': 40}],
+        }, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        mark = ExamMark.objects.get()
+        self.assertEqual(mark.total_marks, 50)
+        self.assertEqual(mark.scored, 40)
+
+        too_high = self.client.post('/api/exams/mark-sheets/', {
+            'exam': self.exam.pk,
+            'school_class': self.cls.pk,
+            'subject': self.subject.pk,
+            'marks': [{'student': self.student.pk, 'total_marks': 50, 'scored': 51}],
+        }, format='json')
+        self.assertEqual(too_high.status_code, 400)
+
     def test_publish_rejects_missing_active_learner_marks_even_without_reviews(self):
         self.exam.status = 'completed'
         self.exam.save(update_fields=['status'])
@@ -404,7 +424,34 @@ class ReportTypeIsolationTests(APITestCase):
             start_date=date.today(),
             end_date=date.today(),
         )
-        self.assertEqual(exam.name, '2026 End of Term 3 exam')
+        self.assertEqual(exam.name, 'End of Term 3')
+
+    def test_every_end_of_term_exam_has_a_plain_name(self):
+        for report_type, name in (
+            ('end_of_1st_term', 'End of Term 1'),
+            ('end_of_2nd_term', 'End of Term 2'),
+            ('end_of_3rd_term', 'End of Term 3'),
+        ):
+            exam = Exam.objects.create(
+                name='2026 Something',
+                report_type=report_type,
+                term='Term 3',
+                year='2026',
+                start_date=date.today(),
+                end_date=date.today(),
+            )
+            self.assertEqual(exam.name, name, report_type)
+
+    def test_other_exams_keep_their_given_name(self):
+        exam = Exam.objects.create(
+            name='End of Month',
+            report_type='monthly_report_card',
+            term='Term 3',
+            year='2026',
+            start_date=date.today(),
+            end_date=date.today(),
+        )
+        self.assertEqual(exam.name, 'End of Month')
 
 
 class ReportCardReviewWorkflowTests(APITestCase):

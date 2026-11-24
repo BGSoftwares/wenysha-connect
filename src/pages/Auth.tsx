@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { DeveloperSignature } from "@/components/layout/DeveloperSignature";
 import {
@@ -26,6 +26,7 @@ const Auth = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [mfaChallenge, setMfaChallenge] = useState<MfaChallenge | null>(null);
     const navigate = useNavigate();
+    const location = useLocation();
 
     // Form states
     const [email, setEmail] = useState("");
@@ -43,7 +44,10 @@ const Auth = () => {
             toast.error("Your account does not have a portal role yet. Please contact the school administrator.");
             return;
         }
-        navigate(dashboard, { replace: true });
+        // Return to the page the person was sent from (e.g. a scanned report-card link) when it is inside their own dashboard.
+        const from = (location.state as { from?: string } | null)?.from;
+        const returnTo = typeof from === "string" && (from === dashboard || from.startsWith(`${dashboard}/`) || from.startsWith(`${dashboard}?`)) ? from : dashboard;
+        navigate(returnTo, { replace: true });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {

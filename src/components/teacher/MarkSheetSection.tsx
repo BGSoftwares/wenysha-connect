@@ -21,15 +21,25 @@ interface Props {
   classId: number;
   className: string;
   teacherName: string;
-  onGradeChange: (studentId: number, score: string) => void;
+  /** Reports an unsaved score and the total it is marked out of, so previews elsewhere stay in step. */
+  onGradeChange: (studentId: number, score: string, total: number) => void;
 }
 
-type Row = { score: string; absent: boolean; comment: string };
+type Row = { score: string; total: string; absent: boolean; comment: string };
+
+const totalOf = (value: string) => Number(value);
+const isValidTotal = (value: string) => { const n = totalOf(value); return value.trim() !== "" && Number.isInteger(n) && n >= 1 && n <= 1000; };
+const percentageOf = (score: string, total: string) => (isValidTotal(total) ? (Number(score) / totalOf(total)) * 100 : 0);
+
+// New rows start from the total already used on this subject's sheet, or 100.
+const defaultTotal = (marks: ExamMark[], subjectId: number) => marks.find(mark => mark.subject === subjectId)?.total_marks ?? 100;
 
 const MarkSheetSection = ({ students, marks, examId, examName, reportType, subjectId, subjectName, classId, className, teacherName, onGradeChange }: Props) => {
   const saveMarkSheet = useSaveExamMarkSheet();
   const [rows, setRows] = useState<Record<number, Row>>({});
   const [busy, setBusy] = useState(false);
+  // Papers are marked out of different totals (50, 80, 100…); each learner's row has its own total and grades use the percentage.
+  const [bulkTotal, setBulkTotal] = useState("");
   const dirtyRows = useRef(new Set<number>());
   const markSheetKey = `${examId ?? ""}:${classId}:${subjectId}`;
   const previousMarkSheetKey = useRef(markSheetKey);
@@ -38,6 +48,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
     if (previousMarkSheetKey.current !== markSheetKey) {
       dirtyRows.current.clear();
       previousMarkSheetKey.current = markSheetKey;
+      setBulkTotal("");
     }
   }, [markSheetKey]);
 
@@ -47,17 +58,34 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
       students.forEach((student) => {
         if (dirtyRows.current.has(student.id) && current[student.id]) return;
         const mark = marks.find(savedMark => savedMark.student === student.id && savedMark.subject === subjectId);
-        next[student.id] = { score: mark && !mark.absent ? formatScore(mark.scored) : "", absent: Boolean(mark?.absent), comment: mark?.comment ?? "" };
+        next[student.id] = { score: mark && !mark.absent ? formatScore(mark.scored) : "", total: String(mark?.total_marks ?? defaultTotal(marks, subjectId)), absent: Boolean(mark?.absent), comment: mark?.comment ?? "" };
       });
       return next;
     });
   }, [students, marks, subjectId]);
 
+  const applyTotalToAll = (value: string) => {
+    setBulkTotal(value);
+    if (!isValidTotal(value)) return;
+    setRows((current) => {
+      const next = { ...current };
+      students.forEach((student) => {
+        const row = next[student.id];
+        if (!row) return;
+        dirtyRows.current.add(student.id);
+        next[student.id] = { ...row, total: value };
+        if (row.score.trim()) onGradeChange(student.id, row.score, totalOf(value));
+      });
+      return next;
+    });
+  };
+
   const update = (id: number, patch: Partial<Row>) => {
     dirtyRows.current.add(id);
     setRows((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
-    if (patch.score !== undefined) onGradeChange(id, patch.score);
-    if (patch.absent) onGradeChange(id, "");
+    const merged = { ...rows[id], ...patch };
+    if (patch.score !== undefined || patch.total !== undefined) onGradeChange(id, merged.score, isValidTotal(merged.total) ? totalOf(merged.total) : 100);
+    if (patch.absent) onGradeChange(id, "", isValidTotal(merged.total) ? totalOf(merged.total) : 100);
   };
 
   const isEntered = (r?: Row) => Boolean(r && (r.absent || r.score.trim()));
@@ -67,8 +95,10 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
   const saveAll = async () => {
     if (!examId) return toast.error("Select an exam first.");
     if (entered.length === 0) return toast.error("Enter at least one mark.");
-    const bad = sat.find((s) => { const n = Number(rows[s.id].score); return !Number.isFinite(n) || n < 0 || n > 100 || Math.round(n * 100) !== n * 100; });
-    if (bad) return toast.error(`Mark for ${bad.name} must be between 0 and 100, with at most 2 decimal places.`);
+    const badTotal = entered.find((s) => !isValidTotal(rows[s.id].total));
+    if (badTotal) return toast.error(`"Out of" for ${badTotal.name} must be a whole number between 1 and 1000.`);
+    const bad = sat.find((s) => { const n = Number(rows[s.id].score); return !Number.isFinite(n) || n < 0 || n > totalOf(rows[s.id].total) || Math.round(n * 100) !== n * 100; });
+    if (bad) return toast.error(`Mark for ${bad.name} must be between 0 and ${rows[bad.id].total}, with at most 2 decimal places.`);
     setBusy(true);
     try {
       await saveMarkSheet.mutateAsync({
@@ -77,7 +107,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
         subject: subjectId,
         marks: entered.map(student => ({
           student: student.id,
-          total_marks: 100,
+          total_marks: totalOf(rows[student.id].total),
           scored: rows[student.id].absent ? 0 : Number(rows[student.id].score),
           absent: rows[student.id].absent,
           comment: rows[student.id].comment.trim(),
@@ -156,7 +186,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
 
     let y = drawPageHeader();
     students.forEach((student, index) => {
-      const r = rows[student.id] ?? { score: "", absent: false, comment: "" };
+      const r = rows[student.id] ?? { score: "", total: "100", absent: false, comment: "" };
       const comment = r.comment.trim();
       const commentLines = doc.splitTextToSize(comment || "—", 64) as string[];
       const learnerLines = doc.splitTextToSize(student.name, 56) as string[];
@@ -178,16 +208,16 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
       const baseline = y + 5.2;
       doc.text(String(index + 1), left + 5, baseline, { align: "center" });
       doc.text(learnerLines, left + 12, baseline);
-      doc.text(r.absent ? "ABS" : r.score.trim() ? `${formatScore(r.score)}%` : "—", left + 84, baseline, { align: "center" });
+      doc.text(r.absent ? "ABS" : r.score.trim() ? `${formatScore(r.score)}/${r.total} (${percentageOf(r.score, r.total).toFixed(1)}%)` : "—", left + 84, baseline, { align: "center" });
       doc.setFont("helvetica", "bold");
-      doc.text(!r.absent && r.score.trim() ? calculateGrade(Number(r.score)).grade : "—", left + 105, baseline, { align: "center" });
+      doc.text(!r.absent && r.score.trim() ? calculateGrade(percentageOf(r.score, r.total)).grade : "—", left + 105, baseline, { align: "center" });
       doc.setFont("helvetica", "normal");
       doc.setTextColor(87, 82, 102);
       doc.text(commentLines, left + 114, baseline);
       y += rowHeight;
     });
 
-    const scored = sat.map((s) => Number(rows[s.id].score));
+    const scored = sat.map((s) => percentageOf(rows[s.id].score, rows[s.id].total));
     if (scored.length) {
       if (y + 18 > pageHeight - 18) {
         doc.addPage();
@@ -255,6 +285,21 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
           <p className="text-xs font-medium text-primary">{EXAM_REPORT_TYPES.find(type => type.value === reportType)?.label}</p>
           <h3 className="font-semibold text-foreground">Mark Sheet ({students.length} learners)</h3>
         </div>
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <span className="font-medium">Set every "Out of" to</span>
+          <input
+            aria-label="Set every learner's total marks"
+            type="number"
+            min={1}
+            max={1000}
+            step={1}
+            inputMode="numeric"
+            placeholder="e.g. 50"
+            value={bulkTotal}
+            onChange={(e) => applyTotalToAll(e.target.value)}
+            className="w-24 rounded-md border border-border bg-background px-2 py-1.5 text-center"
+          />
+        </label>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => void saveAll()} disabled={busy}><Save className="h-4 w-4 mr-1" />Save marks</Button>
           <Button size="sm" variant="outline" onClick={() => void download()}><Download className="h-4 w-4 mr-1" />PDF</Button>
@@ -271,7 +316,8 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
               <tr>
                 <th className="px-3 py-2 text-left w-10">#</th>
                 <th className="px-3 py-2 text-left">Learner</th>
-                <th className="px-3 py-2 text-center w-28">Mark (%)</th>
+                <th className="px-3 py-2 text-center w-28">Mark</th>
+                <th className="px-3 py-2 text-center w-24">Out of</th>
                 <th className="px-3 py-2 text-center w-20">Absent</th>
                 <th className="px-3 py-2 text-center w-20">Grade</th>
                 <th className="px-3 py-2 text-left">Comment</th>
@@ -279,16 +325,18 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
             </thead>
             <tbody className="divide-y divide-border">
               {students.map((s, i) => {
-                const r = rows[s.id] ?? { score: "", absent: false, comment: "" };
+                const r = rows[s.id] ?? { score: "", total: String(defaultTotal(marks, subjectId)), absent: false, comment: "" };
                 const score = Number(r.score);
-                const canGenerateComment = !r.absent && r.score.trim() !== "" && Number.isFinite(score) && score >= 0 && score <= 100;
+                const totalOk = isValidTotal(r.total);
+                const canGenerateComment = !r.absent && r.score.trim() !== "" && Number.isFinite(score) && score >= 0 && totalOk && score <= totalOf(r.total);
                 return (
                   <tr key={s.id} className="odd:bg-card even:bg-secondary/20">
                     <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
                     <td className="px-3 py-2 font-medium text-foreground">{s.name}</td>
-                    <td className="px-3 py-2"><input aria-label={`Mark for ${s.name}`} type="number" min={0} max={100} step={0.01} inputMode="decimal" disabled={r.absent} value={r.absent ? "" : r.score} onChange={(e) => update(s.id, { score: e.target.value })} className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-center disabled:opacity-50" /></td>
+                    <td className="px-3 py-2"><input aria-label={`Mark for ${s.name}`} type="number" min={0} max={totalOk ? totalOf(r.total) : undefined} step={0.01} inputMode="decimal" disabled={r.absent} value={r.absent ? "" : r.score} onChange={(e) => update(s.id, { score: e.target.value })} className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-center disabled:opacity-50" /></td>
+                    <td className="px-3 py-2"><input aria-label={`Total marks for ${s.name}`} type="number" min={1} max={1000} step={1} inputMode="numeric" disabled={r.absent} value={r.total} onChange={(e) => update(s.id, { total: e.target.value })} aria-invalid={!totalOk} className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-center disabled:opacity-50 aria-[invalid=true]:border-red-500" /></td>
                     <td className="px-3 py-2 text-center"><input type="checkbox" aria-label={`${s.name} was absent`} checked={r.absent} onChange={(e) => update(s.id, e.target.checked ? { absent: true, score: "" } : { absent: false })} className="h-4 w-4" /></td>
-                    <td className="px-3 py-2 text-center font-semibold">{r.absent ? "ABS" : r.score ? calculateGrade(Number(r.score)).grade : "—"}</td>
+                    <td className="px-3 py-2 text-center font-semibold">{r.absent ? "ABS" : r.score && totalOk && score <= totalOf(r.total) ? calculateGrade(percentageOf(r.score, r.total)).grade : "—"}</td>
                     <td className="px-3 py-2">
                       <div className="flex min-w-[300px] items-center gap-2">
                         <input aria-label={`Subject comment for ${s.name}`} value={r.comment} maxLength={500} onChange={(e) => update(s.id, { comment: e.target.value })} placeholder="Subject comment for report card" className="w-full min-w-0 px-2 py-1.5 rounded-md border border-border bg-background" />
@@ -297,7 +345,7 @@ const MarkSheetSection = ({ students, marks, examId, examName, reportType, subje
                           size="sm"
                           variant="outline"
                           aria-label={`Generate comment for ${s.name}`}
-                          onClick={() => update(s.id, { comment: getGradeComment(calculateGrade(score).grade, subjectName) })}
+                          onClick={() => update(s.id, { comment: getGradeComment(calculateGrade(percentageOf(r.score, r.total)).grade, subjectName) })}
                           disabled={!canGenerateComment}
                         >
                           <Sparkles className="mr-1 h-4 w-4" />

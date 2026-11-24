@@ -141,20 +141,25 @@ class MarkSubmissionSerializer(serializers.ModelSerializer):
                   'teacher_name', 'note', 'submitted_at']
 
 
+def _person_name(user):
+    """The commenter's full name, falling back to their username when no name is set."""
+    if user is None:
+        return None
+    return user.get_full_name().strip() or user.get_username()
+
+
 class ReportCardReviewSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.name', read_only=True)
     school_class = serializers.IntegerField(source='student.school_class_id', read_only=True)
     class_name = serializers.CharField(source='student.school_class.name', read_only=True)
-    class_teacher_name = serializers.CharField(
-        source='class_teacher_submitted_by.get_full_name',
-        read_only=True,
-        allow_null=True,
-    )
-    principal_name = serializers.CharField(
-        source='principal_reviewed_by.get_full_name',
-        read_only=True,
-        allow_null=True,
-    )
+    class_teacher_name = serializers.SerializerMethodField()
+    principal_name = serializers.SerializerMethodField()
+    def get_class_teacher_name(self, obj):
+        return _person_name(obj.class_teacher_submitted_by)
+
+    def get_principal_name(self, obj):
+        return _person_name(obj.principal_reviewed_by)
+
     class_teacher_signature_url = serializers.SerializerMethodField()
     principal_signature_url = serializers.SerializerMethodField()
 

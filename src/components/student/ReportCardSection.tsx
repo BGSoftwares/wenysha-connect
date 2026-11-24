@@ -7,8 +7,7 @@ import { calculateGrade } from "@/lib/grading";
 import { exportReportCardPdf } from "@/lib/pdfExport";
 import { EXAM_REPORT_TYPES, useAcademicYears, useAttendanceRecords, useAttendanceReportSnapshot, useAttendanceTermSummaries, useExamMarks, useExamRanking, useExams, useInvoices, useReportCardReviews, useSchoolTerms, useStudentProfile, type Exam, type ExamMark, type ExamReportType, type ReportCardReview, type Student } from "@/lib/hooks";
 import { formatMoney, type FinanceCurrency } from "@/lib/finance";
-import { getTeacherComment } from "@/lib/reportComments";
-import { formatLocalDateTime, getExamDisplayName } from "@/lib/examDisplay";
+import { formatLocalDateTime, getExamDisplayName, getExamFullLabel } from "@/lib/examDisplay";
 import { getReportAttendance, mapAttendanceSnapshot, type ReportAttendanceSummary } from "@/lib/reportAttendance";
 import {
   getLocalSchoolPeriod,
@@ -76,7 +75,8 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
   const [selectedReportType, setSelectedReportType] = useState<ExamReportType>(
     () => getReportTypeForTerm(getLocalSchoolPeriod().term),
   );
-  const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
+  // A scanned report-card QR code opens the portal with ?exam=<id> so the right report is selected.
+  const [selectedExamId, setSelectedExamId] = useState<number | null>(() => Number(new URLSearchParams(window.location.search).get("exam")) || null);
   const [isExporting, setIsExporting] = useState(false);
   const reportCardRef = useRef<HTMLDivElement>(null);
   const previousLocalPeriod = useRef(localPeriod);
@@ -129,7 +129,6 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
     ? formatLocalDateTime(issuedAt)
     : issuedAt.toLocaleDateString("en-GB");
   const issueMonthYear = issuedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const selectedTypeLabel = EXAM_REPORT_TYPES.find(type => type.value === activeReportType)?.label ?? "Report card";
   const reportHeading = activeReportType === "monthly_report_card"
     ? "End-of-month Examination Report Card"
     : activeReportType === "fortnightly_tests"
@@ -139,9 +138,8 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
     ? issueMonthYear
     : selectedExam ? `${selectedExam.term} ${selectedExam.year}` : "";
   const isReportProvisional = !!selectedExam && (selectedExam.status !== "completed" || !selectedExam.results_published);
-  const selectedTerm = selectedExam
-    ? `${selectedTypeLabel} · ${getExamDisplayName(selectedExam)} · ${selectedExam.term} ${selectedExam.year}`
-    : "No examination selected";
+  const qrUrl = selectedExam ? `${window.location.origin}/student?open=report-card&exam=${selectedExam.id}&student=${studentId}` : null;
+  const selectedTerm = selectedExam ? getExamDisplayName(selectedExam) : "No examination selected";
   const marks = adminPrintReport?.marks ?? allMarks.filter(mark => mark.exam === selectedExam?.id);
   const { data: ranking, isLoading: isLoadingRanking, isError: isRankingError } =
     useExamRanking(isReportProvisional ? undefined : selectedExam?.id, studentId);
@@ -163,6 +161,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
       const generatedAt = new Date();
       const generatedMonthYear = generatedAt.toLocaleDateString(undefined, { month: "long", year: "numeric" });
       await exportReportCardPdf({
+        qrUrl: qrUrl ?? undefined,
         studentName: profile?.name || "Student",
         studentId: profile?.student_id || "",
         className: profile?.class_name || "—",
@@ -236,7 +235,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
   const overallPosition = sharesLevel
     ? { position: ranking?.level_position, total: ranking?.level_total }
     : { position: ranking?.class_position, total: ranking?.class_total };
-  const teacherComment = reportReview?.class_teacher_comment || getTeacherComment(averagePercentage);
+  const teacherComment = reportReview?.class_teacher_comment?.trim() || "Awaiting the class teacher's comment.";
   const principalComment = reportReview?.principal_comment || "";
   const attendance = adminPrintReport?.attendance ?? (selectedExam
     ? getReportAttendance(selectedExam, studentId, attendanceRecords, issuedAt)
@@ -360,7 +359,7 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
             {visibleExams.length === 0 && <option value="">No exam results</option>}
             {visibleExams.map(exam => (
               <option key={exam.id} value={exam.id}>
-                {getExamDisplayName(exam)} · {exam.term} {exam.year}
+                {getExamFullLabel(exam)}
               </option>
             ))}
           </select>
@@ -412,9 +411,10 @@ const ReportCardSection = ({ studentId, adminPrintReport, student: studentOverri
         className={`report-card-content mx-auto w-full max-w-5xl overflow-hidden rounded-lg border border-border bg-card text-foreground shadow-elegant print:max-w-none print:rounded-none print:border-0 print:shadow-none${adminPrintReport ? " admin-print-report-card" : ""}`}
       >
         <ReportCardSheet
+          qrUrl={qrUrl}
           heading={reportHeading}
           issuedDate={issuedDate}
-          periodLabel={activeReportType === "monthly_report_card" ? issueMonthYear : undefined}
+          periodLabel={reportPeriod}
           learnerName={adminPrintReport?.student.name || profile?.name || "Student"}
           className={className}
           examination={selectedTerm}
