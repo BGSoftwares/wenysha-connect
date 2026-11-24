@@ -64,7 +64,7 @@ export async function downloadEnrolmentFormPdf(): Promise<void> {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  doc.text("Standard Tuition: US$ 200 per term  •  Application Fee: US$ 20  •  Enrolment Fee: US$ 50", pageWidth / 2, y, { align: "center" });
+  doc.text("Standard Tuition: US$ 200 per term  •  Application Fee: US$ 30", pageWidth / 2, y, { align: "center" });
 
   y += 6;
 
@@ -174,7 +174,7 @@ export async function downloadEnrolmentFormPdf(): Promise<void> {
   doc.setTextColor(71, 85, 105);
   const declarationText =
     "1. I agree that tuition fees are US$ 200 per term (or prevailing official equivalent) payable on or before the first day of each term.\n" +
-    "2. I understand that the application fee (US$ 20) and enrolment fee (US$ 50) are non-refundable.\n" +
+    "2. I understand that the application fee (US$ 30) is non-refundable.\n" +
     "3. I agree to abide by the school code of conduct, uniform requirements, punctual arrival by 6:55 AM, and disciplinary regulations of Able God College.\n" +
     "4. I certify that the information given above is true, complete, and accurate.";
 

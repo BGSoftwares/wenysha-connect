@@ -1,7 +1,7 @@
 /* Able God College service worker.
  * Keeps the app installable and gives a friendly page when the phone is offline.
  * It never caches API calls, uploads or live data, so people always see current results and fees. */
-const VERSION = "agc-v1";
+const VERSION = "agc-v2";
 const SHELL = "agc-shell-" + VERSION;
 
 self.addEventListener("install", (event) => {
