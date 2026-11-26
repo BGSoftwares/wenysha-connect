@@ -55,11 +55,11 @@ add a CDN or another proxy in front, set it accordingly and configure nginx
 - Users enrol under their profile (students and staff) via **Two-step
   verification**: scan or type the setup key into an authenticator app, confirm a
   code, then **save the 8 one-time backup codes** (shown once).
-- Two-step verification is optional by default: everyone can turn it on later from their profile. `MFA_REQUIRED_ROLES` (empty by default; for example `Admin`) forces those roles to enrol. Until they
-  do, their token only opens the MFA setup screen (`mfa_setup_required`).
+- In production, Admin, Accounts and Teacher roles must enrol in two-step verification. `MFA_REQUIRED_ROLES` can add more roles;
+  it cannot remove this baseline. Until enrolment is complete, their token only opens the MFA setup screen (`mfa_setup_required`).
 - Authenticator secrets are encrypted at rest (Fernet). Set a dedicated
-  `MFA_ENCRYPTION_KEY`; if unset it is derived from `DJANGO_SECRET_KEY`, and
-  rotating the secret key then resets everyone's MFA.
+  `MFA_ENCRYPTION_KEY`; production preflight requires it so rotating
+  `DJANGO_SECRET_KEY` does not reset everyone's authenticator app.
 - **Locked-out user** (lost phone and backup codes): an administrator runs
   `python manage.py reset_mfa <username-or-email>`; the user signs in with their password
   and enrols again.

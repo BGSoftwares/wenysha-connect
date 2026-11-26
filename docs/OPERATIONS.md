@@ -28,6 +28,8 @@ missing value in `deploy.env`, a MySQL host the server cannot reach, or a TLS fo
 - **Secrets:** `sh scripts/generate-secrets.sh` keeps the old file as `deploy.env.old`, then restart with
   `docker compose --env-file deploy.env up -d`. Changing `DJANGO_SECRET_KEY` signs everyone out. If `MFA_ENCRYPTION_KEY`
   was empty, it also resets everyone's authenticator app, so set that key once and keep it.
+  Rotating `BACKUP_ENCRYPTION_PASSPHRASE` makes older database and media archives unreadable with the new value; keep the old
+  passphrase in the password manager until every archive encrypted with it has expired or been deliberately removed.
   Change the MySQL password inside MySQL first, then update `MYSQL_PASSWORD`.
 - **Default passwords:**
   ```sh
@@ -42,11 +44,18 @@ missing value in `deploy.env`, a MySQL host the server cannot reach, or a TLS fo
 The `backup` service dumps the database and zips the uploaded files every day at `BACKUP_HOUR` (UTC) into `BACKUP_DIR`
 (default `./backups`), keeping `BACKUP_KEEP_DAYS` days. A failed dump never replaces an older good one.
 
-**Copy them off the server.** Set `BACKUP_REMOTE` in `deploy.env` and every backup is uploaded after it is made, the upload size is
-checked, and copies older than `BACKUP_REMOTE_KEEP_DAYS` are removed from the destination. Any rclone destination works
-(S3-compatible buckets such as Backblaze, Wasabi, Cloudflare R2 or AWS; SFTP; Google Drive; Dropbox; OneDrive; another server's folder).
-`deploy.env.example` has a ready S3 example; for other types see https://rclone.org/docs/ and write the options as
-`RCLONE_CONFIG_<NAME>_<OPTION>=value`. If the upload fails, the local backup is kept and the status turns to failed.
+**Copy them off the server.** `BACKUP_REMOTE` and `BACKUP_ENCRYPTION_PASSPHRASE` are required for the production stack. Set
+`BACKUP_REMOTE` to a named rclone destination in `deploy.env`; use a remote name made of letters, numbers, or underscores. Local
+paths and the rclone local backend are rejected in production so a server-local folder cannot be mistaken for an off-site copy.
+Every backup is uploaded after it is made, the upload size is checked, and copies older than
+`BACKUP_REMOTE_KEEP_DAYS` are removed from the destination. Any rclone destination works (S3-compatible buckets such as Backblaze,
+Wasabi, Cloudflare R2 or AWS; SFTP; Google Drive; Dropbox; OneDrive; another server's folder). See `deploy.env.example` for the
+S3 settings, or https://rclone.org/docs/ for other providers. Set options as `RCLONE_CONFIG_<NAME>_<OPTION>=value`. If the upload
+fails, the local backup is kept and the status turns to failed.
+
+The local rclone backend is refused in production. `ALLOW_LOCAL_BACKUP_REMOTE=1` exists only for the isolated CI stack; do not set
+it on the live deployment. The preflight also requires the named remote's `RCLONE_CONFIG_<NAME>_TYPE` setting and a 32-character
+or longer encryption passphrase. `generate-secrets.sh` creates a suitable passphrase.
 
 **Encrypt them.** Set `BACKUP_ENCRYPTION_PASSPHRASE` (`generate-secrets.sh` creates one) and every file is encrypted with AES-256
 before it is stored or uploaded, so a stolen bucket or disk reveals nothing. Store the passphrase in a password manager:
@@ -55,15 +64,34 @@ without it the backups cannot be opened. Encrypted files end in `.enc`.
 ```sh
 docker compose --env-file deploy.env logs backup               # shows "next run in ...s" and each result
 docker compose --env-file deploy.env run --rm -e BACKUP_ONCE=1 backup   # take a backup right now
-sh scripts/backup-status.sh                                    # OK only if the last backup worked and is under 26h old
-sh scripts/restore.sh backups/db-YYYYMMDD-HHMMSS.sql.gz.enc    # replace live data (asks you to type RESTORE)
+sh scripts/backup-status.sh                                    # OK only if the last encrypted off-site backup is under 26h old
+sh scripts/restore.sh backups/db-YYYYMMDD-HHMMSS.sql.gz.enc    # replace the configured database (asks you to type RESTORE)
 ```
 
 `backup-status.sh` exits non-zero when the last backup failed, is too old, or never ran. Run it from cron or point an uptime
-monitor at it so a silent failure is noticed the same day. To restore from the off-server copy, download the file first
-(for example `docker compose --env-file deploy.env run --rm --entrypoint rclone backup copy offsite:my-bucket/db-....sql.gz.enc /backups`),
-then run `restore.sh` on it. A wrong passphrase or damaged file stops before anything is changed. Test a restore on a spare
-database at least once a term.
+monitor at it so a silent failure is noticed the same day. CI uses a local rclone remote as a stand-in, then restores both the
+database and media from those copied artifacts on every change to the deployment stack; it does not verify your provider credentials.
+For an operational database restore drill, create an empty database on a separate staging MySQL server, then copy the production
+environment file to a protected test file and change only `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and
+`MYSQL_PASSWORD` to point at that staging database. Keep the same rclone config and backup passphrase so the encrypted artifact
+can be opened. Download a recent encrypted database backup from the remote with rclone, then restore it using the staging file:
+
+```sh
+cp deploy.env deploy.restore-test.env
+chmod 600 deploy.restore-test.env
+# Edit deploy.restore-test.env so its MYSQL_* values point to an empty, separate staging database.
+rclone copyto offsite:my-school-backups/portal/db-YYYYMMDD-HHMMSS.sql.gz.enc ./backups/db-YYYYMMDD-HHMMSS.sql.gz.enc
+sh scripts/restore.sh ./backups/db-YYYYMMDD-HHMMSS.sql.gz.enc ./deploy.restore-test.env
+```
+
+The restore command prints which environment file it will use and asks for `RESTORE`. Confirm the test file points to the staging
+database before continuing. A wrong passphrase or damaged file stops before any SQL is imported. Verify expected tables and records
+in staging, then remove the test database and protected env copy. Repeat this drill at least once a term.
+
+To test uploaded-file recovery, use a separate staging deployment with its own Compose project and `media_data` volume. Copy a
+recent `media-*.tar.gz.enc` artifact from the remote, then run `sh scripts/restore-media.sh <artifact>` from that staging deployment.
+The command replaces the target project's shared media volume only after validating and staging the archive. Verify representative
+files in staging; never run this command against the live Compose project as a drill.
 
 Local development with SQLite: copy `backend/db.sqlite3` while the server is stopped. It is no longer tracked by git.
 

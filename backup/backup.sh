@@ -1,12 +1,12 @@
 #!/bin/sh
-# Daily backup of the database (mysqldump) and uploaded media, optionally encrypted and copied off the server.
+# Daily backup of the database (mysqldump) and uploaded media, encrypted and copied off the server.
 #   BACKUP_HOUR                  hour (UTC, 0-23) to run each day              default 2
 #   BACKUP_KEEP_DAYS             days of backups kept on this server           default 14
-#   BACKUP_ENCRYPTION_PASSPHRASE encrypt every file (AES-256) before it is stored or uploaded
-#   BACKUP_REMOTE                rclone destination, e.g. offsite:my-bucket/school  (empty = keep on this server only)
+#   BACKUP_ENCRYPTION_PASSPHRASE required; encrypts every file (AES-256) before storage or upload
+#   BACKUP_REMOTE                required named rclone destination, e.g. offsite:my-bucket/school
 #   BACKUP_REMOTE_KEEP_DAYS      days of backups kept at the destination         default 30
 #   BACKUP_ONCE=1                run one backup now and exit
-# The destination is configured with RCLONE_CONFIG_<NAME>_* variables (see docs/OPERATIONS.md), or is a plain folder path.
+# The destination is configured with RCLONE_CONFIG_<NAME>_* variables (see docs/OPERATIONS.md).
 set -eu
 
 DIR="${BACKUP_DIR_IN_CONTAINER:-/backups}"
@@ -21,6 +21,46 @@ status() { # status <ok|failed> <message>
   mkdir -p "$DIR"
   printf '%s %s %s\n' "$1" "$(date -u +%s)" "$2" > "$DIR/LAST_STATUS"
 }
+
+if [ -z "$PASS" ]; then
+  status failed "BACKUP_ENCRYPTION_PASSPHRASE is required"
+  echo "[backup] BACKUP_ENCRYPTION_PASSPHRASE is required; refusing to create an unencrypted backup" >&2
+  exit 1
+fi
+if [ "${#PASS}" -lt 32 ]; then
+  status failed "BACKUP_ENCRYPTION_PASSPHRASE must be at least 32 characters"
+  echo "[backup] BACKUP_ENCRYPTION_PASSPHRASE must be at least 32 characters" >&2
+  exit 1
+fi
+case "$REMOTE" in
+  *:*) ;;
+  *)
+    status failed "BACKUP_REMOTE must be a named rclone remote"
+    echo "[backup] BACKUP_REMOTE must be a named rclone remote (remote:path); refusing a local-only backup" >&2
+    exit 1
+    ;;
+esac
+remote_name="${REMOTE%%:*}"
+case "$remote_name" in
+  ''|*[!a-zA-Z0-9_]*)
+    status failed "rclone remote name must contain only letters, numbers and underscores"
+    echo "[backup] rclone remote name must contain only letters, numbers and underscores" >&2
+    exit 1
+    ;;
+esac
+remote_type_var="RCLONE_CONFIG_$(printf '%s' "$remote_name" | tr '[:lower:]' '[:upper:]')_TYPE"
+remote_type="$(printenv "$remote_type_var" 2>/dev/null || true)"
+if [ -z "$remote_type" ] || ! rclone listremotes | grep -Fxq "${remote_name}:"; then
+  status failed "BACKUP_REMOTE rclone remote is not configured"
+  echo "[backup] rclone remote ${remote_name}: is not configured; refusing a local-only backup" >&2
+  exit 1
+fi
+remote_type_lower="$(printf '%s' "$remote_type" | tr '[:upper:]' '[:lower:]')"
+if [ "$remote_type_lower" = "local" ] && [ "${ALLOW_LOCAL_BACKUP_REMOTE:-0}" != "1" ]; then
+  status failed "BACKUP_REMOTE uses the local rclone backend, not an off-site destination"
+  echo "[backup] local rclone remotes are allowed only for isolated CI or recovery drills" >&2
+  exit 1
+fi
 
 seal() { # seal <file>: encrypt when a passphrase is set; prints the final file name
   if [ -n "$PASS" ]; then
@@ -84,7 +124,7 @@ run_backup() {
   find "$DIR" -maxdepth 1 -type f \( -name 'db-*' -o -name 'media-*' \) -mtime +"$KEEP" -delete
   echo "[backup] done: $(ls "$DIR" | grep -c '^db-') database backup(s) kept, off-server: $offsite, encrypted: $([ -n "$PASS" ] && echo yes || echo no)"
   if [ "$offsite" = "FAILED" ]; then status failed "off-server copy failed (local backup kept)"; return 1; fi
-  status ok "db-$stamp offsite=$offsite"
+  status ok "db-$stamp offsite=$offsite encrypted=yes"
 }
 
 if [ "${BACKUP_ONCE:-0}" = "1" ]; then run_backup; exit $?; fi

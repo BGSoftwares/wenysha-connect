@@ -54,7 +54,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/ablegod.sh
 
 ```sh
 sh scripts/generate-secrets.sh        # creates deploy.env with fresh random secrets
-nano deploy.env                       # set DOMAIN, TLS_CERT_DIR=/opt/ablegod/certs, the MYSQL_* values, BACKUP_REMOTE
+nano deploy.env                       # set DOMAIN, TLS_CERT_DIR, MYSQL_* values, MFA_REQUIRED_ROLES, BACKUP_REMOTE and RCLONE_CONFIG_* settings
 bash scripts/preflight.sh             # must finish with nothing left to fix
 docker compose --env-file deploy.env up --build -d
 docker compose --env-file deploy.env ps
@@ -77,9 +77,14 @@ Sign in at `/auth` with it, then create teacher, accounts and other staff accoun
 docker compose --env-file deploy.env run --rm backend python manage.py rotate_default_passwords
 ```
 
+Production requires Admin, Accounts and Teacher accounts to enrol in two-step verification before using the portal.
+Use an authenticator app where possible, save the one-time recovery codes outside the server, and make sure staff have current
+email addresses if they choose email verification. To recover an account after the phone and recovery codes are lost, run
+`docker compose --env-file deploy.env run --rm backend python manage.py reset_mfa <username>` after verifying the staff member's identity.
+
 ## 6. Backups that survive the server
 
-Set `BACKUP_REMOTE` (an off-server bucket or folder) and `BACKUP_ENCRYPTION_PASSPHRASE` in `deploy.env`, keep the passphrase in a
+Set `BACKUP_REMOTE` (a named rclone remote on a separate system) and `BACKUP_ENCRYPTION_PASSPHRASE` in `deploy.env`, keep the passphrase in a
 password manager, then:
 
 ```sh

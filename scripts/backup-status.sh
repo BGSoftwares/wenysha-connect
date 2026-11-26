@@ -8,5 +8,13 @@ file="$dir/LAST_STATUS"
 read -r state stamp detail < "$file"
 age_hours=$(( ( $(date -u +%s) - stamp ) / 3600 ))
 if [ "$state" != "ok" ]; then echo "LAST BACKUP FAILED ${age_hours}h ago: $detail"; exit 1; fi
+case "$detail" in
+  *offsite=yes*) ;;
+  *) echo "LAST BACKUP IS NOT CONFIRMED OFF-SITE: $detail"; exit 1 ;;
+esac
+case "$detail" in
+  *encrypted=yes*) ;;
+  *) echo "LAST BACKUP IS NOT CONFIRMED ENCRYPTED: $detail"; exit 1 ;;
+esac
 if [ "$age_hours" -gt "$max_hours" ]; then echo "LAST BACKUP IS TOO OLD: ${age_hours}h (limit ${max_hours}h)"; exit 1; fi
 echo "OK: last backup ${age_hours}h ago ($detail)"

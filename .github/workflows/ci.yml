@@ -83,8 +83,9 @@ jobs:
             -e "s|^MYSQL_DATABASE=.*|MYSQL_DATABASE=school_ci|" \
             -e "s|^MYSQL_USER=.*|MYSQL_USER=school_ci|" \
             -e "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=CiDbPassword2026x|" \
-            -e "s|^BACKUP_REMOTE=.*|BACKUP_REMOTE=/offsite|" \
+            -e "s|^BACKUP_REMOTE=.*|BACKUP_REMOTE=offsite:/offsite|" \
             deploy.env
+          printf '\nRCLONE_CONFIG_OFFSITE_TYPE=local\nALLOW_LOCAL_BACKUP_REMOTE=1\n' >> deploy.env
           sed "s|^MYSQL_HOST=.*|MYSQL_HOST=127.0.0.1|" deploy.env > deploy.preflight.env
 
       - name: Start MySQL, then run the pre-deploy checks
@@ -112,8 +113,8 @@ jobs:
       - name: Create an admin and run the smoke test
         run: |
           docker compose --env-file deploy.env exec -T backend python manage.py shell -c \
-            "from django.contrib.auth.models import User; User.objects.create_superuser('ciadmin','ci@example.org','Ci-Smoke-Pass-2026!')"
-          SMOKE_INSECURE=1 SMOKE_HTTP_URL=http://localhost SMOKE_USER=ciadmin SMOKE_PASS='Ci-Smoke-Pass-2026!' \
+            "from django.contrib.auth.models import User; from core.models import Role, UserProfile; from core.caching import get_portal_state; admin=User.objects.create_superuser('ciadmin','admin-ci@example.org','Ci-Smoke-Pass-2026!'); assert get_portal_state(admin)['mfa_setup_required']; student=User.objects.create_user('cistudent','student-ci@example.org','Ci-Smoke-Pass-2026!'); UserProfile.objects.create(user=student,role=Role.objects.get_or_create(name='Student')[0],full_name='CI Student')"
+          SMOKE_INSECURE=1 SMOKE_HTTP_URL=http://localhost SMOKE_USER=cistudent SMOKE_PASS='Ci-Smoke-Pass-2026!' \
             sh scripts/smoke-test.sh https://localhost
 
       - name: Default-password tool finds nothing wrong
@@ -121,26 +122,39 @@ jobs:
 
       - name: Backup is encrypted, copied off-server and reported healthy
         run: |
+          docker compose --env-file deploy.env exec -T backend python -c "from pathlib import Path; Path('/app/media/restore-check.txt').write_text('CI media restore check')"
           docker compose --env-file deploy.env run --rm -e BACKUP_ONCE=1 backup
           ls -l backups offsite
           ls backups/db-*.sql.gz.enc offsite/db-*.sql.gz.enc
+          ls backups/media-*.tar.gz.enc offsite/media-*.tar.gz.enc
           ! ls backups/db-*.sql.gz 2>/dev/null | grep -q .   # no unencrypted copy left behind
+          ! ls offsite/db-*.sql.gz 2>/dev/null | grep -q .
+          ! ls backups/media-*.tar.gz 2>/dev/null | grep -q .
+          ! ls offsite/media-*.tar.gz 2>/dev/null | grep -q .
+          grep -q 'offsite=yes' backups/LAST_STATUS
           sh scripts/backup-status.sh ./backups
 
       - name: Restore brings back deleted data (proves the backup is usable)
         run: |
           docker compose --env-file deploy.env exec -T backend python manage.py shell -c \
-            "from django.contrib.auth.models import User; User.objects.filter(username='ciadmin').delete()"
-          SMOKE_INSECURE=1 SMOKE_USER=ciadmin SMOKE_PASS='Ci-Smoke-Pass-2026!' sh scripts/smoke-test.sh https://localhost && exit 1 || echo "admin is gone, as expected"
-          echo RESTORE | sh scripts/restore.sh "$(ls backups/db-*.sql.gz.enc | head -n 1)"
-          SMOKE_INSECURE=1 SMOKE_USER=ciadmin SMOKE_PASS='Ci-Smoke-Pass-2026!' sh scripts/smoke-test.sh https://localhost
+            "from django.contrib.auth.models import User; User.objects.filter(username='cistudent').delete()"
+          docker compose --env-file deploy.env exec -T backend rm -f /app/media/restore-check.txt
+          SMOKE_INSECURE=1 SMOKE_USER=cistudent SMOKE_PASS='Ci-Smoke-Pass-2026!' sh scripts/smoke-test.sh https://localhost && exit 1 || echo "student is gone, as expected"
+          echo RESTORE | sh scripts/restore.sh "$(ls offsite/db-*.sql.gz.enc | head -n 1)"
+          echo RESTORE | sh scripts/restore-media.sh "$(ls offsite/media-*.tar.gz.enc | head -n 1)"
+          docker compose --env-file deploy.env exec -T backend python -c "from pathlib import Path; assert Path('/app/media/restore-check.txt').read_text() == 'CI media restore check'"
+          SMOKE_INSECURE=1 SMOKE_USER=cistudent SMOKE_PASS='Ci-Smoke-Pass-2026!' sh scripts/smoke-test.sh https://localhost
 
       - name: A wrong passphrase is refused and changes nothing
         run: |
-          if echo RESTORE | BACKUP_ENCRYPTION_PASSPHRASE=wrong-passphrase sh scripts/restore.sh "$(ls backups/db-*.sql.gz.enc | head -n 1)"; then
+          if echo RESTORE | BACKUP_ENCRYPTION_PASSPHRASE=wrong-passphrase sh scripts/restore.sh "$(ls offsite/db-*.sql.gz.enc | head -n 1)"; then
             echo "restore with a wrong passphrase should have failed"; exit 1
           fi
-          SMOKE_INSECURE=1 SMOKE_USER=ciadmin SMOKE_PASS='Ci-Smoke-Pass-2026!' sh scripts/smoke-test.sh https://localhost
+          if echo RESTORE | BACKUP_ENCRYPTION_PASSPHRASE=wrong-passphrase sh scripts/restore-media.sh "$(ls offsite/media-*.tar.gz.enc | head -n 1)"; then
+            echo "media restore with a wrong passphrase should have failed"; exit 1
+          fi
+          docker compose --env-file deploy.env exec -T backend python -c "from pathlib import Path; assert Path('/app/media/restore-check.txt').read_text() == 'CI media restore check'"
+          SMOKE_INSECURE=1 SMOKE_USER=cistudent SMOKE_PASS='Ci-Smoke-Pass-2026!' sh scripts/smoke-test.sh https://localhost
 
       - name: Show logs if anything failed
         if: failure()

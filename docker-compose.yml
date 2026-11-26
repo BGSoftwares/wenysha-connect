@@ -24,7 +24,7 @@ x-backend: &backend
     REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in deploy.env}@redis:6379/0
     # nginx is the one trusted proxy in front of Django (used for real client IPs).
     NUM_PROXIES: "1"
-    MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES-}
+    MFA_REQUIRED_ROLES: "${MFA_REQUIRED_ROLES:-Admin,Accounts,Teacher}"
     DJANGO_BACKUP_ROOT: /app/backups
     BACKUP_MAX_FILES: ${BACKUP_MAX_FILES:-30}
 
@@ -78,6 +78,16 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  # Explicitly opt-in one-off image path for safe media restore drills.
+  media-restore:
+    <<: *backend
+    profiles: [maintenance]
+    command: ["python", "-m", "core.restore_media"]
+    environment:
+      BACKUP_ENCRYPTION_PASSPHRASE: ${BACKUP_ENCRYPTION_PASSPHRASE:?Set BACKUP_ENCRYPTION_PASSPHRASE in deploy.env}
+    volumes:
+      - media_data:/app/media
+
   # Confirms pending EcoCash/ZimSwitch payments in the background, so a parent who closes the
   # browser is still credited and the student's account and the accounts portal update by themselves.
   payments-worker:
@@ -112,7 +122,7 @@ services:
       - media_data:/usr/share/nginx/html/media:ro
     restart: unless-stopped
 
-  # Daily database + media backup, optionally encrypted and copied off the server.
+  # Daily database + media backup, encrypted and copied off the server.
   # Files land in BACKUP_DIR on the host (default ./backups). RCLONE_CONFIG_* values in deploy.env
   # configure the off-server destination (see docs/OPERATIONS.md).
   backup:
@@ -129,9 +139,9 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in deploy.env}
       BACKUP_HOUR: ${BACKUP_HOUR:-2}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
-      BACKUP_REMOTE: ${BACKUP_REMOTE-}
+      BACKUP_REMOTE: ${BACKUP_REMOTE:?Set BACKUP_REMOTE to a named rclone remote in deploy.env}
       BACKUP_REMOTE_KEEP_DAYS: ${BACKUP_REMOTE_KEEP_DAYS:-30}
-      BACKUP_ENCRYPTION_PASSPHRASE: ${BACKUP_ENCRYPTION_PASSPHRASE-}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${BACKUP_ENCRYPTION_PASSPHRASE:?Set BACKUP_ENCRYPTION_PASSPHRASE in deploy.env}
     volumes:
       - ${BACKUP_DIR:-./backups}:/backups
       - media_data:/media:ro

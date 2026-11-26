@@ -55,3 +55,4 @@ deploy.env
 # local backups and generated secrets
 backups/
 deploy.env.old
+deploy.env.bak

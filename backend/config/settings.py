@@ -173,13 +173,17 @@ else:
 # DJANGO_SECRET_KEY; set MFA_ENCRYPTION_KEY to rotate DJANGO_SECRET_KEY independently.
 MFA_ENCRYPTION_KEY = os.environ.get('MFA_ENCRYPTION_KEY', '')
 
-# Portal roles that MUST use two-step verification (comma separated; empty = nobody).
+# Portal roles that MUST use two-step verification. Production's staff baseline
+# is always required; additional roles can be configured below.
 # Until they enrol they can sign in but only reach the screens needed to set it up.
-MFA_REQUIRED_ROLES = [
-    role.strip()
-    for role in os.environ.get('MFA_REQUIRED_ROLES', '').split(',')
-    if role.strip()
-]
+# Production always requires MFA for staff who can change school, student, or
+# financial records. Deployments may add roles, but cannot remove this baseline.
+_MFA_REQUIRED_ROLE_BASELINE = [] if DEBUG or _IS_TEST_RUN else ['Admin', 'Accounts', 'Teacher']
+MFA_REQUIRED_ROLES = list(_MFA_REQUIRED_ROLE_BASELINE)
+for _role in os.environ.get('MFA_REQUIRED_ROLES', '').split(','):
+    _role = _role.strip()
+    if _role and _role not in MFA_REQUIRED_ROLES:
+        MFA_REQUIRED_ROLES.append(_role)
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
