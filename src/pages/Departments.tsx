@@ -27,9 +27,9 @@ import { Button } from "@/components/ui/button";
 
 import heroImg from "@/assets/slides/slide-6260.jpeg";
 import scienceImg from "@/assets/slides/slide-6254.jpeg";
-import practicalsImg from "@/assets/sections/img-6266.jpg";
+import practicalsImg from "@/assets/slides/slide-6252.jpeg";
 import mathsImg from "@/assets/slides/slide-6256.jpeg";
-import englishImg from "@/assets/new-school-media/school-assembly.jpeg";
+import englishImg from "@/assets/new-school-media/school-community-group-3.jpeg";
 import languagesImg from "@/assets/new-school-media/school-community-group-2.jpeg";
 import businessImg from "@/assets/new-school-media/school-community-group-1.jpeg";
 
@@ -97,7 +97,7 @@ const departments: Department[] = [
     head: "Mr. Gurumani",
     headRole: "Head of Technical & Practical Studies",
     image: practicalsImg,
-    imagePosition: "50% 30%",
+    imagePosition: "50% 50%",
     accentColor: "from-amber-500/20 via-orange-900/30 to-[#10264f]",
     badgeStyle: "bg-amber-500/15 text-amber-300 border-amber-500/30",
     subjects: ["Design & Technology", "Agriculture", "Technical Graphics", "Computer Science / ICT", "Applied Practical Arts", "Digital Literacy"],
@@ -159,7 +159,7 @@ const departments: Department[] = [
     head: "Mrs. Mariga",
     headRole: "Head of English & Literature",
     image: englishImg,
-    imagePosition: "50% 70%",
+    imagePosition: "50% 35%",
     accentColor: "from-rose-500/20 via-pink-900/30 to-[#10264f]",
     badgeStyle: "bg-rose-500/15 text-rose-300 border-rose-500/30",
     subjects: ["English Language", "Literature in English", "Debate & Public Speaking", "Critical Writing", "Essay Composition", "Oratory Presentation"],
