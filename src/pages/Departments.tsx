@@ -30,8 +30,8 @@ import scienceImg from "@/assets/slides/slide-6254.jpeg";
 import practicalsImg from "@/assets/sections/img-6266.jpg";
 import mathsImg from "@/assets/slides/slide-6256.jpeg";
 import englishImg from "@/assets/new-school-media/school-assembly.jpeg";
-import languagesImg from "@/assets/slides/slide-6262.jpeg";
-import businessImg from "@/assets/slides/slide-6263.jpeg";
+import languagesImg from "@/assets/new-school-media/school-community-group-2.jpeg";
+import businessImg from "@/assets/new-school-media/school-community-group-1.jpeg";
 
 interface Department {
   id: string;
@@ -191,6 +191,7 @@ const departments: Department[] = [
     head: "Mrs. Gororo",
     headRole: "Head of Languages & Humanities",
     image: languagesImg,
+    imagePosition: "50% 50%",
     accentColor: "from-purple-500/20 via-violet-900/30 to-[#10264f]",
     badgeStyle: "bg-purple-500/15 text-purple-300 border-purple-500/30",
     subjects: ["ChiShona (Indigenous Language)", "Heritage Studies", "Cultural History", "Linguistic Eloquence", "Community Ethics"],
@@ -220,6 +221,7 @@ const departments: Department[] = [
     head: "Mr. Katesi",
     headRole: "Head of Commercial Studies",
     image: businessImg,
+    imagePosition: "50% 60%",
     accentColor: "from-cyan-500/20 via-sky-900/30 to-[#10264f]",
     badgeStyle: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
     subjects: ["Principles of Accounting", "Business Studies", "Economics", "Commerce", "Financial Literacy", "Godly Entrepreneurship"],
