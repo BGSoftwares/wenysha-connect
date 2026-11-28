@@ -27,11 +27,11 @@ import { Button } from "@/components/ui/button";
 
 import heroImg from "@/assets/slides/slide-6260.jpeg";
 import scienceImg from "@/assets/slides/slide-6254.jpeg";
-import practicalsImg from "@/assets/students-computer.webp";
+import practicalsImg from "@/assets/sections/img-6266.jpg";
 import mathsImg from "@/assets/slides/slide-6256.jpeg";
-import englishImg from "@/assets/carousel-library.jpg";
-import languagesImg from "@/assets/slides/slide-6262.jpeg";
-import businessImg from "@/assets/slides/slide-6263.jpeg";
+import englishImg from "@/assets/new-school-media/school-assembly.jpeg";
+import languagesImg from "@/assets/new-school-media/school-community-group-2.jpeg";
+import businessImg from "@/assets/new-school-media/school-community-group-1.jpeg";
 
 interface Department {
   id: string;
@@ -42,6 +42,8 @@ interface Department {
   head: string;
   headRole: string;
   image: string;
+  /** CSS object-position so the banner crop keeps the learners in frame. */
+  imagePosition?: string;
   accentColor: string;
   badgeStyle: string;
   subjects: string[];
@@ -95,6 +97,7 @@ const departments: Department[] = [
     head: "Mr. Gurumani",
     headRole: "Head of Technical & Practical Studies",
     image: practicalsImg,
+    imagePosition: "50% 30%",
     accentColor: "from-amber-500/20 via-orange-900/30 to-[#10264f]",
     badgeStyle: "bg-amber-500/15 text-amber-300 border-amber-500/30",
     subjects: ["Design & Technology", "Agriculture", "Technical Graphics", "Computer Science / ICT", "Applied Practical Arts", "Digital Literacy"],
@@ -156,6 +159,7 @@ const departments: Department[] = [
     head: "Mrs. Mariga",
     headRole: "Head of English & Literature",
     image: englishImg,
+    imagePosition: "50% 70%",
     accentColor: "from-rose-500/20 via-pink-900/30 to-[#10264f]",
     badgeStyle: "bg-rose-500/15 text-rose-300 border-rose-500/30",
     subjects: ["English Language", "Literature in English", "Debate & Public Speaking", "Critical Writing", "Essay Composition", "Oratory Presentation"],
@@ -187,6 +191,7 @@ const departments: Department[] = [
     head: "Mrs. Gororo",
     headRole: "Head of Languages & Humanities",
     image: languagesImg,
+    imagePosition: "50% 50%",
     accentColor: "from-purple-500/20 via-violet-900/30 to-[#10264f]",
     badgeStyle: "bg-purple-500/15 text-purple-300 border-purple-500/30",
     subjects: ["ChiShona (Indigenous Language)", "Heritage Studies", "Cultural History", "Linguistic Eloquence", "Community Ethics"],
@@ -216,6 +221,7 @@ const departments: Department[] = [
     head: "Mr. Katesi",
     headRole: "Head of Commercial Studies",
     image: businessImg,
+    imagePosition: "50% 60%",
     accentColor: "from-cyan-500/20 via-sky-900/30 to-[#10264f]",
     badgeStyle: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
     subjects: ["Principles of Accounting", "Business Studies", "Economics", "Commerce", "Financial Literacy", "Godly Entrepreneurship"],
@@ -429,7 +435,8 @@ const Departments = () => {
                     <img
                       src={dept.image}
                       alt={`${dept.name} learning environment`}
-                      className="h-full w-full object-cover object-center transition-transform duration-1000 ease-out group-hover:scale-105"
+                      className="h-full w-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
+                      style={{ objectPosition: dept.imagePosition ?? "center" }}
                       loading={index === 0 ? "eager" : "lazy"}
                     />
                     {/* Multi-stage contrast gradient for crisp typography */}
